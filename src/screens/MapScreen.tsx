@@ -3,6 +3,11 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { supabase } from '../lib/supabaseClient';
+import { useSupabaseUser } from '../hooks/useSupabaseUser';
+import { createDuel } from '../db/createDuel';
+import { getNearbyDuels } from '../db/getNearbyDuels';
+import { getTopGhostRuns } from '../db/getTopGhostRuns';
 
 // Types
 type Coordinates = {
@@ -212,59 +217,6 @@ function RecenterOnUser({ position }: { position: Coordinates | null }) {
   return null;
 }
 
-// Data generators (placeholder deterministic content; replace with API later)
-function seededRandom(seed: number) {
-  let t = seed + 0x6D2B79F5;
-  return function () {
-    t += 0x9E3779B9;
-    let x = t;
-    x = Math.imul(x ^ (x >>> 15), 1 | x);
-    x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
-    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function generateTopPlayers(center: Coordinates): Player[] {
-  const rand = seededRandom(42);
-  const players: Player[] = [];
-  const distances = [50, 75, 100];
-  for (let i = 1; i <= 100; i++) {
-    const d = distances[Math.floor(rand() * distances.length)];
-    const jitterLat = (rand() - 0.5) * 0.02;
-    const jitterLng = (rand() - 0.5) * 0.02;
-    const best = 6.7 + rand() * 3.2; // 6.7s .. ~9.9s
-    const color = `hsl(${Math.floor(rand() * 360)} 70% 45%)`;
-    players.push({
-      id: `p_${i}`,
-      username: `runner${String(i).padStart(2, '0')}`,
-      rank: i,
-      bestTimeSeconds: best,
-      distanceMeters: d,
-      location: { lat: center.lat + jitterLat, lng: center.lng + jitterLng },
-      colorHex: colorToHex(color),
-    });
-  }
-  return players;
-}
-
-function generateOpenRuns(center: Coordinates): OpenRun[] {
-  const rand = seededRandom(7);
-  const runs: OpenRun[] = [];
-  const distances = [50, 75, 100];
-  const num = 6;
-  for (let i = 0; i < num; i++) {
-    const jitterLat = (rand() - 0.5) * 0.01;
-    const jitterLng = (rand() - 0.5) * 0.01;
-    runs.push({
-      id: `run_${i + 1}`,
-      hostUsername: `host_${i + 1}`,
-      distanceMeters: distances[Math.floor(rand() * distances.length)],
-      location: { lat: center.lat + jitterLat, lng: center.lng + jitterLng },
-    });
-  }
-  return runs;
-}
-
 // Utility: convert hsl() to hex via canvas (ensures stable colorHex)
 function colorToHex(hsl: string): string {
   if (typeof document === 'undefined') return '#2563eb';
@@ -279,6 +231,21 @@ function colorToHex(hsl: string): string {
   const b = parseInt(match[3], 10);
   const toHex = (n: number) => n.toString(16).padStart(2, '0');
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+// Deterministic username color
+function hashStringToHsl(input: string): string {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash << 5) - hash + input.charCodeAt(i);
+    hash |= 0;
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue} 70% 45%)`;
+}
+
+function colorForUsernameToHex(username: string): string {
+  return colorToHex(hashStringToHsl(username || 'runner'));
 }
 
 // Avatar component (initials circle)
@@ -448,43 +415,166 @@ function HostRunDialog({
 export default function MapScreen() {
   const { t } = useI18n();
   const { coords: userCoords } = useUserLocation();
+  const { user: authUser } = useSupabaseUser();
 
   const defaultCenter = useMemo<Coordinates>(() => ({ lat: 52.520008, lng: 13.404954 }), []); // Berlin
   const center = userCoords ?? defaultCenter;
 
-  const [currentUser] = useState<CurrentUser>({ id: 'me', username: 'you' });
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [ghostOpen, setGhostOpen] = useState(false);
   const [hostOpen, setHostOpen] = useState(false);
 
-  const [players, setPlayers] = useState<Player[]>(() => generateTopPlayers(center));
-  const [openRuns, setOpenRuns] = useState<OpenRun[]>(() => generateOpenRuns(center));
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
 
-  // If user location is obtained later, update generated data near them once (for relevance)
-  const playersInitializedRef = useRef(false);
-  const runsInitializedRef = useRef(false);
+  // Derive current user display
   useEffect(() => {
-    if (userCoords && !playersInitializedRef.current) {
-      setPlayers(generateTopPlayers(userCoords));
-      playersInitializedRef.current = true;
+    if (authUser) {
+      const fallbackName = authUser.email?.split('@')[0] || 'you';
+      setCurrentUser({ id: authUser.id, username: fallbackName });
+    } else {
+      setCurrentUser(null);
     }
-  }, [userCoords]);
+  }, [authUser]);
+
+  // Load leaderboard (ghost runs) for city
   useEffect(() => {
-    if (userCoords && !runsInitializedRef.current) {
-      setOpenRuns(generateOpenRuns(userCoords));
-      runsInitializedRef.current = true;
-    }
-  }, [userCoords]);
+    let isActive = true;
+    const city = 'Berlin';
+    (async () => {
+      const { data: ghostRows, error } = await getTopGhostRuns(supabase, city);
+      if (error || !isActive) return;
+      const userIds = (ghostRows || []).map((r: any) => r.user_id).filter(Boolean);
+      const uniqueUserIds = Array.from(new Set(userIds));
+      const { data: userRows } = await supabase
+        .from('users')
+        .select('id, username, location')
+        .in('id', uniqueUserIds);
+      const userById = new Map<string, any>((userRows || []).map((u: any) => [u.id, u]));
+      const newPlayers: Player[] = (ghostRows || []).map((r: any, idx: number) => {
+        const u = userById.get(r.user_id);
+        const username: string = u?.username || `runner${String(idx + 1).padStart(2, '0')}`;
+        let lat = center.lat;
+        let lng = center.lng;
+        if (u?.location && (u.location as any).coordinates) {
+          const coords = (u.location as any).coordinates as [number, number];
+          lng = coords[0];
+          lat = coords[1];
+        }
+        return {
+          id: r.id,
+          username,
+          rank: idx + 1,
+          bestTimeSeconds: (r.time_ms ?? 0) / 1000,
+          distanceMeters: 100,
+          location: { lat, lng },
+          colorHex: colorForUsernameToHex(username),
+        } as Player;
+      });
+      if (!isActive) return;
+      setPlayers(newPlayers);
+    })();
+    return () => {
+      isActive = false;
+    };
+  }, [center.lat, center.lng]);
+
+  // Load nearby open duels
+  useEffect(() => {
+    if (!userCoords) return;
+    let isActive = true;
+    (async () => {
+      const { data, error } = await getNearbyDuels(supabase, { userLocation: userCoords, radiusKm: 5 });
+      if (error || !data || !isActive) return;
+      const hostIds = Array.from(new Set(data.map((d: any) => d.host_user_id).filter(Boolean)));
+      const { data: hostUsers } = await supabase
+        .from('users')
+        .select('id, username')
+        .in('id', hostIds);
+      const hostById = new Map<string, any>((hostUsers || []).map((u: any) => [u.id, u]));
+      const mapped: OpenRun[] = data
+        .filter((d: any) => d.status === 'open')
+        .map((d: any) => {
+          let lat = center.lat;
+          let lng = center.lng;
+          if (d.location && (d.location as any).coordinates) {
+            const coords = (d.location as any).coordinates as [number, number];
+            lng = coords[0];
+            lat = coords[1];
+          }
+          return {
+            id: d.id,
+            hostUsername: hostById.get(d.host_user_id)?.username || 'host',
+            distanceMeters: (d.max_distance_km ?? 0) * 1000 || 100,
+            location: { lat, lng },
+          } as OpenRun;
+        });
+      if (!isActive) return;
+      setOpenRuns(mapped);
+    })();
+    return () => {
+      isActive = false;
+    };
+  }, [userCoords, center.lat, center.lng]);
+
+  // Realtime updates for duels
+  useEffect(() => {
+    const channel = supabase
+      .channel('duels-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'duels' },
+        async (payload: any) => {
+          setOpenRuns((prev) => {
+            const copy = [...prev];
+            const row: any = payload.new ?? payload.old;
+            if (!row) return copy;
+            if (payload.eventType === 'DELETE' || (payload.eventType === 'UPDATE' && row.status !== 'open')) {
+              return copy.filter((r) => r.id !== row.id);
+            }
+            // INSERT or UPDATE open
+            let lat = center.lat;
+            let lng = center.lng;
+            if (row.location && (row.location as any).coordinates) {
+              const coords = (row.location as any).coordinates as [number, number];
+              lng = coords[0];
+              lat = coords[1];
+            }
+            const existingIdx = copy.findIndex((r) => r.id === row.id);
+            const updated: OpenRun = {
+              id: row.id,
+              hostUsername: 'host',
+              distanceMeters: (row.max_distance_km ?? 0) * 1000 || 100,
+              location: { lat, lng },
+            };
+            if (existingIdx >= 0) {
+              copy[existingIdx] = updated;
+            } else {
+              copy.unshift(updated);
+            }
+            return copy;
+          });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [center.lat, center.lng]);
 
   // Host a run: create local open run marker at user location
   const handleHostRun = (distanceMeters: number) => {
     if (!userCoords) return;
     const newRun: OpenRun = {
       id: `run_local_${Date.now()}`,
-      hostUsername: currentUser.username,
+      hostUsername: currentUser?.username || 'you',
       distanceMeters,
       location: { ...userCoords },
     };
     setOpenRuns((prev) => [newRun, ...prev]);
+    // Create in DB
+    const geojson = { type: 'Point', coordinates: [userCoords.lng, userCoords.lat] } as any;
+    void createDuel(supabase as any, { location: geojson, distanceKm: Math.max(1, Math.round(distanceMeters / 100) / 10) });
   };
 
   // Icons
