@@ -426,6 +426,7 @@ export default function MapScreen() {
   const { t } = useI18n();
   const { coords: userCoords } = useUserLocation();
   const { user: authUser } = useSupabaseUser();
+  console.log('MapScreen loaded');
 
   const defaultCenter = useMemo<Coordinates>(() => ({ lat: 52.520008, lng: 13.404954 }), []); // Berlin
   const center = userCoords ?? defaultCenter;
@@ -646,6 +647,7 @@ export default function MapScreen() {
         center={[center.lat, center.lng]}
         zoom={14}
         zoomControl={false}
+        className="border border-red-500"
         style={{ height: '100%', width: '100%' }}
         preferCanvas
       >
