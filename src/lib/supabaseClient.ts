@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 function getEnv(nameVariants: string[]): string | undefined {
   for (const name of nameVariants) {
     // @ts-ignore - both process.env and import.meta.env may exist depending on bundler
-    const val = (typeof process !== 'undefined' ? process.env?.[name] : undefined) ?? (typeof import !== 'undefined' ? (import.meta as any)?.env?.[name] : undefined);
+    const val = (typeof process !== 'undefined' ? process.env?.[name] : undefined) ?? (typeof import.meta !== 'undefined' ? (import.meta as any)?.env?.[name] : undefined);
     if (val) return val as string;
   }
   return undefined;
