@@ -27,9 +27,11 @@ type Player = {
 
 type OpenRun = {
   id: string;
+  hostUserId?: string;
   hostUsername: string;
   distanceMeters: number;
   location: Coordinates;
+  createdAt?: string;
 };
 
 type CurrentUser = {
@@ -194,10 +196,18 @@ type MapBadgeMarkerProps = {
   children?: React.ReactNode;
 };
 
-function MapBadgeMarker(props: MapBadgeMarkerProps) {
-  const { position, iconOptions, children } = props;
+function MapBadgeMarker(props: MapBadgeMarkerProps & { onClick?: () => void }) {
+  const { position, iconOptions, children, onClick } = props;
   const icon = useMemo(() => createBadgeDivIcon(iconOptions), [iconOptions]);
-  return <Marker position={position} icon={icon}>{children}</Marker>;
+  return (
+    <Marker
+      position={position}
+      icon={icon}
+      eventHandlers={onClick ? { click: onClick } : undefined}
+    >
+      {children}
+    </Marker>
+  );
 }
 
 // Recenter map when position changes initially
@@ -426,6 +436,8 @@ export default function MapScreen() {
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
+  const [loadingGhosts, setLoadingGhosts] = useState(false);
+  const [loadingDuels, setLoadingDuels] = useState(false);
 
   // Derive current user display
   useEffect(() => {
@@ -442,6 +454,7 @@ export default function MapScreen() {
     let isActive = true;
     const city = 'Berlin';
     (async () => {
+      setLoadingGhosts(true);
       const { data: ghostRows, error } = await getTopGhostRuns(supabase, city);
       if (error || !isActive) return;
       const userIds = (ghostRows || []).map((r: any) => r.user_id).filter(Boolean);
@@ -473,6 +486,7 @@ export default function MapScreen() {
       });
       if (!isActive) return;
       setPlayers(newPlayers);
+      setLoadingGhosts(false);
     })();
     return () => {
       isActive = false;
@@ -484,6 +498,7 @@ export default function MapScreen() {
     if (!userCoords) return;
     let isActive = true;
     (async () => {
+      setLoadingDuels(true);
       const { data, error } = await getNearbyDuels(supabase, { userLocation: userCoords, radiusKm: 5 });
       if (error || !data || !isActive) return;
       const hostIds = Array.from(new Set(data.map((d: any) => d.host_user_id).filter(Boolean)));
@@ -504,13 +519,16 @@ export default function MapScreen() {
           }
           return {
             id: d.id,
+            hostUserId: d.host_user_id,
             hostUsername: hostById.get(d.host_user_id)?.username || 'host',
             distanceMeters: (d.max_distance_km ?? 0) * 1000 || 100,
             location: { lat, lng },
+            createdAt: d.created_at,
           } as OpenRun;
         });
       if (!isActive) return;
       setOpenRuns(mapped);
+      setLoadingDuels(false);
     })();
     return () => {
       isActive = false;
@@ -543,9 +561,11 @@ export default function MapScreen() {
             const existingIdx = copy.findIndex((r) => r.id === row.id);
             const updated: OpenRun = {
               id: row.id,
+              hostUserId: row.host_user_id,
               hostUsername: 'host',
               distanceMeters: (row.max_distance_km ?? 0) * 1000 || 100,
               location: { lat, lng },
+              createdAt: row.created_at,
             };
             if (existingIdx >= 0) {
               copy[existingIdx] = updated;
@@ -562,19 +582,25 @@ export default function MapScreen() {
     };
   }, [center.lat, center.lng]);
 
+  // Auto-expire duels older than 30 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const cutoff = Date.now() - 30 * 60 * 1000;
+      setOpenRuns((prev) => prev.filter((r) => !r.createdAt || new Date(r.createdAt).getTime() >= cutoff));
+    }, 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Host a run: create local open run marker at user location
-  const handleHostRun = (distanceMeters: number) => {
-    if (!userCoords) return;
-    const newRun: OpenRun = {
-      id: `run_local_${Date.now()}`,
-      hostUsername: currentUser?.username || 'you',
-      distanceMeters,
-      location: { ...userCoords },
-    };
-    setOpenRuns((prev) => [newRun, ...prev]);
-    // Create in DB
+  const handleHostRun = async (distanceMeters: number) => {
+    if (!userCoords || !authUser) return;
     const geojson = { type: 'Point', coordinates: [userCoords.lng, userCoords.lat] } as any;
-    void createDuel(supabase as any, { location: geojson, distanceKm: Math.max(1, Math.round(distanceMeters / 100) / 10) });
+    // Persist to DB; rely on realtime to show it
+    await createDuel(supabase as any, {
+      hostUserId: authUser.id,
+      location: geojson,
+      distanceKm: Math.max(1, Math.round(distanceMeters / 100) / 10),
+    });
   };
 
   // Icons
@@ -592,22 +618,20 @@ export default function MapScreen() {
   );
 
   function getPlayerIconOptions(player: Player): BadgeIconOptions {
-    const isTop3 = player.rank <= 3;
-    const medal = player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : player.rank === 3 ? '🥉' : '';
     return {
-      backgroundHex: isTop3 ? '#111827' : '#1f2937',
-      ringHex: isTop3 ? '#fbbf24' : '#111827',
-      contentHtml: isTop3 ? medal : player.username[0]?.toUpperCase() ?? 'R',
-      sizePx: isTop3 ? 36 : 28,
+      backgroundHex: '#a16207', // amber-700
+      ringHex: '#fbbf24', // amber-400 ring for gold look
+      contentHtml: '👻',
+      sizePx: 28,
       showPing: false,
       extraClassNames: 'player-badge',
     };
   }
 
-  function getOpenRunIconOptions(): BadgeIconOptions {
+  function getOpenRunIconOptions(isOwn: boolean): BadgeIconOptions {
     return {
       backgroundHex: '#b91c1c',
-      ringHex: '#111827',
+      ringHex: isOwn ? '#2563eb' : '#111827',
       contentHtml: '🏁',
       sizePx: 28,
       showPing: true,
@@ -644,30 +668,15 @@ export default function MapScreen() {
             key={p.id}
             position={[p.location.lat, p.location.lng]}
             iconOptions={getPlayerIconOptions(p)}
-          >
-            <Popup>
-              <div className="min-w-[180px] space-y-1 text-[13px] text-white">
-                <div className="flex items-center gap-2">
-                  <Avatar name={p.username} colorHex={p.colorHex} />
-                  <div className="flex flex-col">
-                    <span className="font-semibold">{p.username}</span>
-                    <span className="text-white/60">#{p.rank}</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-white/80">
-                  <span>{formatSecondsToTimeString(p.bestTimeSeconds)}</span>
-                  <span>{p.distanceMeters}m</span>
-                </div>
-              </div>
-            </Popup>
-          </MapBadgeMarker>
+            onClick={() => setGhostOpen(true)}
+          />
         ))}
 
         {openRuns.map((r) => (
           <MapBadgeMarker
             key={r.id}
             position={[r.location.lat, r.location.lng]}
-            iconOptions={getOpenRunIconOptions()}
+            iconOptions={getOpenRunIconOptions(Boolean(authUser && r.hostUserId && authUser.id === r.hostUserId))}
           >
             <Popup>
               <div className="min-w-[200px] space-y-2 text-[13px] text-white">
@@ -686,26 +695,38 @@ export default function MapScreen() {
         ))}
       </MapContainer>
 
-      {/* Ghost Run main button */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-5 flex justify-center">
-        <button
-          onClick={() => setGhostOpen(true)}
-          className="pointer-events-auto inline-flex items-center justify-center rounded-full bg-indigo-600 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-indigo-900/40 ring-1 ring-white/10 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-          aria-label={t('buttons.ghostRun')}
-        >
-          {t('buttons.ghostRun')}
-        </button>
-      </div>
+      {/* Loading and Empty states */}
+      {(loadingGhosts || loadingDuels) && (
+        <div className="pointer-events-none absolute left-1/2 top-4 z-[900] -translate-x-1/2 rounded-full bg-white/10 px-4 py-2 text-sm text-white ring-1 ring-white/15 backdrop-blur">
+          <span className="mr-2 inline-block h-3 w-3 animate-ping rounded-full bg-white/70"></span>
+          Loading…
+        </div>
+      )}
+      {!loadingGhosts && !loadingDuels && players.length === 0 && openRuns.length === 0 && (
+        <div className="pointer-events-none absolute left-1/2 top-4 z-[900] -translate-x-1/2 rounded-lg bg-white/5 px-3 py-2 text-xs text-white/80 ring-1 ring-white/10">
+          No nearby activity yet
+        </div>
+      )}
 
-      {/* Host 1v1 FAB */}
-      <div className="pointer-events-none absolute bottom-5 right-5">
-        <button
-          onClick={() => setHostOpen(true)}
-          className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-2xl shadow-lg ring-1 ring-white/15 backdrop-blur hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
-          aria-label={t('buttons.hostRun')}
-        >
-          🏁
-        </button>
+      {/* Sticky bottom bar */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[950] flex justify-center pb-5">
+        <div className="pointer-events-auto flex w-full max-w-md items-center justify-between gap-3 rounded-2xl bg-[#0b0b0d]/90 p-3 ring-1 ring-white/10 backdrop-blur">
+          <button
+            onClick={() => setGhostOpen(true)}
+            className="flex-1 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-900/40 ring-1 ring-white/10 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            aria-label={t('buttons.ghostRun')}
+          >
+            {t('buttons.ghostRun')}
+          </button>
+          <button
+            onClick={() => authUser ? setHostOpen(true) : null}
+            className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-2xl text-white shadow-lg ring-1 ring-white/15 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+            aria-label={t('buttons.hostRun')}
+            title={authUser ? '' : 'Sign in to host'}
+          >
+            🏁
+          </button>
+        </div>
       </div>
 
       <GhostLeaderboardModal
