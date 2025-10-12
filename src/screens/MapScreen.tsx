@@ -605,23 +605,10 @@ export default function MapScreen() {
       setLoadingGhosts(true);
       const { data: ghostRows, error } = await getTopGhostRuns(supabase, city);
       if (error || !isActive) return;
-      const userIds = (ghostRows || []).map((r: any) => r.user_id).filter(Boolean);
-      const uniqueUserIds = Array.from(new Set(userIds));
-      const { data: userRows } = await supabase
-        .from('users')
-        .select('id, username, location')
-        .in('id', uniqueUserIds);
-      const userById = new Map<string, any>((userRows || []).map((u: any) => [u.id, u]));
       const newPlayers: Player[] = (ghostRows || []).map((r: any, idx: number) => {
-        const u = userById.get(r.user_id);
-        const username: string = u?.username || `runner${String(idx + 1).padStart(2, '0')}`;
-        let lat = center.lat;
-        let lng = center.lng;
-        if (u?.location && (u.location as any).coordinates) {
-          const coords = (u.location as any).coordinates as [number, number];
-          lng = coords[0];
-          lat = coords[1];
-        }
+        const username: string = r.username || `runner${String(idx + 1).padStart(2, '0')}`;
+        const lat = typeof r.user_lat === 'number' ? r.user_lat : center.lat;
+        const lng = typeof r.user_lng === 'number' ? r.user_lng : center.lng;
         return {
           id: r.id,
           username,

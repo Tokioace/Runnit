@@ -79,6 +79,36 @@ as $$
   order by created_at desc
 $$;
 
+-- Public leaderboard RPC: returns top ghost runs with username and user coords for a city
+create or replace function public.get_top_ghost_runs(
+  city_name text,
+  limit_count integer default 100
+)
+returns table (
+  id uuid,
+  user_id uuid,
+  username text,
+  time_ms integer,
+  user_lat double precision,
+  user_lng double precision
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select gr.id,
+         gr.user_id,
+         coalesce(u.username, 'runner') as username,
+         gr.time_ms,
+         case when u.location is not null then ST_Y(u.location::geometry) else null end as user_lat,
+         case when u.location is not null then ST_X(u.location::geometry) else null end as user_lng
+  from public.ghost_runs gr
+  left join public.users u on u.id = gr.user_id
+  where gr.city = city_name
+  order by gr.time_ms asc nulls last
+  limit greatest(1, least(limit_count, 1000));
+$$;
 -- Function: join_duel - allow an authenticated user to join an open duel
 create or replace function public.join_duel(
   duel_id uuid
