@@ -1,5 +1,6 @@
 -- Enable extensions
 create extension if not exists postgis;
+create extension if not exists pgcrypto;
 
 -- Tables
 create table if not exists public.users (
@@ -52,6 +53,17 @@ alter table public.duels enable row level security;
 drop policy if exists "Users can view themselves" on public.users;
 create policy "Users can view themselves" on public.users for select using (auth.uid() = id);
 
+-- Allow authenticated users to read basic user rows (e.g., host usernames)
+drop policy if exists "Users readable by authenticated" on public.users;
+create policy "Users readable by authenticated" on public.users for select using (auth.role() = 'authenticated');
+
+-- Allow users to insert/update their own profile row
+drop policy if exists "Insert own user row" on public.users;
+create policy "Insert own user row" on public.users for insert with check (auth.uid() = id);
+
+drop policy if exists "Update own user row" on public.users;
+create policy "Update own user row" on public.users for update using (auth.uid() = id);
+
 -- Ghost runs: a user can see only their own
 drop policy if exists "Own ghost runs select" on public.ghost_runs;
 -- Allow authenticated users to read ghost runs for leaderboard
@@ -88,6 +100,26 @@ as $$
     and ST_DWithin(location, ST_MakePoint(lng, lat)::geography, radius_km * 1000)
   order by created_at desc
 $$;
+
+-- Sync auth.users -> public.users so FK constraints work and profiles exist
+create or replace function public.handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.users (id, username, joined_at)
+  values (new.id, coalesce(split_part(new.email, '@', 1), 'runner'), now())
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_auth_user();
 
 -- Results table to record users' times for a duel
 create table if not exists public.duel_results (

@@ -79,19 +79,48 @@ function useI18n() {
 function useUserLocation() {
   const [coords, setCoords] = useState<Coordinates | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [insecureContext, setInsecureContext] = useState(false);
+  const [unsupported, setUnsupported] = useState(false);
   const watchIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !('geolocation' in navigator)) {
+    if (typeof window === 'undefined') return;
+
+    if (!('geolocation' in navigator)) {
+      setUnsupported(true);
       return;
     }
 
+    if (typeof isSecureContext !== 'undefined' && !isSecureContext) {
+      setInsecureContext(true);
+      return;
+    }
+
+    // Reflect actual permission state and react to changes
+    let permissionHandle: any | null = null;
+    try {
+      const anyNavigator: any = navigator as any;
+      if (anyNavigator.permissions?.query) {
+        anyNavigator.permissions
+          .query({ name: 'geolocation' as any })
+          .then((status: any) => {
+            permissionHandle = status;
+            setPermissionDenied(status.state === 'denied');
+            status.onchange = () => setPermissionDenied(status.state === 'denied');
+          })
+          .catch(() => {});
+      }
+    } catch {}
+
     const success = (pos: GeolocationPosition) => {
       setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      setPermissionDenied(false);
     };
 
-    const error = (err: GeolocationPositionError) => {
-      if (err.code === err.PERMISSION_DENIED) {
+    const error = (err: GeolocationPositionError | any) => {
+      const deniedByCode = typeof err?.code === 'number' && err.code === (err as any).PERMISSION_DENIED;
+      const deniedByName = err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError';
+      if (deniedByCode || deniedByName) {
         setPermissionDenied(true);
       }
     };
@@ -109,11 +138,13 @@ function useUserLocation() {
 
     // Fallback: single read if no updates yet
     if (!coords) {
-      navigator.geolocation.getCurrentPosition(success, error, {
-        enableHighAccuracy: true,
-        maximumAge: 5000,
-        timeout: 8000,
-      });
+      try {
+        navigator.geolocation.getCurrentPosition(success, error, {
+          enableHighAccuracy: true,
+          maximumAge: 5000,
+          timeout: 8000,
+        });
+      } catch {}
     }
 
     return () => {
@@ -124,11 +155,15 @@ function useUserLocation() {
           // ignore
         }
       }
+      if (permissionHandle) {
+        try { permissionHandle.onchange = null; } catch {}
+      }
     };
   }, []);
 
   const requestOnce = () => {
     if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
+    if (typeof isSecureContext !== 'undefined' && !isSecureContext) return;
     try {
       // Always restart the watch after permission changes or retries
       try {
@@ -144,8 +179,10 @@ function useUserLocation() {
         setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setPermissionDenied(false);
       };
-      const onError = (err: GeolocationPositionError) => {
-        if (err.code === err.PERMISSION_DENIED) setPermissionDenied(true);
+      const onError = (err: GeolocationPositionError | any) => {
+        const deniedByCode = typeof err?.code === 'number' && err.code === (err as any).PERMISSION_DENIED;
+        const deniedByName = err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError';
+        if (deniedByCode || deniedByName) setPermissionDenied(true);
       };
 
       // Start a fresh continuous watch to pick up updates
@@ -160,17 +197,19 @@ function useUserLocation() {
       }
 
       // Also attempt an immediate one-off read
-      navigator.geolocation.getCurrentPosition(onSuccess, onError, {
-        enableHighAccuracy: true,
-        maximumAge: 1000,
-        timeout: 8000,
-      });
+      try {
+        navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+          enableHighAccuracy: true,
+          maximumAge: 1000,
+          timeout: 8000,
+        });
+      } catch {}
     } catch (_e) {
       // ignore
     }
   };
 
-  return { coords, permissionDenied, requestOnce };
+  return { coords, permissionDenied, requestOnce, insecureContext, unsupported };
 }
 
 // Utility: format seconds to 0.00s string
@@ -510,21 +549,43 @@ function AuthModal({
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   if (!open) return null;
 
   const handleSubmit = async () => {
     setError(null);
+    setInfo(null);
     setSubmitting(true);
     try {
       if (mode === 'signin') {
         await onSignIn(email, password);
+        onClose();
       } else {
-        await onSignUp(email, password);
+        const result: any = await onSignUp(email, password);
+        const hasSession = Boolean(result?.session);
+        const hasUser = Boolean(result?.user);
+        if (hasSession) {
+          onClose();
+        } else if (hasUser) {
+          setInfo('Account created. Please confirm your email, then sign in.');
+          // Switch to sign-in so user can log in after confirming
+          setMode('signin');
+        } else {
+          setInfo('If you did not receive a confirmation email, check spam or retry.');
+        }
       }
-      onClose();
     } catch (e: any) {
-      setError(e?.message || 'Authentication failed');
+      const msg = String(e?.message || '').toLowerCase();
+      if (mode === 'signin' && (msg.includes('invalid') || msg.includes('invalid login credentials'))) {
+        setError('E-Mail oder Passwort ist falsch.');
+      } else if (mode === 'signin' && msg.includes('email not confirmed')) {
+        setError('E-Mail noch nicht bestätigt. Bitte bestätige zuerst deine E-Mail.');
+      } else if (mode === 'signup' && msg.includes('password')) {
+        setError('Passwortanforderungen nicht erfüllt.');
+      } else {
+        setError(e?.message || 'Authentication failed');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -606,6 +667,7 @@ function AuthModal({
             </div>
 
             {error ? <div className="text-sm text-rose-400">{error}</div> : null}
+            {info ? <div className="text-sm text-emerald-400">{info}</div> : null}
 
             <div className="flex items-center justify-end gap-3">
               <button
@@ -632,7 +694,7 @@ function AuthModal({
 // Main Screen
 export default function MapScreen() {
   const { t } = useI18n();
-  const { coords: userCoords, permissionDenied, requestOnce } = useUserLocation();
+  const { coords: userCoords, permissionDenied, requestOnce, insecureContext, unsupported } = useUserLocation();
   const { user: authUser, loading: authLoading, signIn, signUp, signOut } = useSupabaseUser();
   console.log('MapScreen loaded');
 
@@ -1096,8 +1158,28 @@ export default function MapScreen() {
         </button>
       </div>
 
-      {/* Permission denied notice */}
-      {permissionDenied && (
+      {/* Location notices */}
+      {insecureContext && (
+        <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-amber-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
+          <div className="flex items-center gap-3">
+            <span>Location requires a secure context (HTTPS or localhost). Open the app via HTTPS, then retry.</span>
+            <button
+              onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
+              className="rounded-md bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+      {unsupported && !insecureContext && (
+        <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-rose-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
+          <div className="flex items-center gap-3">
+            <span>Your browser does not support geolocation.</span>
+          </div>
+        </div>
+      )}
+      {!insecureContext && permissionDenied && (
         <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-rose-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
           <div className="flex items-center gap-3">
             <span>Location permission denied. Enable it in your browser settings, then retry.</span>

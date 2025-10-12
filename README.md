@@ -2,6 +2,29 @@
 
 ## Setup
 
+1. Create a `.env` file based on `.env.example` and set:
+
+```
+VITE_SUPABASE_URL=your-project-url
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+2. Serve via HTTPS (required for geolocation in browsers). For local dev you can use `localhost` over HTTP, or run Vite with HTTPS:
+
+```
+npm run dev
+```
+
+If your browser still reports insecure context for geolocation, open the app via `https://` or `http://localhost`.
+
+3. Apply SQL in `supabase/` to your Supabase project (SQL Editor):
+   - `schema.sql`
+   - `duel_functions.sql`
+
+# Runnit
+
+## Setup
+
 1. Install dependencies:
 
 ```bash
