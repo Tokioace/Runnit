@@ -32,6 +32,16 @@ create table if not exists public.duels (
 alter table public.duels
   add column if not exists challenger_user_id uuid references public.users(id) on delete set null;
 
+-- Additional duel lifecycle and target distance fields
+alter table public.duels
+  add column if not exists target_distance_m integer default 100;
+alter table public.duels
+  add column if not exists host_ready boolean default false;
+alter table public.duels
+  add column if not exists challenger_ready boolean default false;
+alter table public.duels
+  add column if not exists start_at timestamptz;
+
 -- RLS
 alter table public.users enable row level security;
 alter table public.ghost_runs enable row level security;
@@ -99,9 +109,23 @@ create policy "Read own duel results" on public.duel_results for select
   using (auth.uid() = user_id);
 
 -- RPC to submit a duel result
+-- Extend duel_results with optional metrics columns
+alter table public.duel_results add column if not exists steps_count integer;
+alter table public.duel_results add column if not exists step_length_m_avg double precision;
+alter table public.duel_results add column if not exists max_speed_mps double precision;
+alter table public.duel_results add column if not exists max_accel_mps2 double precision;
+alter table public.duel_results add column if not exists distance_m double precision;
+alter table public.duel_results add column if not exists metrics_json jsonb;
+
 create or replace function public.submit_duel_result(
   p_duel_id uuid,
-  p_time_ms integer
+  p_time_ms integer,
+  p_steps_count integer default null,
+  p_step_length_m_avg double precision default null,
+  p_max_speed_mps double precision default null,
+  p_max_accel_mps2 double precision default null,
+  p_distance_m double precision default null,
+  p_metrics_json jsonb default null
 )
 returns public.duel_results
 language plpgsql
@@ -114,8 +138,13 @@ begin
   if p_time_ms <= 0 then
     raise exception 'Invalid time';
   end if;
-  insert into public.duel_results (duel_id, user_id, time_ms)
-  values (p_duel_id, auth.uid(), p_time_ms)
+  insert into public.duel_results (
+    duel_id, user_id, time_ms,
+    steps_count, step_length_m_avg, max_speed_mps, max_accel_mps2, distance_m, metrics_json
+  ) values (
+    p_duel_id, auth.uid(), p_time_ms,
+    p_steps_count, p_step_length_m_avg, p_max_speed_mps, p_max_accel_mps2, p_distance_m, p_metrics_json
+  )
   returning * into v_result;
   return v_result;
 end;

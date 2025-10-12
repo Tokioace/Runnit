@@ -10,6 +10,8 @@ import { getNearbyDuels } from '../db/getNearbyDuels';
 import { joinDuel } from '../db/joinDuel';
 import { getTopGhostRuns } from '../db/getTopGhostRuns';
 import { submitDuelResult } from '../db/submitDuelResult';
+import { readyForDuel } from '../db/readyForDuel';
+import { getDuelResults } from '../db/getDuelResults';
 
 // Types
 type Coordinates = {
@@ -34,6 +36,7 @@ type OpenRun = {
   distanceMeters: number;
   location: Coordinates;
   createdAt?: string;
+  targetDistanceM?: number;
 };
 
 type CurrentUser = {
@@ -587,12 +590,12 @@ export default function MapScreen() {
   const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
   const [loadingGhosts, setLoadingGhosts] = useState(false);
   const [loadingDuels, setLoadingDuels] = useState(false);
-  const [matchOverlay, setMatchOverlay] = useState<{ duelId: string; startsAt: number } | null>(null);
+  const [matchOverlay, setMatchOverlay] = useState<{ duelId: string; startsAt: number; targetDistanceM: number } | null>(null);
   const [race, setRace] = useState<
     | { status: 'idle' }
-    | { status: 'countdown'; duelId: string; startsAt: number }
-    | { status: 'running'; duelId: string; startedAt: number }
-    | { status: 'finished'; duelId: string; startedAt: number; endedAt: number }
+    | { status: 'countdown'; duelId: string; startsAt: number; targetDistanceM: number }
+    | { status: 'running'; duelId: string; startedAt: number; targetDistanceM: number }
+    | { status: 'finished'; duelId: string; startedAt: number; endedAt: number; targetDistanceM: number }
   >({ status: 'idle' });
 
   // Derive current user display
@@ -720,9 +723,10 @@ export default function MapScreen() {
             id: d.id,
             hostUserId: d.host_user_id,
             hostUsername: hostById.get(d.host_user_id)?.username || 'host',
-            distanceMeters: (d.max_distance_km ?? 0) * 1000 || 100,
+            distanceMeters: d.target_distance_m || (d.max_distance_km ?? 0) * 1000 || 100,
             location: { lat, lng },
             createdAt: d.created_at,
+            targetDistanceM: d.target_distance_m || undefined,
           } as OpenRun;
         });
       if (!isActive) return;
@@ -748,13 +752,15 @@ export default function MapScreen() {
           // Show match overlay if this duel becomes matched and involves current user
           if (
             payload.eventType === 'UPDATE' &&
-            row.status === 'matched' &&
+            (row.status === 'matched' || (row.start_at && row.status === 'matched')) &&
             authUser &&
             (row.host_user_id === authUser.id || row.challenger_user_id === authUser.id)
           ) {
-            const startsAt = Date.now() + 3000; // 3-second countdown
-            setMatchOverlay({ duelId: row.id, startsAt });
-            setRace({ status: 'countdown', duelId: row.id, startsAt });
+            const serverStart = row.start_at ? new Date(row.start_at).getTime() : Date.now() + 3000;
+            const startsAt = Math.max(Date.now() + 1000, serverStart); // ensure at least 1s buffer
+            const targetM = row.target_distance_m || 50;
+            setMatchOverlay({ duelId: row.id, startsAt, targetDistanceM: targetM });
+            setRace({ status: 'countdown', duelId: row.id, startsAt, targetDistanceM: targetM });
           }
 
           setOpenRuns((prev) => {
@@ -775,9 +781,10 @@ export default function MapScreen() {
               id: row.id,
               hostUserId: row.host_user_id,
               hostUsername: 'host',
-              distanceMeters: (row.max_distance_km ?? 0) * 1000 || 100,
+              distanceMeters: row.target_distance_m || (row.max_distance_km ?? 0) * 1000 || 100,
               location: { lat, lng },
               createdAt: row.created_at,
+              targetDistanceM: row.target_distance_m || undefined,
             };
             if (existingIdx >= 0) {
               copy[existingIdx] = updated;
@@ -947,10 +954,13 @@ export default function MapScreen() {
       {matchOverlay && (
         <MatchCountdownOverlay
           startsAt={matchOverlay.startsAt}
+          onReady={async () => {
+            try { await readyForDuel(supabase as any, matchOverlay.duelId); } catch (_e) {}
+          }}
           onDone={() => {
             setMatchOverlay(null);
             if (race.status === 'countdown') {
-              setRace({ status: 'running', duelId: race.duelId, startedAt: Date.now() });
+              setRace({ status: 'running', duelId: race.duelId, startedAt: Date.now(), targetDistanceM: race.targetDistanceM });
             }
           }}
         />
@@ -959,13 +969,14 @@ export default function MapScreen() {
       {race.status === 'running' && (
         <RaceOverlay
           startedAt={race.startedAt}
+          targetDistanceM={race.targetDistanceM}
           onFinish={async (endedAt) => {
             const timeMs = endedAt - race.startedAt;
             // try submit result; ignore failure for now
             try {
               await submitDuelResult(supabase as any, race.duelId, timeMs);
             } catch (_e) {}
-            setRace({ status: 'finished', duelId: race.duelId, startedAt: race.startedAt, endedAt });
+            setRace({ status: 'finished', duelId: race.duelId, startedAt: race.startedAt, endedAt, targetDistanceM: race.targetDistanceM });
           }}
         />
       )}
@@ -974,6 +985,7 @@ export default function MapScreen() {
         <RaceFinishedOverlay
           startedAt={race.startedAt}
           endedAt={race.endedAt}
+          targetDistanceM={race.targetDistanceM}
           onClose={() => setRace({ status: 'idle' })}
         />
       )}
@@ -1039,9 +1051,10 @@ export default function MapScreen() {
   );
 }
 
-function MatchCountdownOverlay({ startsAt, onDone }: { startsAt: number; onDone: () => void }) {
+function MatchCountdownOverlay({ startsAt, onReady, onDone }: { startsAt: number; onReady: () => void; onDone: () => void }) {
   const [remainingMs, setRemainingMs] = useState(Math.max(0, startsAt - Date.now()));
   useEffect(() => {
+    onReady();
     const id = setInterval(() => {
       const ms = Math.max(0, startsAt - Date.now());
       setRemainingMs(ms);
@@ -1062,19 +1075,69 @@ function MatchCountdownOverlay({ startsAt, onDone }: { startsAt: number; onDone:
   );
 }
 
-function RaceOverlay({ startedAt, onFinish }: { startedAt: number; onFinish: (endedAt: number) => void }) {
+function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: number; targetDistanceM: number; onFinish: (endedAt: number) => void }) {
   const [elapsedMs, setElapsedMs] = useState(Math.max(0, Date.now() - startedAt));
+  const [distanceM, setDistanceM] = useState(0);
+  const [maxSpeed, setMaxSpeed] = useState(0);
+  const [maxAccel, setMaxAccel] = useState(0);
+  const lastSampleRef = useRef<{ t: number; lat: number; lng: number; v: number } | null>(null);
+  const watchIdRef = useRef<number | null>(null);
   useEffect(() => {
     const id = setInterval(() => {
       setElapsedMs(Math.max(0, Date.now() - startedAt));
     }, 50);
     return () => clearInterval(id);
   }, [startedAt]);
+
+  // Very simple GPS sampler to accumulate distance and estimate speed/accel
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
+    const handle = (pos: GeolocationPosition) => {
+      const t = Date.now();
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      const prev = lastSampleRef.current;
+      if (prev) {
+        const dt = (t - prev.t) / 1000;
+        const d = haversineM(prev.lat, prev.lng, lat, lng);
+        const v = d / Math.max(dt, 1e-3);
+        const a = (v - prev.v) / Math.max(dt, 1e-3);
+        setDistanceM((x) => x + d);
+        setMaxSpeed((x) => Math.max(x, v));
+        setMaxAccel((x) => Math.max(x, Math.abs(a)));
+        lastSampleRef.current = { t, lat, lng, v };
+      } else {
+        lastSampleRef.current = { t, lat, lng, v: 0 };
+      }
+    };
+    try {
+      watchIdRef.current = navigator.geolocation.watchPosition(handle, () => {}, {
+        enableHighAccuracy: true,
+        maximumAge: 500,
+        timeout: 5000,
+      });
+    } catch {}
+    return () => {
+      if (watchIdRef.current !== null) {
+        try { navigator.geolocation.clearWatch(watchIdRef.current); } catch {}
+      }
+    };
+  }, []);
+
+  // Auto-finish when reaching target distance
+  useEffect(() => {
+    if (distanceM >= Math.max(1, targetDistanceM - 1)) {
+      onFinish(Date.now());
+    }
+  }, [distanceM, targetDistanceM, onFinish]);
   const seconds = (elapsedMs / 1000).toFixed(2);
   return (
     <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-center gap-6 bg-black/60">
       <div className="rounded-lg bg-white/10 px-6 py-3 text-4xl font-extrabold text-white ring-2 ring-white/20">
         {seconds}s
+      </div>
+      <div className="rounded-lg bg-white/10 px-6 py-2 text-sm font-semibold text-white ring-1 ring-white/15">
+        {distanceM.toFixed(1)} m · max {maxSpeed.toFixed(2)} m/s · a_max {maxAccel.toFixed(2)} m/s²
       </div>
       <button
         onClick={() => onFinish(Date.now())}
@@ -1086,13 +1149,14 @@ function RaceOverlay({ startedAt, onFinish }: { startedAt: number; onFinish: (en
   );
 }
 
-function RaceFinishedOverlay({ startedAt, endedAt, onClose }: { startedAt: number; endedAt: number; onClose: () => void }) {
+function RaceFinishedOverlay({ startedAt, endedAt, targetDistanceM, onClose }: { startedAt: number; endedAt: number; targetDistanceM: number; onClose: () => void }) {
   const seconds = ((endedAt - startedAt) / 1000).toFixed(2);
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
       <div className="w-full max-w-xs rounded-xl bg-[#0b0b0d] p-5 text-center text-white ring-1 ring-white/10">
         <div className="mb-3 text-lg font-semibold">Finished!</div>
-        <div className="mb-5 text-3xl font-extrabold">{seconds}s</div>
+        <div className="mb-1 text-3xl font-extrabold">{seconds}s</div>
+        <div className="mb-5 text-xs text-white/70">Target: {targetDistanceM} m</div>
         <button
           onClick={onClose}
           className="w-full rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
@@ -1102,5 +1166,16 @@ function RaceFinishedOverlay({ startedAt, endedAt, onClose }: { startedAt: numbe
       </div>
     </div>
   );
+}
+
+// Haversine distance in meters
+function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000; // meters
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
