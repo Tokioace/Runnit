@@ -586,6 +586,7 @@ export default function MapScreen() {
   const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
   const [loadingGhosts, setLoadingGhosts] = useState(false);
   const [loadingDuels, setLoadingDuels] = useState(false);
+  const [matchOverlay, setMatchOverlay] = useState<{ duelId: string; startsAt: number } | null>(null);
 
   // Derive current user display
   useEffect(() => {
@@ -734,10 +735,22 @@ export default function MapScreen() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'duels' },
         async (payload: any) => {
+          const row: any = payload.new ?? payload.old;
+          if (!row) return;
+
+          // Show match overlay if this duel becomes matched and involves current user
+          if (
+            payload.eventType === 'UPDATE' &&
+            row.status === 'matched' &&
+            authUser &&
+            (row.host_user_id === authUser.id || row.challenger_user_id === authUser.id)
+          ) {
+            const startsAt = Date.now() + 3000; // 3-second countdown
+            setMatchOverlay({ duelId: row.id, startsAt });
+          }
+
           setOpenRuns((prev) => {
             const copy = [...prev];
-            const row: any = payload.new ?? payload.old;
-            if (!row) return copy;
             if (payload.eventType === 'DELETE' || (payload.eventType === 'UPDATE' && row.status !== 'open')) {
               return copy.filter((r) => r.id !== row.id);
             }
@@ -771,7 +784,7 @@ export default function MapScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [center.lat, center.lng]);
+  }, [center.lat, center.lng, authUser?.id]);
 
   // Auto-expire duels older than 30 minutes
   useEffect(() => {
@@ -922,6 +935,14 @@ export default function MapScreen() {
         {cityName ? `City: ${cityName}` : 'City: —'}
       </div>
 
+      {/* Match countdown overlay */}
+      {matchOverlay && (
+        <MatchCountdownOverlay
+          startsAt={matchOverlay.startsAt}
+          onDone={() => setMatchOverlay(null)}
+        />
+      )}
+
       {/* Sticky bottom bar */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[950] flex justify-center pb-5">
         <div className="pointer-events-auto flex w-full max-w-md items-center justify-between gap-3 rounded-2xl bg-[#0b0b0d]/90 p-3 ring-1 ring-white/10 backdrop-blur">
@@ -979,6 +1000,29 @@ export default function MapScreen() {
           await signOut();
         }}
       />
+    </div>
+  );
+}
+
+function MatchCountdownOverlay({ startsAt, onDone }: { startsAt: number; onDone: () => void }) {
+  const [remainingMs, setRemainingMs] = useState(Math.max(0, startsAt - Date.now()));
+  useEffect(() => {
+    const id = setInterval(() => {
+      const ms = Math.max(0, startsAt - Date.now());
+      setRemainingMs(ms);
+      if (ms <= 0) {
+        clearInterval(id);
+        onDone();
+      }
+    }, 50);
+    return () => clearInterval(id);
+  }, [startsAt, onDone]);
+  const seconds = Math.ceil(remainingMs / 1000);
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
+      <div className="flex h-32 w-32 items-center justify-center rounded-full bg-white/10 text-5xl font-black text-white ring-2 ring-white/30">
+        {seconds}
+      </div>
     </div>
   );
 }
