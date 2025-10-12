@@ -1107,11 +1107,16 @@ function MatchCountdownOverlay({ startsAt, onReady, onDone }: { startsAt: number
 
 function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: number; targetDistanceM: number; onFinish: (endedAt: number, metrics?: DuelMetrics) => void }) {
   const [elapsedMs, setElapsedMs] = useState(Math.max(0, Date.now() - startedAt));
-  const [distanceM, setDistanceM] = useState(0);
+  const [acceptedDistanceM, setAcceptedDistanceM] = useState(0);
+  const [displayDistanceM, setDisplayDistanceM] = useState(0);
   const [maxSpeed, setMaxSpeed] = useState(0);
   const [maxAccel, setMaxAccel] = useState(0);
+  const [accumAccuracyM, setAccumAccuracyM] = useState(0);
+  const [samplesUsed, setSamplesUsed] = useState(0);
   const lastSampleRef = useRef<{ t: number; lat: number; lng: number; v: number } | null>(null);
   const stepStateRef = useRef<{ lastAcc: number; lastPeakAt: number | null; steps: number } | null>({ lastAcc: 0, lastPeakAt: null, steps: 0 });
+  const overTargetStreakRef = useRef(0);
+  const finishedRef = useRef(false);
   const watchIdRef = useRef<number | null>(null);
   useEffect(() => {
     const id = setInterval(() => {
@@ -1120,22 +1125,76 @@ function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: numb
     return () => clearInterval(id);
   }, [startedAt]);
 
-  // Very simple GPS sampler to accumulate distance and estimate speed/accel
+  // Very simple GPS sampler with accuracy filter, EMA smoothing, and sanity caps
   useEffect(() => {
     if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
     const handle = (pos: GeolocationPosition) => {
+      if (finishedRef.current) return;
       const t = Date.now();
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
+      const acc = typeof pos.coords.accuracy === 'number' ? pos.coords.accuracy : 9999;
+      // Filter: require reasonable accuracy
+      const MAX_ACC_M = 15;
+      if (acc > MAX_ACC_M) return;
       const prev = lastSampleRef.current;
       if (prev) {
         const dt = (t - prev.t) / 1000;
+        const MIN_DT = 0.2;
+        if (dt < MIN_DT) return;
         const d = haversineM(prev.lat, prev.lng, lat, lng);
         const v = d / Math.max(dt, 1e-3);
+        // Speed cap (~43 km/h)
+        const MAX_V = 12; // m/s
+        if (v > MAX_V) {
+          // Skip unrealistic spikes
+          lastSampleRef.current = { t, lat, lng, v: prev.v };
+          return;
+        }
         const a = (v - prev.v) / Math.max(dt, 1e-3);
-        setDistanceM((x) => x + d);
+        // Accept sample
         setMaxSpeed((x) => Math.max(x, v));
         setMaxAccel((x) => Math.max(x, Math.abs(a)));
+        setSamplesUsed((n) => n + 1);
+        setAccumAccuracyM((s) => s + acc);
+        setAcceptedDistanceM((prevDist) => {
+          const nextDist = prevDist + d;
+          // EMA smoothing for display
+          const ALPHA = 0.35;
+          setDisplayDistanceM((disp) => disp + ALPHA * (nextDist - disp));
+          // Finish check: require two consecutive accepted samples over target
+          const margin = 0.5;
+          if (nextDist >= Math.max(1, targetDistanceM - margin)) {
+            overTargetStreakRef.current += 1;
+          } else {
+            overTargetStreakRef.current = 0;
+          }
+          if (overTargetStreakRef.current >= 2 && !finishedRef.current) {
+            finishedRef.current = true;
+            try {
+              const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+              const osc = ctx.createOscillator();
+              const g = ctx.createGain();
+              osc.type = 'triangle';
+              osc.frequency.value = 950;
+              g.gain.value = 0.25;
+              osc.connect(g).connect(ctx.destination);
+              osc.start();
+              osc.stop(ctx.currentTime + 0.22);
+            } catch {}
+            const steps = stepStateRef.current?.steps ?? 0;
+            const stepLen = steps > 0 ? nextDist / steps : undefined;
+            onFinish(Date.now(), {
+              stepsCount: steps,
+              stepLengthAvgM: stepLen,
+              maxSpeedMps: Math.max(maxSpeed, v),
+              maxAccelMps2: maxAccel,
+              distanceM: nextDist,
+              metricsJson: { avgAccuracyM: (accumAccuracyM + acc) / Math.max(1, samplesUsed + 1), samplesUsed: samplesUsed + 1 },
+            });
+          }
+          return nextDist;
+        });
         lastSampleRef.current = { t, lat, lng, v };
       } else {
         lastSampleRef.current = { t, lat, lng, v: 0 };
@@ -1182,22 +1241,7 @@ function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: numb
     };
   }, []);
 
-  // Auto-finish when reaching target distance
-  useEffect(() => {
-    if (distanceM >= Math.max(1, targetDistanceM - 1)) {
-      const steps = stepStateRef.current?.steps ?? 0;
-      const elapsedS = Math.max(0.001, (Date.now() - startedAt) / 1000);
-      const stepLen = steps > 0 ? distanceM / steps : undefined;
-      onFinish(Date.now(), {
-        stepsCount: steps,
-        stepLengthAvgM: stepLen,
-        maxSpeedMps: maxSpeed,
-        maxAccelMps2: maxAccel,
-        distanceM,
-        metricsJson: { samples: 'omitted' },
-      });
-    }
-  }, [distanceM, targetDistanceM, onFinish]);
+  // Auto-finish moved into GPS sampler for accuracy-stable detection
   const seconds = (elapsedMs / 1000).toFixed(2);
   return (
     <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-center gap-6 bg-black/60">
@@ -1205,18 +1249,18 @@ function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: numb
         {seconds}s
       </div>
       <div className="rounded-lg bg-white/10 px-6 py-2 text-sm font-semibold text-white ring-1 ring-white/15">
-        {distanceM.toFixed(1)} m · max {maxSpeed.toFixed(2)} m/s · a_max {maxAccel.toFixed(2)} m/s²
+        {displayDistanceM.toFixed(1)} m · max {maxSpeed.toFixed(2)} m/s · a_max {maxAccel.toFixed(2)} m/s²
       </div>
       <button
         onClick={() => {
           const steps = stepStateRef.current?.steps ?? 0;
-          const stepLen = steps > 0 ? distanceM / steps : undefined;
+          const stepLen = steps > 0 ? acceptedDistanceM / steps : undefined;
           onFinish(Date.now(), {
             stepsCount: steps,
             stepLengthAvgM: stepLen,
             maxSpeedMps: maxSpeed,
             maxAccelMps2: maxAccel,
-            distanceM,
+            distanceM: acceptedDistanceM,
           });
         }}
         className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400"
