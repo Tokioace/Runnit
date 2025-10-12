@@ -7,7 +7,11 @@ import { supabase } from '../lib/supabaseClient';
 import { useSupabaseUser } from '../hooks/useSupabaseUser';
 import { createDuel } from '../db/createDuel';
 import { getNearbyDuels } from '../db/getNearbyDuels';
+import { joinDuel } from '../db/joinDuel';
 import { getTopGhostRuns } from '../db/getTopGhostRuns';
+import { submitDuelResult, type DuelMetrics } from '../db/submitDuelResult';
+import { readyForDuel } from '../db/readyForDuel';
+import { getDuelResults } from '../db/getDuelResults';
 
 // Types
 type Coordinates = {
@@ -32,6 +36,7 @@ type OpenRun = {
   distanceMeters: number;
   location: Coordinates;
   createdAt?: string;
+  targetDistanceM?: number;
 };
 
 type CurrentUser = {
@@ -421,11 +426,154 @@ function HostRunDialog({
   );
 }
 
+// Authentication modal (email/password)
+function AuthModal({
+  open,
+  onClose,
+  mode,
+  setMode,
+  user,
+  onSignIn,
+  onSignUp,
+  onSignOut,
+}: {
+  open: boolean;
+  onClose: () => void;
+  mode: 'signin' | 'signup';
+  setMode: (m: 'signin' | 'signup') => void;
+  user: { id: string; email?: string } | null;
+  onSignIn: (email: string, password: string) => Promise<unknown>;
+  onSignUp: (email: string, password: string) => Promise<unknown>;
+  onSignOut: () => Promise<void>;
+}) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!open) return null;
+
+  const handleSubmit = async () => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      if (mode === 'signin') {
+        await onSignIn(email, password);
+      } else {
+        await onSignUp(email, password);
+      }
+      onClose();
+    } catch (e: any) {
+      setError(e?.message || 'Authentication failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setSubmitting(true);
+    try {
+      await onSignOut();
+      onClose();
+    } catch (e: any) {
+      setError(e?.message || 'Sign out failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60">
+      <div className="w-full max-w-md rounded-t-2xl bg-[#0b0b0d] p-4 shadow-2xl ring-1 ring-white/10">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-white">
+            {user ? 'Account' : mode === 'signin' ? 'Sign in' : 'Sign up'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+            aria-label="Close auth"
+          >
+            ✕
+          </button>
+        </div>
+
+        {user ? (
+          <div className="space-y-4">
+            <div className="text-sm text-white/80">Signed in as {user.email || 'user'}</div>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={handleSignOut}
+                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+                disabled={submitting}
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-xs">
+              <button
+                className={`rounded-md px-2 py-1 font-medium ${mode === 'signin' ? 'bg-indigo-600 text-white' : 'bg-white/10 text-white/80'} `}
+                onClick={() => setMode('signin')}
+              >
+                Sign in
+              </button>
+              <button
+                className={`rounded-md px-2 py-1 font-medium ${mode === 'signup' ? 'bg-indigo-600 text-white' : 'bg-white/10 text-white/80'} `}
+                onClick={() => setMode('signup')}
+              >
+                Sign up
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                className="w-full rounded-lg bg-white/5 p-3 text-white outline-none ring-1 ring-white/10 placeholder:text-white/40 focus:ring-2 focus:ring-indigo-500"
+              />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                className="w-full rounded-lg bg-white/5 p-3 text-white outline-none ring-1 ring-white/10 placeholder:text-white/40 focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            {error ? <div className="text-sm text-rose-400">{error}</div> : null}
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={onClose}
+                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmit}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                disabled={submitting || !email || !password}
+              >
+                {mode === 'signin' ? 'Sign in' : 'Create account'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Main Screen
 export default function MapScreen() {
   const { t } = useI18n();
   const { coords: userCoords } = useUserLocation();
-  const { user: authUser } = useSupabaseUser();
+  const { user: authUser, loading: authLoading, signIn, signUp, signOut } = useSupabaseUser();
   console.log('MapScreen loaded');
 
   const defaultCenter = useMemo<Coordinates>(() => ({ lat: 52.520008, lng: 13.404954 }), []); // Berlin
@@ -434,11 +582,21 @@ export default function MapScreen() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [ghostOpen, setGhostOpen] = useState(false);
   const [hostOpen, setHostOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [cityName, setCityName] = useState<string | null>(null);
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
   const [loadingGhosts, setLoadingGhosts] = useState(false);
   const [loadingDuels, setLoadingDuels] = useState(false);
+  const [matchOverlay, setMatchOverlay] = useState<{ duelId: string; startsAt: number; targetDistanceM: number } | null>(null);
+  const [race, setRace] = useState<
+    | { status: 'idle' }
+    | { status: 'countdown'; duelId: string; startsAt: number; targetDistanceM: number }
+    | { status: 'running'; duelId: string; startedAt: number; targetDistanceM: number }
+    | { status: 'finished'; duelId: string; startedAt: number; endedAt: number; targetDistanceM: number }
+  >({ status: 'idle' });
 
   // Derive current user display
   useEffect(() => {
@@ -453,28 +611,15 @@ export default function MapScreen() {
   // Load leaderboard (ghost runs) for city
   useEffect(() => {
     let isActive = true;
-    const city = 'Berlin';
+    const city = cityName || 'Berlin';
     (async () => {
       setLoadingGhosts(true);
       const { data: ghostRows, error } = await getTopGhostRuns(supabase, city);
       if (error || !isActive) return;
-      const userIds = (ghostRows || []).map((r: any) => r.user_id).filter(Boolean);
-      const uniqueUserIds = Array.from(new Set(userIds));
-      const { data: userRows } = await supabase
-        .from('users')
-        .select('id, username, location')
-        .in('id', uniqueUserIds);
-      const userById = new Map<string, any>((userRows || []).map((u: any) => [u.id, u]));
       const newPlayers: Player[] = (ghostRows || []).map((r: any, idx: number) => {
-        const u = userById.get(r.user_id);
-        const username: string = u?.username || `runner${String(idx + 1).padStart(2, '0')}`;
-        let lat = center.lat;
-        let lng = center.lng;
-        if (u?.location && (u.location as any).coordinates) {
-          const coords = (u.location as any).coordinates as [number, number];
-          lng = coords[0];
-          lat = coords[1];
-        }
+        const username: string = r.username || `runner${String(idx + 1).padStart(2, '0')}`;
+        const lat = typeof r.user_lat === 'number' ? r.user_lat : center.lat;
+        const lng = typeof r.user_lng === 'number' ? r.user_lng : center.lng;
         return {
           id: r.id,
           username,
@@ -492,7 +637,63 @@ export default function MapScreen() {
     return () => {
       isActive = false;
     };
-  }, [center.lat, center.lng]);
+  }, [center.lat, center.lng, cityName]);
+
+  // Reverse geocode city from user location with simple throttle
+  const lastGeocodeRef = useRef<{ lat: number; lng: number; city: string | null; at: number } | null>(null);
+  useEffect(() => {
+    if (!userCoords) {
+      setCityName(null);
+      return;
+    }
+    const now = Date.now();
+    const previous = lastGeocodeRef.current;
+    const distanceMoved = previous
+      ? Math.hypot(userCoords.lat - previous.lat, userCoords.lng - previous.lng)
+      : Infinity;
+    const timeElapsedMs = previous ? now - previous.at : Infinity;
+
+    // Throttle: only geocode if > 500m approx or > 2 minutes passed
+    // Rough degree-to-km: ~111km per degree. 0.0045 deg ~ 500m.
+    const DEG_THRESHOLD = 0.0045;
+    const TIME_THRESHOLD = 2 * 60 * 1000;
+    const shouldGeocode = distanceMoved > DEG_THRESHOLD || timeElapsedMs > TIME_THRESHOLD;
+    if (!shouldGeocode) return;
+
+    let cancelled = false;
+    const { lat, lng } = userCoords;
+    (async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(
+          lat
+        )}&lon=${encodeURIComponent(lng)}&zoom=10&addressdetails=1`;
+        const res = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!res.ok) throw new Error('Reverse geocoding failed');
+        const json = await res.json();
+        const addr = json?.address || {};
+        const detected =
+          addr.city ||
+          addr.town ||
+          addr.village ||
+          addr.municipality ||
+          addr.county ||
+          addr.state ||
+          null;
+        if (!cancelled) {
+          setCityName(detected);
+          lastGeocodeRef.current = { lat, lng, city: detected, at: Date.now() };
+        }
+      } catch (_e) {
+        if (!cancelled) {
+          setCityName(null);
+          lastGeocodeRef.current = { lat, lng, city: null, at: Date.now() };
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userCoords?.lat, userCoords?.lng]);
 
   // Load nearby open duels
   useEffect(() => {
@@ -522,9 +723,10 @@ export default function MapScreen() {
             id: d.id,
             hostUserId: d.host_user_id,
             hostUsername: hostById.get(d.host_user_id)?.username || 'host',
-            distanceMeters: (d.max_distance_km ?? 0) * 1000 || 100,
+            distanceMeters: d.target_distance_m || (d.max_distance_km ?? 0) * 1000 || 100,
             location: { lat, lng },
             createdAt: d.created_at,
+            targetDistanceM: d.target_distance_m || undefined,
           } as OpenRun;
         });
       if (!isActive) return;
@@ -544,10 +746,25 @@ export default function MapScreen() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'duels' },
         async (payload: any) => {
+          const row: any = payload.new ?? payload.old;
+          if (!row) return;
+
+          // Show match overlay if this duel becomes matched and involves current user
+          if (
+            payload.eventType === 'UPDATE' &&
+            (row.status === 'matched' || (row.start_at && row.status === 'matched')) &&
+            authUser &&
+            (row.host_user_id === authUser.id || row.challenger_user_id === authUser.id)
+          ) {
+            const serverStart = row.start_at ? new Date(row.start_at).getTime() : Date.now() + 3000;
+            const startsAt = Math.max(Date.now() + 1000, serverStart); // ensure at least 1s buffer
+            const targetM = row.target_distance_m || 50;
+            setMatchOverlay({ duelId: row.id, startsAt, targetDistanceM: targetM });
+            setRace({ status: 'countdown', duelId: row.id, startsAt, targetDistanceM: targetM });
+          }
+
           setOpenRuns((prev) => {
             const copy = [...prev];
-            const row: any = payload.new ?? payload.old;
-            if (!row) return copy;
             if (payload.eventType === 'DELETE' || (payload.eventType === 'UPDATE' && row.status !== 'open')) {
               return copy.filter((r) => r.id !== row.id);
             }
@@ -564,9 +781,10 @@ export default function MapScreen() {
               id: row.id,
               hostUserId: row.host_user_id,
               hostUsername: 'host',
-              distanceMeters: (row.max_distance_km ?? 0) * 1000 || 100,
+              distanceMeters: row.target_distance_m || (row.max_distance_km ?? 0) * 1000 || 100,
               location: { lat, lng },
               createdAt: row.created_at,
+              targetDistanceM: row.target_distance_m || undefined,
             };
             if (existingIdx >= 0) {
               copy[existingIdx] = updated;
@@ -581,7 +799,7 @@ export default function MapScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [center.lat, center.lng]);
+  }, [center.lat, center.lng, authUser?.id]);
 
   // Auto-expire duels older than 30 minutes
   useEffect(() => {
@@ -602,6 +820,22 @@ export default function MapScreen() {
       location: geojson,
       distanceKm: Math.max(1, Math.round(distanceMeters / 100) / 10),
     });
+  };
+
+  // Join a run (placeholder gating)
+  const handleJoinRun = async (run: OpenRun) => {
+    if (!authUser) {
+      setAuthMode('signin');
+      setAuthOpen(true);
+      return;
+    }
+    try {
+      await joinDuel(supabase as any, run.id);
+      // Success will trigger realtime update (status -> matched) and remove from open list
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to join duel', e);
+    }
   };
 
   // Icons
@@ -687,6 +921,7 @@ export default function MapScreen() {
                   <div className="text-white/70">{r.distanceMeters}m</div>
                 </div>
                 <button
+                  onClick={() => handleJoinRun(r)}
                   className="w-full rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400"
                 >
                   {t('buttons.joinRun')}
@@ -710,6 +945,52 @@ export default function MapScreen() {
         </div>
       )}
 
+      {/* City indicator */}
+      <div className="pointer-events-none absolute left-4 top-4 z-[900] rounded-lg bg-white/5 px-3 py-2 text-xs text-white/80 ring-1 ring-white/10">
+        {cityName ? `City: ${cityName}` : 'City: —'}
+      </div>
+
+      {/* Match countdown overlay */}
+      {matchOverlay && (
+        <MatchCountdownOverlay
+          startsAt={matchOverlay.startsAt}
+          onReady={async () => {
+            try { await readyForDuel(supabase as any, matchOverlay.duelId); } catch (_e) {}
+          }}
+          onDone={() => {
+            setMatchOverlay(null);
+            if (race.status === 'countdown') {
+              setRace({ status: 'running', duelId: race.duelId, startedAt: Date.now(), targetDistanceM: race.targetDistanceM });
+            }
+          }}
+        />
+      )}
+
+      {race.status === 'running' && (
+        <RaceOverlay
+          startedAt={race.startedAt}
+          targetDistanceM={race.targetDistanceM}
+          onFinish={async (endedAt, metrics) => {
+            const timeMs = endedAt - race.startedAt;
+            // try submit result; ignore failure for now
+            try {
+              await submitDuelResult(supabase as any, race.duelId, timeMs, metrics);
+            } catch (_e) {}
+            setRace({ status: 'finished', duelId: race.duelId, startedAt: race.startedAt, endedAt, targetDistanceM: race.targetDistanceM });
+          }}
+        />
+      )}
+
+      {race.status === 'finished' && (
+        <RaceFinishedOverlay
+          startedAt={race.startedAt}
+          endedAt={race.endedAt}
+          targetDistanceM={race.targetDistanceM}
+          duelId={race.duelId}
+          onClose={() => setRace({ status: 'idle' })}
+        />
+      )}
+
       {/* Sticky bottom bar */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[950] flex justify-center pb-5">
         <div className="pointer-events-auto flex w-full max-w-md items-center justify-between gap-3 rounded-2xl bg-[#0b0b0d]/90 p-3 ring-1 ring-white/10 backdrop-blur">
@@ -721,7 +1002,13 @@ export default function MapScreen() {
             {t('buttons.ghostRun')}
           </button>
           <button
-            onClick={() => authUser ? setHostOpen(true) : null}
+            onClick={() => {
+              if (authUser) setHostOpen(true);
+              else {
+                setAuthMode('signin');
+                setAuthOpen(true);
+              }
+            }}
             className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-2xl text-white shadow-lg ring-1 ring-white/15 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
             aria-label={t('buttons.hostRun')}
             title={authUser ? '' : 'Sign in to host'}
@@ -744,7 +1031,313 @@ export default function MapScreen() {
         onHost={handleHostRun}
         defaultDistance={50}
       />
+
+      <AuthModal
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        mode={authMode}
+        setMode={setAuthMode}
+        user={authUser}
+        onSignIn={async (email, password) => {
+          await signIn(email, password);
+        }}
+        onSignUp={async (email, password) => {
+          await signUp(email, password);
+        }}
+        onSignOut={async () => {
+          await signOut();
+        }}
+      />
     </div>
   );
+}
+
+function MatchCountdownOverlay({ startsAt, onReady, onDone }: { startsAt: number; onReady: () => void; onDone: () => void }) {
+  const [remainingMs, setRemainingMs] = useState(Math.max(0, startsAt - Date.now()));
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    onReady();
+    // Simple audio sequence: 3,2,1, go
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const playBeep = (t: number, freq: number, durMs: number, gain=0.2) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        g.gain.value = gain;
+        osc.connect(g).connect(ctx.destination);
+        osc.start(ctx.currentTime + t);
+        osc.stop(ctx.currentTime + t + durMs / 1000);
+      };
+      const total = Math.max(0, (startsAt - Date.now()) / 1000);
+      // schedule beeps at 3,2,1,go within the remaining timeframe
+      // fallback if short: only final go
+      if (total > 2.5) {
+        playBeep(total - 3, 600, 120);
+        playBeep(total - 2, 650, 120);
+        playBeep(total - 1, 700, 120);
+        playBeep(total - 0.02, 900, 240, 0.25);
+      } else if (total > 0.8) {
+        playBeep(total - 1, 700, 120);
+        playBeep(total - 0.02, 900, 240, 0.25);
+      } else {
+        playBeep(0, 900, 200, 0.25);
+      }
+    } catch {}
+    const id = setInterval(() => {
+      const ms = Math.max(0, startsAt - Date.now());
+      setRemainingMs(ms);
+      if (ms <= 0) {
+        clearInterval(id);
+        onDone();
+      }
+    }, 50);
+    return () => clearInterval(id);
+  }, [startsAt, onDone]);
+  const seconds = Math.ceil(remainingMs / 1000);
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
+      <div className="flex h-32 w-32 items-center justify-center rounded-full bg-white/10 text-5xl font-black text-white ring-2 ring-white/30">
+        {seconds}
+      </div>
+    </div>
+  );
+}
+
+function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: number; targetDistanceM: number; onFinish: (endedAt: number, metrics?: DuelMetrics) => void }) {
+  const [elapsedMs, setElapsedMs] = useState(Math.max(0, Date.now() - startedAt));
+  const [acceptedDistanceM, setAcceptedDistanceM] = useState(0);
+  const [displayDistanceM, setDisplayDistanceM] = useState(0);
+  const [maxSpeed, setMaxSpeed] = useState(0);
+  const [maxAccel, setMaxAccel] = useState(0);
+  const [accumAccuracyM, setAccumAccuracyM] = useState(0);
+  const [samplesUsed, setSamplesUsed] = useState(0);
+  const lastSampleRef = useRef<{ t: number; lat: number; lng: number; v: number } | null>(null);
+  const stepStateRef = useRef<{ lastAcc: number; lastPeakAt: number | null; steps: number } | null>({ lastAcc: 0, lastPeakAt: null, steps: 0 });
+  const overTargetStreakRef = useRef(0);
+  const finishedRef = useRef(false);
+  const watchIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setElapsedMs(Math.max(0, Date.now() - startedAt));
+    }, 50);
+    return () => clearInterval(id);
+  }, [startedAt]);
+
+  // Very simple GPS sampler with accuracy filter, EMA smoothing, and sanity caps
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
+    const handle = (pos: GeolocationPosition) => {
+      if (finishedRef.current) return;
+      const t = Date.now();
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      const acc = typeof pos.coords.accuracy === 'number' ? pos.coords.accuracy : 9999;
+      // Filter: require reasonable accuracy
+      const MAX_ACC_M = 15;
+      if (acc > MAX_ACC_M) return;
+      const prev = lastSampleRef.current;
+      if (prev) {
+        const dt = (t - prev.t) / 1000;
+        const MIN_DT = 0.2;
+        if (dt < MIN_DT) return;
+        const d = haversineM(prev.lat, prev.lng, lat, lng);
+        const v = d / Math.max(dt, 1e-3);
+        // Speed cap (~43 km/h)
+        const MAX_V = 12; // m/s
+        if (v > MAX_V) {
+          // Skip unrealistic spikes
+          lastSampleRef.current = { t, lat, lng, v: prev.v };
+          return;
+        }
+        const a = (v - prev.v) / Math.max(dt, 1e-3);
+        // Accept sample
+        setMaxSpeed((x) => Math.max(x, v));
+        setMaxAccel((x) => Math.max(x, Math.abs(a)));
+        setSamplesUsed((n) => n + 1);
+        setAccumAccuracyM((s) => s + acc);
+        setAcceptedDistanceM((prevDist) => {
+          const nextDist = prevDist + d;
+          // EMA smoothing for display
+          const ALPHA = 0.35;
+          setDisplayDistanceM((disp) => disp + ALPHA * (nextDist - disp));
+          // Finish check: require two consecutive accepted samples over target
+          const margin = 0.5;
+          if (nextDist >= Math.max(1, targetDistanceM - margin)) {
+            overTargetStreakRef.current += 1;
+          } else {
+            overTargetStreakRef.current = 0;
+          }
+          if (overTargetStreakRef.current >= 2 && !finishedRef.current) {
+            finishedRef.current = true;
+            try {
+              const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+              const osc = ctx.createOscillator();
+              const g = ctx.createGain();
+              osc.type = 'triangle';
+              osc.frequency.value = 950;
+              g.gain.value = 0.25;
+              osc.connect(g).connect(ctx.destination);
+              osc.start();
+              osc.stop(ctx.currentTime + 0.22);
+            } catch {}
+            const steps = stepStateRef.current?.steps ?? 0;
+            const stepLen = steps > 0 ? nextDist / steps : undefined;
+            onFinish(Date.now(), {
+              stepsCount: steps,
+              stepLengthAvgM: stepLen,
+              maxSpeedMps: Math.max(maxSpeed, v),
+              maxAccelMps2: maxAccel,
+              distanceM: nextDist,
+              metricsJson: { avgAccuracyM: (accumAccuracyM + acc) / Math.max(1, samplesUsed + 1), samplesUsed: samplesUsed + 1 },
+            });
+          }
+          return nextDist;
+        });
+        lastSampleRef.current = { t, lat, lng, v };
+      } else {
+        lastSampleRef.current = { t, lat, lng, v: 0 };
+      }
+    };
+    try {
+      watchIdRef.current = navigator.geolocation.watchPosition(handle, () => {}, {
+        enableHighAccuracy: true,
+        maximumAge: 500,
+        timeout: 5000,
+      });
+    } catch {}
+    return () => {
+      if (watchIdRef.current !== null) {
+        try { navigator.geolocation.clearWatch(watchIdRef.current); } catch {}
+      }
+    };
+  }, []);
+
+  // DeviceMotion-based step detection (peak detect on resultant acceleration)
+  useEffect(() => {
+    const handler = (e: DeviceMotionEvent) => {
+      const ax = e.accelerationIncludingGravity?.x ?? 0;
+      const ay = e.accelerationIncludingGravity?.y ?? 0;
+      const az = e.accelerationIncludingGravity?.z ?? 0;
+      const g = Math.sqrt(ax * ax + ay * ay + az * az);
+      const state = stepStateRef.current!;
+      const t = Date.now();
+      const threshold = 11; // approx >1.1g, tune empirically
+      const refractoryMs = 300; // min time between steps ~200-400ms
+      if (g > threshold && state.lastAcc <= threshold) {
+        if (!state.lastPeakAt || t - state.lastPeakAt > refractoryMs) {
+          state.steps += 1;
+          state.lastPeakAt = t;
+        }
+      }
+      state.lastAcc = g;
+    };
+    try {
+      window.addEventListener('devicemotion', handler, { passive: true } as any);
+    } catch {}
+    return () => {
+      try { window.removeEventListener('devicemotion', handler as any); } catch {}
+    };
+  }, []);
+
+  // Auto-finish moved into GPS sampler for accuracy-stable detection
+  const seconds = (elapsedMs / 1000).toFixed(2);
+  return (
+    <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-center gap-6 bg-black/60">
+      <div className="rounded-lg bg-white/10 px-6 py-3 text-4xl font-extrabold text-white ring-2 ring-white/20">
+        {seconds}s
+      </div>
+      <div className="rounded-lg bg-white/10 px-6 py-2 text-sm font-semibold text-white ring-1 ring-white/15">
+        {displayDistanceM.toFixed(1)} m · max {maxSpeed.toFixed(2)} m/s · a_max {maxAccel.toFixed(2)} m/s²
+      </div>
+      <button
+        onClick={() => {
+          const steps = stepStateRef.current?.steps ?? 0;
+          const stepLen = steps > 0 ? acceptedDistanceM / steps : undefined;
+          onFinish(Date.now(), {
+            stepsCount: steps,
+            stepLengthAvgM: stepLen,
+            maxSpeedMps: maxSpeed,
+            maxAccelMps2: maxAccel,
+            distanceM: acceptedDistanceM,
+          });
+        }}
+        className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400"
+      >
+        Finish
+      </button>
+    </div>
+  );
+}
+
+function RaceFinishedOverlay({ startedAt, endedAt, targetDistanceM, duelId, onClose }: { startedAt: number; endedAt: number; targetDistanceM: number; duelId: string; onClose: () => void }) {
+  const seconds = ((endedAt - startedAt) / 1000).toFixed(2);
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
+      <div className="w-full max-w-md rounded-xl bg-[#0b0b0d] p-5 text-white ring-1 ring-white/10">
+        <div className="mb-3 text-center text-lg font-semibold">Finished!</div>
+        <div className="mb-1 text-center text-3xl font-extrabold">{seconds}s</div>
+        <div className="mb-4 text-center text-xs text-white/70">Target: {targetDistanceM} m</div>
+        <SideBySideResults duelId={duelId} />
+        <div className="mt-5">
+          <button
+            onClick={onClose}
+            className="w-full rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SideBySideResults({ duelId }: { duelId?: string }) {
+  const [rows, setRows] = useState<any[] | null>(null);
+  useEffect(() => {
+    (async () => {
+      if (!duelId) return;
+      const { data } = await getDuelResults(supabase as any, duelId);
+      setRows(data || null);
+    })();
+  }, [duelId]);
+  return (
+    <div className="rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
+      <div className="mb-2 grid grid-cols-2 gap-2 text-xs uppercase tracking-wide text-white/60">
+        <div>{rows?.[0]?.username || 'Runner A'}</div>
+        <div className="text-right">{rows?.[1]?.username || 'Runner B'}</div>
+      </div>
+      <div className="space-y-2 text-sm">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-md bg-white/10 p-2">Time: {rows?.[0]?.time_ms ? (rows[0].time_ms/1000).toFixed(2)+'s' : '—'}</div>
+          <div className="rounded-md bg-white/10 p-2 text-right">Time: {rows?.[1]?.time_ms ? (rows[1].time_ms/1000).toFixed(2)+'s' : '—'}</div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-md bg-white/10 p-2">Max v: {rows?.[0]?.max_speed_mps ? rows[0].max_speed_mps.toFixed(2)+' m/s' : '—'}</div>
+          <div className="rounded-md bg-white/10 p-2 text-right">Max v: {rows?.[1]?.max_speed_mps ? rows[1].max_speed_mps.toFixed(2)+' m/s' : '—'}</div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-md bg-white/10 p-2">Max a: {rows?.[0]?.max_accel_mps2 ? rows[0].max_accel_mps2.toFixed(2)+' m/s²' : '—'}</div>
+          <div className="rounded-md bg-white/10 p-2 text-right">Max a: {rows?.[1]?.max_accel_mps2 ? rows[1].max_accel_mps2.toFixed(2)+' m/s²' : '—'}</div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-md bg-white/10 p-2">Steps: {rows?.[0]?.steps_count ?? '—'}</div>
+          <div className="rounded-md bg-white/10 p-2 text-right">Steps: {rows?.[1]?.steps_count ?? '—'}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Haversine distance in meters
+function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000; // meters
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
