@@ -9,7 +9,7 @@ import { createDuel } from '../db/createDuel';
 import { getNearbyDuels } from '../db/getNearbyDuels';
 import { joinDuel } from '../db/joinDuel';
 import { getTopGhostRuns } from '../db/getTopGhostRuns';
-import { submitDuelResult } from '../db/submitDuelResult';
+import { submitDuelResult, type DuelMetrics } from '../db/submitDuelResult';
 import { readyForDuel } from '../db/readyForDuel';
 import { getDuelResults } from '../db/getDuelResults';
 
@@ -970,11 +970,11 @@ export default function MapScreen() {
         <RaceOverlay
           startedAt={race.startedAt}
           targetDistanceM={race.targetDistanceM}
-          onFinish={async (endedAt) => {
+          onFinish={async (endedAt, metrics) => {
             const timeMs = endedAt - race.startedAt;
             // try submit result; ignore failure for now
             try {
-              await submitDuelResult(supabase as any, race.duelId, timeMs);
+              await submitDuelResult(supabase as any, race.duelId, timeMs, metrics);
             } catch (_e) {}
             setRace({ status: 'finished', duelId: race.duelId, startedAt: race.startedAt, endedAt, targetDistanceM: race.targetDistanceM });
           }}
@@ -986,6 +986,7 @@ export default function MapScreen() {
           startedAt={race.startedAt}
           endedAt={race.endedAt}
           targetDistanceM={race.targetDistanceM}
+          duelId={race.duelId}
           onClose={() => setRace({ status: 'idle' })}
         />
       )}
@@ -1104,12 +1105,13 @@ function MatchCountdownOverlay({ startsAt, onReady, onDone }: { startsAt: number
   );
 }
 
-function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: number; targetDistanceM: number; onFinish: (endedAt: number) => void }) {
+function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: number; targetDistanceM: number; onFinish: (endedAt: number, metrics?: DuelMetrics) => void }) {
   const [elapsedMs, setElapsedMs] = useState(Math.max(0, Date.now() - startedAt));
   const [distanceM, setDistanceM] = useState(0);
   const [maxSpeed, setMaxSpeed] = useState(0);
   const [maxAccel, setMaxAccel] = useState(0);
   const lastSampleRef = useRef<{ t: number; lat: number; lng: number; v: number } | null>(null);
+  const stepStateRef = useRef<{ lastAcc: number; lastPeakAt: number | null; steps: number } | null>({ lastAcc: 0, lastPeakAt: null, steps: 0 });
   const watchIdRef = useRef<number | null>(null);
   useEffect(() => {
     const id = setInterval(() => {
@@ -1153,10 +1155,47 @@ function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: numb
     };
   }, []);
 
+  // DeviceMotion-based step detection (peak detect on resultant acceleration)
+  useEffect(() => {
+    const handler = (e: DeviceMotionEvent) => {
+      const ax = e.accelerationIncludingGravity?.x ?? 0;
+      const ay = e.accelerationIncludingGravity?.y ?? 0;
+      const az = e.accelerationIncludingGravity?.z ?? 0;
+      const g = Math.sqrt(ax * ax + ay * ay + az * az);
+      const state = stepStateRef.current!;
+      const t = Date.now();
+      const threshold = 11; // approx >1.1g, tune empirically
+      const refractoryMs = 300; // min time between steps ~200-400ms
+      if (g > threshold && state.lastAcc <= threshold) {
+        if (!state.lastPeakAt || t - state.lastPeakAt > refractoryMs) {
+          state.steps += 1;
+          state.lastPeakAt = t;
+        }
+      }
+      state.lastAcc = g;
+    };
+    try {
+      window.addEventListener('devicemotion', handler, { passive: true } as any);
+    } catch {}
+    return () => {
+      try { window.removeEventListener('devicemotion', handler as any); } catch {}
+    };
+  }, []);
+
   // Auto-finish when reaching target distance
   useEffect(() => {
     if (distanceM >= Math.max(1, targetDistanceM - 1)) {
-      onFinish(Date.now());
+      const steps = stepStateRef.current?.steps ?? 0;
+      const elapsedS = Math.max(0.001, (Date.now() - startedAt) / 1000);
+      const stepLen = steps > 0 ? distanceM / steps : undefined;
+      onFinish(Date.now(), {
+        stepsCount: steps,
+        stepLengthAvgM: stepLen,
+        maxSpeedMps: maxSpeed,
+        maxAccelMps2: maxAccel,
+        distanceM,
+        metricsJson: { samples: 'omitted' },
+      });
     }
   }, [distanceM, targetDistanceM, onFinish]);
   const seconds = (elapsedMs / 1000).toFixed(2);
@@ -1169,7 +1208,17 @@ function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: numb
         {distanceM.toFixed(1)} m · max {maxSpeed.toFixed(2)} m/s · a_max {maxAccel.toFixed(2)} m/s²
       </div>
       <button
-        onClick={() => onFinish(Date.now())}
+        onClick={() => {
+          const steps = stepStateRef.current?.steps ?? 0;
+          const stepLen = steps > 0 ? distanceM / steps : undefined;
+          onFinish(Date.now(), {
+            stepsCount: steps,
+            stepLengthAvgM: stepLen,
+            maxSpeedMps: maxSpeed,
+            maxAccelMps2: maxAccel,
+            distanceM,
+          });
+        }}
         className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400"
       >
         Finish
@@ -1178,7 +1227,7 @@ function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: numb
   );
 }
 
-function RaceFinishedOverlay({ startedAt, endedAt, targetDistanceM, onClose }: { startedAt: number; endedAt: number; targetDistanceM: number; onClose: () => void }) {
+function RaceFinishedOverlay({ startedAt, endedAt, targetDistanceM, duelId, onClose }: { startedAt: number; endedAt: number; targetDistanceM: number; duelId: string; onClose: () => void }) {
   const seconds = ((endedAt - startedAt) / 1000).toFixed(2);
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
@@ -1186,7 +1235,7 @@ function RaceFinishedOverlay({ startedAt, endedAt, targetDistanceM, onClose }: {
         <div className="mb-3 text-center text-lg font-semibold">Finished!</div>
         <div className="mb-1 text-center text-3xl font-extrabold">{seconds}s</div>
         <div className="mb-4 text-center text-xs text-white/70">Target: {targetDistanceM} m</div>
-        <SideBySideResults />
+        <SideBySideResults duelId={duelId} />
         <div className="mt-5">
           <button
             onClick={onClose}
@@ -1200,36 +1249,37 @@ function RaceFinishedOverlay({ startedAt, endedAt, targetDistanceM, onClose }: {
   );
 }
 
-function SideBySideResults() {
+function SideBySideResults({ duelId }: { duelId?: string }) {
   const [rows, setRows] = useState<any[] | null>(null);
-  const duelIdRef = useRef<string | null>(null);
-  // Find most recent race duelId from state above if needed
-  // For simplicity, we read from URL hash or ignore; in real app, pass duelId as prop.
   useEffect(() => {
-    // no-op placeholder; data would be fetched with getDuelResults when duelId is known
-  }, []);
+    (async () => {
+      if (!duelId) return;
+      const { data } = await getDuelResults(supabase as any, duelId);
+      setRows(data || null);
+    })();
+  }, [duelId]);
   return (
     <div className="rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
       <div className="mb-2 grid grid-cols-2 gap-2 text-xs uppercase tracking-wide text-white/60">
-        <div>Runner A</div>
-        <div className="text-right">Runner B</div>
+        <div>{rows?.[0]?.username || 'Runner A'}</div>
+        <div className="text-right">{rows?.[1]?.username || 'Runner B'}</div>
       </div>
       <div className="space-y-2 text-sm">
         <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-md bg-white/10 p-2">Time: —</div>
-          <div className="rounded-md bg-white/10 p-2 text-right">Time: —</div>
+          <div className="rounded-md bg-white/10 p-2">Time: {rows?.[0]?.time_ms ? (rows[0].time_ms/1000).toFixed(2)+'s' : '—'}</div>
+          <div className="rounded-md bg-white/10 p-2 text-right">Time: {rows?.[1]?.time_ms ? (rows[1].time_ms/1000).toFixed(2)+'s' : '—'}</div>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-md bg-white/10 p-2">Max v: —</div>
-          <div className="rounded-md bg-white/10 p-2 text-right">Max v: —</div>
+          <div className="rounded-md bg-white/10 p-2">Max v: {rows?.[0]?.max_speed_mps ? rows[0].max_speed_mps.toFixed(2)+' m/s' : '—'}</div>
+          <div className="rounded-md bg-white/10 p-2 text-right">Max v: {rows?.[1]?.max_speed_mps ? rows[1].max_speed_mps.toFixed(2)+' m/s' : '—'}</div>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-md bg-white/10 p-2">Max a: —</div>
-          <div className="rounded-md bg-white/10 p-2 text-right">Max a: —</div>
+          <div className="rounded-md bg-white/10 p-2">Max a: {rows?.[0]?.max_accel_mps2 ? rows[0].max_accel_mps2.toFixed(2)+' m/s²' : '—'}</div>
+          <div className="rounded-md bg-white/10 p-2 text-right">Max a: {rows?.[1]?.max_accel_mps2 ? rows[1].max_accel_mps2.toFixed(2)+' m/s²' : '—'}</div>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-md bg-white/10 p-2">Steps: —</div>
-          <div className="rounded-md bg-white/10 p-2 text-right">Steps: —</div>
+          <div className="rounded-md bg-white/10 p-2">Steps: {rows?.[0]?.steps_count ?? '—'}</div>
+          <div className="rounded-md bg-white/10 p-2 text-right">Steps: {rows?.[1]?.steps_count ?? '—'}</div>
         </div>
       </div>
     </div>
