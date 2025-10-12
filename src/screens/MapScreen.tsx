@@ -130,16 +130,41 @@ function useUserLocation() {
   const requestOnce = () => {
     if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
     try {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          setPermissionDenied(false);
-        },
-        (err: GeolocationPositionError) => {
-          if (err.code === err.PERMISSION_DENIED) setPermissionDenied(true);
-        },
-        { enableHighAccuracy: true, maximumAge: 1000, timeout: 8000 }
-      );
+      // Always restart the watch after permission changes or retries
+      try {
+        if (watchIdRef.current !== null) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+          watchIdRef.current = null;
+        }
+      } catch (_e) {
+        // ignore
+      }
+
+      const onSuccess = (pos: GeolocationPosition) => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setPermissionDenied(false);
+      };
+      const onError = (err: GeolocationPositionError) => {
+        if (err.code === err.PERMISSION_DENIED) setPermissionDenied(true);
+      };
+
+      // Start a fresh continuous watch to pick up updates
+      try {
+        watchIdRef.current = navigator.geolocation.watchPosition(onSuccess, onError, {
+          enableHighAccuracy: true,
+          maximumAge: 5000,
+          timeout: 8000,
+        });
+      } catch (_e) {
+        // ignore
+      }
+
+      // Also attempt an immediate one-off read
+      navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+        enableHighAccuracy: true,
+        maximumAge: 1000,
+        timeout: 8000,
+      });
     } catch (_e) {
       // ignore
     }
