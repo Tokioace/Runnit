@@ -587,6 +587,12 @@ export default function MapScreen() {
   const [loadingGhosts, setLoadingGhosts] = useState(false);
   const [loadingDuels, setLoadingDuels] = useState(false);
   const [matchOverlay, setMatchOverlay] = useState<{ duelId: string; startsAt: number } | null>(null);
+  const [race, setRace] = useState<
+    | { status: 'idle' }
+    | { status: 'countdown'; duelId: string; startsAt: number }
+    | { status: 'running'; duelId: string; startedAt: number }
+    | { status: 'finished'; duelId: string; startedAt: number; endedAt: number }
+  >({ status: 'idle' });
 
   // Derive current user display
   useEffect(() => {
@@ -747,6 +753,7 @@ export default function MapScreen() {
           ) {
             const startsAt = Date.now() + 3000; // 3-second countdown
             setMatchOverlay({ duelId: row.id, startsAt });
+            setRace({ status: 'countdown', duelId: row.id, startsAt });
           }
 
           setOpenRuns((prev) => {
@@ -939,7 +946,27 @@ export default function MapScreen() {
       {matchOverlay && (
         <MatchCountdownOverlay
           startsAt={matchOverlay.startsAt}
-          onDone={() => setMatchOverlay(null)}
+          onDone={() => {
+            setMatchOverlay(null);
+            if (race.status === 'countdown') {
+              setRace({ status: 'running', duelId: race.duelId, startedAt: Date.now() });
+            }
+          }}
+        />
+      )}
+
+      {race.status === 'running' && (
+        <RaceOverlay
+          startedAt={race.startedAt}
+          onFinish={(endedAt) => setRace({ status: 'finished', duelId: race.duelId, startedAt: race.startedAt, endedAt })}
+        />
+      )}
+
+      {race.status === 'finished' && (
+        <RaceFinishedOverlay
+          startedAt={race.startedAt}
+          endedAt={race.endedAt}
+          onClose={() => setRace({ status: 'idle' })}
         />
       )}
 
@@ -1022,6 +1049,48 @@ function MatchCountdownOverlay({ startsAt, onDone }: { startsAt: number; onDone:
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
       <div className="flex h-32 w-32 items-center justify-center rounded-full bg-white/10 text-5xl font-black text-white ring-2 ring-white/30">
         {seconds}
+      </div>
+    </div>
+  );
+}
+
+function RaceOverlay({ startedAt, onFinish }: { startedAt: number; onFinish: (endedAt: number) => void }) {
+  const [elapsedMs, setElapsedMs] = useState(Math.max(0, Date.now() - startedAt));
+  useEffect(() => {
+    const id = setInterval(() => {
+      setElapsedMs(Math.max(0, Date.now() - startedAt));
+    }, 50);
+    return () => clearInterval(id);
+  }, [startedAt]);
+  const seconds = (elapsedMs / 1000).toFixed(2);
+  return (
+    <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-center gap-6 bg-black/60">
+      <div className="rounded-lg bg-white/10 px-6 py-3 text-4xl font-extrabold text-white ring-2 ring-white/20">
+        {seconds}s
+      </div>
+      <button
+        onClick={() => onFinish(Date.now())}
+        className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400"
+      >
+        Finish
+      </button>
+    </div>
+  );
+}
+
+function RaceFinishedOverlay({ startedAt, endedAt, onClose }: { startedAt: number; endedAt: number; onClose: () => void }) {
+  const seconds = ((endedAt - startedAt) / 1000).toFixed(2);
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
+      <div className="w-full max-w-xs rounded-xl bg-[#0b0b0d] p-5 text-center text-white ring-1 ring-white/10">
+        <div className="mb-3 text-lg font-semibold">Finished!</div>
+        <div className="mb-5 text-3xl font-extrabold">{seconds}s</div>
+        <button
+          onClick={onClose}
+          className="w-full rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+        >
+          Close
+        </button>
       </div>
     </div>
   );
