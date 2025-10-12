@@ -613,26 +613,34 @@ export default function MapScreen() {
     let isActive = true;
     const city = cityName || 'Berlin';
     (async () => {
-      setLoadingGhosts(true);
-      const { data: ghostRows, error } = await getTopGhostRuns(supabase, city);
-      if (error || !isActive) return;
-      const newPlayers: Player[] = (ghostRows || []).map((r: any, idx: number) => {
-        const username: string = r.username || `runner${String(idx + 1).padStart(2, '0')}`;
-        const lat = typeof r.user_lat === 'number' ? r.user_lat : center.lat;
-        const lng = typeof r.user_lng === 'number' ? r.user_lng : center.lng;
-        return {
-          id: r.id,
-          username,
-          rank: idx + 1,
-          bestTimeSeconds: (r.time_ms ?? 0) / 1000,
-          distanceMeters: 100,
-          location: { lat, lng },
-          colorHex: colorForUsernameToHex(username),
-        } as Player;
-      });
       if (!isActive) return;
-      setPlayers(newPlayers);
-      setLoadingGhosts(false);
+      setLoadingGhosts(true);
+      try {
+        const { data: ghostRows, error } = await getTopGhostRuns(supabase, city);
+        if (!isActive) return;
+        if (error) {
+          setPlayers([]);
+          return;
+        }
+        const newPlayers: Player[] = (ghostRows || []).map((r: any, idx: number) => {
+          const username: string = r.username || `runner${String(idx + 1).padStart(2, '0')}`;
+          const lat = typeof r.user_lat === 'number' ? r.user_lat : center.lat;
+          const lng = typeof r.user_lng === 'number' ? r.user_lng : center.lng;
+          return {
+            id: r.id,
+            username,
+            rank: idx + 1,
+            bestTimeSeconds: (r.time_ms ?? 0) / 1000,
+            distanceMeters: 100,
+            location: { lat, lng },
+            colorHex: colorForUsernameToHex(username),
+          } as Player;
+        });
+        if (!isActive) return;
+        setPlayers(newPlayers);
+      } finally {
+        if (isActive) setLoadingGhosts(false);
+      }
     })();
     return () => {
       isActive = false;
@@ -697,41 +705,53 @@ export default function MapScreen() {
 
   // Load nearby open duels
   useEffect(() => {
-    if (!userCoords) return;
+    if (!userCoords) {
+      // Ensure loading state is not stuck when location is unavailable
+      setLoadingDuels(false);
+      return;
+    }
     let isActive = true;
     (async () => {
-      setLoadingDuels(true);
-      const { data, error } = await getNearbyDuels(supabase, { userLocation: userCoords, radiusKm: 5 });
-      if (error || !data || !isActive) return;
-      const hostIds = Array.from(new Set(data.map((d: any) => d.host_user_id).filter(Boolean)));
-      const { data: hostUsers } = await supabase
-        .from('users')
-        .select('id, username')
-        .in('id', hostIds);
-      const hostById = new Map<string, any>((hostUsers || []).map((u: any) => [u.id, u]));
-      const mapped: OpenRun[] = data
-        .filter((d: any) => d.status === 'open')
-        .map((d: any) => {
-          let lat = center.lat;
-          let lng = center.lng;
-          if (d.location && (d.location as any).coordinates) {
-            const coords = (d.location as any).coordinates as [number, number];
-            lng = coords[0];
-            lat = coords[1];
-          }
-          return {
-            id: d.id,
-            hostUserId: d.host_user_id,
-            hostUsername: hostById.get(d.host_user_id)?.username || 'host',
-            distanceMeters: d.target_distance_m || (d.max_distance_km ?? 0) * 1000 || 100,
-            location: { lat, lng },
-            createdAt: d.created_at,
-            targetDistanceM: d.target_distance_m || undefined,
-          } as OpenRun;
-        });
       if (!isActive) return;
-      setOpenRuns(mapped);
-      setLoadingDuels(false);
+      setLoadingDuels(true);
+      try {
+        const { data, error } = await getNearbyDuels(supabase, { userLocation: userCoords, radiusKm: 5 });
+        if (!isActive) return;
+        if (error || !data) {
+          setOpenRuns([]);
+          return;
+        }
+        const hostIds = Array.from(new Set(data.map((d: any) => d.host_user_id).filter(Boolean)));
+        const { data: hostUsers } = await supabase
+          .from('users')
+          .select('id, username')
+          .in('id', hostIds);
+        const hostById = new Map<string, any>((hostUsers || []).map((u: any) => [u.id, u]));
+        const mapped: OpenRun[] = data
+          .filter((d: any) => d.status === 'open')
+          .map((d: any) => {
+            let lat = center.lat;
+            let lng = center.lng;
+            if (d.location && (d.location as any).coordinates) {
+              const coords = (d.location as any).coordinates as [number, number];
+              lng = coords[0];
+              lat = coords[1];
+            }
+            return {
+              id: d.id,
+              hostUserId: d.host_user_id,
+              hostUsername: hostById.get(d.host_user_id)?.username || 'host',
+              distanceMeters: d.target_distance_m || (d.max_distance_km ?? 0) * 1000 || 100,
+              location: { lat, lng },
+              createdAt: d.created_at,
+              targetDistanceM: d.target_distance_m || undefined,
+            } as OpenRun;
+          });
+        if (!isActive) return;
+        setOpenRuns(mapped);
+      } finally {
+        if (isActive) setLoadingDuels(false);
+      }
     })();
     return () => {
       isActive = false;
