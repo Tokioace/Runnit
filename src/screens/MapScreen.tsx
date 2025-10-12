@@ -127,7 +127,25 @@ function useUserLocation() {
     };
   }, []);
 
-  return { coords, permissionDenied };
+  const requestOnce = () => {
+    if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setPermissionDenied(false);
+        },
+        (err: GeolocationPositionError) => {
+          if (err.code === err.PERMISSION_DENIED) setPermissionDenied(true);
+        },
+        { enableHighAccuracy: true, maximumAge: 1000, timeout: 8000 }
+      );
+    } catch (_e) {
+      // ignore
+    }
+  };
+
+  return { coords, permissionDenied, requestOnce };
 }
 
 // Utility: format seconds to 0.00s string
@@ -216,19 +234,36 @@ function MapBadgeMarker(props: MapBadgeMarkerProps & { onClick?: () => void }) {
 }
 
 // Recenter map when position changes initially
-function RecenterOnUser({ position }: { position: Coordinates | null }) {
+function RecenterOnUser({ position, trigger }: { position: Coordinates | null; trigger?: number }) {
   const map = useMap();
   const hasCenteredRef = useRef(false);
+  const lastTriggerRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    if (position && !hasCenteredRef.current) {
+    const triggerChanged = lastTriggerRef.current !== trigger;
+    if (position && (!hasCenteredRef.current || triggerChanged)) {
       map.setView([position.lat, position.lng], Math.max(map.getZoom(), 16), {
+        animate: true,
+      });
+      hasCenteredRef.current = true;
+      lastTriggerRef.current = trigger;
+    }
+  }, [map, position, trigger]);
+
+  return null;
+}
+
+function RecenterOnIp({ position }: { position: Coordinates | null }) {
+  const map = useMap();
+  const hasCenteredRef = useRef(false);
+  useEffect(() => {
+    if (position && !hasCenteredRef.current) {
+      map.setView([position.lat, position.lng], Math.max(map.getZoom(), 13), {
         animate: true,
       });
       hasCenteredRef.current = true;
     }
   }, [map, position]);
-
   return null;
 }
 
@@ -572,12 +607,15 @@ function AuthModal({
 // Main Screen
 export default function MapScreen() {
   const { t } = useI18n();
-  const { coords: userCoords } = useUserLocation();
+  const { coords: userCoords, permissionDenied, requestOnce } = useUserLocation();
   const { user: authUser, loading: authLoading, signIn, signUp, signOut } = useSupabaseUser();
   console.log('MapScreen loaded');
 
-  const defaultCenter = useMemo<Coordinates>(() => ({ lat: 52.520008, lng: 13.404954 }), []); // Berlin
-  const center = userCoords ?? defaultCenter;
+  const defaultCenter = useMemo<Coordinates>(() => ({ lat: 0, lng: 0 }), []);
+  const [ipCoords, setIpCoords] = useState<Coordinates | null>(null);
+  const [recenterTick, setRecenterTick] = useState(0);
+  const center = userCoords ?? ipCoords ?? defaultCenter;
+  const initialZoom = userCoords ? 14 : ipCoords ? 12 : 3;
 
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [ghostOpen, setGhostOpen] = useState(false);
@@ -647,6 +685,29 @@ export default function MapScreen() {
     };
   }, [center.lat, center.lng, cityName]);
 
+  // Fetch approximate IP-based location when precise location is unavailable
+  useEffect(() => {
+    let cancelled = false;
+    if (userCoords || ipCoords || typeof window === 'undefined') return;
+    (async () => {
+      try {
+        const res = await fetch('https://ipapi.co/json/', { headers: { Accept: 'application/json' } });
+        if (!res.ok) return;
+        const json = await res.json();
+        const lat = typeof json?.latitude === 'number' ? json.latitude : Number(json?.latitude);
+        const lng = typeof json?.longitude === 'number' ? json.longitude : Number(json?.longitude);
+        if (!cancelled && Number.isFinite(lat) && Number.isFinite(lng)) {
+          setIpCoords({ lat, lng });
+        }
+      } catch (_e) {
+        // ignore network failures
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userCoords, ipCoords]);
+
   // Reverse geocode city from user location with simple throttle
   const lastGeocodeRef = useRef<{ lat: number; lng: number; city: string | null; at: number } | null>(null);
   useEffect(() => {
@@ -702,6 +763,33 @@ export default function MapScreen() {
       cancelled = true;
     };
   }, [userCoords?.lat, userCoords?.lng]);
+
+  // Reverse geocode city from IP-based location if we do not have precise user location
+  useEffect(() => {
+    if (userCoords || !ipCoords) return;
+    let cancelled = false;
+    const { lat, lng } = ipCoords;
+    (async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&zoom=10&addressdetails=1`;
+        const res = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!res.ok) throw new Error('Reverse geocoding failed');
+        const json = await res.json();
+        const addr = json?.address || {};
+        const detected = addr.city || addr.town || addr.village || addr.municipality || addr.county || addr.state || null;
+        if (!cancelled) {
+          setCityName(detected);
+        }
+      } catch (_e) {
+        if (!cancelled) {
+          // keep current cityName
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userCoords, ipCoords]);
 
   // Load nearby open duels
   useEffect(() => {
@@ -899,7 +987,7 @@ export default function MapScreen() {
     <div className="relative h-screen w-screen bg-black">
       <MapContainer
         center={[center.lat, center.lng]}
-        zoom={14}
+        zoom={initialZoom}
         zoomControl={false}
         className="border border-red-500"
         style={{ height: '100%', width: '100%' }}
@@ -910,7 +998,8 @@ export default function MapScreen() {
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
 
-        <RecenterOnUser position={userCoords} />
+        <RecenterOnUser position={userCoords} trigger={recenterTick} />
+        <RecenterOnIp position={ipCoords} />
 
         {userCoords ? (
           <MapBadgeMarker
@@ -969,6 +1058,33 @@ export default function MapScreen() {
       <div className="pointer-events-none absolute left-4 top-4 z-[900] rounded-lg bg-white/5 px-3 py-2 text-xs text-white/80 ring-1 ring-white/10">
         {cityName ? `City: ${cityName}` : 'City: —'}
       </div>
+
+      {/* Locate me control */}
+      <div className="pointer-events-auto absolute right-4 top-4 z-[950]">
+        <button
+          onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
+          className="rounded-full bg-white/10 p-2 text-white ring-1 ring-white/15 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          aria-label="Locate me"
+          title="Locate me"
+        >
+          📍
+        </button>
+      </div>
+
+      {/* Permission denied notice */}
+      {permissionDenied && (
+        <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-rose-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
+          <div className="flex items-center gap-3">
+            <span>Location permission denied. Enable it in your browser settings, then retry.</span>
+            <button
+              onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
+              className="rounded-md bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Match countdown overlay */}
       {matchOverlay && (
