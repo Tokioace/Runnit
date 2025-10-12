@@ -421,11 +421,154 @@ function HostRunDialog({
   );
 }
 
+// Authentication modal (email/password)
+function AuthModal({
+  open,
+  onClose,
+  mode,
+  setMode,
+  user,
+  onSignIn,
+  onSignUp,
+  onSignOut,
+}: {
+  open: boolean;
+  onClose: () => void;
+  mode: 'signin' | 'signup';
+  setMode: (m: 'signin' | 'signup') => void;
+  user: { id: string; email?: string } | null;
+  onSignIn: (email: string, password: string) => Promise<unknown>;
+  onSignUp: (email: string, password: string) => Promise<unknown>;
+  onSignOut: () => Promise<void>;
+}) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!open) return null;
+
+  const handleSubmit = async () => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      if (mode === 'signin') {
+        await onSignIn(email, password);
+      } else {
+        await onSignUp(email, password);
+      }
+      onClose();
+    } catch (e: any) {
+      setError(e?.message || 'Authentication failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setSubmitting(true);
+    try {
+      await onSignOut();
+      onClose();
+    } catch (e: any) {
+      setError(e?.message || 'Sign out failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60">
+      <div className="w-full max-w-md rounded-t-2xl bg-[#0b0b0d] p-4 shadow-2xl ring-1 ring-white/10">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-white">
+            {user ? 'Account' : mode === 'signin' ? 'Sign in' : 'Sign up'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+            aria-label="Close auth"
+          >
+            ✕
+          </button>
+        </div>
+
+        {user ? (
+          <div className="space-y-4">
+            <div className="text-sm text-white/80">Signed in as {user.email || 'user'}</div>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={handleSignOut}
+                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+                disabled={submitting}
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-xs">
+              <button
+                className={`rounded-md px-2 py-1 font-medium ${mode === 'signin' ? 'bg-indigo-600 text-white' : 'bg-white/10 text-white/80'} `}
+                onClick={() => setMode('signin')}
+              >
+                Sign in
+              </button>
+              <button
+                className={`rounded-md px-2 py-1 font-medium ${mode === 'signup' ? 'bg-indigo-600 text-white' : 'bg-white/10 text-white/80'} `}
+                onClick={() => setMode('signup')}
+              >
+                Sign up
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                className="w-full rounded-lg bg-white/5 p-3 text-white outline-none ring-1 ring-white/10 placeholder:text-white/40 focus:ring-2 focus:ring-indigo-500"
+              />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                className="w-full rounded-lg bg-white/5 p-3 text-white outline-none ring-1 ring-white/10 placeholder:text-white/40 focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            {error ? <div className="text-sm text-rose-400">{error}</div> : null}
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={onClose}
+                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmit}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                disabled={submitting || !email || !password}
+              >
+                {mode === 'signin' ? 'Sign in' : 'Create account'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Main Screen
 export default function MapScreen() {
   const { t } = useI18n();
   const { coords: userCoords } = useUserLocation();
-  const { user: authUser } = useSupabaseUser();
+  const { user: authUser, loading: authLoading, signIn, signUp, signOut } = useSupabaseUser();
   console.log('MapScreen loaded');
 
   const defaultCenter = useMemo<Coordinates>(() => ({ lat: 52.520008, lng: 13.404954 }), []); // Berlin
@@ -434,6 +577,8 @@ export default function MapScreen() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [ghostOpen, setGhostOpen] = useState(false);
   const [hostOpen, setHostOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
@@ -604,6 +749,19 @@ export default function MapScreen() {
     });
   };
 
+  // Join a run (placeholder gating)
+  const handleJoinRun = (run: OpenRun) => {
+    if (!authUser) {
+      setAuthMode('signin');
+      setAuthOpen(true);
+      return;
+    }
+    // Future: implement actual join logic
+    // For now, a no-op placeholder
+    // eslint-disable-next-line no-console
+    console.log('Join run requested:', run.id);
+  };
+
   // Icons
   const userIconOptions: BadgeIconOptions = useMemo(
     () => ({
@@ -687,6 +845,7 @@ export default function MapScreen() {
                   <div className="text-white/70">{r.distanceMeters}m</div>
                 </div>
                 <button
+                  onClick={() => handleJoinRun(r)}
                   className="w-full rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400"
                 >
                   {t('buttons.joinRun')}
@@ -721,7 +880,13 @@ export default function MapScreen() {
             {t('buttons.ghostRun')}
           </button>
           <button
-            onClick={() => authUser ? setHostOpen(true) : null}
+            onClick={() => {
+              if (authUser) setHostOpen(true);
+              else {
+                setAuthMode('signin');
+                setAuthOpen(true);
+              }
+            }}
             className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-2xl text-white shadow-lg ring-1 ring-white/15 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
             aria-label={t('buttons.hostRun')}
             title={authUser ? '' : 'Sign in to host'}
@@ -743,6 +908,23 @@ export default function MapScreen() {
         onClose={() => setHostOpen(false)}
         onHost={handleHostRun}
         defaultDistance={50}
+      />
+
+      <AuthModal
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        mode={authMode}
+        setMode={setAuthMode}
+        user={authUser}
+        onSignIn={async (email, password) => {
+          await signIn(email, password);
+        }}
+        onSignUp={async (email, password) => {
+          await signUp(email, password);
+        }}
+        onSignOut={async () => {
+          await signOut();
+        }}
       />
     </div>
   );
