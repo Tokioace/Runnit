@@ -79,6 +79,47 @@ as $$
   order by created_at desc
 $$;
 
+-- Results table to record users' times for a duel
+create table if not exists public.duel_results (
+  id uuid primary key default gen_random_uuid(),
+  duel_id uuid references public.duels(id) on delete cascade,
+  user_id uuid references public.users(id) on delete cascade,
+  time_ms integer not null,
+  created_at timestamptz default now()
+);
+
+alter table public.duel_results enable row level security;
+
+drop policy if exists "Insert own duel result" on public.duel_results;
+create policy "Insert own duel result" on public.duel_results for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Read own duel results" on public.duel_results;
+create policy "Read own duel results" on public.duel_results for select
+  using (auth.uid() = user_id);
+
+-- RPC to submit a duel result
+create or replace function public.submit_duel_result(
+  p_duel_id uuid,
+  p_time_ms integer
+)
+returns public.duel_results
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_result public.duel_results;
+begin
+  if p_time_ms <= 0 then
+    raise exception 'Invalid time';
+  end if;
+  insert into public.duel_results (duel_id, user_id, time_ms)
+  values (p_duel_id, auth.uid(), p_time_ms)
+  returning * into v_result;
+  return v_result;
+end;
+$$;
 -- Public leaderboard RPC: returns top ghost runs with username and user coords for a city
 create or replace function public.get_top_ghost_runs(
   city_name text,

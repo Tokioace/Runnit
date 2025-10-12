@@ -9,6 +9,7 @@ import { createDuel } from '../db/createDuel';
 import { getNearbyDuels } from '../db/getNearbyDuels';
 import { joinDuel } from '../db/joinDuel';
 import { getTopGhostRuns } from '../db/getTopGhostRuns';
+import { submitDuelResult } from '../db/submitDuelResult';
 
 // Types
 type Coordinates = {
@@ -958,7 +959,14 @@ export default function MapScreen() {
       {race.status === 'running' && (
         <RaceOverlay
           startedAt={race.startedAt}
-          onFinish={(endedAt) => setRace({ status: 'finished', duelId: race.duelId, startedAt: race.startedAt, endedAt })}
+          onFinish={async (endedAt) => {
+            const timeMs = endedAt - race.startedAt;
+            // try submit result; ignore failure for now
+            try {
+              await submitDuelResult(supabase as any, race.duelId, timeMs);
+            } catch (_e) {}
+            setRace({ status: 'finished', duelId: race.duelId, startedAt: race.startedAt, endedAt });
+          }}
         />
       )}
 
