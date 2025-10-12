@@ -44,7 +44,8 @@ create policy "Users can view themselves" on public.users for select using (auth
 
 -- Ghost runs: a user can see only their own
 drop policy if exists "Own ghost runs select" on public.ghost_runs;
-create policy "Own ghost runs select" on public.ghost_runs for select using (auth.uid() = user_id);
+-- Allow authenticated users to read ghost runs for leaderboard
+create policy "Ghost runs readable by authenticated" on public.ghost_runs for select using (auth.role() = 'authenticated');
 
 -- Ghost runs: owners can insert
 drop policy if exists "Insert own ghost runs" on public.ghost_runs;

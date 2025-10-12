@@ -580,6 +580,7 @@ export default function MapScreen() {
   const [hostOpen, setHostOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [cityName, setCityName] = useState<string | null>(null);
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
@@ -599,7 +600,7 @@ export default function MapScreen() {
   // Load leaderboard (ghost runs) for city
   useEffect(() => {
     let isActive = true;
-    const city = 'Berlin';
+    const city = cityName || 'Berlin';
     (async () => {
       setLoadingGhosts(true);
       const { data: ghostRows, error } = await getTopGhostRuns(supabase, city);
@@ -638,7 +639,42 @@ export default function MapScreen() {
     return () => {
       isActive = false;
     };
-  }, [center.lat, center.lng]);
+  }, [center.lat, center.lng, cityName]);
+
+  // Reverse geocode city from user location
+  useEffect(() => {
+    if (!userCoords) {
+      setCityName(null);
+      return;
+    }
+    let cancelled = false;
+    const { lat, lng } = userCoords;
+    (async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(
+          lat
+        )}&lon=${encodeURIComponent(lng)}&zoom=10&addressdetails=1`;
+        const res = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!res.ok) throw new Error('Reverse geocoding failed');
+        const json = await res.json();
+        const addr = json?.address || {};
+        const detected =
+          addr.city ||
+          addr.town ||
+          addr.village ||
+          addr.municipality ||
+          addr.county ||
+          addr.state ||
+          null;
+        if (!cancelled) setCityName(detected);
+      } catch (_e) {
+        if (!cancelled) setCityName(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userCoords?.lat, userCoords?.lng]);
 
   // Load nearby open duels
   useEffect(() => {
