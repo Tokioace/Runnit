@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build output
+/dist/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Editor/OS
+.DS_Store
+*.log
+.vercel/
