@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useSupabaseUser } from '../hooks/useSupabaseUser';
 import { createDuel } from '../db/createDuel';
 import { getNearbyDuels } from '../db/getNearbyDuels';
+import { joinDuel } from '../db/joinDuel';
 import { getTopGhostRuns } from '../db/getTopGhostRuns';
 
 // Types
@@ -750,16 +751,19 @@ export default function MapScreen() {
   };
 
   // Join a run (placeholder gating)
-  const handleJoinRun = (run: OpenRun) => {
+  const handleJoinRun = async (run: OpenRun) => {
     if (!authUser) {
       setAuthMode('signin');
       setAuthOpen(true);
       return;
     }
-    // Future: implement actual join logic
-    // For now, a no-op placeholder
-    // eslint-disable-next-line no-console
-    console.log('Join run requested:', run.id);
+    try {
+      await joinDuel(supabase as any, run.id);
+      // Success will trigger realtime update (status -> matched) and remove from open list
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to join duel', e);
+    }
   };
 
   // Icons
