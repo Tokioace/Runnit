@@ -641,12 +641,27 @@ export default function MapScreen() {
     };
   }, [center.lat, center.lng, cityName]);
 
-  // Reverse geocode city from user location
+  // Reverse geocode city from user location with simple throttle
+  const lastGeocodeRef = useRef<{ lat: number; lng: number; city: string | null; at: number } | null>(null);
   useEffect(() => {
     if (!userCoords) {
       setCityName(null);
       return;
     }
+    const now = Date.now();
+    const previous = lastGeocodeRef.current;
+    const distanceMoved = previous
+      ? Math.hypot(userCoords.lat - previous.lat, userCoords.lng - previous.lng)
+      : Infinity;
+    const timeElapsedMs = previous ? now - previous.at : Infinity;
+
+    // Throttle: only geocode if > 500m approx or > 2 minutes passed
+    // Rough degree-to-km: ~111km per degree. 0.0045 deg ~ 500m.
+    const DEG_THRESHOLD = 0.0045;
+    const TIME_THRESHOLD = 2 * 60 * 1000;
+    const shouldGeocode = distanceMoved > DEG_THRESHOLD || timeElapsedMs > TIME_THRESHOLD;
+    if (!shouldGeocode) return;
+
     let cancelled = false;
     const { lat, lng } = userCoords;
     (async () => {
@@ -666,9 +681,15 @@ export default function MapScreen() {
           addr.county ||
           addr.state ||
           null;
-        if (!cancelled) setCityName(detected);
+        if (!cancelled) {
+          setCityName(detected);
+          lastGeocodeRef.current = { lat, lng, city: detected, at: Date.now() };
+        }
       } catch (_e) {
-        if (!cancelled) setCityName(null);
+        if (!cancelled) {
+          setCityName(null);
+          lastGeocodeRef.current = { lat, lng, city: null, at: Date.now() };
+        }
       }
     })();
     return () => {
@@ -908,6 +929,11 @@ export default function MapScreen() {
           No nearby activity yet
         </div>
       )}
+
+      {/* City indicator */}
+      <div className="pointer-events-none absolute left-4 top-4 z-[900] rounded-lg bg-white/5 px-3 py-2 text-xs text-white/80 ring-1 ring-white/10">
+        {cityName ? `City: ${cityName}` : 'City: —'}
+      </div>
 
       {/* Sticky bottom bar */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[950] flex justify-center pb-5">
