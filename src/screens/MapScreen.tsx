@@ -1053,8 +1053,37 @@ export default function MapScreen() {
 
 function MatchCountdownOverlay({ startsAt, onReady, onDone }: { startsAt: number; onReady: () => void; onDone: () => void }) {
   const [remainingMs, setRemainingMs] = useState(Math.max(0, startsAt - Date.now()));
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
     onReady();
+    // Simple audio sequence: 3,2,1, go
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const playBeep = (t: number, freq: number, durMs: number, gain=0.2) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        g.gain.value = gain;
+        osc.connect(g).connect(ctx.destination);
+        osc.start(ctx.currentTime + t);
+        osc.stop(ctx.currentTime + t + durMs / 1000);
+      };
+      const total = Math.max(0, (startsAt - Date.now()) / 1000);
+      // schedule beeps at 3,2,1,go within the remaining timeframe
+      // fallback if short: only final go
+      if (total > 2.5) {
+        playBeep(total - 3, 600, 120);
+        playBeep(total - 2, 650, 120);
+        playBeep(total - 1, 700, 120);
+        playBeep(total - 0.02, 900, 240, 0.25);
+      } else if (total > 0.8) {
+        playBeep(total - 1, 700, 120);
+        playBeep(total - 0.02, 900, 240, 0.25);
+      } else {
+        playBeep(0, 900, 200, 0.25);
+      }
+    } catch {}
     const id = setInterval(() => {
       const ms = Math.max(0, startsAt - Date.now());
       setRemainingMs(ms);
@@ -1153,16 +1182,55 @@ function RaceFinishedOverlay({ startedAt, endedAt, targetDistanceM, onClose }: {
   const seconds = ((endedAt - startedAt) / 1000).toFixed(2);
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
-      <div className="w-full max-w-xs rounded-xl bg-[#0b0b0d] p-5 text-center text-white ring-1 ring-white/10">
-        <div className="mb-3 text-lg font-semibold">Finished!</div>
-        <div className="mb-1 text-3xl font-extrabold">{seconds}s</div>
-        <div className="mb-5 text-xs text-white/70">Target: {targetDistanceM} m</div>
-        <button
-          onClick={onClose}
-          className="w-full rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
-        >
-          Close
-        </button>
+      <div className="w-full max-w-md rounded-xl bg-[#0b0b0d] p-5 text-white ring-1 ring-white/10">
+        <div className="mb-3 text-center text-lg font-semibold">Finished!</div>
+        <div className="mb-1 text-center text-3xl font-extrabold">{seconds}s</div>
+        <div className="mb-4 text-center text-xs text-white/70">Target: {targetDistanceM} m</div>
+        <SideBySideResults />
+        <div className="mt-5">
+          <button
+            onClick={onClose}
+            className="w-full rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SideBySideResults() {
+  const [rows, setRows] = useState<any[] | null>(null);
+  const duelIdRef = useRef<string | null>(null);
+  // Find most recent race duelId from state above if needed
+  // For simplicity, we read from URL hash or ignore; in real app, pass duelId as prop.
+  useEffect(() => {
+    // no-op placeholder; data would be fetched with getDuelResults when duelId is known
+  }, []);
+  return (
+    <div className="rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
+      <div className="mb-2 grid grid-cols-2 gap-2 text-xs uppercase tracking-wide text-white/60">
+        <div>Runner A</div>
+        <div className="text-right">Runner B</div>
+      </div>
+      <div className="space-y-2 text-sm">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-md bg-white/10 p-2">Time: —</div>
+          <div className="rounded-md bg-white/10 p-2 text-right">Time: —</div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-md bg-white/10 p-2">Max v: —</div>
+          <div className="rounded-md bg-white/10 p-2 text-right">Max v: —</div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-md bg-white/10 p-2">Max a: —</div>
+          <div className="rounded-md bg-white/10 p-2 text-right">Max a: —</div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-md bg-white/10 p-2">Steps: —</div>
+          <div className="rounded-md bg-white/10 p-2 text-right">Steps: —</div>
+        </div>
       </div>
     </div>
   );
