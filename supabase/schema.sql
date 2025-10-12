@@ -101,6 +101,19 @@ as $$
   order by created_at desc
 $$;
 
+-- Enable realtime replication for duels so clients receive inserts/updates
+do $$
+begin
+  -- This will throw if already added; ignore in that case
+  begin
+    execute 'alter publication supabase_realtime add table public.duels';
+  exception when others then
+    -- no-op
+    null;
+  end;
+end
+$$;
+
 -- Sync auth.users -> public.users so FK constraints work and profiles exist
 create or replace function public.handle_new_auth_user()
 returns trigger

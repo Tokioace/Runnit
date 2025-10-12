@@ -1014,7 +1014,41 @@ export default function MapScreen() {
       hostUserId: authUser.id,
       location: geojson,
       distanceKm: Math.max(1, Math.round(distanceMeters / 100) / 10),
+      targetDistanceM: distanceMeters,
     });
+    // Optimistically refresh nearby duels to surface the marker immediately
+    try {
+      const { data, error } = await getNearbyDuels(supabase, { userLocation: userCoords, radiusKm: 5 });
+      if (!error && data) {
+        const hostIds = Array.from(new Set(data.map((d: any) => d.host_user_id).filter(Boolean)));
+        const { data: hostUsers } = await supabase
+          .from('users')
+          .select('id, username')
+          .in('id', hostIds);
+        const hostById = new Map<string, any>((hostUsers || []).map((u: any) => [u.id, u]));
+        const mapped: OpenRun[] = data
+          .filter((d: any) => d.status === 'open')
+          .map((d: any) => {
+            let lat = center.lat;
+            let lng = center.lng;
+            if (d.location && (d.location as any).coordinates) {
+              const coords = (d.location as any).coordinates as [number, number];
+              lng = coords[0];
+              lat = coords[1];
+            }
+            return {
+              id: d.id,
+              hostUserId: d.host_user_id,
+              hostUsername: hostById.get(d.host_user_id)?.username || 'host',
+              distanceMeters: d.target_distance_m || (d.max_distance_km ?? 0) * 1000 || 100,
+              location: { lat, lng },
+              createdAt: d.created_at,
+              targetDistanceM: d.target_distance_m || undefined,
+            } as OpenRun;
+          });
+        setOpenRuns(mapped);
+      }
+    } catch (_e) {}
   };
 
   // Join a run (placeholder gating)
