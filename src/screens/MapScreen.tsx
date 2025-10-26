@@ -381,6 +381,58 @@ function Avatar({ name, colorHex }: { name: string; colorHex: string }) {
   );
 }
 
+// Stable demo data generators using seed-based randomness
+function seededRandom(seed: string): () => number {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  
+  return function() {
+    hash = ((hash * 9301) + 49297) % 233280;
+    return hash / 233280;
+  };
+}
+
+// Generate stable demo data once
+const generateNationalPlayers = (() => {
+  let cached: Player[] | null = null;
+  return () => {
+    if (cached) return cached;
+    const rng = seededRandom('national-germany-leaderboard');
+    cached = Array.from({ length: 50 }, (_, i) => ({
+      id: `national-${i}`,
+      username: `GermanRunner${String(i + 1).padStart(2, '0')}`,
+      rank: i + 1,
+      bestTimeSeconds: 8.5 + (i * 0.3) + (rng() * 0.5),
+      distanceMeters: 100,
+      location: { lat: 52.5 + (rng() - 0.5) * 2, lng: 13.4 + (rng() - 0.5) * 2 },
+      colorHex: colorForUsernameToHex(`GermanRunner${String(i + 1).padStart(2, '0')}`),
+    }));
+    return cached;
+  };
+})();
+
+const generateInternationalPlayers = (() => {
+  let cached: Player[] | null = null;
+  return () => {
+    if (cached) return cached;
+    const rng = seededRandom('international-world-leaderboard');
+    cached = Array.from({ length: 100 }, (_, i) => ({
+      id: `international-${i}`,
+      username: `WorldRunner${String(i + 1).padStart(3, '0')}`,
+      rank: i + 1,
+      bestTimeSeconds: 7.8 + (i * 0.2) + (rng() * 0.3),
+      distanceMeters: 100,
+      location: { lat: rng() * 180 - 90, lng: rng() * 360 - 180 },
+      colorHex: colorForUsernameToHex(`WorldRunner${String(i + 1).padStart(3, '0')}`),
+    }));
+    return cached;
+  };
+})();
+
 // Enhanced Leaderboard Modal with City/National/International tabs
 function GhostLeaderboardModal({
   open,
@@ -400,33 +452,13 @@ function GhostLeaderboardModal({
   const [nationalPlayers, setNationalPlayers] = useState<Player[]>([]);
   const [internationalPlayers, setInternationalPlayers] = useState<Player[]>([]);
 
-  // Generate demo data for national and international leaderboards
+  // Load stable demo data for national and international leaderboards
   useEffect(() => {
     if (!open) return;
     
-    // Generate national leaderboard (Germany)
-    const nationalData: Player[] = Array.from({ length: 50 }, (_, i) => ({
-      id: `national-${i}`,
-      username: `GermanRunner${String(i + 1).padStart(2, '0')}`,
-      rank: i + 1,
-      bestTimeSeconds: 8.5 + (i * 0.3) + (Math.random() * 0.5),
-      distanceMeters: 100,
-      location: { lat: 52.5 + (Math.random() - 0.5) * 2, lng: 13.4 + (Math.random() - 0.5) * 2 },
-      colorHex: colorForUsernameToHex(`GermanRunner${String(i + 1).padStart(2, '0')}`),
-    }));
-    setNationalPlayers(nationalData);
-
-    // Generate international leaderboard
-    const internationalData: Player[] = Array.from({ length: 100 }, (_, i) => ({
-      id: `international-${i}`,
-      username: `WorldRunner${String(i + 1).padStart(3, '0')}`,
-      rank: i + 1,
-      bestTimeSeconds: 7.8 + (i * 0.2) + (Math.random() * 0.3),
-      distanceMeters: 100,
-      location: { lat: Math.random() * 180 - 90, lng: Math.random() * 360 - 180 },
-      colorHex: colorForUsernameToHex(`WorldRunner${String(i + 1).padStart(3, '0')}`),
-    }));
-    setInternationalPlayers(internationalData);
+    // Use stable generators
+    setNationalPlayers(generateNationalPlayers());
+    setInternationalPlayers(generateInternationalPlayers());
   }, [open]);
 
   if (!open) return null;
@@ -836,6 +868,30 @@ export default function MapScreen() {
     }
   }, [authUser]);
 
+  // Stable city demo data generator
+  const generateCityPlayers = useMemo(() => {
+    const seed = `city-${cityName || 'Berlin'}-${Math.floor(center.lat * 1000)}-${Math.floor(center.lng * 1000)}`;
+    const rng = seededRandom(seed);
+    const demoNames = [
+      'SpeedRunner23', 'FlashFeet', 'RocketRunner', 'TurboTom', 'LightningLisa',
+      'FastFreddy', 'QuickQuinn', 'RapidRyan', 'SwiftSarah', 'ZoomZoe',
+      'BlazeRunner', 'VelocityVic', 'DashDave', 'RushRita', 'BoltBen'
+    ];
+    
+    return Array.from({ length: 15 }, (_, i) => ({
+      id: `city-demo-${i}`,
+      username: demoNames[i] || `CityRunner${String(i + 1).padStart(2, '0')}`,
+      rank: i + 1,
+      bestTimeSeconds: 9.2 + (i * 0.4) + (rng() * 0.3),
+      distanceMeters: 100,
+      location: { 
+        lat: center.lat + (rng() - 0.5) * 0.01, 
+        lng: center.lng + (rng() - 0.5) * 0.01 
+      },
+      colorHex: colorForUsernameToHex(demoNames[i] || `CityRunner${String(i + 1).padStart(2, '0')}`),
+    }));
+  }, [cityName, Math.floor(center.lat * 1000), Math.floor(center.lng * 1000)]);
+
   // Load leaderboard (ghost runs) for city - with demo data fallback
   useEffect(() => {
     let isActive = true;
@@ -867,25 +923,8 @@ export default function MapScreen() {
             } as Player;
           });
         } else {
-          // Fallback to demo data for city leaderboard
-          const demoNames = [
-            'SpeedRunner23', 'FlashFeet', 'RocketRunner', 'TurboTom', 'LightningLisa',
-            'FastFreddy', 'QuickQuinn', 'RapidRyan', 'SwiftSarah', 'ZoomZoe',
-            'BlazeRunner', 'VelocityVic', 'DashDave', 'RushRita', 'BoltBen'
-          ];
-          
-          newPlayers = Array.from({ length: 15 }, (_, i) => ({
-            id: `city-demo-${i}`,
-            username: demoNames[i] || `CityRunner${String(i + 1).padStart(2, '0')}`,
-            rank: i + 1,
-            bestTimeSeconds: 9.2 + (i * 0.4) + (Math.random() * 0.3),
-            distanceMeters: 100,
-            location: { 
-              lat: center.lat + (Math.random() - 0.5) * 0.01, 
-              lng: center.lng + (Math.random() - 0.5) * 0.01 
-            },
-            colorHex: colorForUsernameToHex(demoNames[i] || `CityRunner${String(i + 1).padStart(2, '0')}`),
-          }));
+          // Use stable demo data for city leaderboard
+          newPlayers = generateCityPlayers;
         }
         
         if (!isActive) return;
@@ -897,7 +936,7 @@ export default function MapScreen() {
     return () => {
       isActive = false;
     };
-  }, [center.lat, center.lng, cityName]);
+  }, [generateCityPlayers, cityName]);
 
   // Fetch approximate IP-based location when precise location is unavailable
   useEffect(() => {
@@ -1005,6 +1044,29 @@ export default function MapScreen() {
     };
   }, [userCoords, ipCoords]);
 
+  // Stable demo runs generator
+  const generateDemoRuns = useMemo(() => {
+    if (!userCoords) return [];
+    
+    const seed = `demo-runs-${Math.floor(userCoords.lat * 10000)}-${Math.floor(userCoords.lng * 10000)}`;
+    const rng = seededRandom(seed);
+    const demoHosts = ['ChallengeMaster', 'RaceKing', 'SprintQueen'];
+    const distances = [50, 75, 100];
+    
+    return Array.from({ length: 3 }, (_, i) => ({
+      id: `demo-run-${i}`,
+      hostUserId: `demo-host-${i}`,
+      hostUsername: demoHosts[i],
+      distanceMeters: distances[i],
+      location: {
+        lat: userCoords.lat + (rng() - 0.5) * 0.005, // ~250m radius
+        lng: userCoords.lng + (rng() - 0.5) * 0.005,
+      },
+      createdAt: new Date(Date.now() - rng() * 300000).toISOString(), // Stable time in last 5 min
+      targetDistanceM: distances[i],
+    }));
+  }, [userCoords ? Math.floor(userCoords.lat * 10000) : 0, userCoords ? Math.floor(userCoords.lng * 10000) : 0]);
+
   // Load nearby open duels - with demo data fallback
   useEffect(() => {
     if (!userCoords) {
@@ -1051,22 +1113,8 @@ export default function MapScreen() {
               } as OpenRun;
             });
         } else {
-          // Add some demo runs nearby for testing
-          const demoHosts = ['ChallengeMaster', 'RaceKing', 'SprintQueen'];
-          const distances = [50, 75, 100];
-          
-          mapped = Array.from({ length: 3 }, (_, i) => ({
-            id: `demo-run-${i}-${Date.now()}`,
-            hostUserId: `demo-host-${i}`,
-            hostUsername: demoHosts[i],
-            distanceMeters: distances[i],
-            location: {
-              lat: userCoords.lat + (Math.random() - 0.5) * 0.005, // ~250m radius
-              lng: userCoords.lng + (Math.random() - 0.5) * 0.005,
-            },
-            createdAt: new Date(Date.now() - Math.random() * 300000).toISOString(), // Random time in last 5 min
-            targetDistanceM: distances[i],
-          }));
+          // Use stable demo runs
+          mapped = generateDemoRuns;
         }
         
         if (!isActive) return;
@@ -1078,7 +1126,7 @@ export default function MapScreen() {
     return () => {
       isActive = false;
     };
-  }, [userCoords, center.lat, center.lng]);
+  }, [generateDemoRuns, userCoords]);
 
   // Realtime updates for duels
   useEffect(() => {
