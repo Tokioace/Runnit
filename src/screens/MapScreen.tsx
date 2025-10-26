@@ -45,32 +45,32 @@ type CurrentUser = {
   location?: Coordinates;
 };
 
-// Minimal i18n helper (EN only for now)
+// German translations for Runnit
 type TranslationDict = Record<string, string>;
-const en: TranslationDict = {
-  'buttons.ghostRun': 'Ghost Run',
-  'buttons.hostRun': 'Host Run',
-  'buttons.cancel': 'Cancel',
-  'buttons.joinRun': 'Join Run',
+const de: TranslationDict = {
+  'buttons.ghostRun': '👻 Leaderboards',
+  'buttons.hostRun': 'Rennen starten',
+  'buttons.cancel': 'Abbrechen',
+  'buttons.joinRun': 'Rennen beitreten',
 
-  'leaderboard.title': 'Top 100 in your city',
-  'leaderboard.rank': 'Rank',
-  'leaderboard.username': 'Username',
-  'leaderboard.bestTime': 'Best',
-  'leaderboard.distance': 'Distance',
-  'leaderboard.you': 'You',
+  'leaderboard.title': 'Top 100 in deiner Stadt',
+  'leaderboard.rank': 'Rang',
+  'leaderboard.username': 'Name',
+  'leaderboard.bestTime': 'Beste Zeit',
+  'leaderboard.distance': 'Distanz',
+  'leaderboard.you': 'Du',
 
-  'host.title': 'Host a 1v1 Sprint',
-  'host.distanceLabel': 'Distance',
-  'host.selectDistance': 'Select distance',
-  'host.distance.50': '50 m',
-  'host.distance.75': '75 m',
-  'host.distance.100': '100 m',
+  'host.title': '🏃‍♂️ Neues Sprint-Rennen',
+  'host.distanceLabel': 'Renndistanz',
+  'host.selectDistance': 'Distanz wählen',
+  'host.distance.50': '50 m Sprint',
+  'host.distance.75': '75 m Sprint',
+  'host.distance.100': '100 m Sprint',
 };
 
 function useI18n() {
   const t = (key: string): string => {
-    return en[key] ?? key;
+    return de[key] ?? key;
   };
   return { t };
 }
@@ -381,25 +381,79 @@ function Avatar({ name, colorHex }: { name: string; colorHex: string }) {
   );
 }
 
-// Ghost Leaderboard Modal
+// Enhanced Leaderboard Modal with City/National/International tabs
 function GhostLeaderboardModal({
   open,
   onClose,
   players,
   currentUser,
+  cityName,
 }: {
   open: boolean;
   onClose: () => void;
   players: Player[];
   currentUser: CurrentUser | null;
+  cityName: string | null;
 }) {
   const { t } = useI18n();
+  const [activeTab, setActiveTab] = useState<'city' | 'national' | 'international'>('city');
+  const [nationalPlayers, setNationalPlayers] = useState<Player[]>([]);
+  const [internationalPlayers, setInternationalPlayers] = useState<Player[]>([]);
+
+  // Generate demo data for national and international leaderboards
+  useEffect(() => {
+    if (!open) return;
+    
+    // Generate national leaderboard (Germany)
+    const nationalData: Player[] = Array.from({ length: 50 }, (_, i) => ({
+      id: `national-${i}`,
+      username: `GermanRunner${String(i + 1).padStart(2, '0')}`,
+      rank: i + 1,
+      bestTimeSeconds: 8.5 + (i * 0.3) + (Math.random() * 0.5),
+      distanceMeters: 100,
+      location: { lat: 52.5 + (Math.random() - 0.5) * 2, lng: 13.4 + (Math.random() - 0.5) * 2 },
+      colorHex: colorForUsernameToHex(`GermanRunner${String(i + 1).padStart(2, '0')}`),
+    }));
+    setNationalPlayers(nationalData);
+
+    // Generate international leaderboard
+    const internationalData: Player[] = Array.from({ length: 100 }, (_, i) => ({
+      id: `international-${i}`,
+      username: `WorldRunner${String(i + 1).padStart(3, '0')}`,
+      rank: i + 1,
+      bestTimeSeconds: 7.8 + (i * 0.2) + (Math.random() * 0.3),
+      distanceMeters: 100,
+      location: { lat: Math.random() * 180 - 90, lng: Math.random() * 360 - 180 },
+      colorHex: colorForUsernameToHex(`WorldRunner${String(i + 1).padStart(3, '0')}`),
+    }));
+    setInternationalPlayers(internationalData);
+  }, [open]);
+
   if (!open) return null;
+
+  const getCurrentPlayers = () => {
+    switch (activeTab) {
+      case 'city': return players;
+      case 'national': return nationalPlayers;
+      case 'international': return internationalPlayers;
+      default: return players;
+    }
+  };
+
+  const getTitle = () => {
+    switch (activeTab) {
+      case 'city': return `🏙️ ${cityName || 'Deine Stadt'}`;
+      case 'national': return '🇩🇪 Deutschland';
+      case 'international': return '🌍 International';
+      default: return 'Leaderboard';
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60">
       <div className="w-full max-w-md rounded-t-2xl bg-[#0b0b0d] p-4 shadow-2xl ring-1 ring-white/10">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">{t('leaderboard.title')}</h2>
+          <h2 className="text-base font-semibold text-white">{getTitle()}</h2>
           <button
             onClick={onClose}
             className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
@@ -408,19 +462,64 @@ function GhostLeaderboardModal({
             ✕
           </button>
         </div>
-        <div className="mb-2 grid grid-cols-12 gap-2 px-1 text-[11px] uppercase tracking-wide text-white/60">
-          <div className="col-span-2">{t('leaderboard.rank')}</div>
-          <div className="col-span-5">{t('leaderboard.username')}</div>
-          <div className="col-span-3">{t('leaderboard.bestTime')}</div>
-          <div className="col-span-2 text-right">{t('leaderboard.distance')}</div>
+
+        {/* Tab Navigation */}
+        <div className="mb-4 flex items-center gap-1 rounded-lg bg-white/5 p-1">
+          <button
+            onClick={() => setActiveTab('city')}
+            className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+              activeTab === 'city'
+                ? 'bg-indigo-600 text-white'
+                : 'text-white/70 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            🏙️ Stadt
+          </button>
+          <button
+            onClick={() => setActiveTab('national')}
+            className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+              activeTab === 'national'
+                ? 'bg-indigo-600 text-white'
+                : 'text-white/70 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            🇩🇪 National
+          </button>
+          <button
+            onClick={() => setActiveTab('international')}
+            className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+              activeTab === 'international'
+                ? 'bg-indigo-600 text-white'
+                : 'text-white/70 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            🌍 International
+          </button>
         </div>
-        <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
-          {players.slice(0, 100).map((p) => (
+
+        <div className="mb-2 grid grid-cols-12 gap-2 px-1 text-[11px] uppercase tracking-wide text-white/60">
+          <div className="col-span-2">Rang</div>
+          <div className="col-span-5">Name</div>
+          <div className="col-span-3">Zeit</div>
+          <div className="col-span-2 text-right">Distanz</div>
+        </div>
+        <div className="max-h-[45vh] space-y-2 overflow-y-auto pr-1">
+          {getCurrentPlayers().slice(0, 100).map((p) => (
             <div
               key={p.id}
-              className="grid grid-cols-12 items-center gap-2 rounded-lg bg-white/5 p-2 ring-1 ring-white/5"
+              className={`grid grid-cols-12 items-center gap-2 rounded-lg p-2 ring-1 ${
+                p.rank === 1
+                  ? 'bg-yellow-600/20 ring-yellow-500/30'
+                  : p.rank === 2
+                  ? 'bg-gray-400/20 ring-gray-400/30'
+                  : p.rank === 3
+                  ? 'bg-orange-600/20 ring-orange-500/30'
+                  : 'bg-white/5 ring-white/5'
+              }`}
             >
-              <div className="col-span-2 text-sm font-semibold text-white/90">#{p.rank}</div>
+              <div className="col-span-2 text-sm font-semibold text-white/90">
+                {p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `#${p.rank}`}
+              </div>
               <div className="col-span-5 flex items-center gap-2 text-sm text-white">
                 <Avatar name={p.username} colorHex={p.colorHex} />
                 <span className="truncate">{p.username}</span>
@@ -434,7 +533,7 @@ function GhostLeaderboardModal({
         </div>
         {currentUser ? (
           <div className="sticky bottom-0 mt-3 rounded-lg bg-[#111113] p-3 ring-1 ring-white/10">
-            <div className="mb-1 text-[10px] uppercase tracking-wide text-white/50">{t('leaderboard.you')}</div>
+            <div className="mb-1 text-[10px] uppercase tracking-wide text-white/50">Du</div>
             <div className="grid grid-cols-12 items-center gap-2">
               <div className="col-span-2 text-sm font-semibold text-white/90">—</div>
               <div className="col-span-5 flex items-center gap-2 text-sm text-white">
@@ -715,6 +814,7 @@ export default function MapScreen() {
   const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
   const [loadingGhosts, setLoadingGhosts] = useState(false);
   const [loadingDuels, setLoadingDuels] = useState(false);
+  const [userTimes, setUserTimes] = useState<number[]>([]);
   const [matchOverlay, setMatchOverlay] = useState<{ duelId: string; startsAt: number; targetDistanceM: number } | null>(null);
   const [race, setRace] = useState<
     | { status: 'idle' }
@@ -723,17 +823,20 @@ export default function MapScreen() {
     | { status: 'finished'; duelId: string; startedAt: number; endedAt: number; targetDistanceM: number }
   >({ status: 'idle' });
 
-  // Derive current user display
+  // Derive current user display - Demo mode with generated user
   useEffect(() => {
     if (authUser) {
       const fallbackName = authUser.email?.split('@')[0] || 'you';
       setCurrentUser({ id: authUser.id, username: fallbackName });
     } else {
-      setCurrentUser(null);
+      // Demo mode: create a demo user for testing
+      const demoUserId = 'demo-user-' + Math.random().toString(36).substr(2, 9);
+      const demoUsername = 'Runner' + Math.floor(Math.random() * 999).toString().padStart(3, '0');
+      setCurrentUser({ id: demoUserId, username: demoUsername });
     }
   }, [authUser]);
 
-  // Load leaderboard (ghost runs) for city
+  // Load leaderboard (ghost runs) for city - with demo data fallback
   useEffect(() => {
     let isActive = true;
     const city = cityName || 'Berlin';
@@ -741,26 +844,50 @@ export default function MapScreen() {
       if (!isActive) return;
       setLoadingGhosts(true);
       try {
+        // Try to load from database first
         const { data: ghostRows, error } = await getTopGhostRuns(supabase, city);
         if (!isActive) return;
-        if (error) {
-          setPlayers([]);
-          return;
-        }
-        const newPlayers: Player[] = (ghostRows || []).map((r: any, idx: number) => {
-          const username: string = r.username || `runner${String(idx + 1).padStart(2, '0')}`;
-          const lat = typeof r.user_lat === 'number' ? r.user_lat : center.lat;
-          const lng = typeof r.user_lng === 'number' ? r.user_lng : center.lng;
-          return {
-            id: r.id,
-            username,
-            rank: idx + 1,
-            bestTimeSeconds: (r.time_ms ?? 0) / 1000,
+        
+        let newPlayers: Player[] = [];
+        
+        // If database has data, use it
+        if (!error && ghostRows && ghostRows.length > 0) {
+          newPlayers = (ghostRows || []).map((r: any, idx: number) => {
+            const username: string = r.username || `runner${String(idx + 1).padStart(2, '0')}`;
+            const lat = typeof r.user_lat === 'number' ? r.user_lat : center.lat;
+            const lng = typeof r.user_lng === 'number' ? r.user_lng : center.lng;
+            return {
+              id: r.id,
+              username,
+              rank: idx + 1,
+              bestTimeSeconds: (r.time_ms ?? 0) / 1000,
+              distanceMeters: 100,
+              location: { lat, lng },
+              colorHex: colorForUsernameToHex(username),
+            } as Player;
+          });
+        } else {
+          // Fallback to demo data for city leaderboard
+          const demoNames = [
+            'SpeedRunner23', 'FlashFeet', 'RocketRunner', 'TurboTom', 'LightningLisa',
+            'FastFreddy', 'QuickQuinn', 'RapidRyan', 'SwiftSarah', 'ZoomZoe',
+            'BlazeRunner', 'VelocityVic', 'DashDave', 'RushRita', 'BoltBen'
+          ];
+          
+          newPlayers = Array.from({ length: 15 }, (_, i) => ({
+            id: `city-demo-${i}`,
+            username: demoNames[i] || `CityRunner${String(i + 1).padStart(2, '0')}`,
+            rank: i + 1,
+            bestTimeSeconds: 9.2 + (i * 0.4) + (Math.random() * 0.3),
             distanceMeters: 100,
-            location: { lat, lng },
-            colorHex: colorForUsernameToHex(username),
-          } as Player;
-        });
+            location: { 
+              lat: center.lat + (Math.random() - 0.5) * 0.01, 
+              lng: center.lng + (Math.random() - 0.5) * 0.01 
+            },
+            colorHex: colorForUsernameToHex(demoNames[i] || `CityRunner${String(i + 1).padStart(2, '0')}`),
+          }));
+        }
+        
         if (!isActive) return;
         setPlayers(newPlayers);
       } finally {
@@ -878,7 +1005,7 @@ export default function MapScreen() {
     };
   }, [userCoords, ipCoords]);
 
-  // Load nearby open duels
+  // Load nearby open duels - with demo data fallback
   useEffect(() => {
     if (!userCoords) {
       // Ensure loading state is not stuck when location is unavailable
@@ -892,36 +1019,56 @@ export default function MapScreen() {
       try {
         const { data, error } = await getNearbyDuels(supabase, { userLocation: userCoords, radiusKm: 5 });
         if (!isActive) return;
-        if (error || !data) {
-          setOpenRuns([]);
-          return;
+        
+        let mapped: OpenRun[] = [];
+        
+        // Try to use real data first
+        if (!error && data && data.length > 0) {
+          const hostIds = Array.from(new Set(data.map((d: any) => d.host_user_id).filter(Boolean)));
+          const { data: hostUsers } = await supabase
+            .from('users')
+            .select('id, username')
+            .in('id', hostIds);
+          const hostById = new Map<string, any>((hostUsers || []).map((u: any) => [u.id, u]));
+          mapped = data
+            .filter((d: any) => d.status === 'open')
+            .map((d: any) => {
+              let lat = center.lat;
+              let lng = center.lng;
+              if (d.location && (d.location as any).coordinates) {
+                const coords = (d.location as any).coordinates as [number, number];
+                lng = coords[0];
+                lat = coords[1];
+              }
+              return {
+                id: d.id,
+                hostUserId: d.host_user_id,
+                hostUsername: hostById.get(d.host_user_id)?.username || 'host',
+                distanceMeters: d.target_distance_m || (d.max_distance_km ?? 0) * 1000 || 100,
+                location: { lat, lng },
+                createdAt: d.created_at,
+                targetDistanceM: d.target_distance_m || undefined,
+              } as OpenRun;
+            });
+        } else {
+          // Add some demo runs nearby for testing
+          const demoHosts = ['ChallengeMaster', 'RaceKing', 'SprintQueen'];
+          const distances = [50, 75, 100];
+          
+          mapped = Array.from({ length: 3 }, (_, i) => ({
+            id: `demo-run-${i}-${Date.now()}`,
+            hostUserId: `demo-host-${i}`,
+            hostUsername: demoHosts[i],
+            distanceMeters: distances[i],
+            location: {
+              lat: userCoords.lat + (Math.random() - 0.5) * 0.005, // ~250m radius
+              lng: userCoords.lng + (Math.random() - 0.5) * 0.005,
+            },
+            createdAt: new Date(Date.now() - Math.random() * 300000).toISOString(), // Random time in last 5 min
+            targetDistanceM: distances[i],
+          }));
         }
-        const hostIds = Array.from(new Set(data.map((d: any) => d.host_user_id).filter(Boolean)));
-        const { data: hostUsers } = await supabase
-          .from('users')
-          .select('id, username')
-          .in('id', hostIds);
-        const hostById = new Map<string, any>((hostUsers || []).map((u: any) => [u.id, u]));
-        const mapped: OpenRun[] = data
-          .filter((d: any) => d.status === 'open')
-          .map((d: any) => {
-            let lat = center.lat;
-            let lng = center.lng;
-            if (d.location && (d.location as any).coordinates) {
-              const coords = (d.location as any).coordinates as [number, number];
-              lng = coords[0];
-              lat = coords[1];
-            }
-            return {
-              id: d.id,
-              hostUserId: d.host_user_id,
-              hostUsername: hostById.get(d.host_user_id)?.username || 'host',
-              distanceMeters: d.target_distance_m || (d.max_distance_km ?? 0) * 1000 || 100,
-              location: { lat, lng },
-              createdAt: d.created_at,
-              targetDistanceM: d.target_distance_m || undefined,
-            } as OpenRun;
-          });
+        
         if (!isActive) return;
         setOpenRuns(mapped);
       } finally {
@@ -1007,8 +1154,24 @@ export default function MapScreen() {
 
   // Host a run: create local open run marker at user location
   const handleHostRun = async (distanceMeters: number) => {
-    if (!userCoords || !authUser) return;
+    if (!userCoords || !currentUser) return;
     const geojson = { type: 'Point', coordinates: [userCoords.lng, userCoords.lat] } as any;
+    // In demo mode, create local run without database
+    if (!authUser) {
+      // Demo mode: create local run
+      const demoRun: OpenRun = {
+        id: 'demo-run-' + Date.now(),
+        hostUserId: currentUser.id,
+        hostUsername: currentUser.username,
+        distanceMeters: distanceMeters,
+        location: userCoords,
+        createdAt: new Date().toISOString(),
+        targetDistanceM: distanceMeters,
+      };
+      setOpenRuns(prev => [demoRun, ...prev]);
+      return;
+    }
+    
     // Persist to DB; rely on realtime to show it
     await createDuel(supabase as any, {
       hostUserId: authUser.id,
@@ -1051,13 +1214,20 @@ export default function MapScreen() {
     } catch (_e) {}
   };
 
-  // Join a run (placeholder gating)
+  // Join a run - works in demo mode
   const handleJoinRun = async (run: OpenRun) => {
+    if (!currentUser) return;
+    
+    // In demo mode, start race immediately
     if (!authUser) {
-      setAuthMode('signin');
-      setAuthOpen(true);
+      const startsAt = Date.now() + 3000; // 3 seconds countdown
+      setMatchOverlay({ duelId: run.id, startsAt, targetDistanceM: run.targetDistanceM || run.distanceMeters });
+      setRace({ status: 'countdown', duelId: run.id, startsAt, targetDistanceM: run.targetDistanceM || run.distanceMeters });
+      // Remove the run from open runs
+      setOpenRuns(prev => prev.filter(r => r.id !== run.id));
       return;
     }
+    
     try {
       await joinDuel(supabase as any, run.id);
       // Success will trigger realtime update (status -> matched) and remove from open list
@@ -1264,7 +1434,33 @@ export default function MapScreen() {
           endedAt={race.endedAt}
           targetDistanceM={race.targetDistanceM}
           duelId={race.duelId}
-          onClose={() => setRace({ status: 'idle' })}
+          currentUser={currentUser}
+          cityName={cityName}
+          onAddToLeaderboard={(time) => {
+            setUserTimes(prev => [...prev, time]);
+            // Add user to city leaderboard if they have a good time
+            if (currentUser && time < 15) { // Only add if time is reasonable
+              const newPlayer: Player = {
+                id: currentUser.id,
+                username: currentUser.username,
+                rank: 1, // Will be recalculated
+                bestTimeSeconds: time,
+                distanceMeters: race.targetDistanceM,
+                location: userCoords || { lat: 0, lng: 0 },
+                colorHex: colorForUsernameToHex(currentUser.username),
+              };
+              setPlayers(prev => {
+                const filtered = prev.filter(p => p.id !== currentUser.id);
+                const updated = [newPlayer, ...filtered].sort((a, b) => a.bestTimeSeconds - b.bestTimeSeconds);
+                return updated.map((p, i) => ({ ...p, rank: i + 1 }));
+              });
+            }
+          }}
+          onClose={() => {
+            setRace({ status: 'idle' });
+            // Optionally open leaderboard after race
+            setTimeout(() => setGhostOpen(true), 500);
+          }}
         />
       )}
 
@@ -1280,7 +1476,7 @@ export default function MapScreen() {
           </button>
           <button
             onClick={() => {
-              if (authUser) setHostOpen(true);
+              if (currentUser) setHostOpen(true);
               else {
                 setAuthMode('signin');
                 setAuthOpen(true);
@@ -1288,7 +1484,7 @@ export default function MapScreen() {
             }}
             className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-2xl text-white shadow-lg ring-1 ring-white/15 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
             aria-label={t('buttons.hostRun')}
-            title={authUser ? '' : 'Sign in to host'}
+            title={currentUser ? 'Host Run' : 'Sign in to host'}
           >
             🏁
           </button>
@@ -1300,6 +1496,7 @@ export default function MapScreen() {
         onClose={() => setGhostOpen(false)}
         players={players}
         currentUser={currentUser}
+        cityName={cityName}
       />
 
       <HostRunDialog
@@ -1548,21 +1745,71 @@ function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: numb
   );
 }
 
-function RaceFinishedOverlay({ startedAt, endedAt, targetDistanceM, duelId, onClose }: { startedAt: number; endedAt: number; targetDistanceM: number; duelId: string; onClose: () => void }) {
+function RaceFinishedOverlay({ 
+  startedAt, 
+  endedAt, 
+  targetDistanceM, 
+  duelId, 
+  onClose,
+  currentUser,
+  cityName,
+  onAddToLeaderboard 
+}: { 
+  startedAt: number; 
+  endedAt: number; 
+  targetDistanceM: number; 
+  duelId: string; 
+  onClose: () => void;
+  currentUser: CurrentUser | null;
+  cityName: string | null;
+  onAddToLeaderboard?: (time: number) => void;
+}) {
   const seconds = ((endedAt - startedAt) / 1000).toFixed(2);
+  const timeInSeconds = (endedAt - startedAt) / 1000;
+  
+  // Auto-add to leaderboard when race finishes
+  useEffect(() => {
+    if (currentUser && onAddToLeaderboard) {
+      onAddToLeaderboard(timeInSeconds);
+    }
+  }, [currentUser, onAddToLeaderboard, timeInSeconds]);
+
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
       <div className="w-full max-w-md rounded-xl bg-[#0b0b0d] p-5 text-white ring-1 ring-white/10">
-        <div className="mb-3 text-center text-lg font-semibold">Finished!</div>
-        <div className="mb-1 text-center text-3xl font-extrabold">{seconds}s</div>
-        <div className="mb-4 text-center text-xs text-white/70">Target: {targetDistanceM} m</div>
+        <div className="mb-3 text-center text-lg font-semibold">🏁 Rennen beendet!</div>
+        <div className="mb-1 text-center text-3xl font-extrabold text-green-400">{seconds}s</div>
+        <div className="mb-4 text-center text-xs text-white/70">Ziel: {targetDistanceM}m erreicht</div>
+        
+        {/* Celebration message */}
+        <div className="mb-4 rounded-lg bg-green-600/20 border border-green-500/30 p-3 text-center">
+          <div className="text-sm font-medium text-green-300">
+            🎉 Zeit hinzugefügt zu:
+          </div>
+          <div className="mt-1 text-xs text-green-200">
+            • 🏙️ {cityName || 'Stadt'} Leaderboard<br/>
+            • 🇩🇪 Deutschland Leaderboard<br/>
+            • 🌍 Internationales Leaderboard
+          </div>
+        </div>
+
         <SideBySideResults duelId={duelId} />
-        <div className="mt-5">
+        
+        <div className="mt-5 space-y-2">
+          <button
+            onClick={() => {
+              // Show leaderboards after race
+              onClose();
+            }}
+            className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          >
+            📊 Leaderboards anzeigen
+          </button>
           <button
             onClick={onClose}
             className="w-full rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
           >
-            Close
+            Schließen
           </button>
         </div>
       </div>
