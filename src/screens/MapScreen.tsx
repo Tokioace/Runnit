@@ -12,6 +12,10 @@ import { getTopGhostRuns } from '../db/getTopGhostRuns';
 import { submitDuelResult, type DuelMetrics } from '../db/submitDuelResult';
 import { readyForDuel } from '../db/readyForDuel';
 import { getDuelResults } from '../db/getDuelResults';
+import BottomNav from '../components/ui/BottomNav';
+import { BottomSheet } from '../components/ui/BottomSheet';
+import { LeaderboardSheet } from '../components/leaderboard/Sheet';
+import { MapHUD } from '../components/map/MapHUD';
 
 // Types
 type Coordinates = {
@@ -1323,12 +1327,12 @@ export default function MapScreen() {
   }
 
   return (
-    <div className="relative h-screen w-screen bg-black">
+    <div className="relative h-screen w-screen bg-bg">
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={initialZoom}
         zoomControl={false}
-        className="border border-red-500"
+        className="h-full w-full"
         style={{ height: '100%', width: '100%' }}
         preferCanvas
       >
@@ -1393,10 +1397,8 @@ export default function MapScreen() {
         </div>
       )}
 
-      {/* City indicator */}
-      <div className="pointer-events-none absolute left-4 top-4 z-[900] rounded-lg bg-white/5 px-3 py-2 text-xs text-white/80 ring-1 ring-white/10">
-        {cityName ? `City: ${cityName}` : 'City: —'}
-      </div>
+      {/* MapHUD */}
+      {cityName && <MapHUD city={cityName} />}
 
       {/* Locate me control */}
       <div className="pointer-events-auto absolute right-4 top-4 z-[950]">
@@ -1512,40 +1514,32 @@ export default function MapScreen() {
         />
       )}
 
-      {/* Sticky bottom bar */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[950] flex justify-center pb-5">
-        <div className="pointer-events-auto flex w-full max-w-md items-center justify-between gap-3 rounded-2xl bg-[#0b0b0d]/90 p-3 ring-1 ring-white/10 backdrop-blur">
-          <button
-            onClick={() => setGhostOpen(true)}
-            className="flex-1 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-900/40 ring-1 ring-white/10 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            aria-label={t('buttons.ghostRun')}
-          >
-            {t('buttons.ghostRun')}
-          </button>
-          <button
-            onClick={() => {
-              if (currentUser) setHostOpen(true);
-              else {
-                setAuthMode('signin');
-                setAuthOpen(true);
-              }
-            }}
-            className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-2xl text-white shadow-lg ring-1 ring-white/15 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
-            aria-label={t('buttons.hostRun')}
-            title={currentUser ? 'Host Run' : 'Sign in to host'}
-          >
-            🏁
-          </button>
-        </div>
+      {/* Floating leaderboard button */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-24 z-[950] flex justify-center p-4">
+        <button 
+          onClick={() => setGhostOpen(true)}
+          className="pointer-events-auto rounded-2xl bg-primary text-white px-5 py-3 font-semibold shadow-soft hover:bg-primary-600 transition-colors"
+        >
+          {t('buttons.ghostRun')}
+        </button>
       </div>
 
-      <GhostLeaderboardModal
-        open={ghostOpen}
-        onClose={() => setGhostOpen(false)}
-        players={players}
-        currentUser={currentUser}
-        cityName={cityName}
-      />
+      {/* New Bottom Sheet for Leaderboards */}
+      <BottomSheet 
+        open={ghostOpen} 
+        onClose={() => setGhostOpen(false)} 
+        title={cityName || 'Leaderboard'}
+      >
+        <LeaderboardSheet 
+          city={cityName || 'Your City'} 
+          entries={players.slice(0, 10).map(p => ({
+            rank: p.rank,
+            name: p.username,
+            time: `${p.bestTimeSeconds.toFixed(2)}s`,
+            distance: `${p.distanceMeters}m`
+          }))} 
+        />
+      </BottomSheet>
 
       <HostRunDialog
         open={hostOpen}
@@ -1570,6 +1564,9 @@ export default function MapScreen() {
           await signOut();
         }}
       />
+      
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }
