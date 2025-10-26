@@ -2,13 +2,61 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-bg: #0E0E10;
+  --color-surface: #18181B;
+  --color-surface-2: #1F1F23;
+  --color-text: #F5F5F5;
+  --color-text-muted: #A1A1AA;
+  --color-primary: #6C63FF; /* Runnit Purple */
+  --color-primary-600: #5A52E6;
+  --color-primary-700: #4B44CC;
+  --color-mint: #00E0A8;
+  --color-success: #22C55E;
+  --color-danger: #EF4444;
+  --color-gold: #C9A227;
+  --color-silver: #9CA3AF;
+  --color-bronze: #B07A54;
+  --shadow-color: 0 10px 25px rgba(0,0,0,.45);
+}
+
+.dark {
+  --color-bg: #0E0E10;
+  --color-surface: #18181B;
+  --color-surface-2: #1F1F23;
+  --color-text: #F5F5F5;
+  --color-text-muted: #A1A1AA;
+  --color-primary: #6C63FF;
+  --color-primary-600: #5A52E6;
+  --color-primary-700: #4B44CC;
+  --color-mint: #00E0A8;
+  --color-success: #22C55E;
+  --color-danger: #EF4444;
+  --color-gold: #C9A227;
+  --color-silver: #9CA3AF;
+  --color-bronze: #B07A54;
+  --shadow-color: 0 10px 25px rgba(0,0,0,.45);
+}
+
 html, body, #root {
   height: 100%;
 }
 
 body {
   margin: 0;
-  background: #000;
-  color: #fff;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
