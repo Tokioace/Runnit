@@ -104,6 +104,23 @@ export function useSupabaseUser() {
     return data;
   }, []);
 
+  // Email OTP stays inside the same browser, avoiding cross-browser Magic Link
+  // redirects (for example Outlook opening Edge instead of Safari).
+  const verifyEmailOtp = useCallback(async (email: string, token: string) => {
+    const cleanEmail = email.trim();
+    const cleanToken = token.trim();
+    if (!/^\d{6}$/.test(cleanToken)) {
+      throw new Error('Bitte gib den sechsstelligen Code aus deiner E-Mail ein.');
+    }
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: cleanEmail,
+      token: cleanToken,
+      type: 'email',
+    });
+    if (error) throw error;
+    return data;
+  }, []);
+
   const updateDisplayName = useCallback(async (displayName: string) => {
     const nickname = normalizeDisplayName(displayName);
     const validationError = getAccountDisplayNameError(nickname);
@@ -121,7 +138,7 @@ export function useSupabaseUser() {
     setUser(null);
   }, []);
 
-  return { user, loading, loadError, signIn, signUp, signInWithProvider, sendMagicLink, updateDisplayName, signOut } as const;
+  return { user, loading, loadError, signIn, signUp, signInWithProvider, sendMagicLink, verifyEmailOtp, updateDisplayName, signOut } as const;
 }
 
 export type UseSupabaseUserReturn = ReturnType<typeof useSupabaseUser>;

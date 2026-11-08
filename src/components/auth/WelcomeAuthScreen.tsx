@@ -8,7 +8,7 @@ import type { SocialProvider } from '../../lib/authRedirect';
 import AccountAuthPanel from '../profile/AccountAuthPanel';
 
 type Props = Pick<UseSupabaseUserReturn,
-  'signInWithProvider' | 'sendMagicLink' | 'signIn' | 'signUp' | 'loadError'
+  'signInWithProvider' | 'sendMagicLink' | 'verifyEmailOtp' | 'signIn' | 'signUp' | 'loadError'
 >;
 
 type EmailMode = 'hidden' | 'magic-link' | 'password';
@@ -24,6 +24,9 @@ function authErrorMessage(error: unknown): string {
   if (detail.includes('provider') || detail.includes('unsupported') || detail.includes('disabled')) {
     return 'Dieser Anmeldeanbieter ist im Runnit-Backend noch nicht aktiviert.';
   }
+  if (detail.includes('expired') || detail.includes('invalid token') || detail.includes('otp')) {
+    return 'Dieser Code ist ungültig oder abgelaufen. Bitte fordere einen neuen Code an.';
+  }
   if (detail.includes('rate limit') || detail.includes('too many')) {
     return 'Zu viele Anmeldeversuche. Bitte warte etwas und versuche es dann erneut.';
   }
@@ -36,9 +39,11 @@ function authErrorMessage(error: unknown): string {
   return 'Anmeldung konnte nicht gestartet werden. Bitte versuche es erneut oder nutze E-Mail.';
 }
 
-export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, signIn, signUp, loadError }: Props) {
+export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, verifyEmailOtp, signIn, signUp, loadError }: Props) {
   const [emailMode, setEmailMode] = useState<EmailMode>('hidden');
   const [email, setEmail] = useState('');
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState('');
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -66,7 +71,25 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, s
     setNotice(null);
     try {
       await sendMagicLink(email);
-      setNotice('Falls eine Anmeldung für diese Adresse möglich ist, erhältst du einen E-Mail-Link. Öffne ihn auf diesem Gerät, um Runnit zu starten. Prüfe auch den Spamordner.');
+      setVerificationEmail(email.trim());
+      setOtpCode('');
+      setNotice('Falls die E-Mail zugestellt wird, enthält sie deinen Anmeldelink. Wenn zusätzlich ein sechsstelliger Code enthalten ist, kannst du ihn direkt hier eingeben. Prüfe auch den Spamordner.');
+    } catch (e) {
+      setError(authErrorMessage(e));
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const submitOtpCode = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (pending || !verificationEmail) return;
+    setPending('otp');
+    setError(null);
+    setNotice(null);
+    try {
+      await verifyEmailOtp(verificationEmail, otpCode);
+      // Supabase emits SIGNED_IN; the global session gate opens the app.
     } catch (e) {
       setError(authErrorMessage(e));
     } finally {
@@ -162,20 +185,41 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, s
                 <>
                   <div>
                     <h3 className="text-lg font-extrabold">Ohne Passwort anmelden</h3>
-                    <p className="mt-1 text-xs leading-5 text-white/55">Du erhältst einen einmaligen Link per E-Mail.</p>
+                    <p className="mt-1 text-xs leading-5 text-white/55">Du erhältst einen Anmeldelink. Alternativ kannst du einen sechsstelligen Code direkt hier eingeben, sofern er in der E-Mail steht.</p>
                   </div>
                   <form onSubmit={event => { void submitEmail(event); }} className="space-y-3">
                     <label htmlFor="welcome-email" className="block text-xs font-bold text-white/70">Deine E-Mail-Adresse</label>
                     <input id="welcome-email" type="email" required autoComplete="email" inputMode="email"
-                      disabled={Boolean(pending)} value={email} onChange={e => setEmail(e.target.value)}
+                      disabled={Boolean(pending)} value={email} onChange={e => { setEmail(e.target.value); setVerificationEmail(null); setOtpCode(''); setNotice(null); }}
                       placeholder="name@beispiel.de"
                       className="min-h-14 w-full rounded-2xl border border-white/20 bg-[#0d1322] px-4 text-sm text-white outline-none placeholder:text-white/30 focus:ring-2 focus:ring-violet-300/50" />
                     <button type="submit" disabled={Boolean(pending)}
                       className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-violet-500 to-indigo-600 px-4 text-sm font-extrabold text-white transition hover:brightness-110 disabled:opacity-50">
-                      {pending === 'email' ? 'Link wird angefordert …' : 'Anmeldelink senden'}
+                      {pending === 'email' ? 'E-Mail wird angefordert …' : verificationEmail ? 'Neuen Link oder Code senden' : 'Anmeldelink senden'}
                       <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </button>
                   </form>
+                  {verificationEmail && (
+                    <form onSubmit={event => { void submitOtpCode(event); }} className="space-y-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
+                      <p className="flex items-center gap-2 text-xs font-bold text-emerald-200">
+                        <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        E-Mail angefordert
+                      </p>
+                      <label htmlFor="welcome-otp" className="block text-xs font-semibold text-white/75">Sechsstelliger E-Mail-Code (falls vorhanden)</label>
+                      <input id="welcome-otp" name="one-time-code" type="text" inputMode="numeric"
+                        autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required
+                        value={otpCode} disabled={Boolean(pending)}
+                        onChange={event => setOtpCode(event.target.value.replace(/[^0-9]/g, ''))}
+                        placeholder="123456"
+                        className="min-h-14 w-full rounded-2xl border border-emerald-300/20 bg-[#0d1322] px-4 text-center text-lg font-black tracking-[0.2em] text-white outline-none placeholder:text-white/20 focus:ring-2 focus:ring-emerald-300/50" />
+                      <button type="submit" disabled={Boolean(pending) || otpCode.length !== 6}
+                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-sm font-extrabold text-slate-950 transition hover:brightness-110 disabled:opacity-50">
+                        {pending === 'otp' ? 'Code wird geprüft …' : 'Mit Code anmelden'}
+                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                      <p className="text-[11px] leading-5 text-white/50">Du kannst im selben Browser bleiben. Wenn deine Mail nur einen Link enthält, muss für den Code die Supabase-Mailvorlage ergänzt werden.</p>
+                    </form>
+                  )}
                   <button type="button" onClick={() => { setEmailMode('password'); setError(null); setNotice(null); }}
                     className="min-h-11 w-full rounded-xl text-center text-xs font-semibold text-cyan-200 hover:text-white">
                     Lieber mit E-Mail und Passwort anmelden?
