@@ -6,7 +6,7 @@ import { callbackHasError } from '../../lib/authRedirect';
  * Callback has no access to raw identity-provider tokens, and never reflects
  * provider-supplied query-string details back into the DOM.
  */
-export default function AuthCallbackScreen() {
+export default function AuthCallbackScreen({ onContinueAsGuest }: { onContinueAsGuest: () => void }) {
   const denied = callbackHasError(window.location.search, window.location.hash);
   return (
     <main className="flex min-h-[100dvh] items-center justify-center bg-[#090b13] px-5 py-10 text-white">
@@ -31,9 +31,9 @@ export default function AuthCallbackScreen() {
           <RotateCcw className="h-4 w-4" aria-hidden="true" /> Erneut anmelden
           <ArrowRight className="ml-auto h-4 w-4" aria-hidden="true" />
         </Link>
-        <Link to="/map" className="mt-3 flex min-h-11 w-full items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-semibold text-white/70">
+        <button type="button" onClick={onContinueAsGuest} className="mt-3 flex min-h-11 w-full items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-semibold text-white/70">
           Karte als Gast erkunden
-        </Link>
+        </button>
       </section>
     </main>
   );
