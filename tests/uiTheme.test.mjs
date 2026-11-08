@@ -48,7 +48,8 @@ test('restyling preserves demo provenance and does not invent real rankings', ()
   assert.match(leaderboard, /source="demo"/);
   assert.match(leaderboard, /Die dargestellten Zeiten und Namen sind erfunden/);
   assert.match(profile, /useSupabaseUser\(\)/);
-  assert.match(profile, /<AccountAuthPanel/);
+  assert.doesNotMatch(profile, /<AccountAuthPanel/);
+  assert.match(profile, /<AccountDetailsPanel/);
   assert.match(profile, /<AccountDetailsPanel/);
   assert.doesNotMatch(profile, /Runner8|9\\.33 s|Demo-Level|Demo-Profil/);
   assert.match(sheet, /partitionLeaderboard\(entries\)/);
