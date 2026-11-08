@@ -47,7 +47,10 @@ test('restyling preserves demo provenance and does not invent real rankings', ()
   const sheet = read('src/components/leaderboard/Sheet.tsx');
   assert.match(leaderboard, /source="demo"/);
   assert.match(leaderboard, /Die dargestellten Zeiten und Namen sind erfunden/);
-  assert.match(profile, /frei erfundene Designbeispiele/);
+  assert.match(profile, /useSupabaseUser\(\)/);
+  assert.match(profile, /<AccountAuthPanel/);
+  assert.match(profile, /<AccountDetailsPanel/);
+  assert.doesNotMatch(profile, /Runner8|9\\.33 s|Demo-Level|Demo-Profil/);
   assert.match(sheet, /partitionLeaderboard\(entries\)/);
   assert.match(sheet, /keine verifizierten Sprint-Ranglisten/);
 });
