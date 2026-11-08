@@ -98,7 +98,7 @@ export default function HomeScreen() {
               <Activity className="h-6 w-6 text-cyan-300" aria-hidden="true" />
               <div>
                 <h3 className="font-bold">Mein Profil</h3>
-                <p className="mt-1 text-xs leading-5 text-white/50">Aktuell eine klar gekennzeichnete Vorschau</p>
+                <p className="mt-1 text-xs leading-5 text-white/50">Dein Konto, Anzeigename und künftige Leistungen</p>
               </div>
             </Link>
           </div>
