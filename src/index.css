@@ -60,3 +60,15 @@ body {
   }
 }
 
+
+
+/* Keep OpenStreetMap licence attribution above the iPhone's fixed bottom nav.
+   Never hide third-party map attribution behind application chrome. */
+.runnit-map .leaflet-bottom.leaflet-right {
+  bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+}
+
+.runnit-map .leaflet-control-attribution {
+  max-width: calc(100vw - 16px);
+  font-size: 10px;
+}
