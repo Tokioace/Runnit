@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Footprints, LocateFixed, Trophy } from 'lucide-react';
 import type { LatLngExpression } from 'leaflet';
@@ -835,6 +836,7 @@ function AuthModal({
 // Main Screen
 export default function MapScreen() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const { coords: userCoords, permissionDenied, requestOnce, insecureContext, unsupported } = useUserLocation();
   const { user: authUser, loading: authLoading, signIn, signUp, signOut } = useSupabaseUser();
 
@@ -853,6 +855,7 @@ export default function MapScreen() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [ghostOpen, setGhostOpen] = useState(false);
   const [hostOpen, setHostOpen] = useState(false);
+  const [raceNotice, setRaceNotice] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [cityName, setCityName] = useState<string | null>(null);
@@ -908,8 +911,15 @@ export default function MapScreen() {
     }));
   }, [cityName, Math.floor(center.lat * 1000), Math.floor(center.lng * 1000)]);
 
+  // Guests explore labeled demo previews without querying protected run data.
+  // Database policies do not allow anonymous access to runner records.
   // Load leaderboard (ghost runs) for city - with demo data fallback
   useEffect(() => {
+    if (!authUser) {
+      setPlayers(generateCityPlayers);
+      setLoadingGhosts(false);
+      return;
+    }
     let isActive = true;
     const city = cityName || 'Berlin';
     (async () => {
@@ -953,7 +963,7 @@ export default function MapScreen() {
     return () => {
       isActive = false;
     };
-  }, [generateCityPlayers, cityName]);
+  }, [generateCityPlayers, cityName, authUser?.id]);
 
   // Fetch approximate IP-based location when precise location is unavailable
   useEffect(() => {
@@ -1084,8 +1094,14 @@ export default function MapScreen() {
     }));
   }, [userCoords ? Math.floor(userCoords.lat * 10000) : 0, userCoords ? Math.floor(userCoords.lng * 10000) : 0]);
 
+  // Guests see clearly labeled sample challenges, not private Supabase rows.
   // Load nearby open duels - with demo data fallback
   useEffect(() => {
+    if (!authUser) {
+      setOpenRuns(generateDemoRuns);
+      setLoadingDuels(false);
+      return;
+    }
     if (!userCoords) {
       // Ensure loading state is not stuck when location is unavailable
       setLoadingDuels(false);
@@ -1143,10 +1159,12 @@ export default function MapScreen() {
     return () => {
       isActive = false;
     };
-  }, [generateDemoRuns, userCoords]);
+  }, [generateDemoRuns, userCoords, authUser?.id]);
 
+  // No Realtime subscription while exploring as an unauthenticated guest.
   // Realtime updates for duels
   useEffect(() => {
+    if (!authUser) return;
     const channel = supabase
       .channel('duels-realtime')
       .on(
@@ -1217,25 +1235,33 @@ export default function MapScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  // Host a run: create local open run marker at user location
-  const handleHostRun = async (distanceMeters: number) => {
-    if (!userCoords || !currentUser) return;
-    const geojson = { type: 'Point', coordinates: [userCoords.lng, userCoords.lat] } as any;
-    // In demo mode, create local run without database
-    if (!authUser) {
-      // Demo mode: create local run
-      const demoRun: OpenRun = {
-        id: 'demo-run-' + Date.now(),
-        hostUserId: currentUser.id,
-        hostUsername: currentUser.username,
-        distanceMeters: distanceMeters,
-        location: userCoords,
-        createdAt: new Date().toISOString(),
-        targetDistanceM: distanceMeters,
-      };
-      setOpenRuns(prev => [demoRun, ...prev]);
+  // Guest restriction applies to every entry point, including handlers.
+  // There is no local guest race creation or guest race countdown.
+  const requireRaceAccount = (): boolean => {
+    if (authUser) return true;
+    navigate('/login?next=%2Fmap');
+    return false;
+  };
+
+  const openHostRun = () => {
+    if (!requireRaceAccount()) return;
+    setRaceNotice(null);
+    if (!userCoords) {
+      setRaceNotice('Für das Veranstalten eines Rennens benötigst du deinen Standort. Aktiviere die Standortfreigabe.');
+      requestOnce();
       return;
     }
+    setHostOpen(true);
+  };
+
+  // Host a real run; no guest/demo persistence.
+  const handleHostRun = async (distanceMeters: number) => {
+    if (!requireRaceAccount()) return;
+    if (!userCoords || !currentUser || !authUser) {
+      setRaceNotice('Standort noch nicht verfügbar. Versuche es erneut.');
+      return;
+    }
+    const geojson = { type: 'Point', coordinates: [userCoords.lng, userCoords.lat] } as any;
     
     // Persist to DB; rely on realtime to show it
     await createDuel(supabase as any, {
@@ -1279,12 +1305,13 @@ export default function MapScreen() {
     } catch (_e) {}
   };
 
-  // Join a run - works in demo mode
+  // Joining and starting races are exclusively for signed-in accounts.
   const handleJoinRun = async (run: OpenRun) => {
+    if (!requireRaceAccount()) return;
     if (!currentUser) return;
-    
-    // In demo mode, start race immediately
-    if (!authUser) {
+
+    // Signed-in runners may try explicitly labeled, non-scored sample races.
+    if (run.id.startsWith('demo-run-')) {
       const startsAt = Date.now() + 3000; // 3 seconds countdown
       setMatchOverlay({ duelId: run.id, startsAt, targetDistanceM: run.targetDistanceM || run.distanceMeters });
       setRace({ status: 'countdown', duelId: run.id, startsAt, targetDistanceM: run.targetDistanceM || run.distanceMeters });
@@ -1510,10 +1537,22 @@ export default function MapScreen() {
         <MatchCountdownOverlay
           startsAt={matchOverlay.startsAt}
           onReady={async () => {
+            if (!authUser) {
+              setMatchOverlay(null);
+              setRace({ status: 'idle' });
+              navigate('/login?next=%2Fmap');
+              return;
+            }
+            if (matchOverlay.duelId.startsWith('demo-run-')) return;
             try { await readyForDuel(supabase as any, matchOverlay.duelId); } catch (_e) {}
           }}
           onDone={() => {
             setMatchOverlay(null);
+            if (!authUser) {
+              setRace({ status: 'idle' });
+              navigate('/login?next=%2Fmap');
+              return;
+            }
             if (race.status === 'countdown') {
               setRace({ status: 'running', duelId: race.duelId, startedAt: Date.now(), targetDistanceM: race.targetDistanceM });
             }
@@ -1521,22 +1560,24 @@ export default function MapScreen() {
         />
       )}
 
-      {race.status === 'running' && (
+      {race.status === 'running' && authUser && (
         <RaceOverlay
           startedAt={race.startedAt}
           targetDistanceM={race.targetDistanceM}
           onFinish={async (endedAt, metrics) => {
             const timeMs = endedAt - race.startedAt;
             // try submit result; ignore failure for now
-            try {
-              await submitDuelResult(supabase as any, race.duelId, timeMs, metrics);
-            } catch (_e) {}
+            if (authUser && !race.duelId.startsWith('demo-run-')) {
+              try {
+                await submitDuelResult(supabase as any, race.duelId, timeMs, metrics);
+              } catch (_e) {}
+            }
             setRace({ status: 'finished', duelId: race.duelId, startedAt: race.startedAt, endedAt, targetDistanceM: race.targetDistanceM });
           }}
         />
       )}
 
-      {race.status === 'finished' && (
+      {race.status === 'finished' && authUser && (
         <RaceFinishedOverlay
           startedAt={race.startedAt}
           endedAt={race.endedAt}
@@ -1545,6 +1586,7 @@ export default function MapScreen() {
           currentUser={currentUser}
           cityName={cityName}
           onAddToLeaderboard={(time) => {
+            if (!authUser) return;
             setUserTimes(prev => [...prev, time]);
             // Add user to city leaderboard if they have a good time
             if (currentUser && time < 15) { // Only add if time is reasonable
@@ -1573,11 +1615,21 @@ export default function MapScreen() {
         />
       )}
 
-      {/* Floating leaderboard button */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-24 z-[950] flex justify-center p-4">
-        <button 
+      {raceNotice && (
+        <div role="status" className="pointer-events-auto absolute inset-x-4 bottom-44 z-[951] mx-auto max-w-sm rounded-2xl border border-amber-300/25 bg-[#191827]/95 px-4 py-3 text-xs leading-5 text-amber-100 shadow-lg">
+          {raceNotice}
+        </div>
+      )}
+
+      {/* Guests may explore the map; creating or joining runs opens login. */}
+      <div className="pointer-events-none absolute inset-x-4 bottom-24 z-[950] flex justify-center gap-2.5">
+        <button type="button" onClick={openHostRun}
+          className="pointer-events-auto flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-emerald-300/20 bg-gradient-to-r from-emerald-400 to-cyan-400 px-3 py-3 text-center text-xs font-extrabold text-[#07151c] shadow-[0_12px_35px_rgba(16,185,129,.25)] transition hover:brightness-110 sm:text-sm">
+          {authUser ? 'Rennen veranstalten' : 'Rennen starten · Anmelden'}
+        </button>
+        <button type="button"
           onClick={() => setGhostOpen(true)}
-          className="pointer-events-auto flex min-h-14 items-center gap-3 rounded-2xl border border-violet-300/25 bg-gradient-to-r from-violet-500 to-indigo-600 px-6 py-3 text-sm font-extrabold text-white shadow-[0_15px_45px_rgba(99,102,241,.36)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="pointer-events-auto flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-violet-300/25 bg-gradient-to-r from-violet-500 to-indigo-600 px-3 py-3 text-xs font-extrabold text-white shadow-[0_15px_45px_rgba(99,102,241,.36)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:text-sm"
         >
           <Trophy className="h-5 w-5" aria-hidden="true" />
           {t('buttons.ghostRun')}
@@ -1603,7 +1655,7 @@ export default function MapScreen() {
       </BottomSheet>
 
       <HostRunDialog
-        open={hostOpen}
+        open={hostOpen && Boolean(authUser)}
         onClose={() => setHostOpen(false)}
         onHost={handleHostRun}
         defaultDistance={50}

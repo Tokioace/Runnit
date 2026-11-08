@@ -4,14 +4,13 @@ import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('the app requires a user session before rendering any application route', () => {
+test('app allows opt-in guests to browse and preserves explicit login route', () => {
   const app = read('src/App.tsx');
-  const gate = app.indexOf('if (!auth.user)');
-  const routes = app.indexOf('<Routes>');
-  assert.ok(gate > 0 && routes > gate);
-  assert.match(app, /return \(\s*<WelcomeAuthScreen/);
-  assert.match(app, /location.pathname === AUTH_CALLBACK_PATH/);
-  assert.match(app, /<Navigate to="\/" replace/);
+  assert.match(app, /wasGuestModeChosen/);
+  assert.match(app, /guestAccess/);
+  assert.match(app, /location\.pathname === AUTH_CALLBACK_PATH/);
+  assert.match(app, /!auth\.user && \(!guestAccess \|\| location\.pathname === '\/login'\)/);
+  assert.match(app, /<WelcomeAuthScreen/);
   assert.match(app, /<Route path="\/map" element=\{<MapScreen \/>\}/);
 });
 

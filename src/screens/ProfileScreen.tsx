@@ -1,4 +1,5 @@
-import { BarChart3, Flag, ShieldCheck, Timer, Trophy, UserRound } from 'lucide-react';
+import { BarChart3, Flag, ShieldCheck, Timer, Trophy, UserRound, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import PageFrame from '../components/ui/PageFrame';
 import AccountDetailsPanel from '../components/profile/AccountDetailsPanel';
 import { useSupabaseUser } from '../hooks/useSupabaseUser';
@@ -57,11 +58,25 @@ export default function ProfileScreen() {
           </div>
         </>
       ) : (
-        <div role="status" className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.075] p-4 text-sm leading-6 text-amber-100">
-          {loadError
-            ? 'Der Kontostatus konnte nicht geladen werden. Bitte prüfe deine Internetverbindung und lade die Seite neu.'
-            : 'Keine gültige Kontositzung gefunden. Beim erneuten Öffnen wird die Anmeldung angezeigt.'}
-        </div>
+        <section aria-label="Gastprofil" className="space-y-5 rounded-3xl border border-violet-300/20 bg-gradient-to-br from-violet-500/10 to-white/[0.025] p-6">
+          <div className="flex items-center gap-3">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-300/25 bg-violet-500/15">
+              <UserRound className="h-6 w-6 text-violet-200" aria-hidden="true" />
+            </span>
+            <div>
+              <h2 className="text-lg font-extrabold">Du erkundest Runnit als Gast.</h2>
+              <p className="mt-1 text-xs leading-5 text-white/60">Für die Vorschau ist kein Konto nötig.</p>
+            </div>
+          </div>
+          <p className="text-sm leading-6 text-white/65">
+            Karte, Ranglisten und GPS-Testlabor sind verfügbar. Für das Veranstalten, Beitreten oder Starten eines Rennens musst du dich anmelden. Nach der Anmeldung kannst du hier deinen Anzeigenamen verwalten.
+          </p>
+          {loadError && <p role="status" className="text-xs leading-5 text-amber-200">Dein Kontostatus konnte gerade nicht geladen werden. Du kannst die App weiter als Gast erkunden.</p>}
+          <Link to="/login?next=%2Fprofile" className="flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-violet-500 to-indigo-600 px-4 py-3 text-sm font-extrabold text-white">
+            Anmelden oder registrieren
+            <ArrowRight className="h-5 w-5" aria-hidden="true" />
+          </Link>
+        </section>
       )}
     </PageFrame>
   );
