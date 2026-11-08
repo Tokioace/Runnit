@@ -32,5 +32,7 @@ jobs:
         run: npm ci
       - name: TypeScript check
         run: npx tsc --noEmit
+      - name: Simulated GPS regression tests
+        run: npm run test:gps
       - name: Production build
         run: npm run build
