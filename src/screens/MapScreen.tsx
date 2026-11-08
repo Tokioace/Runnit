@@ -873,8 +873,8 @@ export default function MapScreen() {
   // Derive current user display - Demo mode with generated user
   useEffect(() => {
     if (authUser) {
-      const fallbackName = authUser.email?.split('@')[0] || 'you';
-      setCurrentUser({ id: authUser.id, username: fallbackName });
+      // Use the account's editable nickname, not the private email address.
+      setCurrentUser({ id: authUser.id, username: authUser.displayName });
     } else {
       // Demo mode: create a demo user for testing
       const demoUserId = 'demo-user-' + Math.random().toString(36).substr(2, 9);
