@@ -41,8 +41,8 @@ export default function App() {
   const enterGuestMode = () => {
     try { window.sessionStorage.setItem(GUEST_SESSION_KEY, '1'); } catch { /* Private browsing may block storage. */ }
     setGuestAccess(true);
-    if (location.pathname === '/login') {
-      navigate(safeLoginReturnPath(location.search), { replace: true });
+    if (location.pathname === '/login' || location.pathname === AUTH_CALLBACK_PATH) {
+      navigate(location.pathname === AUTH_CALLBACK_PATH ? '/map' : safeLoginReturnPath(location.search), { replace: true });
     }
   };
 
@@ -59,7 +59,7 @@ export default function App() {
   }
 
   if (location.pathname === AUTH_CALLBACK_PATH) {
-    return auth.user ? <Navigate to="/map" replace /> : <AuthCallbackScreen />;
+    return auth.user ? <Navigate to="/map" replace /> : <AuthCallbackScreen onContinueAsGuest={enterGuestMode} />;
   }
 
   // Explicit login requests always open the account screen, even after a
