@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { Footprints, LocateFixed, Trophy } from 'lucide-react';
 import type { LatLngExpression } from 'leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -490,13 +491,13 @@ function GhostLeaderboardModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60">
-      <div className="w-full max-w-md rounded-t-2xl bg-[#0b0b0d] p-4 shadow-2xl ring-1 ring-white/10">
+    <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#050611]/75 backdrop-blur-[4px]">
+      <div className="w-full max-w-md rounded-t-[30px] border border-violet-300/20 bg-[#101322] p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white shadow-[0_-25px_80px_rgba(0,0,0,.5)]">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">{getTitle()}</h2>
+          <h2 className="text-lg font-extrabold tracking-tight text-white">{getTitle()}</h2>
           <button
             onClick={onClose}
-            className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/70 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             aria-label="Close leaderboard"
           >
             ✕
@@ -616,14 +617,14 @@ function HostRunDialog({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60">
-      <div className="w-full max-w-md rounded-t-2xl bg-[#0b0b0d] p-4 shadow-2xl ring-1 ring-white/10">
+    <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#050611]/75 backdrop-blur-[4px]">
+      <div className="w-full max-w-md rounded-t-[30px] border border-violet-300/20 bg-[#101322] p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white shadow-[0_-25px_80px_rgba(0,0,0,.5)]">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">{t('host.title')}</h2>
+          <h2 className="text-lg font-extrabold tracking-tight text-white">{t('host.title')}</h2>
           <button
             onClick={onClose}
-            className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
-            aria-label="Close host dialog"
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/70 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            aria-label="Rennen-Dialog schließen"
           >
             ✕
           </button>
@@ -635,7 +636,7 @@ function HostRunDialog({
           <select
             value={distance}
             onChange={(e) => setDistance(parseInt(e.target.value))}
-            className="w-full rounded-lg bg-white/5 p-3 text-white outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded-2xl border border-white/15 bg-[#161a2b] p-4 text-white outline-none focus:ring-2 focus:ring-violet-400"
             aria-label={t('host.selectDistance')}
           >
             <option value={50}>{t('host.distance.50')}</option>
@@ -646,7 +647,7 @@ function HostRunDialog({
         <div className="flex items-center justify-end gap-3">
           <button
             onClick={onClose}
-            className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+            className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             {t('buttons.cancel')}
           </button>
@@ -655,7 +656,7 @@ function HostRunDialog({
               onHost(distance);
               onClose();
             }}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(99,102,241,.20)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             {t('buttons.hostRun')}
           </button>
@@ -744,16 +745,16 @@ function AuthModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60">
-      <div className="w-full max-w-md rounded-t-2xl bg-[#0b0b0d] p-4 shadow-2xl ring-1 ring-white/10">
+    <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#050611]/75 backdrop-blur-[4px]">
+      <div className="w-full max-w-md rounded-t-[30px] border border-violet-300/20 bg-[#101322] p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white shadow-[0_-25px_80px_rgba(0,0,0,.5)]">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">
+          <h2 className="text-lg font-extrabold tracking-tight text-white">
             {user ? 'Account' : mode === 'signin' ? 'Sign in' : 'Sign up'}
           </h2>
           <button
             onClick={onClose}
-            className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
-            aria-label="Close auth"
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/70 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            aria-label="Anmeldung schließen"
           >
             ✕
           </button>
@@ -765,10 +766,10 @@ function AuthModal({
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={handleSignOut}
-                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 disabled={submitting}
               >
-                Sign out
+                Abmelden
               </button>
             </div>
           </div>
@@ -779,13 +780,13 @@ function AuthModal({
                 className={`rounded-md px-2 py-1 font-medium ${mode === 'signin' ? 'bg-indigo-600 text-white' : 'bg-white/10 text-white/80'} `}
                 onClick={() => setMode('signin')}
               >
-                Sign in
+                Anmelden
               </button>
               <button
                 className={`rounded-md px-2 py-1 font-medium ${mode === 'signup' ? 'bg-indigo-600 text-white' : 'bg-white/10 text-white/80'} `}
                 onClick={() => setMode('signup')}
               >
-                Sign up
+                Registrieren
               </button>
             </div>
 
@@ -795,14 +796,14 @@ function AuthModal({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
-                className="w-full rounded-lg bg-white/5 p-3 text-white outline-none ring-1 ring-white/10 placeholder:text-white/40 focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-xl border border-white/15 bg-[#161a2b] p-4 text-white outline-none placeholder:text-white/35 focus:ring-2 focus:ring-violet-400"
               />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
-                className="w-full rounded-lg bg-white/5 p-3 text-white outline-none ring-1 ring-white/10 placeholder:text-white/40 focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-xl border border-white/15 bg-[#161a2b] p-4 text-white outline-none placeholder:text-white/35 focus:ring-2 focus:ring-violet-400"
               />
             </div>
 
@@ -812,16 +813,16 @@ function AuthModal({
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={onClose}
-                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
-                Cancel
+                Abbrechen
               </button>
               <button
                 onClick={handleSubmit}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(99,102,241,.20)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 disabled={submitting || !email || !password}
               >
-                {mode === 'signin' ? 'Sign in' : 'Create account'}
+                {mode === 'signin' ? 'Anmelden' : 'Konto erstellen'}
               </button>
             </div>
           </div>
@@ -1339,7 +1340,7 @@ export default function MapScreen() {
   }
 
   return (
-    <div className="runnit-map relative h-screen w-screen bg-bg">
+    <div className="runnit-map relative h-screen w-screen overflow-hidden bg-[#090b13] text-white">
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={initialZoom}
@@ -1396,7 +1397,7 @@ export default function MapScreen() {
                 )}
                 <button
                   onClick={() => handleJoinRun(r)}
-                  className="w-full rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400"
+                  className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 >
                   {t('buttons.joinRun')}
                 </button>
@@ -1446,18 +1447,24 @@ export default function MapScreen() {
         </div>
       )}
 
-      {/* MapHUD */}
-      {cityName && <MapHUD city={cityName} />}
+      {/* Branded header stays independent of the map tile loading state. */}
+      {cityName ? <MapHUD city={cityName} /> : (
+        <div className="pointer-events-none absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-[940] flex items-center gap-2.5 rounded-2xl border border-violet-300/25 bg-[#101322]/90 px-3.5 py-2.5 text-white shadow-[0_12px_35px_rgba(0,0,0,.4)] backdrop-blur-xl">
+          <Footprints className="h-5 w-5 text-violet-200" aria-hidden="true" />
+          <span className="text-sm font-black tracking-[0.08em]">RUNNIT<span className="text-emerald-300">.</span></span>
+          <span className="text-[10px] font-bold text-white/45">MAP BETA</span>
+        </div>
+      )}
 
       {/* Locate me control */}
       <div className="pointer-events-auto absolute right-4 top-4 z-[950]">
         <button
           onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
-          className="rounded-full bg-white/10 p-2 text-white ring-1 ring-white/15 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-          aria-label="Locate me"
-          title="Locate me"
+          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-300/25 bg-[#101322]/90 text-violet-100 shadow-[0_12px_35px_rgba(0,0,0,.4)] backdrop-blur-xl transition hover:bg-violet-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          aria-label="Meinen Standort anzeigen"
+          title="Standort suchen"
         >
-          📍
+          <LocateFixed className="h-6 w-6" aria-hidden="true" />
         </button>
       </div>
 
@@ -1465,7 +1472,7 @@ export default function MapScreen() {
       {insecureContext && (
         <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-amber-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
           <div className="flex items-center gap-3">
-            <span>Location requires a secure context (HTTPS or localhost). Open the app via HTTPS, then retry.</span>
+            <span>Die Standortsuche benötigt eine sichere HTTPS-Verbindung. Bitte öffne Runnit über HTTPS und versuche es erneut.</span>
             <button
               onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
               className="rounded-md bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
@@ -1478,14 +1485,14 @@ export default function MapScreen() {
       {unsupported && !insecureContext && (
         <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-rose-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
           <div className="flex items-center gap-3">
-            <span>Your browser does not support geolocation.</span>
+            <span>Dieser Browser unterstützt keine Standortermittlung.</span>
           </div>
         </div>
       )}
       {!insecureContext && permissionDenied && (
         <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-rose-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
           <div className="flex items-center gap-3">
-            <span>Location permission denied. Enable it in your browser settings, then retry.</span>
+            <span>Standortzugriff verweigert. Bitte aktiviere die Berechtigung in den Browser-Einstellungen.</span>
             <button
               onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
               className="rounded-md bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
@@ -1568,8 +1575,9 @@ export default function MapScreen() {
       <div className="pointer-events-none absolute inset-x-0 bottom-24 z-[950] flex justify-center p-4">
         <button 
           onClick={() => setGhostOpen(true)}
-          className="pointer-events-auto rounded-2xl bg-primary text-white px-5 py-3 font-semibold shadow-soft hover:bg-primary-600 transition-colors"
+          className="pointer-events-auto flex min-h-14 items-center gap-3 rounded-2xl border border-violet-300/25 bg-gradient-to-r from-violet-500 to-indigo-600 px-6 py-3 text-sm font-extrabold text-white shadow-[0_15px_45px_rgba(99,102,241,.36)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         >
+          <Trophy className="h-5 w-5" aria-hidden="true" />
           {t('buttons.ghostRun')}
         </button>
       </div>
@@ -1667,10 +1675,12 @@ function MatchCountdownOverlay({ startsAt, onReady, onDone }: { startsAt: number
   }, [startsAt, onDone]);
   const seconds = Math.ceil(remainingMs / 1000);
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
-      <div className="flex h-32 w-32 items-center justify-center rounded-full bg-white/10 text-5xl font-black text-white ring-2 ring-white/30">
+    <div className="fixed inset-0 z-[1250] flex flex-col items-center justify-center bg-[#070913]/90 px-5 text-white backdrop-blur-xl">
+      <p className="mb-8 text-xs font-black uppercase tracking-[0.32em] text-emerald-300">RUNNIT · READY</p>
+      <div className="flex h-44 w-44 items-center justify-center rounded-[48px] border border-violet-300/40 bg-gradient-to-br from-violet-500/35 to-cyan-500/10 text-7xl font-black tabular-nums shadow-[0_0_90px_rgba(139,92,246,.24)]">
         {seconds}
       </div>
+      <p className="mt-8 text-sm font-semibold text-white/60">Mach dich bereit.</p>
     </div>
   );
 }
@@ -1814,12 +1824,18 @@ function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: numb
   // Auto-finish moved into GPS sampler for accuracy-stable detection
   const seconds = (elapsedMs / 1000).toFixed(2);
   return (
-    <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-center gap-6 bg-black/60">
-      <div className="rounded-lg bg-white/10 px-6 py-3 text-4xl font-extrabold text-white ring-2 ring-white/20">
-        {seconds}s
+    <div className="fixed inset-0 z-[1250] flex flex-col items-center justify-center gap-6 bg-[#070913]/90 px-5 text-white backdrop-blur-xl">
+      <p className="text-xs font-black uppercase tracking-[0.3em] text-emerald-300">RUNNIT · LIVE RACE</p>
+      <div className="w-full max-w-sm rounded-[32px] border border-violet-300/25 bg-gradient-to-br from-violet-500/25 to-cyan-500/10 p-8 text-center shadow-[0_0_60px_rgba(139,92,246,.13)]">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/50">Laufzeit</p>
+        <p className="mt-3 text-6xl font-black tracking-[-0.07em] tabular-nums text-white">{seconds}<span className="ml-1 text-2xl text-emerald-300">s</span></p>
+        <p className="mt-5 text-sm font-semibold tabular-nums text-white/65">{displayDistanceM.toFixed(1)} / {targetDistanceM} m</p>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+          <div className="h-full rounded-full bg-gradient-to-r from-violet-400 via-cyan-300 to-emerald-300" style={{ width: `${Math.max(0, Math.min(100, displayDistanceM / targetDistanceM * 100))}%` }} />
+        </div>
       </div>
-      <div className="rounded-lg bg-white/10 px-6 py-2 text-sm font-semibold text-white ring-1 ring-white/15">
-        {displayDistanceM.toFixed(1)} m · max {maxSpeed.toFixed(2)} m/s · a_max {maxAccel.toFixed(2)} m/s²
+      <div className="rounded-2xl border border-white/10 bg-white/[0.05] px-5 py-3 text-center text-xs font-semibold tabular-nums text-white/55">
+        GPS Max. {maxSpeed.toFixed(2)} m/s · Beschleunigung {maxAccel.toFixed(2)} m/s²
       </div>
       <button
         onClick={() => {
@@ -1833,9 +1849,9 @@ function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: numb
             distanceM: acceptedDistanceM,
           });
         }}
-        className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400"
+        className="min-h-14 w-full max-w-sm rounded-2xl border border-rose-300/30 bg-rose-500/20 px-6 py-4 text-sm font-extrabold text-white transition hover:bg-rose-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
       >
-        Finish
+        Lauf beenden
       </button>
     </div>
   );
@@ -1872,10 +1888,11 @@ function RaceFinishedOverlay({
   }, [currentUser, onAddToLeaderboard, timeInSeconds]);
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
-      <div className="w-full max-w-md rounded-xl bg-[#0b0b0d] p-5 text-white ring-1 ring-white/10">
-        <div className="mb-3 text-center text-lg font-semibold">🏁 Rennen beendet!</div>
-        <div className="mb-1 text-center text-3xl font-extrabold text-green-400">{seconds}s</div>
+    <div className="fixed inset-0 z-[1250] flex items-center justify-center bg-[#050611]/90 px-4 text-white backdrop-blur-xl">
+      <div className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-[30px] border border-violet-300/20 bg-gradient-to-br from-[#1b1a32] to-[#101322] p-6 shadow-[0_20px_70px_rgba(0,0,0,.5)]">
+        <div className="mb-3 text-center text-[11px] font-extrabold uppercase tracking-[0.25em] text-emerald-300">RUNNIT · FINISH</div>
+        <h2 className="text-center text-xl font-extrabold">🏁 Rennen beendet!</h2>
+        <div className="mb-2 mt-4 text-center text-5xl font-black tracking-tight tabular-nums text-emerald-300">{seconds}<span className="ml-1 text-xl">s</span></div>
         <div className="mb-4 text-center text-xs text-white/70">Zieldistanz: {targetDistanceM}m · Ergebnis nicht verifiziert</div>
         
         {/* Local display does not establish eligibility for any official ranking. */}
@@ -1897,13 +1914,13 @@ function RaceFinishedOverlay({
               // Show leaderboards after race
               onClose();
             }}
-            className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(99,102,241,.20)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             📊 Leaderboards anzeigen
           </button>
           <button
             onClick={onClose}
-            className="w-full rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+            className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             Schließen
           </button>

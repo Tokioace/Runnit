@@ -72,3 +72,43 @@ body {
   max-width: calc(100vw - 16px);
   font-size: 10px;
 }
+
+
+/* Runnit premium map skin. Only the map raster is toned: overlays and the
+   OpenStreetMap attribution remain full-color and readable. No tile URLs or
+   geolocation behavior are changed by these decorative filters. */
+.runnit-map .leaflet-tile-pane {
+  filter: invert(0.87) hue-rotate(175deg) brightness(0.83) contrast(1.12) saturate(0.72);
+}
+.runnit-map .leaflet-container {
+  background: #101526;
+  font-family: inherit;
+}
+.runnit-map .leaflet-popup-content-wrapper,
+.runnit-map .leaflet-popup-tip {
+  background: #111526;
+  color: #f8fafc;
+  box-shadow: 0 16px 50px rgba(0,0,0,.48);
+}
+.runnit-map .leaflet-popup-content-wrapper {
+  border: 1px solid rgba(167,139,250,.24);
+  border-radius: 18px;
+}
+.runnit-map .leaflet-popup-content {
+  margin: 14px;
+}
+.runnit-map .leaflet-popup-close-button {
+  color: #ddd6fe !important;
+  font-size: 22px !important;
+}
+.runnit-map .leaflet-control-attribution {
+  background: rgba(12,17,31,.94) !important;
+  border-radius: 8px 0 0 0;
+  color: #cbd5e1 !important;
+}
+.runnit-map .leaflet-control-attribution a {
+  color: #a5f3fc !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .runnit-map .leaflet-tile-pane { transition: none; }
+}
