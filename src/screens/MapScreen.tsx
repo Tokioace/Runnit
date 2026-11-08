@@ -1379,6 +1379,11 @@ export default function MapScreen() {
                   <div className="font-semibold">@{r.hostUsername}</div>
                   <div className="text-white/70">{r.distanceMeters}m</div>
                 </div>
+                {r.id.startsWith('demo-run-') && (
+                  <p className="text-xs font-semibold text-amber-300">
+                    Demo-Rennen · fiktiver Gegner
+                  </p>
+                )}
                 <button
                   onClick={() => handleJoinRun(r)}
                   className="w-full rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400"
@@ -1390,6 +1395,13 @@ export default function MapScreen() {
           </MapBadgeMarker>
         ))}
       </MapContainer>
+
+      {(players.some((player) => player.source === 'demo') ||
+        openRuns.some((run) => run.id.startsWith('demo-run-'))) && (
+        <div className="pointer-events-none absolute left-1/2 top-16 z-[900] w-max max-w-[90vw] -translate-x-1/2 rounded-xl border border-amber-300/40 bg-[#17130d]/90 px-3 py-2 text-center text-xs font-semibold text-amber-100 shadow-lg backdrop-blur">
+          Demo-Modus: einige Spieler oder Rennen sind frei erfunden
+        </div>
+      )}
 
       {/* Loading and Empty states */}
       {(loadingGhosts || loadingDuels) && (
