@@ -46,13 +46,36 @@ export default function GpsFieldTestScreen() {
 
   useEffect(() => {
     mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      phaseRef.current = 'idle';
+    const pauseIfBackgrounded = () => {
+      if (!document.hidden) return;
       if (watchId.current !== null && 'geolocation' in navigator) {
         navigator.geolocation.clearWatch(watchId.current);
         watchId.current = null;
       }
+      if (phaseRef.current === 'running') {
+        phaseRef.current = 'stopped';
+        setPhase('stopped');
+        setStatus('Lauf wegen Hintergrundwechsel abgebrochen. GPS wurde beendet.');
+      } else if (phaseRef.current === 'acquiring' || phaseRef.current === 'ready') {
+        phaseRef.current = 'idle';
+        setPhase('idle');
+        setStatus('GPS bei Hintergrundwechsel beendet. Bitte erneut vorbereiten.');
+      }
+    };
+    const stopOnPageHide = () => {
+      if (watchId.current !== null && 'geolocation' in navigator) {
+        navigator.geolocation.clearWatch(watchId.current);
+        watchId.current = null;
+      }
+      phaseRef.current = 'idle';
+    };
+    document.addEventListener('visibilitychange', pauseIfBackgrounded);
+    window.addEventListener('pagehide', stopOnPageHide);
+    return () => {
+      mountedRef.current = false;
+      document.removeEventListener('visibilitychange', pauseIfBackgrounded);
+      window.removeEventListener('pagehide', stopOnPageHide);
+      stopOnPageHide();
     };
   }, []);
 
