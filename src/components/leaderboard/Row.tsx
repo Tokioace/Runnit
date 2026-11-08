@@ -1,46 +1,42 @@
-import React from 'react';
 import { Card } from '../ui/Card';
+import {
+  leaderboardSourceLabel,
+  type LeaderboardSource,
+} from '../../lib/leaderboardProvenance';
 
-const tier = (rank: number) => rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
-
-export function LeaderboardRow({ 
-  rank, 
-  name, 
-  time, 
-  distance 
+export function LeaderboardRow({
+  rank,
+  name,
+  time,
+  distance,
+  source,
 }: {
-  rank: number; 
-  name: string; 
-  time: string; 
+  rank: number;
+  name: string;
+  time: string;
   distance: string;
+  source: LeaderboardSource;
 }) {
-  const t = tier(rank);
-  
+  const isDemo = source === 'demo';
+
   return (
-    <Card className={`flex items-center justify-between px-3 py-3 ${
-      t === 'gold' 
-        ? 'bg-[linear-gradient(90deg,rgba(201,162,39,.15),transparent)] border-gold/30' 
-        : t === 'silver' 
-        ? 'bg-[linear-gradient(90deg,rgba(156,163,175,.15),transparent)] border-silver/30' 
-        : t === 'bronze' 
-        ? 'bg-[linear-gradient(90deg,rgba(176,122,84,.15),transparent)] border-bronze/30' 
-        : ''
-    }`}>
-      <div className="flex items-center gap-3">
-        <div className="w-8 text-center text-sm font-semibold text-muted">
-          {rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`}
+    <Card className="flex items-center justify-between gap-3 border-white/10 px-3 py-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="w-9 shrink-0 text-center text-sm font-semibold text-muted">
+          #{rank}
         </div>
-        <div className="text-sm font-medium text-text truncate max-w-[9rem]">
-          {name}
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-text">{name}</div>
+          <div className={`mt-1 text-[11px] font-medium ${isDemo ? 'text-amber-300' : 'text-cyan-300'}`}>
+            {leaderboardSourceLabel(source)}
+          </div>
         </div>
       </div>
-      <div className="flex items-baseline gap-3">
+      <div className="flex shrink-0 flex-col items-end gap-1">
         <div className="text-lg font-bold tracking-tight text-text tabular-nums">
           {time}
         </div>
-        <div className="text-xs text-muted">
-          {distance}
-        </div>
+        <div className="text-xs text-muted">{distance}</div>
       </div>
     </Card>
   );

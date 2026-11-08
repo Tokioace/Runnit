@@ -15,6 +15,7 @@ import { getDuelResults } from '../db/getDuelResults';
 import BottomNav from '../components/ui/BottomNav';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { LeaderboardSheet } from '../components/leaderboard/Sheet';
+import { leaderboardSourceLabel, type LeaderboardSource } from '../lib/leaderboardProvenance';
 import { MapHUD } from '../components/map/MapHUD';
 
 // Types
@@ -31,6 +32,7 @@ type Player = {
   distanceMeters: number;
   location: Coordinates;
   colorHex: string;
+  source: LeaderboardSource;
 };
 
 type OpenRun = {
@@ -414,6 +416,7 @@ const generateNationalPlayers = (() => {
       distanceMeters: 100,
       location: { lat: 52.5 + (rng() - 0.5) * 2, lng: 13.4 + (rng() - 0.5) * 2 },
       colorHex: colorForUsernameToHex(`GermanRunner${String(i + 1).padStart(2, '0')}`),
+      source: 'demo' as const,
     }));
     return cached;
   };
@@ -432,6 +435,7 @@ const generateInternationalPlayers = (() => {
       distanceMeters: 100,
       location: { lat: rng() * 180 - 90, lng: rng() * 360 - 180 },
       colorHex: colorForUsernameToHex(`WorldRunner${String(i + 1).padStart(3, '0')}`),
+      source: 'demo' as const,
     }));
     return cached;
   };
@@ -533,6 +537,7 @@ function GhostLeaderboardModal({
           </button>
         </div>
 
+        <p className="mb-3 rounded-lg border border-amber-300/30 bg-amber-400/10 px-3 py-2 text-xs leading-5 text-amber-100">Keine offiziell verifizierten Ergebnisse: Beispieldaten sind erfunden und gespeicherte Laufzeiten nicht geprüft.</p>
         <div className="mb-2 grid grid-cols-12 gap-2 px-1 text-[11px] uppercase tracking-wide text-white/60">
           <div className="col-span-2">Rang</div>
           <div className="col-span-5">Name</div>
@@ -554,11 +559,11 @@ function GhostLeaderboardModal({
               }`}
             >
               <div className="col-span-2 text-sm font-semibold text-white/90">
-                {p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `#${p.rank}`}
+                #{p.rank}
               </div>
               <div className="col-span-5 flex items-center gap-2 text-sm text-white">
                 <Avatar name={p.username} colorHex={p.colorHex} />
-                <span className="truncate">{p.username}</span>
+                <span className="min-w-0"><span className="block truncate">{p.username}</span><span className="block text-[10px] text-amber-200">{leaderboardSourceLabel(p.source)}</span></span>
               </div>
               <div className="col-span-3 text-sm text-white/90">
                 {formatSecondsToTimeString(p.bestTimeSeconds)}
@@ -893,6 +898,7 @@ export default function MapScreen() {
         lng: center.lng + (rng() - 0.5) * 0.01 
       },
       colorHex: colorForUsernameToHex(demoNames[i] || `CityRunner${String(i + 1).padStart(2, '0')}`),
+      source: 'demo' as const,
     }));
   }, [cityName, Math.floor(center.lat * 1000), Math.floor(center.lng * 1000)]);
 
@@ -924,6 +930,7 @@ export default function MapScreen() {
               distanceMeters: 100,
               location: { lat, lng },
               colorHex: colorForUsernameToHex(username),
+              source: 'server-unverified',
             } as Player;
           });
         } else {
@@ -1372,6 +1379,11 @@ export default function MapScreen() {
                   <div className="font-semibold">@{r.hostUsername}</div>
                   <div className="text-white/70">{r.distanceMeters}m</div>
                 </div>
+                {r.id.startsWith('demo-run-') && (
+                  <p className="text-xs font-semibold text-amber-300">
+                    Demo-Rennen · fiktiver Gegner
+                  </p>
+                )}
                 <button
                   onClick={() => handleJoinRun(r)}
                   className="w-full rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400"
@@ -1383,6 +1395,13 @@ export default function MapScreen() {
           </MapBadgeMarker>
         ))}
       </MapContainer>
+
+      {(players.some((player) => player.source === 'demo') ||
+        openRuns.some((run) => run.id.startsWith('demo-run-'))) && (
+        <div className="pointer-events-none absolute left-1/2 top-16 z-[900] w-max max-w-[90vw] -translate-x-1/2 rounded-xl border border-amber-300/40 bg-[#17130d]/90 px-3 py-2 text-center text-xs font-semibold text-amber-100 shadow-lg backdrop-blur">
+          Demo-Modus: einige Spieler oder Rennen sind frei erfunden
+        </div>
+      )}
 
       {/* Loading and Empty states */}
       {(loadingGhosts || loadingDuels) && (
@@ -1498,6 +1517,7 @@ export default function MapScreen() {
                 distanceMeters: race.targetDistanceM,
                 location: userCoords || { lat: 0, lng: 0 },
                 colorHex: colorForUsernameToHex(currentUser.username),
+                source: 'local-unverified',
               };
               setPlayers(prev => {
                 const filtered = prev.filter(p => p.id !== currentUser.id);
@@ -1532,11 +1552,12 @@ export default function MapScreen() {
       >
         <LeaderboardSheet 
           city={cityName || 'Your City'} 
-          entries={players.slice(0, 10).map(p => ({
+          entries={players.map(p => ({
             rank: p.rank,
             name: p.username,
             time: `${p.bestTimeSeconds.toFixed(2)}s`,
-            distance: `${p.distanceMeters}m`
+            distance: `${p.distanceMeters}m`,
+            source: p.source
           }))} 
         />
       </BottomSheet>
@@ -1812,11 +1833,12 @@ function RaceFinishedOverlay({
   const seconds = ((endedAt - startedAt) / 1000).toFixed(2);
   const timeInSeconds = (endedAt - startedAt) / 1000;
   
-  // Auto-add to leaderboard when race finishes
+  // Avoid repeatedly inserting a locally displayed result on parent re-renders.
+  const recordedLocalResultRef = useRef(false);
   useEffect(() => {
-    if (currentUser && onAddToLeaderboard) {
-      onAddToLeaderboard(timeInSeconds);
-    }
+    if (recordedLocalResultRef.current || !currentUser || !onAddToLeaderboard) return;
+    recordedLocalResultRef.current = true;
+    onAddToLeaderboard(timeInSeconds);
   }, [currentUser, onAddToLeaderboard, timeInSeconds]);
 
   return (
@@ -1824,17 +1846,16 @@ function RaceFinishedOverlay({
       <div className="w-full max-w-md rounded-xl bg-[#0b0b0d] p-5 text-white ring-1 ring-white/10">
         <div className="mb-3 text-center text-lg font-semibold">🏁 Rennen beendet!</div>
         <div className="mb-1 text-center text-3xl font-extrabold text-green-400">{seconds}s</div>
-        <div className="mb-4 text-center text-xs text-white/70">Ziel: {targetDistanceM}m erreicht</div>
+        <div className="mb-4 text-center text-xs text-white/70">Zieldistanz: {targetDistanceM}m · Ergebnis nicht verifiziert</div>
         
-        {/* Celebration message */}
-        <div className="mb-4 rounded-lg bg-green-600/20 border border-green-500/30 p-3 text-center">
-          <div className="text-sm font-medium text-green-300">
-            🎉 Zeit hinzugefügt zu:
+        {/* Local display does not establish eligibility for any official ranking. */}
+        <div className="mb-4 rounded-lg border border-amber-300/30 bg-amber-400/10 p-3 text-center">
+          <div className="text-sm font-semibold text-amber-200">
+            Laufzeit noch nicht verifiziert
           </div>
-          <div className="mt-1 text-xs text-green-200">
-            • 🏙️ {cityName || 'Stadt'} Leaderboard<br/>
-            • 🇩🇪 Deutschland Leaderboard<br/>
-            • 🌍 Internationales Leaderboard
+          <div className="mt-1 text-xs leading-5 text-amber-100">
+            Das Ergebnis kann als lokale, ungeprüfte Zeit angezeigt werden.
+            Eine offizielle Stadt-, Deutschland- oder Weltplatzierung ist nicht bestätigt.
           </div>
         </div>
 

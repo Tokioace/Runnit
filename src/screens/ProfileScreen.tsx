@@ -10,10 +10,16 @@ export default function ProfileScreen() {
       <main className="p-4 space-y-4">
         <div className="text-center py-6">
           <h1 className="text-2xl font-bold text-text mb-2">Profile</h1>
-          <p className="text-muted text-sm">Your running achievements and stats</p>
+          <p className="text-muted text-sm">Demo-Profil · keine persönlichen Leistungsdaten</p>
         </div>
 
-        {/* Profile Header */}
+        <div role="note" className="rounded-xl border border-amber-300/30 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
+          Alle angezeigten Zeiten, Platzierungen, Medaillen und Statistiken sind
+          frei erfundene Beispieldaten. Sie zeigen keine echten oder verifizierten
+          Leistungen deines Kontos.
+        </div>
+
+        {/* Profile Header — illustration only */}
         <ProfileHeader 
           username="Runner8" 
           level={12} 
