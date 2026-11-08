@@ -844,7 +844,9 @@ export default function MapScreen() {
   const [recenterTick, setRecenterTick] = useState(0);
   const center = userCoords ?? ipCoords ?? defaultCenter;
   const initialZoom = userCoords ? 14 : ipCoords ? 12 : 2;
-  const [tileProvider, setTileProvider] = useState<'carto' | 'osm'>('carto');
+  // CARTO returns watermarked tiles without an API key (HTTP success), so
+  // tileerror never fires. Use the OSM standard style for our small beta.
+  const [tileRetryCount, setTileRetryCount] = useState(0);
   const [mapTilesUnavailable, setMapTilesUnavailable] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -1337,7 +1339,7 @@ export default function MapScreen() {
   }
 
   return (
-    <div className="relative h-screen w-screen bg-bg">
+    <div className="runnit-map relative h-screen w-screen bg-bg">
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={initialZoom}
@@ -1347,22 +1349,11 @@ export default function MapScreen() {
         preferCanvas
       >
         <TileLayer
-          key={tileProvider}
-          attribution={tileProvider === 'carto'
-            ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}
-          url={tileProvider === 'carto'
-            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-            : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'}
+          key={tileRetryCount}
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           eventHandlers={{
-            tileerror: () => {
-              if (tileProvider === 'carto') {
-                setTileProvider('osm');
-                setMapTilesUnavailable(false);
-              } else {
-                setMapTilesUnavailable(true);
-              }
-            },
+            tileerror: () => setMapTilesUnavailable(true),
             tileload: () => setMapTilesUnavailable(false),
           }}
         />
@@ -1429,7 +1420,7 @@ export default function MapScreen() {
             Prüfe deine Internetverbindung. Der Kartendienst konnte keine Kartenkacheln liefern.
           </p>
           <div className="mt-3 flex gap-2">
-            <button type="button" onClick={() => { setMapTilesUnavailable(false); setTileProvider((provider) => provider === 'osm' ? 'carto' : 'osm'); }}
+            <button type="button" onClick={() => { setMapTilesUnavailable(false); setTileRetryCount((count) => count + 1); }}
               className="rounded-lg bg-white/15 px-3 py-2 text-xs font-bold text-white">Erneut versuchen</button>
             <a href="/" className="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold text-white">Zur Startseite</a>
           </div>
