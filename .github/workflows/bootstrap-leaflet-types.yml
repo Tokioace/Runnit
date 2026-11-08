@@ -1,0 +1,44 @@
+name: One-time Leaflet types bootstrap
+
+on:
+  push:
+    branches:
+      - development/runnit-v2
+    paths:
+      - .github/workflows/bootstrap-leaflet-types.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair-types:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out development branch
+        uses: actions/checkout@v4
+        with:
+          ref: development/runnit-v2
+          persist-credentials: true
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install existing dependencies
+        run: npm ci
+      - name: Install missing Leaflet TypeScript declarations
+        run: npm install --save-dev '@types/leaflet@^1.9'
+      - name: Validate TypeScript
+        run: npx tsc --noEmit
+      - name: Validate production build
+        run: npm run build
+      - name: Commit dependency manifests to development branch only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- package.json package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'fix: install missing Leaflet types'
+            git push origin HEAD:development/runnit-v2
+          fi
