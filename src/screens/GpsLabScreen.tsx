@@ -49,7 +49,10 @@ export default function GpsLabScreen() {
             <div className="text-xs font-bold uppercase tracking-[0.25em] text-cyan-300">Runnit Engineering</div>
             <h1 className="mt-2 text-3xl font-black tracking-tight">GPS Testlabor</h1>
           </div>
-          <Link to="/" className="rounded-xl border border-white/20 px-3 py-2 text-sm text-white/80">Zur Karte</Link>
+          <div className="flex flex-col gap-2">
+            <Link to="/gps-field-test" className="rounded-xl bg-cyan-400 px-3 py-2 text-center text-sm font-bold text-slate-950">Echter GPS-Feldtest</Link>
+            <Link to="/" className="rounded-xl border border-white/20 px-3 py-2 text-center text-sm text-white/80">Zur Karte</Link>
+          </div>
         </div>
         <div role="alert" className="rounded-2xl border border-amber-400/40 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
           <strong>Nur Simulation – keine echte Zeitmessung.</strong> Alle Positionen und Zeiten sind künstlich.
