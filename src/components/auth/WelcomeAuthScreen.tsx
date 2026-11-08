@@ -27,6 +27,9 @@ function authErrorMessage(error: unknown): string {
   if (detail.includes('expired') || detail.includes('invalid token') || detail.includes('otp')) {
     return 'Dieser Code ist ungültig oder abgelaufen. Bitte fordere einen neuen Code an.';
   }
+  if (detail.includes('over_email_send_rate_limit') || (detail.includes('email') && detail.includes('rate limit'))) {
+    return 'Der E-Mail-Versand ist vorübergehend begrenzt. Warte mit einem neuen Link; du kannst Runnit solange als Gast erkunden.';
+  }
   if (detail.includes('rate limit') || detail.includes('too many')) {
     return 'Zu viele Anmeldeversuche. Bitte warte etwas und versuche es dann erneut.';
   }
