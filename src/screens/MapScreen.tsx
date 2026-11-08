@@ -1537,10 +1537,22 @@ export default function MapScreen() {
         <MatchCountdownOverlay
           startsAt={matchOverlay.startsAt}
           onReady={async () => {
+            if (!authUser) {
+              setMatchOverlay(null);
+              setRace({ status: 'idle' });
+              navigate('/login?next=%2Fmap');
+              return;
+            }
+            if (matchOverlay.duelId.startsWith('demo-run-')) return;
             try { await readyForDuel(supabase as any, matchOverlay.duelId); } catch (_e) {}
           }}
           onDone={() => {
             setMatchOverlay(null);
+            if (!authUser) {
+              setRace({ status: 'idle' });
+              navigate('/login?next=%2Fmap');
+              return;
+            }
             if (race.status === 'countdown') {
               setRace({ status: 'running', duelId: race.duelId, startedAt: Date.now(), targetDistanceM: race.targetDistanceM });
             }
@@ -1548,22 +1560,24 @@ export default function MapScreen() {
         />
       )}
 
-      {race.status === 'running' && (
+      {race.status === 'running' && authUser && (
         <RaceOverlay
           startedAt={race.startedAt}
           targetDistanceM={race.targetDistanceM}
           onFinish={async (endedAt, metrics) => {
             const timeMs = endedAt - race.startedAt;
             // try submit result; ignore failure for now
-            try {
-              await submitDuelResult(supabase as any, race.duelId, timeMs, metrics);
-            } catch (_e) {}
+            if (authUser && !race.duelId.startsWith('demo-run-')) {
+              try {
+                await submitDuelResult(supabase as any, race.duelId, timeMs, metrics);
+              } catch (_e) {}
+            }
             setRace({ status: 'finished', duelId: race.duelId, startedAt: race.startedAt, endedAt, targetDistanceM: race.targetDistanceM });
           }}
         />
       )}
 
-      {race.status === 'finished' && (
+      {race.status === 'finished' && authUser && (
         <RaceFinishedOverlay
           startedAt={race.startedAt}
           endedAt={race.endedAt}
@@ -1572,6 +1586,7 @@ export default function MapScreen() {
           currentUser={currentUser}
           cityName={cityName}
           onAddToLeaderboard={(time) => {
+            if (!authUser) return;
             setUserTimes(prev => [...prev, time]);
             // Add user to city leaderboard if they have a good time
             if (currentUser && time < 15) { // Only add if time is reasonable
@@ -1600,11 +1615,21 @@ export default function MapScreen() {
         />
       )}
 
-      {/* Floating leaderboard button */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-24 z-[950] flex justify-center p-4">
-        <button 
+      {raceNotice && (
+        <div role="status" className="pointer-events-auto absolute inset-x-4 bottom-44 z-[951] mx-auto max-w-sm rounded-2xl border border-amber-300/25 bg-[#191827]/95 px-4 py-3 text-xs leading-5 text-amber-100 shadow-lg">
+          {raceNotice}
+        </div>
+      )}
+
+      {/* Guests may explore the map; creating or joining runs opens login. */}
+      <div className="pointer-events-none absolute inset-x-4 bottom-24 z-[950] flex justify-center gap-2.5">
+        <button type="button" onClick={openHostRun}
+          className="pointer-events-auto flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-emerald-300/20 bg-gradient-to-r from-emerald-400 to-cyan-400 px-3 py-3 text-center text-xs font-extrabold text-[#07151c] shadow-[0_12px_35px_rgba(16,185,129,.25)] transition hover:brightness-110 sm:text-sm">
+          {authUser ? 'Rennen veranstalten' : 'Rennen starten · Anmelden'}
+        </button>
+        <button type="button"
           onClick={() => setGhostOpen(true)}
-          className="pointer-events-auto flex min-h-14 items-center gap-3 rounded-2xl border border-violet-300/25 bg-gradient-to-r from-violet-500 to-indigo-600 px-6 py-3 text-sm font-extrabold text-white shadow-[0_15px_45px_rgba(99,102,241,.36)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="pointer-events-auto flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-violet-300/25 bg-gradient-to-r from-violet-500 to-indigo-600 px-3 py-3 text-xs font-extrabold text-white shadow-[0_15px_45px_rgba(99,102,241,.36)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:text-sm"
         >
           <Trophy className="h-5 w-5" aria-hidden="true" />
           {t('buttons.ghostRun')}
@@ -1630,7 +1655,7 @@ export default function MapScreen() {
       </BottomSheet>
 
       <HostRunDialog
-        open={hostOpen}
+        open={hostOpen && Boolean(authUser)}
         onClose={() => setHostOpen(false)}
         onHost={handleHostRun}
         defaultDistance={50}
