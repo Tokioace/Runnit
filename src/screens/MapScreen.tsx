@@ -1369,7 +1369,9 @@ export default function MapScreen() {
           />
         ) : null}
 
-        {players.map((p) => (
+        {/* Privacy: server-backed ghost results have no runner coordinates.
+            Show them in the leaderboard only, never place them at a fake city-centre point. */}
+        {players.filter((p) => p.source !== 'server-unverified').map((p) => (
           <MapBadgeMarker
             key={p.id}
             position={[p.location.lat, p.location.lng]}
