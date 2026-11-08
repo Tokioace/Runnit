@@ -491,13 +491,13 @@ function GhostLeaderboardModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60">
-      <div className="w-full max-w-md rounded-t-2xl bg-[#0b0b0d] p-4 shadow-2xl ring-1 ring-white/10">
+    <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#050611]/75 backdrop-blur-[4px]">
+      <div className="w-full max-w-md rounded-t-[30px] border border-violet-300/20 bg-[#101322] p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white shadow-[0_-25px_80px_rgba(0,0,0,.5)]">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">{getTitle()}</h2>
+          <h2 className="text-lg font-extrabold tracking-tight text-white">{getTitle()}</h2>
           <button
             onClick={onClose}
-            className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/70 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             aria-label="Close leaderboard"
           >
             ✕
@@ -617,14 +617,14 @@ function HostRunDialog({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60">
-      <div className="w-full max-w-md rounded-t-2xl bg-[#0b0b0d] p-4 shadow-2xl ring-1 ring-white/10">
+    <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#050611]/75 backdrop-blur-[4px]">
+      <div className="w-full max-w-md rounded-t-[30px] border border-violet-300/20 bg-[#101322] p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white shadow-[0_-25px_80px_rgba(0,0,0,.5)]">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">{t('host.title')}</h2>
+          <h2 className="text-lg font-extrabold tracking-tight text-white">{t('host.title')}</h2>
           <button
             onClick={onClose}
-            className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
-            aria-label="Close host dialog"
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/70 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            aria-label="Rennen-Dialog schließen"
           >
             ✕
           </button>
@@ -636,7 +636,7 @@ function HostRunDialog({
           <select
             value={distance}
             onChange={(e) => setDistance(parseInt(e.target.value))}
-            className="w-full rounded-lg bg-white/5 p-3 text-white outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded-2xl border border-white/15 bg-[#161a2b] p-4 text-white outline-none focus:ring-2 focus:ring-violet-400"
             aria-label={t('host.selectDistance')}
           >
             <option value={50}>{t('host.distance.50')}</option>
@@ -647,7 +647,7 @@ function HostRunDialog({
         <div className="flex items-center justify-end gap-3">
           <button
             onClick={onClose}
-            className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+            className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             {t('buttons.cancel')}
           </button>
@@ -656,7 +656,7 @@ function HostRunDialog({
               onHost(distance);
               onClose();
             }}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(99,102,241,.20)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             {t('buttons.hostRun')}
           </button>
@@ -745,16 +745,16 @@ function AuthModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60">
-      <div className="w-full max-w-md rounded-t-2xl bg-[#0b0b0d] p-4 shadow-2xl ring-1 ring-white/10">
+    <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#050611]/75 backdrop-blur-[4px]">
+      <div className="w-full max-w-md rounded-t-[30px] border border-violet-300/20 bg-[#101322] p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white shadow-[0_-25px_80px_rgba(0,0,0,.5)]">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">
+          <h2 className="text-lg font-extrabold tracking-tight text-white">
             {user ? 'Account' : mode === 'signin' ? 'Sign in' : 'Sign up'}
           </h2>
           <button
             onClick={onClose}
-            className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
-            aria-label="Close auth"
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/70 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            aria-label="Anmeldung schließen"
           >
             ✕
           </button>
@@ -766,10 +766,10 @@ function AuthModal({
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={handleSignOut}
-                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 disabled={submitting}
               >
-                Sign out
+                Abmelden
               </button>
             </div>
           </div>
@@ -780,13 +780,13 @@ function AuthModal({
                 className={`rounded-md px-2 py-1 font-medium ${mode === 'signin' ? 'bg-indigo-600 text-white' : 'bg-white/10 text-white/80'} `}
                 onClick={() => setMode('signin')}
               >
-                Sign in
+                Anmelden
               </button>
               <button
                 className={`rounded-md px-2 py-1 font-medium ${mode === 'signup' ? 'bg-indigo-600 text-white' : 'bg-white/10 text-white/80'} `}
                 onClick={() => setMode('signup')}
               >
-                Sign up
+                Registrieren
               </button>
             </div>
 
@@ -796,14 +796,14 @@ function AuthModal({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
-                className="w-full rounded-lg bg-white/5 p-3 text-white outline-none ring-1 ring-white/10 placeholder:text-white/40 focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-xl border border-white/15 bg-[#161a2b] p-4 text-white outline-none placeholder:text-white/35 focus:ring-2 focus:ring-violet-400"
               />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
-                className="w-full rounded-lg bg-white/5 p-3 text-white outline-none ring-1 ring-white/10 placeholder:text-white/40 focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-xl border border-white/15 bg-[#161a2b] p-4 text-white outline-none placeholder:text-white/35 focus:ring-2 focus:ring-violet-400"
               />
             </div>
 
@@ -813,16 +813,16 @@ function AuthModal({
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={onClose}
-                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
-                Cancel
+                Abbrechen
               </button>
               <button
                 onClick={handleSubmit}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(99,102,241,.20)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 disabled={submitting || !email || !password}
               >
-                {mode === 'signin' ? 'Sign in' : 'Create account'}
+                {mode === 'signin' ? 'Anmelden' : 'Konto erstellen'}
               </button>
             </div>
           </div>
@@ -1905,13 +1905,13 @@ function RaceFinishedOverlay({
               // Show leaderboards after race
               onClose();
             }}
-            className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(99,102,241,.20)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             📊 Leaderboards anzeigen
           </button>
           <button
             onClick={onClose}
-            className="w-full rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+            className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             Schließen
           </button>
