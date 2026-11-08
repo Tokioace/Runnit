@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Footprints, LoaderCircle } from 'lucide-react';
 import MapScreen from './screens/MapScreen';
 import HomeScreen from './screens/HomeScreen';
@@ -10,14 +11,40 @@ import AuthCallbackScreen from './components/auth/AuthCallbackScreen';
 import { AUTH_CALLBACK_PATH } from './lib/authRedirect';
 import { useSupabaseUser } from './hooks/useSupabaseUser';
 
+const GUEST_SESSION_KEY = 'runnit:guest-mode';
+const APP_PATHS = new Set(['/', '/map', '/leaderboard', '/profile', '/gps-lab']);
+
 /**
- * Client-side navigation gate only. It prevents browsing app pages without a
- * session; actual database authorization must still be enforced with RLS/RPC
- * on the Supabase server.
+ * Guest mode is a local UI preference, NOT a Supabase authentication identity.
+ * Database permissions and RPC checks remain authoritative: guests have no
+ * permission to create, join or start a race or access private runner records.
  */
+function wasGuestModeChosen(): boolean {
+  try {
+    return window.sessionStorage.getItem(GUEST_SESSION_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function safeLoginReturnPath(search: string): string {
+  const next = new URLSearchParams(search).get('next');
+  return next && APP_PATHS.has(next) ? next : '/map';
+}
+
 export default function App() {
   const auth = useSupabaseUser();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [guestAccess, setGuestAccess] = useState(wasGuestModeChosen);
+
+  const enterGuestMode = () => {
+    try { window.sessionStorage.setItem(GUEST_SESSION_KEY, '1'); } catch { /* Private browsing may block storage. */ }
+    setGuestAccess(true);
+    if (location.pathname === '/login') {
+      navigate(safeLoginReturnPath(location.search), { replace: true });
+    }
+  };
 
   if (auth.loading) {
     return (
@@ -31,14 +58,18 @@ export default function App() {
     );
   }
 
-  // The callback path can be shown without a session so that cancelled/failed
-  // OAuth attempts have a safe recovery page rather than exposing app content.
   if (location.pathname === AUTH_CALLBACK_PATH) {
-    return auth.user ? <Navigate to="/" replace /> : <AuthCallbackScreen />;
+    return auth.user ? <Navigate to="/map" replace /> : <AuthCallbackScreen />;
   }
 
-  // No guest access: every app route is protected by the same onboarding UI.
-  if (!auth.user) {
+  // Explicit login requests always open the account screen, even after a
+  // guest has already entered the app. Only known local routes can be used
+  // as a post-login destination.
+  if (auth.user && location.pathname === '/login') {
+    return <Navigate to={safeLoginReturnPath(location.search)} replace />;
+  }
+
+  if (!auth.user && (!guestAccess || location.pathname === '/login')) {
     return (
       <WelcomeAuthScreen
         signInWithProvider={auth.signInWithProvider}
@@ -47,6 +78,7 @@ export default function App() {
         signIn={auth.signIn}
         signUp={auth.signUp}
         loadError={auth.loadError}
+        onContinueAsGuest={enterGuestMode}
       />
     );
   }
