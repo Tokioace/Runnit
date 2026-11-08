@@ -34,7 +34,7 @@ Startseite oder den neuen UI-Komponenten verarbeitet.
 ## Manuelle mobile Sichtprüfung vor Übernahme
 1. Auf einem iPhone Startseite, Ranglisten, Profil und GPS-Labor öffnen.
    Darauf achten, dass keine Texte überlaufen und die Tabs gut erreichbar sind.
-2. Demo-Warnungen bei Rangliste und Profil prüfen. In den nationalen
+2. Demo-Warnungen bei der Rangliste und die noch nicht verfügbaren Sportwerte im authentifizierten Profil prüfen. In den nationalen
    und weltweiten Tabs dürfen keine künstlichen echten Platzierungen erscheinen.
 3. Im GPS-Labor alle sechs Szenarien umschalten, Zahlen und Fortschritt
    kontrollieren. Diese Simulation darf keinen Standortzugriff anfordern.

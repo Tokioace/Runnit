@@ -17,7 +17,7 @@ verschiedenen Abschnitten und vergibt keine Medaillen für unbestätigte Resulta
   falschen Ranglistenausschnitt mehr; bis zu echten verifizierten Daten wird dort der leere Zustand gezeigt.
 - Karten-Leaderboard: Die RPC-Daten, lokalen Ergebnisse und Ersatz-Demos haben einen eigenen Bereich.
 - Auf der Karte macht ein Hinweis darauf aufmerksam, wenn Beispielspieler oder Demo-Herausforderungen angezeigt werden.
-- `/profile`: Das Profil ist derzeit eine Demoansicht, einschließlich aller Zahlen, Ränge und Medaillen.
+- `/profile`: Das Profil zeigt nach Anmeldung echte Auth-Kontodaten; sportliche Bestzeiten, Platzierungen und Medaillen bleiben bis zu einer überprüften Datenquelle bewusst leer.
 - Abschlussdialog nach einem Rennen verspricht **nicht** länger, dass eine Zeit in Deutschland- oder Weltlisten
   übernommen wurde.
 
