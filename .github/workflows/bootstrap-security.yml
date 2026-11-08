@@ -1,0 +1,48 @@
+name: One-time dependency security repair
+
+on:
+  push:
+    branches:
+      - development/runnit-v2
+    paths:
+      - .github/workflows/bootstrap-security.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair-dependencies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out development branch
+        uses: actions/checkout@v4
+        with:
+          ref: development/runnit-v2
+          persist-credentials: true
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Apply compatible vulnerability fixes without forced major upgrades
+        run: |
+          npm audit fix || echo 'Some advisories may need manual review'
+      - name: Validate TypeScript
+        run: npx tsc --noEmit
+      - name: Validate production build
+        run: npm run build
+      - name: Summarize remaining dependency advisories
+        run: |
+          npm audit --audit-level=low || echo 'Remaining advisories require separate review'
+      - name: Commit compatible dependency updates to development branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- package.json package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'fix: apply compatible dependency security updates'
+            git push origin HEAD:development/runnit-v2
+          fi
