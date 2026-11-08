@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Footprints, LocateFixed, Trophy } from 'lucide-react';
 import type { LatLngExpression } from 'leaflet';
@@ -835,6 +836,7 @@ function AuthModal({
 // Main Screen
 export default function MapScreen() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const { coords: userCoords, permissionDenied, requestOnce, insecureContext, unsupported } = useUserLocation();
   const { user: authUser, loading: authLoading, signIn, signUp, signOut } = useSupabaseUser();
 
@@ -853,6 +855,7 @@ export default function MapScreen() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [ghostOpen, setGhostOpen] = useState(false);
   const [hostOpen, setHostOpen] = useState(false);
+  const [raceNotice, setRaceNotice] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [cityName, setCityName] = useState<string | null>(null);
@@ -908,8 +911,15 @@ export default function MapScreen() {
     }));
   }, [cityName, Math.floor(center.lat * 1000), Math.floor(center.lng * 1000)]);
 
+  // Guests explore labeled demo previews without querying protected run data.
+  // Database policies do not allow anonymous access to runner records.
   // Load leaderboard (ghost runs) for city - with demo data fallback
   useEffect(() => {
+    if (!authUser) {
+      setPlayers(generateCityPlayers);
+      setLoadingGhosts(false);
+      return;
+    }
     let isActive = true;
     const city = cityName || 'Berlin';
     (async () => {
@@ -953,7 +963,7 @@ export default function MapScreen() {
     return () => {
       isActive = false;
     };
-  }, [generateCityPlayers, cityName]);
+  }, [generateCityPlayers, cityName, authUser?.id]);
 
   // Fetch approximate IP-based location when precise location is unavailable
   useEffect(() => {
@@ -1084,8 +1094,14 @@ export default function MapScreen() {
     }));
   }, [userCoords ? Math.floor(userCoords.lat * 10000) : 0, userCoords ? Math.floor(userCoords.lng * 10000) : 0]);
 
+  // Guests see clearly labeled sample challenges, not private Supabase rows.
   // Load nearby open duels - with demo data fallback
   useEffect(() => {
+    if (!authUser) {
+      setOpenRuns(generateDemoRuns);
+      setLoadingDuels(false);
+      return;
+    }
     if (!userCoords) {
       // Ensure loading state is not stuck when location is unavailable
       setLoadingDuels(false);
@@ -1143,10 +1159,12 @@ export default function MapScreen() {
     return () => {
       isActive = false;
     };
-  }, [generateDemoRuns, userCoords]);
+  }, [generateDemoRuns, userCoords, authUser?.id]);
 
+  // No Realtime subscription while exploring as an unauthenticated guest.
   // Realtime updates for duels
   useEffect(() => {
+    if (!authUser) return;
     const channel = supabase
       .channel('duels-realtime')
       .on(
@@ -1217,25 +1235,33 @@ export default function MapScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  // Host a run: create local open run marker at user location
-  const handleHostRun = async (distanceMeters: number) => {
-    if (!userCoords || !currentUser) return;
-    const geojson = { type: 'Point', coordinates: [userCoords.lng, userCoords.lat] } as any;
-    // In demo mode, create local run without database
-    if (!authUser) {
-      // Demo mode: create local run
-      const demoRun: OpenRun = {
-        id: 'demo-run-' + Date.now(),
-        hostUserId: currentUser.id,
-        hostUsername: currentUser.username,
-        distanceMeters: distanceMeters,
-        location: userCoords,
-        createdAt: new Date().toISOString(),
-        targetDistanceM: distanceMeters,
-      };
-      setOpenRuns(prev => [demoRun, ...prev]);
+  // Guest restriction applies to every entry point, including handlers.
+  // There is no local guest race creation or guest race countdown.
+  const requireRaceAccount = (): boolean => {
+    if (authUser) return true;
+    navigate('/login?next=%2Fmap');
+    return false;
+  };
+
+  const openHostRun = () => {
+    if (!requireRaceAccount()) return;
+    setRaceNotice(null);
+    if (!userCoords) {
+      setRaceNotice('Für das Veranstalten eines Rennens benötigst du deinen Standort. Aktiviere die Standortfreigabe.');
+      requestOnce();
       return;
     }
+    setHostOpen(true);
+  };
+
+  // Host a real run; no guest/demo persistence.
+  const handleHostRun = async (distanceMeters: number) => {
+    if (!requireRaceAccount()) return;
+    if (!userCoords || !currentUser || !authUser) {
+      setRaceNotice('Standort noch nicht verfügbar. Versuche es erneut.');
+      return;
+    }
+    const geojson = { type: 'Point', coordinates: [userCoords.lng, userCoords.lat] } as any;
     
     // Persist to DB; rely on realtime to show it
     await createDuel(supabase as any, {
@@ -1279,12 +1305,13 @@ export default function MapScreen() {
     } catch (_e) {}
   };
 
-  // Join a run - works in demo mode
+  // Joining and starting races are exclusively for signed-in accounts.
   const handleJoinRun = async (run: OpenRun) => {
+    if (!requireRaceAccount()) return;
     if (!currentUser) return;
-    
-    // In demo mode, start race immediately
-    if (!authUser) {
+
+    // Signed-in runners may try explicitly labeled, non-scored sample races.
+    if (run.id.startsWith('demo-run-')) {
       const startsAt = Date.now() + 3000; // 3 seconds countdown
       setMatchOverlay({ duelId: run.id, startsAt, targetDistanceM: run.targetDistanceM || run.distanceMeters });
       setRace({ status: 'countdown', duelId: run.id, startsAt, targetDistanceM: run.targetDistanceM || run.distanceMeters });
