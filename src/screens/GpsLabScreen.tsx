@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react';
+import { ArrowRight, Gauge, MapPinned, Radio, ShieldAlert, Timer, Waves, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import PageFrame from '../components/ui/PageFrame';
 import { runGpsSimulation, syntheticPoint, type GpsSample } from '../lib/sprintGps';
 
 type Scenario = '50m' | '75m' | '100m' | 'still' | 'spike' | 'poor';
 const START = 1_800_000_000_000;
-const OPTIONS: { id: Scenario; label: string; description: string }[] = [
-  { id: '50m', label: '50 m Sprint', description: 'Konstante 8 m/s' },
-  { id: '75m', label: '75 m Sprint', description: 'Konstante 7,5 m/s' },
-  { id: '100m', label: '100 m Sprint', description: 'Konstante 10 m/s' },
-  { id: 'still', label: 'GPS-Rauschen', description: 'Stillstand mit schwankenden Koordinaten' },
-  { id: 'spike', label: 'Positionssprung', description: 'Unrealistischer GPS-Sprung' },
-  { id: 'poor', label: 'Schwacher Empfang', description: 'Ungenaue Fixes herausfiltern' },
+const OPTIONS: { id: Scenario; label: string; description: string; icon: typeof Timer }[] = [
+  { id: '50m', label: '50 Meter', description: '8 m/s', icon: Timer },
+  { id: '75m', label: '75 Meter', description: '7,5 m/s', icon: Zap },
+  { id: '100m', label: '100 Meter', description: '10 m/s', icon: Gauge },
+  { id: 'still', label: 'GPS-Rauschen', description: 'Stillstand', icon: Waves },
+  { id: 'spike', label: 'GPS-Sprung', description: 'Positionsfehler', icon: MapPinned },
+  { id: 'poor', label: 'Schwaches GPS', description: 'Ungenaue Daten', icon: Radio },
 ];
 
 function buildScenario(scenario: Scenario): { samples: GpsSample[]; target: number; expectedSeconds: number | null } {
@@ -37,56 +39,111 @@ export default function GpsLabScreen() {
     const source = buildScenario(scenario);
     return { source, result: runGpsSimulation(source.target, START, source.samples) };
   }, [scenario]);
-  const finishLabel = result.finishTimestampMs === null
-    ? 'Kein gültiger Zieleinlauf erkannt'
-    : 'Geschätzter Zieleinlauf: ' + ((result.finishTimestampMs - START) / 1000).toFixed(2) + ' s';
+  const finishSeconds = result.finishTimestampMs === null
+    ? null
+    : (result.finishTimestampMs - START) / 1000;
+  const progress = Math.max(0, Math.min(100, (result.distanceM / source.target) * 100));
 
   return (
-    <main className="min-h-screen bg-[#080b13] px-4 py-8 text-white">
-      <div className="mx-auto max-w-2xl space-y-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <div className="text-xs font-bold uppercase tracking-[0.25em] text-cyan-300">Runnit Engineering</div>
-            <h1 className="mt-2 text-3xl font-black tracking-tight">GPS Testlabor</h1>
-          </div>
-          <Link to="/" className="rounded-xl border border-white/20 px-3 py-2 text-sm text-white/80">Zur Karte</Link>
+    <PageFrame
+      kicker="RUNNIT ENGINEERING"
+      title="GPS-Testlabor."
+      description="Prüfe, wie unsere Sprintlogik auf Geschwindigkeit, Rauschen und Messfehler reagiert – ganz ohne echte Standortdaten."
+      icon={<Timer className="h-7 w-7" aria-hidden="true" />}
+    >
+      <div role="note" className="flex gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/[0.075] p-4">
+        <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" aria-hidden="true" />
+        <div className="text-xs leading-6 text-amber-100/85">
+          <strong className="block text-sm text-amber-100">Simulation · kein echter Lauf</strong>
+          Alle Koordinaten und Zeiten sind künstlich. Diese Ergebnisse sind nicht für Duelle oder Ranglisten zulässig.
         </div>
-        <div role="alert" className="rounded-2xl border border-amber-400/40 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
-          <strong>Nur Simulation – keine echte Zeitmessung.</strong> Alle Positionen und Zeiten sind künstlich.
-          Ergebnisse dürfen nicht für Ranglisten, Duelle oder GPS-Genauigkeitsversprechen verwendet werden.
-        </div>
-        <section className="space-y-3" aria-label="Testszenario auswählen">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-white/70">Testszenario</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {OPTIONS.map((option) => (
-              <button key={option.id} type="button" aria-pressed={scenario === option.id}
-                onClick={() => setScenario(option.id)}
-                className={'min-h-24 rounded-2xl border p-3 text-left transition-colors ' +
-                  (scenario === option.id ? 'border-cyan-300 bg-cyan-300/15' : 'border-white/15 bg-white/5 hover:bg-white/10')}>
-                <div className="font-bold">{option.label}</div>
-                <div className="mt-2 text-xs leading-5 text-white/65">{option.description}</div>
-              </button>
-            ))}
-          </div>
-        </section>
-        <section className="rounded-3xl border border-white/15 bg-white/5 p-5" aria-live="polite">
-          <p className="text-xs font-bold uppercase tracking-widest text-cyan-300">Simulationsergebnis</p>
-          <h2 className="mt-3 text-xl font-bold">{finishLabel}</h2>
-          {source.expectedSeconds !== null && <p className="mt-1 text-sm text-white/60">Idealwert der Testdaten: {source.expectedSeconds.toFixed(2)} s</p>}
-          <dl className="mt-5 grid grid-cols-2 gap-4 text-sm">
-            <div><dt className="text-white/55">Luftlinie ab Start</dt><dd className="mt-1 text-xl font-semibold">{result.distanceM.toFixed(1)} m</dd></div>
-            <div><dt className="text-white/55">Maximaltempo</dt><dd className="mt-1 text-xl font-semibold">{result.maxSpeedMps.toFixed(1)} m/s</dd></div>
-            <div><dt className="text-white/55">Angenommene Fixes</dt><dd className="mt-1 text-xl font-semibold">{result.acceptedSamples}</dd></div>
-            <div><dt className="text-white/55">Verworfene Fixes</dt><dd className="mt-1 text-xl font-semibold">{result.rejectedSamples}</dd></div>
-          </dl>
-        </section>
-        <p className="text-sm leading-6 text-white/55">
-          Das Labor nutzt GPS-Zeitstempel, filtert Genauigkeitswerte über 15 m und
-          Geschwindigkeiten über 12 m/s. Erst zwei aufeinanderfolgende Messpunkte
-          jenseits der Ziellinie bestätigen den Zieleinlauf. Simulationen beweisen
-          keine reale Genauigkeit für Kurzstrecken.
-        </p>
       </div>
-    </main>
+
+      <section className="space-y-4" aria-labelledby="scenario-heading">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-emerald-300">SELECT A TEST</p>
+            <h2 id="scenario-heading" className="mt-1 text-xl font-extrabold">Wähle dein Szenario</h2>
+          </div>
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-white/45">6 Tests</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {OPTIONS.map(({ id, label, description, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={scenario === id}
+              onClick={() => setScenario(id)}
+              className={`group flex min-h-32 flex-col items-start justify-between rounded-[22px] border p-4 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+                scenario === id
+                  ? 'border-violet-300/60 bg-gradient-to-br from-violet-500/30 to-indigo-500/10 shadow-[0_0_30px_rgba(139,92,246,.12)]'
+                  : 'border-white/10 bg-white/[0.045] hover:border-white/25 hover:bg-white/[0.07]'
+              }`}
+            >
+              <Icon className={`h-6 w-6 ${scenario === id ? 'text-emerald-300' : 'text-violet-300/70'}`} aria-hidden="true" />
+              <div>
+                <span className="block text-sm font-extrabold">{label}</span>
+                <span className="mt-1 block text-[11px] text-white/55">{description}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section aria-live="polite" aria-label="Simulationsergebnis" className="overflow-hidden rounded-[28px] border border-violet-300/20 bg-gradient-to-br from-violet-600/20 via-[#141627] to-cyan-500/[0.07] p-5 shadow-[0_20px_60px_rgba(0,0,0,.22)]">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-cyan-200">SIMULATION RESULT</p>
+          <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] font-bold text-white/60">{source.target} m</span>
+        </div>
+        <div className="mt-7">
+          <p className="text-xs font-semibold text-white/50">Geschätzte Zielzeit</p>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-5xl font-black tracking-[-0.07em] tabular-nums text-white sm:text-6xl">
+              {finishSeconds === null ? '—' : finishSeconds.toFixed(2)}
+            </span>
+            <span className="text-xl font-bold text-emerald-300">s</span>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-white/55">
+            {finishSeconds === null
+              ? 'Kein gültiger Zieleinlauf erkannt – genau das ist bei manchen Fehlerfällen erwünscht.'
+              : `Künstlicher Idealwert: ${source.expectedSeconds?.toFixed(2) ?? '—'} s`}
+          </p>
+        </div>
+        <div className="mt-7">
+          <div className="mb-2 flex items-center justify-between text-xs font-semibold">
+            <span className="text-white/60">Gemessene Luftlinie</span>
+            <span className="tabular-nums text-emerald-200">{result.distanceM.toFixed(1)} / {source.target} m</span>
+          </div>
+          <div role="progressbar" aria-label="Simulierte Distanz" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}
+            className="h-2.5 overflow-hidden rounded-full bg-white/10">
+            <div className="h-full rounded-full bg-gradient-to-r from-violet-400 via-cyan-300 to-emerald-300" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      </section>
+
+      <section aria-label="GPS-Messwerte" className="grid grid-cols-2 gap-3">
+        {[
+          { label: 'Maximales Tempo', value: `${result.maxSpeedMps.toFixed(1)} m/s` },
+          { label: 'Akzeptierte Punkte', value: String(result.acceptedSamples) },
+          { label: 'Verworfene Punkte', value: String(result.rejectedSamples) },
+          { label: 'Simulation', value: finishSeconds === null ? 'Offen' : 'Ziel erkannt' },
+        ].map((metric) => (
+          <div key={metric.label} className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+            <p className="text-[11px] font-semibold text-white/50">{metric.label}</p>
+            <p className="mt-2 text-xl font-black tabular-nums tracking-tight text-white">{metric.value}</p>
+          </div>
+        ))}
+      </section>
+
+      <Link to="/map" className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-violet-300/20 bg-white/[0.05] px-5 py-4 font-bold transition hover:bg-white/[0.08]">
+        <span className="flex items-center gap-3"><MapPinned className="h-5 w-5 text-violet-200" aria-hidden="true" /> Zur Karte</span>
+        <ArrowRight className="h-5 w-5 text-emerald-200" aria-hidden="true" />
+      </Link>
+      <p className="text-xs leading-6 text-white/45">
+        Das Labor nutzt GPS-Zeitstempel, filtert Genauigkeiten über 15 m und Temposprünge
+        über 12 m/s. Zwei akzeptierte Messpunkte jenseits der Ziellinie sind erforderlich.
+        Simulationen belegen keine Genauigkeit bei echten Kurzstrecken.
+      </p>
+    </PageFrame>
   );
 }
