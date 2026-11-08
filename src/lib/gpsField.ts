@@ -1,4 +1,4 @@
-import { createGpsSprint, type GpsSample, type GpsSprintState } from './sprintGps';
+import type { GpsSample, GpsSprintState } from './sprintGps';
 
 /**
  * Experimental reports are deliberately NEVER eligible for the leaderboard.
@@ -39,12 +39,15 @@ export function isFreshStartFix(sample: GpsSample | null, atMs: number): sample 
  * Without this, the first fix AFTER the start would move the effective origin
  * and systematically undercount part of a short sprint.
  */
-export function createPrimedGpsSprint(targetMeters: number, startedAtMs: number, anchor: GpsSample): GpsSprintState {
-  if (!isFreshStartFix(anchor, startedAtMs)) {
+export function primeGpsSprint(state: GpsSprintState, anchor: GpsSample): GpsSprintState {
+  if (state.origin !== null || state.acceptedSamples !== 0) {
+    throw new Error('Sprint has already collected samples');
+  }
+  if (!isFreshStartFix(anchor, state.startedAtMs)) {
     throw new Error('Start position is inaccurate or stale');
   }
   return {
-    ...createGpsSprint(targetMeters, startedAtMs),
+    ...state,
     origin: anchor,
     lastAccepted: anchor,
     acceptedSamples: 1,
