@@ -537,6 +537,7 @@ function GhostLeaderboardModal({
           </button>
         </div>
 
+        <p className="mb-3 rounded-lg border border-amber-300/30 bg-amber-400/10 px-3 py-2 text-xs leading-5 text-amber-100">Keine offiziell verifizierten Ergebnisse: Beispieldaten sind erfunden und gespeicherte Laufzeiten nicht geprüft.</p>
         <div className="mb-2 grid grid-cols-12 gap-2 px-1 text-[11px] uppercase tracking-wide text-white/60">
           <div className="col-span-2">Rang</div>
           <div className="col-span-5">Name</div>
@@ -558,11 +559,11 @@ function GhostLeaderboardModal({
               }`}
             >
               <div className="col-span-2 text-sm font-semibold text-white/90">
-                {p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `#${p.rank}`}
+                #{p.rank}
               </div>
               <div className="col-span-5 flex items-center gap-2 text-sm text-white">
                 <Avatar name={p.username} colorHex={p.colorHex} />
-                <span className="truncate">{p.username}</span>
+                <span className="min-w-0"><span className="block truncate">{p.username}</span><span className="block text-[10px] text-amber-200">{leaderboardSourceLabel(p.source)}</span></span>
               </div>
               <div className="col-span-3 text-sm text-white/90">
                 {formatSecondsToTimeString(p.bestTimeSeconds)}
@@ -1820,11 +1821,12 @@ function RaceFinishedOverlay({
   const seconds = ((endedAt - startedAt) / 1000).toFixed(2);
   const timeInSeconds = (endedAt - startedAt) / 1000;
   
-  // Auto-add to leaderboard when race finishes
+  // Avoid repeatedly inserting a locally displayed result on parent re-renders.
+  const recordedLocalResultRef = useRef(false);
   useEffect(() => {
-    if (currentUser && onAddToLeaderboard) {
-      onAddToLeaderboard(timeInSeconds);
-    }
+    if (recordedLocalResultRef.current || !currentUser || !onAddToLeaderboard) return;
+    recordedLocalResultRef.current = true;
+    onAddToLeaderboard(timeInSeconds);
   }, [currentUser, onAddToLeaderboard, timeInSeconds]);
 
   return (
