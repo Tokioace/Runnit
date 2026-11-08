@@ -28,7 +28,9 @@ test('map has a neutral initial center and explicit tile failure handling', () =
   const map = read('src/screens/MapScreen.tsx');
   assert.match(map, /lat: 22, lng: 0/);
   assert.match(map, /tileerror:/);
-  assert.match(map, /setTileProvider\('osm'\)/);
+  assert.match(map, /tile\.openstreetmap\.org/);
+  assert.doesNotMatch(map, /basemaps\.cartocdn\.com|setTileProvider|tileProvider/);
+  assert.match(map, /setTileRetryCount/);
   assert.match(map, /mapTilesUnavailable/);
   assert.match(map, /Noch kein Standort ermittelt/);
 });
