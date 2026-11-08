@@ -22,7 +22,7 @@ test('OAuth rejection from query or hash can be recognized without echoing raw d
   assert.equal(callbackHasError('', '#access_token=redacted'), false);
 });
 
-test('welcome page offers all four requested login types and no guest bypass', () => {
+test('welcome page offers four login methods and an explicit guest entry', () => {
   const welcome = read('src/components/auth/WelcomeAuthScreen.tsx');
   assert.match(welcome, /id: 'apple'/);
   assert.match(welcome, /id: 'google'/);
@@ -31,7 +31,8 @@ test('welcome page offers all four requested login types and no guest bypass', (
   assert.match(welcome, /sendMagicLink\(email\)/);
   assert.match(welcome, /signInWithProvider\(provider\)/);
   assert.match(welcome, /<AccountAuthPanel/);
-  assert.doesNotMatch(welcome, /Ohne Konto fortfahren|Als Gast|Gastmodus/);
+  assert.match(welcome, /Als Gast fortfahren/);
+  assert.match(welcome, /onContinueAsGuest/);
 });
 
 test('social auth and passwordless email do not use provider secrets inside browser code', () => {
@@ -48,11 +49,14 @@ test('unknown callback errors are not rendered as server-provided HTML or string
   assert.doesNotMatch(page, /error_description\b|dangerouslySetInnerHTML/);
 });
 
-test('global onboarding is enforced for home, map, rankings and profile', () => {
+test('explicit guest choice unlocks browsing but /login always exposes onboarding', () => {
   const app = read('src/App.tsx');
-  const condition = app.indexOf('if (!auth.user)');
+  assert.match(app, /!auth\.user && \(!guestAccess \|\| location\.pathname === '\/login'\)/);
+  assert.match(app, /sessionStorage\.setItem\(GUEST_SESSION_KEY, '1'\)/);
+  assert.match(app, /location\.pathname === '\/login'/);
+  assert.match(app, /<WelcomeAuthScreen/);
   const routes = app.indexOf('<Routes>');
-  assert.ok(condition > 0 && condition < routes);
+  assert.ok(routes > app.indexOf('!auth.user &&'));
   for (const name of ['HomeScreen', 'MapScreen', 'LeaderboardScreen', 'ProfileScreen', 'GpsLabScreen']) {
     assert.match(app, new RegExp('<Route[^>]*<' + name + ' \\/>'));
   }
