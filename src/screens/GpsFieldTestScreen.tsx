@@ -67,7 +67,18 @@ export default function GpsFieldTestScreen() {
         navigator.geolocation.clearWatch(watchId.current);
         watchId.current = null;
       }
-      phaseRef.current = 'idle';
+      const previous = phaseRef.current;
+      if (mountedRef.current && previous === 'running') {
+        phaseRef.current = 'stopped';
+        setPhase('stopped');
+        setStatus('Lauf beim Verlassen der Seite abgebrochen. GPS wurde beendet.');
+      } else if (mountedRef.current && (previous === 'acquiring' || previous === 'ready')) {
+        phaseRef.current = 'idle';
+        setPhase('idle');
+        setStatus('GPS beim Verlassen der Seite beendet. Bitte erneut vorbereiten.');
+      } else {
+        phaseRef.current = 'idle';
+      }
     };
     document.addEventListener('visibilitychange', pauseIfBackgrounded);
     window.addEventListener('pagehide', stopOnPageHide);
