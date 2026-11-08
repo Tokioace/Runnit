@@ -45,3 +45,14 @@ test('registration trigger no longer makes email prefixes a public username', ()
   assert.match(migration, /NEW\.raw_user_meta_data ->> 'display_name'/);
   assert.match(migration, /COALESCE\(nickname, 'Runnit-Läufer'\)/);
 });
+
+test('internal auth trigger cannot be called as an ordinary authenticated RPC', () => {
+  const followUp = readFileSync(new URL('../supabase/migrations/20261109_002_restrict_auth_trigger_rpc.sql', import.meta.url), 'utf8');
+  assert.match(followUp, /REVOKE EXECUTE ON FUNCTION public\.handle_new_auth_user\(\) FROM authenticated;/);
+});
+
+test('the map never shows a fabricated pin for privacy-protected server ghost records', () => {
+  const map = readFileSync(new URL('../src/screens/MapScreen.tsx', import.meta.url), 'utf8');
+  assert.match(map, /players\.filter\(\(p\) => p\.source !== 'server-unverified'\)\.map/);
+  assert.match(map, /entries=\{players\.map\(p => \(\{/);
+});
