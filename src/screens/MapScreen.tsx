@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { Footprints, LocateFixed, Trophy } from 'lucide-react';
 import type { LatLngExpression } from 'leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -1339,7 +1340,7 @@ export default function MapScreen() {
   }
 
   return (
-    <div className="runnit-map relative h-screen w-screen bg-bg">
+    <div className="runnit-map relative h-screen w-screen overflow-hidden bg-[#090b13] text-white">
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={initialZoom}
@@ -1396,7 +1397,7 @@ export default function MapScreen() {
                 )}
                 <button
                   onClick={() => handleJoinRun(r)}
-                  className="w-full rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400"
+                  className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 >
                   {t('buttons.joinRun')}
                 </button>
@@ -1446,18 +1447,24 @@ export default function MapScreen() {
         </div>
       )}
 
-      {/* MapHUD */}
-      {cityName && <MapHUD city={cityName} />}
+      {/* Branded header stays independent of the map tile loading state. */}
+      {cityName ? <MapHUD city={cityName} /> : (
+        <div className="pointer-events-none absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-[940] flex items-center gap-2.5 rounded-2xl border border-violet-300/25 bg-[#101322]/90 px-3.5 py-2.5 text-white shadow-[0_12px_35px_rgba(0,0,0,.4)] backdrop-blur-xl">
+          <Footprints className="h-5 w-5 text-violet-200" aria-hidden="true" />
+          <span className="text-sm font-black tracking-[0.08em]">RUNNIT<span className="text-emerald-300">.</span></span>
+          <span className="text-[10px] font-bold text-white/45">MAP BETA</span>
+        </div>
+      )}
 
       {/* Locate me control */}
       <div className="pointer-events-auto absolute right-4 top-4 z-[950]">
         <button
           onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
-          className="rounded-full bg-white/10 p-2 text-white ring-1 ring-white/15 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-          aria-label="Locate me"
-          title="Locate me"
+          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-300/25 bg-[#101322]/90 text-violet-100 shadow-[0_12px_35px_rgba(0,0,0,.4)] backdrop-blur-xl transition hover:bg-violet-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          aria-label="Meinen Standort anzeigen"
+          title="Standort suchen"
         >
-          📍
+          <LocateFixed className="h-6 w-6" aria-hidden="true" />
         </button>
       </div>
 
@@ -1465,7 +1472,7 @@ export default function MapScreen() {
       {insecureContext && (
         <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-amber-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
           <div className="flex items-center gap-3">
-            <span>Location requires a secure context (HTTPS or localhost). Open the app via HTTPS, then retry.</span>
+            <span>Die Standortsuche benötigt eine sichere HTTPS-Verbindung. Bitte öffne Runnit über HTTPS und versuche es erneut.</span>
             <button
               onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
               className="rounded-md bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
@@ -1478,14 +1485,14 @@ export default function MapScreen() {
       {unsupported && !insecureContext && (
         <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-rose-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
           <div className="flex items-center gap-3">
-            <span>Your browser does not support geolocation.</span>
+            <span>Dieser Browser unterstützt keine Standortermittlung.</span>
           </div>
         </div>
       )}
       {!insecureContext && permissionDenied && (
         <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-rose-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
           <div className="flex items-center gap-3">
-            <span>Location permission denied. Enable it in your browser settings, then retry.</span>
+            <span>Standortzugriff verweigert. Bitte aktiviere die Berechtigung in den Browser-Einstellungen.</span>
             <button
               onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
               className="rounded-md bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
@@ -1568,8 +1575,9 @@ export default function MapScreen() {
       <div className="pointer-events-none absolute inset-x-0 bottom-24 z-[950] flex justify-center p-4">
         <button 
           onClick={() => setGhostOpen(true)}
-          className="pointer-events-auto rounded-2xl bg-primary text-white px-5 py-3 font-semibold shadow-soft hover:bg-primary-600 transition-colors"
+          className="pointer-events-auto flex min-h-14 items-center gap-3 rounded-2xl border border-violet-300/25 bg-gradient-to-r from-violet-500 to-indigo-600 px-6 py-3 text-sm font-extrabold text-white shadow-[0_15px_45px_rgba(99,102,241,.36)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         >
+          <Trophy className="h-5 w-5" aria-hidden="true" />
           {t('buttons.ghostRun')}
         </button>
       </div>
