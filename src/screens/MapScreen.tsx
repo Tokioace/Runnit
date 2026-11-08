@@ -1675,10 +1675,12 @@ function MatchCountdownOverlay({ startsAt, onReady, onDone }: { startsAt: number
   }, [startsAt, onDone]);
   const seconds = Math.ceil(remainingMs / 1000);
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
-      <div className="flex h-32 w-32 items-center justify-center rounded-full bg-white/10 text-5xl font-black text-white ring-2 ring-white/30">
+    <div className="fixed inset-0 z-[1250] flex flex-col items-center justify-center bg-[#070913]/90 px-5 text-white backdrop-blur-xl">
+      <p className="mb-8 text-xs font-black uppercase tracking-[0.32em] text-emerald-300">RUNNIT · READY</p>
+      <div className="flex h-44 w-44 items-center justify-center rounded-[48px] border border-violet-300/40 bg-gradient-to-br from-violet-500/35 to-cyan-500/10 text-7xl font-black tabular-nums shadow-[0_0_90px_rgba(139,92,246,.24)]">
         {seconds}
       </div>
+      <p className="mt-8 text-sm font-semibold text-white/60">Mach dich bereit.</p>
     </div>
   );
 }
@@ -1822,12 +1824,18 @@ function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: numb
   // Auto-finish moved into GPS sampler for accuracy-stable detection
   const seconds = (elapsedMs / 1000).toFixed(2);
   return (
-    <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-center gap-6 bg-black/60">
-      <div className="rounded-lg bg-white/10 px-6 py-3 text-4xl font-extrabold text-white ring-2 ring-white/20">
-        {seconds}s
+    <div className="fixed inset-0 z-[1250] flex flex-col items-center justify-center gap-6 bg-[#070913]/90 px-5 text-white backdrop-blur-xl">
+      <p className="text-xs font-black uppercase tracking-[0.3em] text-emerald-300">RUNNIT · LIVE RACE</p>
+      <div className="w-full max-w-sm rounded-[32px] border border-violet-300/25 bg-gradient-to-br from-violet-500/25 to-cyan-500/10 p-8 text-center shadow-[0_0_60px_rgba(139,92,246,.13)]">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/50">Laufzeit</p>
+        <p className="mt-3 text-6xl font-black tracking-[-0.07em] tabular-nums text-white">{seconds}<span className="ml-1 text-2xl text-emerald-300">s</span></p>
+        <p className="mt-5 text-sm font-semibold tabular-nums text-white/65">{displayDistanceM.toFixed(1)} / {targetDistanceM} m</p>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+          <div className="h-full rounded-full bg-gradient-to-r from-violet-400 via-cyan-300 to-emerald-300" style={{ width: `${Math.max(0, Math.min(100, displayDistanceM / targetDistanceM * 100))}%` }} />
+        </div>
       </div>
-      <div className="rounded-lg bg-white/10 px-6 py-2 text-sm font-semibold text-white ring-1 ring-white/15">
-        {displayDistanceM.toFixed(1)} m · max {maxSpeed.toFixed(2)} m/s · a_max {maxAccel.toFixed(2)} m/s²
+      <div className="rounded-2xl border border-white/10 bg-white/[0.05] px-5 py-3 text-center text-xs font-semibold tabular-nums text-white/55">
+        GPS Max. {maxSpeed.toFixed(2)} m/s · Beschleunigung {maxAccel.toFixed(2)} m/s²
       </div>
       <button
         onClick={() => {
@@ -1841,9 +1849,9 @@ function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: numb
             distanceM: acceptedDistanceM,
           });
         }}
-        className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400"
+        className="min-h-14 w-full max-w-sm rounded-2xl border border-rose-300/30 bg-rose-500/20 px-6 py-4 text-sm font-extrabold text-white transition hover:bg-rose-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
       >
-        Finish
+        Lauf beenden
       </button>
     </div>
   );
@@ -1880,10 +1888,11 @@ function RaceFinishedOverlay({
   }, [currentUser, onAddToLeaderboard, timeInSeconds]);
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
-      <div className="w-full max-w-md rounded-xl bg-[#0b0b0d] p-5 text-white ring-1 ring-white/10">
-        <div className="mb-3 text-center text-lg font-semibold">🏁 Rennen beendet!</div>
-        <div className="mb-1 text-center text-3xl font-extrabold text-green-400">{seconds}s</div>
+    <div className="fixed inset-0 z-[1250] flex items-center justify-center bg-[#050611]/90 px-4 text-white backdrop-blur-xl">
+      <div className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-[30px] border border-violet-300/20 bg-gradient-to-br from-[#1b1a32] to-[#101322] p-6 shadow-[0_20px_70px_rgba(0,0,0,.5)]">
+        <div className="mb-3 text-center text-[11px] font-extrabold uppercase tracking-[0.25em] text-emerald-300">RUNNIT · FINISH</div>
+        <h2 className="text-center text-xl font-extrabold">🏁 Rennen beendet!</h2>
+        <div className="mb-2 mt-4 text-center text-5xl font-black tracking-tight tabular-nums text-emerald-300">{seconds}<span className="ml-1 text-xl">s</span></div>
         <div className="mb-4 text-center text-xs text-white/70">Zieldistanz: {targetDistanceM}m · Ergebnis nicht verifiziert</div>
         
         {/* Local display does not establish eligibility for any official ranking. */}
