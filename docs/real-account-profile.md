@@ -1,67 +1,87 @@
-# Runnit – echtes Konto und Profil (Auth-Beta)
+# Runnit – verpflichtendes Onboarding und echte Benutzerkonten (Beta)
 
-## Ausgangspunkt
-Die Profilseite war zuvor eine vollständig fiktive Spielerkarte mit erfundenen Zeiten,
-Siegen, Platzierungen, Levels und Medaillen. Ein Anmeldungspunkt existierte bisher
-nur im Kartendialog, während das Profil selbst nicht mit Supabase Auth verbunden war.
+## Produktverhalten
+- Runnit öffnet ohne aktive Supabase-Session immer die Willkommens- und
+  Anmeldeseite. Auch direkte Aufrufe von `/map`, `/profile`, `/gps-lab`
+  oder `/leaderboard` werden nicht freigegeben.
+- Die Startseite bleibt nach erfolgreicher Anmeldung erhalten.
+- Bei späteren App-Starts prüft Supabase seine gespeicherte Session; solange
+  diese gültig ist, entfällt ein erneutes Login.
+- **Kein Gastzugang.** Statt Demo-Profilen sehen eingeloggte Nutzer ihre
+  echten Kontoangaben und keine erfundenen Sportrekorde.
 
-## Umsetzung
-- Unter `/profile` wird der echte Auth-Status aus dem bestehenden
-  `useSupabaseUser`-Hook geladen.
-- Gäste können sich anmelden oder ein Konto mit E-Mail, Passwort und
-  Anzeigenamen erstellen; der Gastmodus mit Karte und GPS-Simulation
-  bleibt ausdrücklich nutzbar.
-- Bei bestehendem Konto werden **nur** echte, aus der angemeldeten
-  Supabase-Session abgeleitete Kontodaten gezeigt. Kein fremdes Profil
-  wird aus einer vom Client vorgegebenen Nutzer-ID geladen.
-- Nach Anmeldung wird ein Anzeigename aus `user.user_metadata.display_name`
-  angezeigt. Fehlt er oder ist er ungültig, erscheint der neutrale
-  Platzhalter „Runnit-Läufer“ – niemals der private E-Mail-Präfix.
-- Anzeigename kann im Konto geändert werden. Er wird über
-  `supabase.auth.updateUser` in der Auth-Metadatenstruktur **des
-  angemeldeten Kontos** gespeichert. Keine neuen Datenbanktabellen,
-  zusätzlichen RLS-Regeln oder Admin-Rechte erforderlich.
-- Authentifizierte Nutzer können sich abmelden.
-- Sportwerte sind **nicht** an verifizierte Datenquellen angeschlossen.
-  Deshalb erscheinen Striche und klare Hinweise, keine fiktiven Rekorde.
-- Die Karte verwendet bei angemeldeten Nutzern den Anzeigenamen
-  anstelle eines aus der E-Mail abgeleiteten Pseudonyms.
+## Anmeldung und Registrierung
+- **Apple / Google / Facebook:** Web-OAuth über
+  `supabase.auth.signInWithOAuth` mit Rücksprung nach `/auth/callback`.
+  **Die drei Anbieter sind erst nach externer Einrichtung nutzbar.**
+  Fehlkonfigurationen führen zu einer sichtbaren Fehlermeldung, nicht zu
+  einer fiktiven erfolgreichen Anmeldung.
+- **E-Mail ohne Passwort:** `supabase.auth.signInWithOtp` sendet
+  standardmäßig einen einmaligen Magic Link. Nicht existente Konten können
+  damit automatisch erstellt werden, wenn Registrierungen erlaubt sind.
+- **E-Mail mit Passwort:** Bleibt als Alternative für bestehende Konten
+  und für Nutzer erhalten, die ein Passwort bevorzugen.
+- Der Anzeigename ist frei editierbar, nicht identitätsgeprüft und nicht
+  global eindeutig. E-Mail-Adressen werden nicht mehr als Spielernamen
+  auf der Karte verwendet.
 
-## Datenschutz und Grenzen
-- Die Anmeldung erfolgt über Supabase Auth. E-Mail und Passwort werden
-  von den vorhandenen Supabase-Funktionen verarbeitet; der neue
-  Profilbildschirm speichert Passwörter nicht eigenständig.
-- Der Benutzername ist **frei editierbare, nicht verifizierte
-  Auth-Metadaten**. Es gibt keine globale Eindeutigkeit, keine
-  Identitätsprüfung und keinen serverseitigen Schutz vor Namensgleichheit.
-  Er darf NICHT als Berechtigungsmerkmal oder Siegernachweis dienen.
-- Eine gespeicherte Session beweist keine echte Sprintleistung.
-  Auth-Login/Signup auf einer Vercel-Vorschau nutzt dieselbe
-  konfigurierte Supabase-Umgebung wie diese Vorschau. Echte Testkonten
-  erzeugen echte Benutzer in dieser Umgebung.
-- E-Mail-Bestätigung, Account-Limits und Passwortanforderungen
-  hängen von der bestehenden Supabase-Projektkonfiguration ab.
-  Die UI zeigt eine vorsichtige Bestätigungsmeldung statt einen
-  garantierten E-Mail-Versand zu behaupten.
-- Die vorhandene Karte nutzt bislang eigene Demo-/Duellpfade und
-  ist nicht durch dieses Paket als sichere offizielle Rangliste freigegeben.
+## Externe Einrichtung – vor Freigabe nötig
+1. Im Supabase Dashboard unter **Authentication → Sign In / Providers**
+   Apple, Google und Facebook einzeln aktivieren und die jeweilige
+   Anbieter-App konfigurieren. Die erforderlichen Client-IDs und
+   Secrets kommen vom entsprechenden Apple-Developer-/Google-Cloud-/
+   Meta-Developer-Konto. **Keine Secrets im Browsercode, GitHub oder Chat speichern.**
+2. Die von Supabase angezeigte OAuth-Rückrufadresse
+   `https://<SUPABASE-PROJECT-REF>.supabase.co/auth/v1/callback`
+   bei den einzelnen externen Anbietern hinterlegen. Dies ist NICHT
+   dieselbe Adresse wie der Rücksprung in die Runnit-App.
+3. Unter **Supabase → Authentication → URL Configuration** folgende
+   App-Redirects für die Beta auf die Allowlist setzen:
+   - `https://runnit-git-feature-real-account-profile-tokioaces-projects.vercel.app/auth/callback`
+   - `https://runnit-git-develop-tokioaces-projects.vercel.app/auth/callback`
+   - gegebenenfalls weitere bewusst freigegebene App-Domains für
+     `main`/spätere Produktion
+   Wildcard-Redirects nur eingeschränkt und bewusst für Previews nutzen.
+   Für Produktion die genaue Domain eintragen.
+4. Supabase E-Mail-Anmeldungen, passende E-Mail-Vorlagen, SMTP-Limits,
+   Ablaufzeit und Bot-/Rate-Limiting-Einstellungen prüfen.
+5. Echte Anmeldung mit Testkonten **für jeden Anbieter separat**
+   prüfen: erstes Registrieren, späteres Anmelden, Abbruch, E-Mail-
+   Bestätigung, Session-Neustart, Abmelden, Wechsel der Browser-App.
 
-## Prüfen auf dem iPhone
-1. `/profile` als Gast öffnen: Login/Registrierung und Links zum
-   Gastmodus sichtbar, keine fiktiven 100-m-Bestzeiten.
-2. Einen bewusst für die Beta vorgesehenen Testaccount verwenden;
-   bei Neuregistrierung E-Mail-Bestätigung entsprechend Supabase prüfen.
-3. Nach Anmeldung sollten die eigenen Kontoangaben erscheinen.
-4. Anzeigenamen ändern, Seite neu laden und auf Wunsch auf einem
-   zweiten Gerät überprüfen, ob der Wert erhalten blieb.
-5. Karte öffnen: nur der Anzeigename, nicht die E-Mail-Adresse,
-   darf als Teilnehmername erscheinen.
-6. Ausloggen und bestätigen, dass die Profilansicht wieder
-   die Gastanmeldung zeigt.
-7. Browser-Fehlermeldungen und gescheiterte Anmeldung prüfen;
-   die Seite darf kein Passwort oder Access-Token ausgeben.
+**Wichtig:** Diese Repository-Arbeit hat keinen Zugriff auf die
+Anbieter-Dashboards oder deren Geheimnisse; deren Konfiguration und
+Freischaltung ist nicht Bestandteil des PRs und bisher nicht bestätigt.
+Apple kann außerdem zusätzliche Plattform-/Developer-Voraussetzungen
+haben, Facebook eine App-Review-/Live-Modus-Konfiguration.
 
-## Separate Folgearbeit
-Die echten Sportdaten benötigen eine gesonderte Abfrage-/Speicherschicht,
-serverseitige Auth- und RLS-Regeln sowie ein unabhängiges GPS-Validierungskonzept.
-Der offene GPS-Feldtest-PR #21 bleibt von dieser Profiländerung unberührt.
+## Sicherheit
+Die Client-Sitzungssperre ist **nur eine UI-Zugangssperre**, kein
+serverseitiger Schutz. Supabase RLS und RPC-Berechtigungen müssen
+**separat** für jede persönliche Datenbankaktion geprüft werden.
+OAuth-/Magic-Link-Rücksprung erfolgt ausschließlich zum aktuellen
+App-Origin und dem festen Pfad `/auth/callback`.
+Der Callback rendert keine fremden Fehlerdetails oder Access Tokens.
+Keine eigenen Passwortspeicher, keine Admin-/Service-Role-Keys im Frontend.
+
+## Abnahme auf iPhone und Browser
+1. Frischer privater Browser: Sofort Willkommensbildschirm statt Karte;
+   kein Gast- oder Überspringen-Button.
+2. Direkte URL `/map` oder `/leaderboard`: ebenfalls Anmeldebildschirm.
+3. E-Mail-Link anfordern, Link anklicken, App-Session prüfen.
+4. Mit Testkonten Google, Apple und Facebook einzeln testen, nachdem
+   sie tatsächlich konfiguriert sind.
+5. Danach sind Startseite, Karte, Rangliste und das echte Konto erreichbar.
+6. Seite schließen und erneut öffnen: gültige Session bleibt aktiv.
+7. Abmelden: alle App-Routen wieder gesperrt.
+8. Account-Anzeigenamen ändern: neuer Name auf Profil und Karte,
+   keine private E-Mail in öffentlichen Teilnehmerbezeichnungen.
+9. Ungültige Links, Provider-Abbruch und schlechte Netzverbindungen
+   prüfen. Keine rohen Tokens oder fremde Fehlermeldungen anzeigen.
+
+## Noch offen
+- Keine serverseitige offizielle Sportdaten-Validierung oder Ergebnisfreigabe.
+- Der separate experimentelle GPS-Feldtest aus PR #21 muss nach
+  dessen Übernahme ebenfalls durch den gemeinsamen Login-Gate laufen.
+- Vor einer öffentlichen Beta sind Datenschutzinformationen,
+  Nutzerkontolöschung und Nutzungsbedingungen gesondert zu bearbeiten.
