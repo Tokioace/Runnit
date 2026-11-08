@@ -836,13 +836,16 @@ export default function MapScreen() {
   const { t } = useI18n();
   const { coords: userCoords, permissionDenied, requestOnce, insecureContext, unsupported } = useUserLocation();
   const { user: authUser, loading: authLoading, signIn, signUp, signOut } = useSupabaseUser();
-  console.log('MapScreen loaded');
 
-  const defaultCenter = useMemo<Coordinates>(() => ({ lat: 0, lng: 0 }), []);
+  // Neutral global overview when neither permission nor network IP lookup succeeds.
+  // Do not suggest a real user location without a valid location fix.
+  const defaultCenter = useMemo<Coordinates>(() => ({ lat: 22, lng: 0 }), []);
   const [ipCoords, setIpCoords] = useState<Coordinates | null>(null);
   const [recenterTick, setRecenterTick] = useState(0);
   const center = userCoords ?? ipCoords ?? defaultCenter;
-  const initialZoom = userCoords ? 14 : ipCoords ? 12 : 3;
+  const initialZoom = userCoords ? 14 : ipCoords ? 12 : 2;
+  const [tileProvider, setTileProvider] = useState<'carto' | 'osm'>('carto');
+  const [mapTilesUnavailable, setMapTilesUnavailable] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [ghostOpen, setGhostOpen] = useState(false);
@@ -1344,8 +1347,24 @@ export default function MapScreen() {
         preferCanvas
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          key={tileProvider}
+          attribution={tileProvider === 'carto'
+            ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}
+          url={tileProvider === 'carto'
+            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+            : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'}
+          eventHandlers={{
+            tileerror: () => {
+              if (tileProvider === 'carto') {
+                setTileProvider('osm');
+                setMapTilesUnavailable(false);
+              } else {
+                setMapTilesUnavailable(true);
+              }
+            },
+            tileload: () => setMapTilesUnavailable(false),
+          }}
         />
 
         <RecenterOnUser position={userCoords} trigger={recenterTick} />
@@ -1403,7 +1422,27 @@ export default function MapScreen() {
         </div>
       )}
 
-      {/* Loading and Empty states */}
+      {mapTilesUnavailable && (
+        <div role="alert" className="pointer-events-auto absolute inset-x-4 top-24 z-[950] mx-auto max-w-sm rounded-2xl border border-rose-300/40 bg-[#1a1321]/95 p-4 text-sm text-white shadow-xl backdrop-blur">
+          <p className="font-bold">Die Karte kann gerade nicht geladen werden.</p>
+          <p className="mt-2 text-xs leading-5 text-white/70">
+            Prüfe deine Internetverbindung. Der Kartendienst konnte keine Kartenkacheln liefern.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button type="button" onClick={() => { setMapTilesUnavailable(false); setTileProvider((provider) => provider === 'osm' ? 'carto' : 'osm'); }}
+              className="rounded-lg bg-white/15 px-3 py-2 text-xs font-bold text-white">Erneut versuchen</button>
+            <a href="/" className="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold text-white">Zur Startseite</a>
+          </div>
+        </div>
+      )}
+      {!userCoords && !ipCoords && !permissionDenied && !insecureContext && !unsupported && (
+        <div className="pointer-events-auto absolute inset-x-4 bottom-44 z-[950] mx-auto max-w-sm rounded-xl border border-white/20 bg-[#111827]/90 px-4 py-3 text-center text-xs leading-5 text-white/80 shadow-lg backdrop-blur">
+          <p className="font-semibold text-white">Noch kein Standort ermittelt</p>
+          <p className="mt-1">Du siehst die Weltübersicht. Für Herausforderungen in deiner Nähe kannst du deinen Standort aktivieren.</p>
+          <button type="button" onClick={() => { requestOnce(); setRecenterTick(x => x + 1); }} className="mt-2 rounded-lg bg-violet-500 px-3 py-2 font-bold text-white">Standort erneut suchen</button>
+        </div>
+      )}
+      {/* Loading and Empty states */
       {(loadingGhosts || loadingDuels) && (
         <div className="pointer-events-none absolute left-1/2 top-4 z-[900] -translate-x-1/2 rounded-full bg-white/10 px-4 py-2 text-sm text-white ring-1 ring-white/15 backdrop-blur">
           <span className="mr-2 inline-block h-3 w-3 animate-ping rounded-full bg-white/70"></span>
