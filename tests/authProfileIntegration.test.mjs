@@ -4,27 +4,39 @@ import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('real account page has explicit guest, loading and authenticated views', () => {
+test('the app requires a user session before rendering any application route', () => {
+  const app = read('src/App.tsx');
+  const gate = app.indexOf('if (!auth.user)');
+  const routes = app.indexOf('<Routes>');
+  assert.ok(gate > 0 && routes > gate);
+  assert.match(app, /return \(\s*<WelcomeAuthScreen/);
+  assert.match(app, /location.pathname === AUTH_CALLBACK_PATH/);
+  assert.match(app, /<Navigate to="\/" replace/);
+  assert.match(app, /<Route path="\/map" element=\{<MapScreen \/>\}/);
+});
+
+test('authenticated profiles never display fictional races, medals or guest registration forms', () => {
   const profile = read('src/screens/ProfileScreen.tsx');
   assert.match(profile, /useSupabaseUser\(\)/);
   assert.match(profile, /loading \? \(/);
   assert.match(profile, /<AccountDetailsPanel/);
-  assert.match(profile, /<AccountAuthPanel/);
-  assert.match(profile, /Noch keine geprüften Laufdaten|noch keine geprüften Laufdaten/);
-  assert.doesNotMatch(profile, /Runner8|9\.33\s?s|Demo-Profil|Win Rate/);
+  assert.match(profile, /noch keine geprüften Laufdaten/);
+  assert.doesNotMatch(profile, /Runner8|9\.33\s?s|Demo-Profil|<AccountAuthPanel/);
 });
 
-test('account operations use Supabase Auth, not a fake account or localStorage password store', () => {
+test('account flows stay within Supabase Auth and never store passwords in custom browser storage', () => {
   const hook = read('src/hooks/useSupabaseUser.ts');
   assert.match(hook, /supabase\.auth\.getSession/);
   assert.match(hook, /supabase\.auth\.signInWithPassword/);
   assert.match(hook, /supabase\.auth\.signUp/);
+  assert.match(hook, /supabase\.auth\.signInWithOtp/);
+  assert.match(hook, /supabase\.auth\.signInWithOAuth/);
   assert.match(hook, /supabase\.auth\.updateUser/);
   assert.match(hook, /supabase\.auth\.signOut/);
   assert.doesNotMatch(hook, /localStorage\.setItem|sessionStorage\.setItem/);
 });
 
-test('only the authenticated user can see the profile detail panel', () => {
+test('the real account page shows only current user details and edits current auth metadata', () => {
   const profile = read('src/screens/ProfileScreen.tsx');
   assert.match(profile, /loading \? \([\s\S]*?\) : user \? \(/);
   const details = read('src/components/profile/AccountDetailsPanel.tsx');
@@ -34,8 +46,10 @@ test('only the authenticated user can see the profile detail panel', () => {
   assert.match(details, /signOut\(\)/);
 });
 
-test('new account form only submits from a user gesture and has explicit mode controls', () => {
+test('email-password login remains an explicit alternative for existing accounts', () => {
   const form = read('src/components/profile/AccountAuthPanel.tsx');
+  const welcome = read('src/components/auth/WelcomeAuthScreen.tsx');
+  assert.match(welcome, /<AccountAuthPanel signIn=\{signIn\} signUp=\{signUp\}/);
   assert.match(form, /<form onSubmit=/);
   assert.match(form, /type="password"/);
   assert.match(form, /autoComplete="email"/);
@@ -45,15 +59,12 @@ test('new account form only submits from a user gesture and has explicit mode co
   assert.doesNotMatch(form, /console\.log|localStorage/);
 });
 
-test('map shows chosen nickname rather than revealing email prefix as username', () => {
+test('the map uses editable nickname rather than email prefix and no source claims verified identity', () => {
   const map = read('src/screens/MapScreen.tsx');
   assert.match(map, /username: authUser\.displayName/);
   assert.doesNotMatch(map, /authUser\.email\?\.split\('@'\)/);
-});
-
-test('account nickname is explicitly not an official sport verification', () => {
   const lib = read('src/lib/accountProfile.ts');
-  const details = read('src/components/profile/AccountDetailsPanel.tsx');
   assert.match(lib, /not a verified identity/);
+  const details = read('src/components/profile/AccountDetailsPanel.tsx');
   assert.match(details, /nicht identitätsgeprüft/);
 });
