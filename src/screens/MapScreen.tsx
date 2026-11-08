@@ -1442,7 +1442,7 @@ export default function MapScreen() {
           <button type="button" onClick={() => { requestOnce(); setRecenterTick(x => x + 1); }} className="mt-2 rounded-lg bg-violet-500 px-3 py-2 font-bold text-white">Standort erneut suchen</button>
         </div>
       )}
-      {/* Loading and Empty states */
+      {/* Loading and Empty states */}
       {(loadingGhosts || loadingDuels) && (
         <div className="pointer-events-none absolute left-1/2 top-4 z-[900] -translate-x-1/2 rounded-full bg-white/10 px-4 py-2 text-sm text-white ring-1 ring-white/15 backdrop-blur">
           <span className="mr-2 inline-block h-3 w-3 animate-ping rounded-full bg-white/70"></span>
