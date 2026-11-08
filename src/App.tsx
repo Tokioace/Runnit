@@ -43,6 +43,7 @@ export default function App() {
       <WelcomeAuthScreen
         signInWithProvider={auth.signInWithProvider}
         sendMagicLink={auth.sendMagicLink}
+        verifyEmailOtp={auth.verifyEmailOtp}
         signIn={auth.signIn}
         signUp={auth.signUp}
         loadError={auth.loadError}
