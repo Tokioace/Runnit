@@ -15,6 +15,7 @@ import { getDuelResults } from '../db/getDuelResults';
 import BottomNav from '../components/ui/BottomNav';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { LeaderboardSheet } from '../components/leaderboard/Sheet';
+import { leaderboardSourceLabel, type LeaderboardSource } from '../lib/leaderboardProvenance';
 import { MapHUD } from '../components/map/MapHUD';
 
 // Types
@@ -31,6 +32,7 @@ type Player = {
   distanceMeters: number;
   location: Coordinates;
   colorHex: string;
+  source: LeaderboardSource;
 };
 
 type OpenRun = {
@@ -414,6 +416,7 @@ const generateNationalPlayers = (() => {
       distanceMeters: 100,
       location: { lat: 52.5 + (rng() - 0.5) * 2, lng: 13.4 + (rng() - 0.5) * 2 },
       colorHex: colorForUsernameToHex(`GermanRunner${String(i + 1).padStart(2, '0')}`),
+      source: 'demo' as const,
     }));
     return cached;
   };
@@ -432,6 +435,7 @@ const generateInternationalPlayers = (() => {
       distanceMeters: 100,
       location: { lat: rng() * 180 - 90, lng: rng() * 360 - 180 },
       colorHex: colorForUsernameToHex(`WorldRunner${String(i + 1).padStart(3, '0')}`),
+      source: 'demo' as const,
     }));
     return cached;
   };
@@ -893,6 +897,7 @@ export default function MapScreen() {
         lng: center.lng + (rng() - 0.5) * 0.01 
       },
       colorHex: colorForUsernameToHex(demoNames[i] || `CityRunner${String(i + 1).padStart(2, '0')}`),
+      source: 'demo' as const,
     }));
   }, [cityName, Math.floor(center.lat * 1000), Math.floor(center.lng * 1000)]);
 
@@ -924,6 +929,7 @@ export default function MapScreen() {
               distanceMeters: 100,
               location: { lat, lng },
               colorHex: colorForUsernameToHex(username),
+              source: 'server-unverified',
             } as Player;
           });
         } else {
@@ -1498,6 +1504,7 @@ export default function MapScreen() {
                 distanceMeters: race.targetDistanceM,
                 location: userCoords || { lat: 0, lng: 0 },
                 colorHex: colorForUsernameToHex(currentUser.username),
+                source: 'local-unverified',
               };
               setPlayers(prev => {
                 const filtered = prev.filter(p => p.id !== currentUser.id);
@@ -1532,11 +1539,12 @@ export default function MapScreen() {
       >
         <LeaderboardSheet 
           city={cityName || 'Your City'} 
-          entries={players.slice(0, 10).map(p => ({
+          entries={players.map(p => ({
             rank: p.rank,
             name: p.username,
             time: `${p.bestTimeSeconds.toFixed(2)}s`,
-            distance: `${p.distanceMeters}m`
+            distance: `${p.distanceMeters}m`,
+            source: p.source
           }))} 
         />
       </BottomSheet>
@@ -1824,17 +1832,16 @@ function RaceFinishedOverlay({
       <div className="w-full max-w-md rounded-xl bg-[#0b0b0d] p-5 text-white ring-1 ring-white/10">
         <div className="mb-3 text-center text-lg font-semibold">🏁 Rennen beendet!</div>
         <div className="mb-1 text-center text-3xl font-extrabold text-green-400">{seconds}s</div>
-        <div className="mb-4 text-center text-xs text-white/70">Ziel: {targetDistanceM}m erreicht</div>
+        <div className="mb-4 text-center text-xs text-white/70">Zieldistanz: {targetDistanceM}m · Ergebnis nicht verifiziert</div>
         
-        {/* Celebration message */}
-        <div className="mb-4 rounded-lg bg-green-600/20 border border-green-500/30 p-3 text-center">
-          <div className="text-sm font-medium text-green-300">
-            🎉 Zeit hinzugefügt zu:
+        {/* Local display does not establish eligibility for any official ranking. */}
+        <div className="mb-4 rounded-lg border border-amber-300/30 bg-amber-400/10 p-3 text-center">
+          <div className="text-sm font-semibold text-amber-200">
+            Laufzeit noch nicht verifiziert
           </div>
-          <div className="mt-1 text-xs text-green-200">
-            • 🏙️ {cityName || 'Stadt'} Leaderboard<br/>
-            • 🇩🇪 Deutschland Leaderboard<br/>
-            • 🌍 Internationales Leaderboard
+          <div className="mt-1 text-xs leading-5 text-amber-100">
+            Das Ergebnis kann als lokale, ungeprüfte Zeit angezeigt werden.
+            Eine offizielle Stadt-, Deutschland- oder Weltplatzierung ist nicht bestätigt.
           </div>
         </div>
 
