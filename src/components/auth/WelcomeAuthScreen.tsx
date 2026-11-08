@@ -9,7 +9,7 @@ import AccountAuthPanel from '../profile/AccountAuthPanel';
 
 type Props = Pick<UseSupabaseUserReturn,
   'signInWithProvider' | 'sendMagicLink' | 'verifyEmailOtp' | 'signIn' | 'signUp' | 'loadError'
->;
+> & { onContinueAsGuest: () => void };
 
 type EmailMode = 'hidden' | 'magic-link' | 'password';
 
@@ -39,7 +39,7 @@ function authErrorMessage(error: unknown): string {
   return 'Anmeldung konnte nicht gestartet werden. Bitte versuche es erneut oder nutze E-Mail.';
 }
 
-export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, verifyEmailOtp, signIn, signUp, loadError }: Props) {
+export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, verifyEmailOtp, signIn, signUp, loadError, onContinueAsGuest }: Props) {
   const [emailMode, setEmailMode] = useState<EmailMode>('hidden');
   const [email, setEmail] = useState('');
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
@@ -237,6 +237,14 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
             </div>
           )}
 
+          <div className="mt-5 border-t border-white/10 pt-5">
+            <button type="button" onClick={onContinueAsGuest} disabled={Boolean(pending)}
+              className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.08] px-4 text-left text-sm font-extrabold text-emerald-100 transition hover:bg-emerald-300/[0.14] disabled:opacity-50">
+              <span>Als Gast fortfahren</span>
+              <ArrowRight className="h-5 w-5 shrink-0" aria-hidden="true" />
+            </button>
+            <p className="mt-2 text-xs leading-5 text-white/55">Ohne Konto die Karte, Ranglisten, das Profil und das GPS-Testlabor ansehen. Für das Veranstalten, Beitreten oder Starten eines Rennens benötigst du eine Anmeldung.</p>
+          </div>
           {loadError && <p role="status" className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/10 p-3 text-xs leading-5 text-amber-100">Der bisherige Kontostatus konnte nicht geladen werden. Versuche deine Anmeldung erneut.</p>}
           {error && <p role="alert" className="mt-4 rounded-xl border border-rose-300/25 bg-rose-400/10 p-3 text-xs leading-5 text-rose-100">{error}</p>}
           {notice && <p role="status" className="mt-4 rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-xs leading-6 text-emerald-100">{notice}</p>}
@@ -244,7 +252,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
 
         <p className="mt-6 flex items-start gap-2 text-xs leading-6 text-white/45">
           <ShieldCheck className="mt-1 h-4 w-4 shrink-0 text-emerald-300/70" aria-hidden="true" />
-          Die Anmeldung erfolgt über Supabase und den gewählten Anbieter. Apple, Google und Facebook benötigen eine gesonderte Freischaltung im Runnit-Backend. Die App bleibt ohne Anmeldung geschlossen.
+          Die Anmeldung erfolgt über Supabase und den gewählten Anbieter. Apple, Google und Facebook benötigen eine gesonderte Freischaltung im Runnit-Backend. Gäste können Runnit erkunden; Rennen benötigen eine Anmeldung.
         </p>
         <div className="mt-7 flex items-center justify-center gap-2 text-[11px] font-semibold text-white/25">
           <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" /> Zugang nur mit eigenem Konto
