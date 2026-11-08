@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import {
   getAccountDisplayName, getAccountDisplayNameError, normalizeDisplayName,
 } from '../lib/accountProfile';
+import { authCallbackUrl, type SocialProvider } from '../lib/authRedirect';
 
 export type AuthUser = {
   id: string;
@@ -82,6 +83,27 @@ export function useSupabaseUser() {
     return data;
   }, []);
 
+  const signInWithProvider = useCallback(async (provider: SocialProvider) => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: authCallbackUrl(window.location.origin) },
+    });
+    if (error) throw error;
+    return data;
+  }, []);
+
+  const sendMagicLink = useCallback(async (email: string) => {
+    const { data, error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: {
+        emailRedirectTo: authCallbackUrl(window.location.origin),
+        shouldCreateUser: true,
+      },
+    });
+    if (error) throw error;
+    return data;
+  }, []);
+
   const updateDisplayName = useCallback(async (displayName: string) => {
     const nickname = normalizeDisplayName(displayName);
     const validationError = getAccountDisplayNameError(nickname);
@@ -99,7 +121,7 @@ export function useSupabaseUser() {
     setUser(null);
   }, []);
 
-  return { user, loading, loadError, signIn, signUp, updateDisplayName, signOut } as const;
+  return { user, loading, loadError, signIn, signUp, signInWithProvider, sendMagicLink, updateDisplayName, signOut } as const;
 }
 
 export type UseSupabaseUserReturn = ReturnType<typeof useSupabaseUser>;
