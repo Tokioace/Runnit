@@ -109,7 +109,7 @@ export function useSupabaseUser() {
   const verifyEmailOtp = useCallback(async (email: string, token: string) => {
     const cleanEmail = email.trim();
     const cleanToken = token.trim();
-    if (!/^\\d{6}$/.test(cleanToken)) {
+    if (!/^\d{6}$/.test(cleanToken)) {
       throw new Error('Bitte gib den sechsstelligen Code aus deiner E-Mail ein.');
     }
     const { data, error } = await supabase.auth.verifyOtp({
