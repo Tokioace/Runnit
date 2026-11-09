@@ -83,141 +83,87 @@ function useI18n() {
   return { t };
 }
 
-// Geolocation hook
+// Geolocation errors are different: denied (1), unavailable (2), timeout (3).
+// Do not infer a denial solely from the Permissions API: mobile browsers can
+// report an out-of-date permission state after a setting changes.
+type LocationError = 'denied' | 'unavailable' | 'timeout' | null;
+
 function useUserLocation() {
   const [coords, setCoords] = useState<Coordinates | null>(null);
-  const [permissionDenied, setPermissionDenied] = useState(false);
+  const [locationError, setLocationError] = useState<LocationError>(null);
+  const [locating, setLocating] = useState(false);
   const [insecureContext, setInsecureContext] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
   const watchIdRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    if (!('geolocation' in navigator)) {
-      setUnsupported(true);
-      return;
-    }
-
-    if (typeof isSecureContext !== 'undefined' && !isSecureContext) {
-      setInsecureContext(true);
-      return;
-    }
-
-    // Reflect actual permission state and react to changes
-    let permissionHandle: any | null = null;
-    try {
-      const anyNavigator: any = navigator as any;
-      if (anyNavigator.permissions?.query) {
-        anyNavigator.permissions
-          .query({ name: 'geolocation' as any })
-          .then((status: any) => {
-            permissionHandle = status;
-            setPermissionDenied(status.state === 'denied');
-            status.onchange = () => setPermissionDenied(status.state === 'denied');
-          })
-          .catch(() => {});
-      }
-    } catch {}
-
-    const success = (pos: GeolocationPosition) => {
-      setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      setPermissionDenied(false);
-    };
-
-    const error = (err: GeolocationPositionError | any) => {
-      const deniedByCode = typeof err?.code === 'number' && err.code === (err as any).PERMISSION_DENIED;
-      const deniedByName = err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError';
-      if (deniedByCode || deniedByName) {
-        setPermissionDenied(true);
-      }
-    };
-
-    // Try watchPosition for continuous updates
-    try {
-      watchIdRef.current = navigator.geolocation.watchPosition(success, error, {
-        enableHighAccuracy: true,
-        maximumAge: 5000,
-        timeout: 8000,
-      });
-    } catch (_e) {
-      // ignore
-    }
-
-    // Fallback: single read if no updates yet
-    if (!coords) {
-      try {
-        navigator.geolocation.getCurrentPosition(success, error, {
-          enableHighAccuracy: true,
-          maximumAge: 5000,
-          timeout: 8000,
-        });
-      } catch {}
-    }
-
-    return () => {
-      if (watchIdRef.current !== null && 'geolocation' in navigator) {
-        try {
-          navigator.geolocation.clearWatch(watchIdRef.current);
-        } catch (_e) {
-          // ignore
-        }
-      }
-      if (permissionHandle) {
-        try { permissionHandle.onchange = null; } catch {}
-      }
-    };
+  const onSuccess = React.useCallback((pos: GeolocationPosition) => {
+    setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+    setLocationError(null);
+    setLocating(false);
   }, []);
 
-  const requestOnce = () => {
-    if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
-    if (typeof isSecureContext !== 'undefined' && !isSecureContext) return;
-    try {
-      // Always restart the watch after permission changes or retries
-      try {
-        if (watchIdRef.current !== null) {
-          navigator.geolocation.clearWatch(watchIdRef.current);
-          watchIdRef.current = null;
-        }
-      } catch (_e) {
-        // ignore
-      }
-
-      const onSuccess = (pos: GeolocationPosition) => {
-        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setPermissionDenied(false);
-      };
-      const onError = (err: GeolocationPositionError | any) => {
-        const deniedByCode = typeof err?.code === 'number' && err.code === (err as any).PERMISSION_DENIED;
-        const deniedByName = err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError';
-        if (deniedByCode || deniedByName) setPermissionDenied(true);
-      };
-
-      // Start a fresh continuous watch to pick up updates
-      try {
-        watchIdRef.current = navigator.geolocation.watchPosition(onSuccess, onError, {
-          enableHighAccuracy: true,
-          maximumAge: 5000,
-          timeout: 8000,
-        });
-      } catch (_e) {
-        // ignore
-      }
-
-      // Also attempt an immediate one-off read
-      try {
-        navigator.geolocation.getCurrentPosition(onSuccess, onError, {
-          enableHighAccuracy: true,
-          maximumAge: 1000,
-          timeout: 8000,
-        });
-      } catch {}
-    } catch (_e) {
-      // ignore
+  const onError = React.useCallback((err: GeolocationPositionError) => {
+    // Use numeric error codes documented by the Geolocation API; relying on
+    // instance constants like err.PERMISSION_DENIED is not cross-browser safe.
+    switch (err.code) {
+      case 1:
+        setCoords(null);
+        setLocationError('denied');
+        break;
+      case 2:
+        setLocationError('unavailable');
+        break;
+      case 3:
+        setLocationError('timeout');
+        break;
+      default:
+        setLocationError('unavailable');
     }
-  };
+    setLocating(false);
+  }, []);
 
-  return { coords, permissionDenied, requestOnce, insecureContext, unsupported };
+  const stopWatch = React.useCallback(() => {
+    if (watchIdRef.current === null || !navigator.geolocation) return;
+    navigator.geolocation.clearWatch(watchIdRef.current);
+    watchIdRef.current = null;
+  }, []);
+
+  const requestOnce = React.useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (!navigator.geolocation) {
+      setUnsupported(true);
+      setLocating(false);
+      return;
+    }
+    if (!window.isSecureContext) {
+      setInsecureContext(true);
+      setLocating(false);
+      return;
+    }
+
+    // One active watch at a time. A manual retry is a fresh request, which
+    // allows Safari to reevaluate permissions changed in iOS Settings.
+    stopWatch();
+    setLocationError(null);
+    setLocating(true);
+    try {
+      watchIdRef.current = navigator.geolocation.watchPosition(onSuccess, onError, {
+        enableHighAccuracy: true,
+        maximumAge: 3000,
+        timeout: 20000,
+      });
+    } catch {
+      setLocationError('unavailable');
+      setLocating(false);
+    }
+  }, [onSuccess, onError, stopWatch]);
+
+  useEffect(() => {
+    requestOnce();
+    return stopWatch;
+  }, [requestOnce, stopWatch]);
+
+  return { coords, locationError, locating, requestOnce, insecureContext, unsupported };
 }
 
 // Utility: format seconds to 0.00s string
@@ -837,7 +783,7 @@ function AuthModal({
 export default function MapScreen() {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const { coords: userCoords, permissionDenied, requestOnce, insecureContext, unsupported } = useUserLocation();
+  const { coords: userCoords, locationError, locating, requestOnce, insecureContext, unsupported } = useUserLocation();
   const { user: authUser, loading: authLoading, signIn, signUp, signOut } = useSupabaseUser();
 
   // Neutral global overview when neither permission nor network IP lookup succeeds.
@@ -1247,7 +1193,7 @@ export default function MapScreen() {
     if (!requireRaceAccount()) return;
     setRaceNotice(null);
     if (!userCoords) {
-      setRaceNotice('Für das Veranstalten eines Rennens benötigst du deinen Standort. Aktiviere die Standortfreigabe.');
+      setRaceNotice(locationError === 'denied' ? 'Safari meldet, dass die Ortung blockiert ist. Prüfe iPhone-Einstellungen → Datenschutz & Sicherheit → Ortungsdienste → Safari-Websites und versuche es erneut.' : 'Der GPS-Standort ist noch nicht verfügbar. Runnit sucht erneut; warte kurz und versuche dann, ein Rennen zu veranstalten.');
       requestOnce();
       return;
     }
@@ -1456,7 +1402,7 @@ export default function MapScreen() {
           </div>
         </div>
       )}
-      {!userCoords && !ipCoords && !permissionDenied && !insecureContext && !unsupported && (
+      {!userCoords && !ipCoords && !locationError && !insecureContext && !unsupported && !locating && (
         <div className="pointer-events-auto absolute inset-x-4 bottom-44 z-[950] mx-auto max-w-sm rounded-xl border border-white/20 bg-[#111827]/90 px-4 py-3 text-center text-xs leading-5 text-white/80 shadow-lg backdrop-blur">
           <p className="font-semibold text-white">Noch kein Standort ermittelt</p>
           <p className="mt-1">Du siehst die Weltübersicht. Für Herausforderungen in deiner Nähe kannst du deinen Standort aktivieren.</p>
@@ -1518,17 +1464,25 @@ export default function MapScreen() {
           </div>
         </div>
       )}
-      {!insecureContext && permissionDenied && (
-        <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-rose-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
-          <div className="flex items-center gap-3">
-            <span>Standortzugriff verweigert. Bitte aktiviere die Berechtigung in den Browser-Einstellungen.</span>
-            <button
-              onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
-              className="rounded-md bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
-            >
-              Retry
-            </button>
-          </div>
+      {!insecureContext && !unsupported && !userCoords && locationError && (
+        <div role="alert" className="pointer-events-auto absolute inset-x-4 top-28 z-[950] mx-auto max-w-sm rounded-2xl border border-rose-300/40 bg-[#201321]/95 p-4 text-sm text-white shadow-xl backdrop-blur">
+          <p className="font-extrabold">
+            {locationError === 'denied' ? 'Standortzugriff vom Gerät verweigert (GPS 1)' :
+              locationError === 'timeout' ? 'Standortsuche hat zu lange gedauert (GPS 3)' :
+              'Standort aktuell nicht verfügbar (GPS 2)'}
+          </p>
+          <p className="mt-2 text-xs leading-5 text-white/85">
+            {locationError === 'denied'
+              ? 'Selbst wenn Safari für diese Website „Erlauben“ zeigt: Prüfe auf dem iPhone unter Einstellungen → Datenschutz & Sicherheit → Ortungsdienste → Safari-Websites, ob der Zugriff beim Verwenden erlaubt und „Genauer Standort“ aktiviert ist.'
+              : locationError === 'timeout'
+                ? 'Safari hat innerhalb von 20 Sekunden keine GPS-Position erhalten. Prüfe WLAN/Mobilfunk und versuche es möglichst draußen erneut.'
+                : 'Die Ortungsdienste konnten keine Position liefern. Prüfe die Ortungsdienste des iPhones, deine Verbindung und versuche es erneut.'}
+          </p>
+          <button type="button" disabled={locating}
+            onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
+            className="mt-3 min-h-11 rounded-xl bg-violet-500 px-4 py-2 text-xs font-extrabold text-white disabled:opacity-60">
+            {locating ? 'Standort wird gesucht …' : 'Standort erneut prüfen'}
+          </button>
         </div>
       )}
 
