@@ -18,7 +18,17 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.warn('[Supabase] Missing URL or anon key. Set env vars: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
 }
 
-export const supabase = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || '');
+// Persist the Supabase session in this browser across refreshes and restarts.
+// Keep the SDK's default storage key so existing users remain signed in.
+// Browser storage is isolated between Safari, in-app browsers and URL origins.
+export const supabase = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || '', {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    flowType: 'implicit',
+  },
+});
 
 export type SupabaseClientType = typeof supabase;
 
