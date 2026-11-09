@@ -172,7 +172,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
           <div className="mb-5">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">SCHNELL STARTEN</p>
             <h2 className="mt-2 text-xl font-extrabold tracking-tight">Konto erstellen oder anmelden</h2>
-            <p className="mt-1.5 text-xs leading-5 text-white/55">Ein Konto für alle Runnit-Funktionen.</p>
+            <p className="mt-1.5 text-xs leading-5 text-white/55">Schon registriert? Nutze einfach „Mit E-Mail fortfahren“ – du brauchst kein neues Konto.</p>
           </div>
 
           {emailMode === 'hidden' ? (
@@ -271,6 +271,9 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
           {notice && <p role="status" className="mt-4 rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-xs leading-6 text-emerald-100">{notice}</p>}
         </section>
 
+        <p className="mt-5 rounded-xl border border-cyan-300/15 bg-cyan-300/[0.055] p-3 text-xs leading-6 text-white/65">
+          Du bleibst normalerweise im selben Browser angemeldet. Öffne Runnit künftig immer in Safari unter derselben Adresse. In-App-Browser, private Tabs und andere Vorschau-Adressen teilen gespeicherte Anmeldungen nicht.
+        </p>
         <p className="mt-6 flex items-start gap-2 text-xs leading-6 text-white/45">
           <ShieldCheck className="mt-1 h-4 w-4 shrink-0 text-emerald-300/70" aria-hidden="true" />
           Die Anmeldung erfolgt über Supabase und den gewählten Anbieter. Apple, Google und Facebook benötigen eine gesonderte Freischaltung im Runnit-Backend. Gäste können Runnit erkunden; Rennen benötigen eine Anmeldung.
