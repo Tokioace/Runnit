@@ -12,7 +12,7 @@ const unavailableStats = [
 ];
 
 export default function ProfileScreen() {
-  const { user, loading, loadError, signOut, updateDisplayName } = useSupabaseUser();
+  const { user, loading, loadError, signOut, updateDisplayName, changePassword } = useSupabaseUser();
 
   return (
     <PageFrame
@@ -27,7 +27,7 @@ export default function ProfileScreen() {
         </div>
       ) : user ? (
         <>
-          <AccountDetailsPanel user={user} updateDisplayName={updateDisplayName} signOut={signOut} />
+          <AccountDetailsPanel user={user} updateDisplayName={updateDisplayName} changePassword={changePassword} signOut={signOut} />
 
           <section aria-label="Deine zukünftigen Sportstatistiken" className="space-y-4">
             <div className="flex items-center justify-between gap-3">
