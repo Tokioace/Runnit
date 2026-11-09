@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   ArrowRight, CheckCircle2, ChevronLeft, Footprints,
   LockKeyhole, Mail, ShieldCheck, Sparkles, Timer, Users,
@@ -21,6 +21,14 @@ const providers: { id: SocialProvider; title: string; marker: string; style: str
 
 function authErrorMessage(error: unknown): string {
   const detail = error instanceof Error ? error.message.toLowerCase() : '';
+  const code = typeof error === 'object' && error !== null && 'code' in error
+    ? String(error.code).toLowerCase() : '';
+  if (code === 'email_address_not_authorized' || detail.includes('email address not authorized')) {
+    return 'Supabase darf an diese E-Mail-Adresse noch nicht senden. Für normale Runnit-Konten muss ein eigener SMTP-Mailserver eingerichtet werden.';
+  }
+  if (code === 'over_email_send_rate_limit' || detail.includes('email rate limit') || detail.includes('for security purposes, you can only request this after')) {
+    return 'Supabase blockiert derzeit weitere E-Mails wegen eines Versandlimits oder einer kurzen Wartefrist. Bitte fordere nicht wiederholt einen Code an und versuche es später erneut.';
+  }
   if (detail.includes('provider') || detail.includes('unsupported') || detail.includes('disabled')) {
     return 'Dieser Anmeldeanbieter ist im Runnit-Backend noch nicht aktiviert.';
   }
@@ -50,6 +58,15 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [emailResendCooldown, setEmailResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (emailResendCooldown <= 0) return;
+    const interval = window.setInterval(() => {
+      setEmailResendCooldown(seconds => Math.max(0, seconds - 1));
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [emailResendCooldown > 0]);
 
   const startProvider = async (provider: SocialProvider) => {
     if (pending) return;
@@ -68,12 +85,13 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
 
   const submitEmail = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (pending) return;
+    if (pending || emailResendCooldown > 0) return;
     setPending('email');
     setError(null);
     setNotice(null);
     try {
       await sendMagicLink(email);
+      setEmailResendCooldown(60);
       setVerificationEmail(email.trim());
       setOtpCode('');
       setNotice('Falls die E-Mail zugestellt wird, enthält sie deinen Anmeldelink. Wenn zusätzlich ein sechsstelliger Code enthalten ist, kannst du ihn direkt hier eingeben. Prüfe auch den Spamordner.');
@@ -196,9 +214,9 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
                       disabled={Boolean(pending)} value={email} onChange={e => { setEmail(e.target.value); setVerificationEmail(null); setOtpCode(''); setNotice(null); }}
                       placeholder="name@beispiel.de"
                       className="min-h-14 w-full rounded-2xl border border-white/20 bg-[#0d1322] px-4 text-sm text-white outline-none placeholder:text-white/30 focus:ring-2 focus:ring-violet-300/50" />
-                    <button type="submit" disabled={Boolean(pending)}
+                    <button type="submit" disabled={Boolean(pending) || emailResendCooldown > 0}
                       className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-violet-500 to-indigo-600 px-4 text-sm font-extrabold text-white transition hover:brightness-110 disabled:opacity-50">
-                      {pending === 'email' ? 'E-Mail wird angefordert …' : verificationEmail ? 'Neuen Link oder Code senden' : 'Anmeldelink senden'}
+                      {pending === 'email' ? 'E-Mail wird angefordert …' : emailResendCooldown > 0 ? `Erneut senden in ${emailResendCooldown} s` : verificationEmail ? 'Neuen Link oder Code senden' : 'Anmeldelink senden'}
                       <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </button>
                   </form>
