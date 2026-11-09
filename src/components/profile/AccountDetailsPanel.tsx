@@ -14,6 +14,7 @@ export default function AccountDetailsPanel({ user, updateDisplayName, signOut }
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -43,7 +44,7 @@ export default function AccountDetailsPanel({ user, updateDisplayName, signOut }
   };
 
   const logout = async () => {
-    if (pending) return;
+    if (pending || !confirmLogout) return;
     setPending(true);
     setError(null);
     try {
@@ -106,10 +107,24 @@ export default function AccountDetailsPanel({ user, updateDisplayName, signOut }
 
       {message && <p role="status" className="mt-4 rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-xs text-emerald-200">{message}</p>}
       {error && <p role="alert" className="mt-4 rounded-xl border border-rose-300/25 bg-rose-300/10 p-3 text-xs text-rose-200">{error}</p>}
-      <button type="button" disabled={pending} onClick={() => { void logout(); }}
-        className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-bold text-white/70 transition hover:bg-white/[0.08]">
-        <LogOut className="h-4 w-4" aria-hidden="true" /> Abmelden
-      </button>
+      {confirmLogout ? (
+        <div className="mt-6 rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] p-4">
+          <p className="text-xs leading-5 text-amber-100">Wirklich abmelden? Dadurch wird die gespeicherte Anmeldung beendet. Beim nächsten Besuch musst du dich erneut per E-Mail anmelden.</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button type="button" disabled={pending} onClick={() => setConfirmLogout(false)}
+              className="min-h-12 rounded-xl border border-white/20 bg-white/10 px-3 text-sm font-bold text-white">Angemeldet bleiben</button>
+            <button type="button" disabled={pending} onClick={() => { void logout(); }}
+              className="min-h-12 rounded-xl border border-amber-300/30 bg-amber-300/15 px-3 text-sm font-bold text-amber-100">
+              {pending ? 'Abmelden …' : 'Wirklich abmelden'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" disabled={pending} onClick={() => setConfirmLogout(true)}
+          className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-bold text-white/70 transition hover:bg-white/[0.08]">
+          <LogOut className="h-4 w-4" aria-hidden="true" /> Abmelden
+        </button>
+      )}
     </section>
   );
 }
