@@ -19,6 +19,7 @@ import { BottomSheet } from '../components/ui/BottomSheet';
 import { LeaderboardSheet } from '../components/leaderboard/Sheet';
 import { leaderboardSourceLabel, type LeaderboardSource } from '../lib/leaderboardProvenance';
 import { MapHUD } from '../components/map/MapHUD';
+import { parseGeographyPoint } from '../lib/duelLocation';
 
 // Types
 type Coordinates = {
@@ -57,7 +58,7 @@ type CurrentUser = {
 type TranslationDict = Record<string, string>;
 const de: TranslationDict = {
   'buttons.ghostRun': '👻 Leaderboards',
-  'buttons.hostRun': 'Rennen starten',
+  'buttons.hostRun': 'Rennen erstellen',
   'buttons.cancel': 'Abbrechen',
   'buttons.joinRun': 'Rennen beitreten',
 
@@ -550,17 +551,43 @@ function HostRunDialog({
 }: {
   open: boolean;
   onClose: () => void;
-  onHost: (distanceMeters: number) => void;
+  onHost: (distanceMeters: number) => Promise<void>;
   defaultDistance?: number;
 }) {
   const { t } = useI18n();
   const [distance, setDistance] = useState<number>(defaultDistance ?? 50);
+  const [submitting, setSubmitting] = useState(false);
+  const [hostError, setHostError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setDistance(defaultDistance ?? 50);
+      setHostError(null);
     }
   }, [open, defaultDistance]);
+
+  const submitHost = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    setHostError(null);
+    try {
+      await onHost(distance);
+      onClose();
+    } catch (error) {
+      const code = typeof error === 'object' && error !== null && 'code' in error
+        ? String(error.code) : '';
+      const message = error instanceof Error ? error.message.toLowerCase() : '';
+      if (code === '42501' || message.includes('row-level security') || message.includes('permission denied')) {
+        setHostError('Du hast derzeit keine Berechtigung, ein Rennen zu speichern. Bitte melde dich erneut an.');
+      } else if (message.includes('network') || message.includes('fetch') || message.includes('timeout')) {
+        setHostError('Keine Verbindung zur Datenbank. Bitte prüfe deine Internetverbindung und versuche es erneut.');
+      } else {
+        setHostError('Das Rennen konnte nicht gespeichert werden. Bitte versuche es erneut.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (!open) return null;
   return (
@@ -570,7 +597,8 @@ function HostRunDialog({
           <h2 className="text-lg font-extrabold tracking-tight text-white">{t('host.title')}</h2>
           <button
             onClick={onClose}
-            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/70 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            disabled={submitting}
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/70 transition hover:bg-white/10 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             aria-label="Rennen-Dialog schließen"
           >
             ✕
@@ -591,21 +619,22 @@ function HostRunDialog({
             <option value={100}>{t('host.distance.100')}</option>
           </select>
         </div>
+        <p className="mb-4 text-xs leading-5 text-white/60">Nach dem Erstellen bleibt dein Duell offen, bis ein zweiter Läufer beitritt. Erst dann startet der Countdown.</p>
+        {hostError && <p role="alert" className="mb-4 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-xs leading-5 text-rose-100">{hostError}</p>}
         <div className="flex items-center justify-end gap-3">
           <button
             onClick={onClose}
+            disabled={submitting}
             className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             {t('buttons.cancel')}
           </button>
           <button
-            onClick={() => {
-              onHost(distance);
-              onClose();
-            }}
-            className="rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(99,102,241,.20)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            onClick={() => { void submitHost(); }}
+            disabled={submitting}
+            className="rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(99,102,241,.20)] transition hover:brightness-110 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
-            {t('buttons.hostRun')}
+            {submitting ? 'Rennen wird gespeichert …' : t('buttons.hostRun')}
           </button>
         </div>
       </div>
@@ -1074,23 +1103,19 @@ export default function MapScreen() {
           mapped = data
             .filter((d: any) => d.status === 'open')
             .map((d: any) => {
-              let lat = center.lat;
-              let lng = center.lng;
-              if (d.location && (d.location as any).coordinates) {
-                const coords = (d.location as any).coordinates as [number, number];
-                lng = coords[0];
-                lat = coords[1];
-              }
+              const location = parseGeographyPoint(d.location);
+              if (!location) return null;
               return {
                 id: d.id,
                 hostUserId: d.host_user_id,
                 hostUsername: hostById.get(d.host_user_id)?.username || 'host',
                 distanceMeters: d.target_distance_m || (d.max_distance_km ?? 0) * 1000 || 100,
-                location: { lat, lng },
+                location,
                 createdAt: d.created_at,
                 targetDistanceM: d.target_distance_m || undefined,
               } as OpenRun;
-            });
+            })
+            .filter((run): run is OpenRun => run !== null);
         } else {
           // Use stable demo runs
           mapped = generateDemoRuns;
@@ -1140,20 +1165,15 @@ export default function MapScreen() {
               return copy.filter((r) => r.id !== row.id);
             }
             // INSERT or UPDATE open
-            let lat = center.lat;
-            let lng = center.lng;
-            if (row.location && (row.location as any).coordinates) {
-              const coords = (row.location as any).coordinates as [number, number];
-              lng = coords[0];
-              lat = coords[1];
-            }
+            const location = parseGeographyPoint(row.location);
+            if (!location) return copy;
             const existingIdx = copy.findIndex((r) => r.id === row.id);
             const updated: OpenRun = {
               id: row.id,
               hostUserId: row.host_user_id,
               hostUsername: 'host',
               distanceMeters: row.target_distance_m || (row.max_distance_km ?? 0) * 1000 || 100,
-              location: { lat, lng },
+              location,
               createdAt: row.created_at,
               targetDistanceM: row.target_distance_m || undefined,
             };
@@ -1200,55 +1220,40 @@ export default function MapScreen() {
     setHostOpen(true);
   };
 
-  // Host a real run; no guest/demo persistence.
-  const handleHostRun = async (distanceMeters: number) => {
-    if (!requireRaceAccount()) return;
-    if (!userCoords || !currentUser || !authUser) {
-      setRaceNotice('Standort noch nicht verfügbar. Versuche es erneut.');
-      return;
+  // A new duel is a lobby: it waits for a challenger before the countdown.
+  // Only close the creation dialog after Supabase confirms the inserted row.
+  const handleHostRun = async (distanceMeters: number): Promise<void> => {
+    if (!authUser) {
+      navigate('/login?next=%2Fmap');
+      throw new Error('Anmeldung erforderlich.');
     }
-    const geojson = { type: 'Point', coordinates: [userCoords.lng, userCoords.lat] } as any;
-    
-    // Persist to DB; rely on realtime to show it
-    await createDuel(supabase as any, {
+    if (!userCoords || !currentUser) {
+      throw new Error('Standort noch nicht verfügbar.');
+    }
+
+    const { data, error } = await createDuel(supabase, {
       hostUserId: authUser.id,
-      location: geojson,
-      distanceKm: Math.max(1, Math.round(distanceMeters / 100) / 10),
+      location: userCoords,
+      distanceKm: 1,
       targetDistanceM: distanceMeters,
     });
-    // Optimistically refresh nearby duels to surface the marker immediately
-    try {
-      const { data, error } = await getNearbyDuels(supabase, { userLocation: userCoords, radiusKm: 5 });
-      if (!error && data) {
-        const hostIds = Array.from(new Set(data.map((d: any) => d.host_user_id).filter(Boolean)));
-        const { data: hostUsers } = await supabase
-          .from('users')
-          .select('id, username')
-          .in('id', hostIds);
-        const hostById = new Map<string, any>((hostUsers || []).map((u: any) => [u.id, u]));
-        const mapped: OpenRun[] = data
-          .filter((d: any) => d.status === 'open')
-          .map((d: any) => {
-            let lat = center.lat;
-            let lng = center.lng;
-            if (d.location && (d.location as any).coordinates) {
-              const coords = (d.location as any).coordinates as [number, number];
-              lng = coords[0];
-              lat = coords[1];
-            }
-            return {
-              id: d.id,
-              hostUserId: d.host_user_id,
-              hostUsername: hostById.get(d.host_user_id)?.username || 'host',
-              distanceMeters: d.target_distance_m || (d.max_distance_km ?? 0) * 1000 || 100,
-              location: { lat, lng },
-              createdAt: d.created_at,
-              targetDistanceM: d.target_distance_m || undefined,
-            } as OpenRun;
-          });
-        setOpenRuns(mapped);
-      }
-    } catch (_e) {}
+    if (error) throw error;
+    if (!data?.id || data.status !== 'open') {
+      throw new Error('Renn-Erstellung wurde nicht bestätigt.');
+    }
+
+    // Display the confirmed creation without depending on realtime delivery.
+    const created: OpenRun = {
+      id: data.id,
+      hostUserId: authUser.id,
+      hostUsername: currentUser.username,
+      distanceMeters,
+      location: userCoords,
+      createdAt: data.created_at,
+      targetDistanceM: distanceMeters,
+    };
+    setOpenRuns(previous => [created, ...previous.filter(run => run.id !== created.id)]);
+    setRaceNotice(`Dein ${distanceMeters}-m-Rennen wurde erstellt. Warte auf einen zweiten Läufer; dann startet der Countdown.`);
   };
 
   // Joining and starting races are exclusively for signed-in accounts.
@@ -1370,12 +1375,16 @@ export default function MapScreen() {
                     Demo-Rennen · fiktiver Gegner
                   </p>
                 )}
-                <button
-                  onClick={() => handleJoinRun(r)}
-                  className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                >
-                  {t('buttons.joinRun')}
-                </button>
+                {authUser?.id === r.hostUserId ? (
+                  <p className="rounded-xl bg-emerald-300/15 px-3 py-2 text-xs font-semibold text-emerald-100">Dein Rennen · Wartet auf Mitläufer</p>
+                ) : (
+                  <button
+                    onClick={() => handleJoinRun(r)}
+                    className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                  >
+                    {t('buttons.joinRun')}
+                  </button>
+                )
               </div>
             </Popup>
           </MapBadgeMarker>
