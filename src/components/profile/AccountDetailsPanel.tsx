@@ -6,10 +6,43 @@ import { getAccountDisplayNameError } from '../../lib/accountProfile';
 type Props = {
   user: AuthUser;
   updateDisplayName: UseSupabaseUserReturn['updateDisplayName'];
+  changePassword: UseSupabaseUserReturn['changePassword'];
   signOut: UseSupabaseUserReturn['signOut'];
 };
 
-export default function AccountDetailsPanel({ user, updateDisplayName, signOut }: Props) {
+export default function AccountDetailsPanel({ user, updateDisplayName, changePassword, signOut }: Props) {
+  const [passwordEditing, setPasswordEditing] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordPending, setPasswordPending] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+  const savePassword = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (passwordPending) return;
+    setPasswordError(null);
+    setPasswordMessage(null);
+    if (newPassword.length < 8) {
+      setPasswordError('Das Passwort muss mindestens 8 Zeichen lang sein.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Die Passwörter stimmen nicht überein.');
+      return;
+    }
+    setPasswordPending(true);
+    try {
+      await changePassword(newPassword);
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordEditing(false);
+      setPasswordMessage('Dein Passwort wurde erfolgreich geändert.');
+    } catch {
+      setPasswordError('Passwort konnte nicht geändert werden. Prüfe deine Sitzung und versuche es erneut.');
+    } finally {
+      setPasswordPending(false);
+    }
+  };
   const [draftName, setDraftName] = useState(user.displayName);
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
@@ -104,6 +137,36 @@ export default function AccountDetailsPanel({ user, updateDisplayName, signOut }
           <Pencil className="h-4 w-4" aria-hidden="true" /> Anzeigenamen bearbeiten
         </button>
       )}
+
+      <div className="mt-5 border-t border-white/10 pt-5">
+        {passwordEditing ? (
+          <form onSubmit={(event) => { void savePassword(event); }} className="space-y-3">
+            <h3 className="text-sm font-bold text-white">Passwort ändern</h3>
+            <label htmlFor="new-account-password" className="block text-xs font-semibold text-white/75">Neues Passwort</label>
+            <input id="new-account-password" type="password" autoComplete="new-password" required minLength={8}
+              value={newPassword} disabled={passwordPending} onChange={event => setNewPassword(event.target.value)}
+              className="min-h-12 w-full rounded-xl border border-white/20 bg-[#101322] px-4 py-3 text-sm text-white" />
+            <label htmlFor="confirm-account-password" className="block text-xs font-semibold text-white/75">Passwort wiederholen</label>
+            <input id="confirm-account-password" type="password" autoComplete="new-password" required minLength={8}
+              value={confirmPassword} disabled={passwordPending} onChange={event => setConfirmPassword(event.target.value)}
+              className="min-h-12 w-full rounded-xl border border-white/20 bg-[#101322] px-4 py-3 text-sm text-white" />
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" disabled={passwordPending} onClick={() => { setPasswordEditing(false); setNewPassword(''); setConfirmPassword(''); setPasswordError(null); }}
+                className="min-h-12 rounded-xl border border-white/15 bg-white/5 px-3 text-sm font-bold">Abbrechen</button>
+              <button type="submit" disabled={passwordPending} className="min-h-12 rounded-xl bg-violet-600 px-3 text-sm font-bold">
+                {passwordPending ? 'Speichern …' : 'Passwort speichern'}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <button type="button" disabled={pending} onClick={() => { setPasswordEditing(true); setPasswordMessage(null); }}
+            className="min-h-12 w-full rounded-xl border border-violet-300/25 bg-violet-500/15 px-4 text-sm font-bold text-violet-100">
+            Passwort ändern
+          </button>
+        )}
+        {passwordError && <p role="alert" className="mt-3 text-xs text-rose-200">{passwordError}</p>}
+        {passwordMessage && <p role="status" className="mt-3 text-xs text-emerald-200">{passwordMessage}</p>}
+      </div>
 
       {message && <p role="status" className="mt-4 rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-xs text-emerald-200">{message}</p>}
       {error && <p role="alert" className="mt-4 rounded-xl border border-rose-300/25 bg-rose-300/10 p-3 text-xs text-rose-200">{error}</p>}
