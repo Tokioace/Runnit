@@ -1384,7 +1384,7 @@ export default function MapScreen() {
                   >
                     {t('buttons.joinRun')}
                   </button>
-                )
+                )}
               </div>
             </Popup>
           </MapBadgeMarker>
