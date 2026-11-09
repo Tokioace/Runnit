@@ -1,52 +1,34 @@
 # Runnit
 
-## Setup
+Mobile-first sprint racing prototype built with React, TypeScript, Vite, Leaflet and Supabase.
 
-1. Create a `.env` file based on `.env.example` and set:
+## Local development
 
-```
-VITE_SUPABASE_URL=your-project-url
-VITE_SUPABASE_ANON_KEY=your-anon-key
-```
+1. Install dependencies with `npm install`.
+2. Copy `.env.example` to `.env.local` and provide your own development Supabase project's **public** URL and publishable/anon key:
+   ```text
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-public-anon-key
+   ```
+   Never put a Supabase service-role key, database password or other secret in a `VITE_` variable: Vite exposes these values to browsers. Do not commit `.env.local`.
+3. Start the app with `npm run dev`. Browser geolocation requires HTTPS or the special localhost secure-context exception.
 
-2. Serve via HTTPS (required for geolocation in browsers). For local dev you can use `localhost` over HTTP, or run Vite with HTTPS:
+## Quality checks
 
-```
-npm run dev
-```
+- `npx tsc --noEmit` — TypeScript diagnostics.
+- `npm run test:gps` — repository's Node test suite (not a physical GPS validation).
+- `npm run build` — production bundle compilation.
 
-If your browser still reports insecure context for geolocation, open the app via `https://` or `http://localhost`.
+A passing build or GPS unit test does **not** establish reliable sprint timing on an actual device. See `docs/gps-field-validation.md` for experimental field-testing limitations.
 
-3. Apply SQL in `supabase/` to your Supabase project (SQL Editor):
-   - `schema.sql`
-   - `duel_functions.sql`
+## Supabase schema and security
 
-# Runnit
+**Do not execute `supabase/schema.sql` or `supabase/duel_functions.sql` against an existing Runnit database.** They are legacy bootstrap files and may restore obsolete, overly permissive policies/functions. The versioned SQL in `supabase/migrations/` and `docs/supabase-privacy-hardening.md` describe the current privacy hardening. Review migrations in order and test against a disposable development project before applying anything; this README does not authorize production database changes.
 
-## Setup
+The Supabase anon/publishable key is not an authorization boundary. Database RLS, grants and RPC permissions must enforce access independently of client-side login screens. Never publish real user locations or credentials in issues, logs or test fixtures.
 
-1. Install dependencies:
+## Authentication and preview configuration
 
-```bash
-npm install
-```
+For passwordless e-mail authentication, the correct Supabase Authentication → URL Configuration and e-mail templates must be configured for the **exact** deployed preview origin and `/auth/callback` route. See `docs/email-login-callback-setup.md`. A six-digit e-mail OTP requires the template to include `{{ .Token }}`; the confirmation link uses `{{ .ConfirmationURL }}`. Do not paste live OTPs or magic links into tickets.
 
-2. Configure environment variables:
-
-- Copy `.env.example` to `.env.local` (or `.env`):
-
-```bash
-cp .env.example .env.local
-```
-
-- Fill in:
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_ANON_KEY`
-
-3. Run the app:
-
-```bash
-npm run dev
-```
-
-The app uses React Router for `/` → `MapScreen`, Tailwind CSS, and Leaflet. Leaflet CSS is imported globally in `src/main.tsx`.
+The `main` branch is reserved for user-approved releases. Development PRs target `develop` and require independent CI/security checks before integration.
