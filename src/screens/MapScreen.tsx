@@ -837,6 +837,7 @@ export default function MapScreen() {
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
+  const [cancellingRunId, setCancellingRunId] = useState<string | null>(null);
   const [loadingGhosts, setLoadingGhosts] = useState(false);
   const [loadingDuels, setLoadingDuels] = useState(false);
   const [userTimes, setUserTimes] = useState<number[]>([]);
@@ -1256,6 +1257,34 @@ export default function MapScreen() {
     setRaceNotice(`Dein ${distanceMeters}-m-Rennen wurde erstellt. Warte auf einen zweiten Läufer; dann startet der Countdown.`);
   };
 
+  const handleCancelHostedRun = async (run: OpenRun) => {
+    if (!authUser || run.hostUserId !== authUser.id || run.id.startsWith('demo-run-')) return;
+    if (!window.confirm('Möchtest du dein offenes Rennen wirklich absagen?')) return;
+    setCancellingRunId(run.id);
+    setRaceNotice(null);
+    try {
+      const { data, error } = await supabase
+        .from('duels')
+        .update({ status: 'cancelled' })
+        .eq('id', run.id)
+        .eq('host_user_id', authUser.id)
+        .eq('status', 'open')
+        .is('challenger_user_id', null)
+        .select('id');
+      if (error) throw error;
+      if (!data?.length) {
+        setRaceNotice('Rennen konnte nicht abgesagt werden. Es wurde möglicherweise bereits gestartet oder ein Läufer ist beigetreten.');
+        return;
+      }
+      setOpenRuns(prev => prev.filter(item => item.id !== run.id));
+      setRaceNotice('Dein Rennen wurde abgesagt.');
+    } catch {
+      setRaceNotice('Rennen konnte nicht abgesagt werden. Bitte versuche es erneut.');
+    } finally {
+      setCancellingRunId(null);
+    }
+  };
+
   // Joining and starting races are exclusively for signed-in accounts.
   const handleJoinRun = async (run: OpenRun) => {
     if (!requireRaceAccount()) return;
@@ -1376,7 +1405,14 @@ export default function MapScreen() {
                   </p>
                 )}
                 {authUser?.id === r.hostUserId ? (
-                  <p className="rounded-xl bg-emerald-300/15 px-3 py-2 text-xs font-semibold text-emerald-100">Dein Rennen · Wartet auf Mitläufer</p>
+                  <div className="space-y-2">
+                    <p className="rounded-xl bg-emerald-300/15 px-3 py-2 text-xs font-semibold text-emerald-100">Dein Rennen · Wartet auf Mitläufer</p>
+                    <button type="button" disabled={cancellingRunId === r.id}
+                      onClick={() => { void handleCancelHostedRun(r); }}
+                      className="w-full rounded-xl border border-rose-400/50 bg-rose-500/15 px-4 py-3 text-sm font-bold text-rose-100 disabled:opacity-50">
+                      {cancellingRunId === r.id ? 'Wird abgesagt …' : 'Rennen absagen'}
+                    </button>
+                  </div>
                 ) : (
                   <button
                     onClick={() => handleJoinRun(r)}
