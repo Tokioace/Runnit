@@ -121,6 +121,14 @@ export function useSupabaseUser() {
     return data;
   }, []);
 
+  const changePassword = useCallback(async (password: string) => {
+    if (password.length < 8) throw new Error('Das Passwort muss mindestens 8 Zeichen lang sein.');
+    const { data: session, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session.session) throw new Error('Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.');
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+  }, []);
+
   const updateDisplayName = useCallback(async (displayName: string) => {
     const nickname = normalizeDisplayName(displayName);
     const validationError = getAccountDisplayNameError(nickname);
@@ -138,7 +146,7 @@ export function useSupabaseUser() {
     setUser(null);
   }, []);
 
-  return { user, loading, loadError, signIn, signUp, signInWithProvider, sendMagicLink, verifyEmailOtp, updateDisplayName, signOut } as const;
+  return { user, loading, loadError, signIn, signUp, signInWithProvider, sendMagicLink, verifyEmailOtp, changePassword, updateDisplayName, signOut } as const;
 }
 
 export type UseSupabaseUserReturn = ReturnType<typeof useSupabaseUser>;
