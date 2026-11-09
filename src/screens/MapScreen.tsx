@@ -1222,9 +1222,9 @@ export default function MapScreen() {
 
   // A new duel is a lobby: it waits for a challenger before the countdown.
   // Only close the creation dialog after Supabase confirms the inserted row.
-  const handleHostRun = async (distanceMeters: number): Promise<void> => {
+  const handleHostRun = async (distanceMeters: number) => {
+    if (!requireRaceAccount()) return;
     if (!authUser) {
-      navigate('/login?next=%2Fmap');
       throw new Error('Anmeldung erforderlich.');
     }
     if (!userCoords || !currentUser) {
