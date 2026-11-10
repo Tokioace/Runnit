@@ -92,17 +92,48 @@ export function assessFairPlay(
   const distance = durationMs > 0 && validSegments > 0 ? traveled : null;
   const speed = distance !== null ? distance / (durationMs / 1000) : null;
 
-  // Conservative peak detector: local maxima, refractory period 250ms.
-  // Calibration across device placement and running styles is still required.
-  const stepTimes: number[] = [];
-  for (let i = 1; i < imu.length - 1; i++) {
+  // Experimental gait detector: reject isolated shocks and closely spaced
+  // secondary peaks. Confirm a run of rhythmic peaks before counting it.
+  // This is NOT a validated pedometer; synthetic and on-device tests required.
+  const candidates: number[] = [];
+  for (let i = 2; i < imu.length - 2; i++) {
     const p = imu[i];
     if (p.accelerationMagnitudeMps2 < 2.0 ||
       p.accelerationMagnitudeMps2 <= imu[i - 1].accelerationMagnitudeMps2 ||
       p.accelerationMagnitudeMps2 < imu[i + 1].accelerationMagnitudeMps2) continue;
-    if (stepTimes.length && p.timestampMs - stepTimes[stepTimes.length - 1] < 250) continue;
-    stepTimes.push(p.timestampMs);
+    // A peak must stand above its immediate 100ms neighbourhood, not just
+    // adjacent noisy samples. Avoid merging samples across sensor gaps.
+    let localMin = p.accelerationMagnitudeMps2;
+    for (let j = i - 1; j >= 0 && p.timestampMs - imu[j].timestampMs <= 100; j--)
+      localMin = Math.min(localMin, imu[j].accelerationMagnitudeMps2);
+    for (let j = i + 1; j < imu.length && imu[j].timestampMs - p.timestampMs <= 100; j++)
+      localMin = Math.min(localMin, imu[j].accelerationMagnitudeMps2);
+    if (p.accelerationMagnitudeMps2 - localMin < 1.2) continue;
+    // At most one candidate per 350ms; preserve stronger peaks in that window.
+    if (candidates.length && p.timestampMs - candidates[candidates.length - 1] < 350) continue;
+    candidates.push(p.timestampMs);
   }
+  const stepTimes: number[] = [];
+  let rhythmicRun: number[] = [];
+  const flushRun = () => {
+    if (rhythmicRun.length >= 4) stepTimes.push(...rhythmicRun);
+    rhythmicRun = [];
+  };
+  for (const time of candidates) {
+    if (!rhythmicRun.length) { rhythmicRun = [time]; continue; }
+    const interval = time - rhythmicRun[rhythmicRun.length - 1];
+    if (interval < 350 || interval > 1100) {
+      flushRun(); rhythmicRun = [time]; continue;
+    }
+    if (rhythmicRun.length >= 2) {
+      const previous = rhythmicRun[rhythmicRun.length - 1] - rhythmicRun[rhythmicRun.length - 2];
+      if (Math.abs(interval - previous) > Math.max(120, previous * 0.30)) {
+        flushRun(); rhythmicRun = [time]; continue;
+      }
+    }
+    rhythmicRun.push(time);
+  }
+  flushRun();
   const cadence = stepTimes.length >= 3
     ? 60000 * (stepTimes.length - 1) / (stepTimes[stepTimes.length - 1] - stepTimes[0])
     : null;
