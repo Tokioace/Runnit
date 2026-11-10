@@ -20,6 +20,7 @@ import { LeaderboardSheet } from '../components/leaderboard/Sheet';
 import { leaderboardSourceLabel, type LeaderboardSource } from '../lib/leaderboardProvenance';
 import { MapHUD } from '../components/map/MapHUD';
 import { parseGeographyPoint } from '../lib/duelLocation';
+import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage, type ScreenWakeLockStatus } from '../lib/screenWakeLock';
 
@@ -1755,7 +1756,8 @@ function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { sta
   const [accumAccuracyM, setAccumAccuracyM] = useState(0);
   const [samplesUsed, setSamplesUsed] = useState(0);
   const lastSampleRef = useRef<{ t: number; lat: number; lng: number; v: number } | null>(null);
-  const stepStateRef = useRef<{ lastAcc: number; lastPeakAt: number | null; steps: number } | null>({ lastAcc: 0, lastPeakAt: null, steps: 0 });
+  const liveStepCounter = useRef(new LiveStepPeakCounter());
+  const [liveStepCount, setLiveStepCount] = useState(0);
   const overTargetStreakRef = useRef(0);
   const finishedRef = useRef(false);
   const watchIdRef = useRef<number | null>(null);
@@ -1823,7 +1825,7 @@ function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { sta
               osc.start();
               osc.stop(ctx.currentTime + 0.22);
             } catch {}
-            const steps = stepStateRef.current?.steps ?? 0;
+            const steps = liveStepCounter.current.count;
             const stepLen = steps > 0 ? nextDist / steps : undefined;
             onFinish(Date.now(), {
               stepsCount: steps,
@@ -1855,31 +1857,21 @@ function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { sta
     };
   }, []);
 
-  // DeviceMotion-based step detection (peak detect on resultant acceleration)
+  // Shared foreground peak detector; no extrapolation across iOS sensor suspensions.
   useEffect(() => {
-    const handler = (e: DeviceMotionEvent) => {
-      const ax = e.accelerationIncludingGravity?.x ?? 0;
-      const ay = e.accelerationIncludingGravity?.y ?? 0;
-      const az = e.accelerationIncludingGravity?.z ?? 0;
-      const g = Math.sqrt(ax * ax + ay * ay + az * az);
-      const state = stepStateRef.current!;
-      const t = Date.now();
-      const threshold = 11; // approx >1.1g, tune empirically
-      const refractoryMs = 300; // min time between steps ~200-400ms
-      if (g > threshold && state.lastAcc <= threshold) {
-        if (!state.lastPeakAt || t - state.lastPeakAt > refractoryMs) {
-          state.steps += 1;
-          state.lastPeakAt = t;
-        }
-      }
-      state.lastAcc = g;
+    const handler = (event: DeviceMotionEvent) => {
+      if (finishedRef.current) return;
+      const a = event.acceleration;
+      if (!a || a.x === null || a.y === null || a.z === null) return;
+      const magnitude = Math.hypot(a.x, a.y, a.z);
+      const updated = liveStepCounter.current.push({
+        timestampMs: performance.now(),
+        accelerationMagnitudeMps2: magnitude,
+      });
+      if (updated !== null) setLiveStepCount(updated);
     };
-    try {
-      window.addEventListener('devicemotion', handler, { passive: true } as any);
-    } catch {}
-    return () => {
-      try { window.removeEventListener('devicemotion', handler as any); } catch {}
-    };
+    window.addEventListener('devicemotion', handler, { passive: true });
+    return () => window.removeEventListener('devicemotion', handler);
   }, []);
 
   // Auto-finish moved into GPS sampler for accuracy-stable detection
@@ -1895,13 +1887,17 @@ function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { sta
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
           <div className="h-full rounded-full bg-gradient-to-r from-violet-400 via-cyan-300 to-emerald-300" style={{ width: `${Math.max(0, Math.min(100, displayDistanceM / targetDistanceM * 100))}%` }} />
         </div>
+        <div role="status" aria-live="polite" aria-atomic="true" className="mt-5 border-t border-white/15 pt-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-cyan-200">Live-Schrittspitzen · experimentell</p>
+          <p className="mt-1 text-4xl font-black tabular-nums text-white">{liveStepCount}</p>
+        </div>
       </div>
       <div className="rounded-2xl border border-white/10 bg-white/[0.05] px-5 py-3 text-center text-xs font-semibold tabular-nums text-white/55">
         GPS Max. {maxSpeed.toFixed(2)} m/s · Beschleunigung {maxAccel.toFixed(2)} m/s²
       </div>
       <button
         onClick={() => {
-          const steps = stepStateRef.current?.steps ?? 0;
+          const steps = liveStepCounter.current.count;
           const stepLen = steps > 0 ? acceptedDistanceM / steps : undefined;
           onFinish(Date.now(), {
             stepsCount: steps,
