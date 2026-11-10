@@ -34,6 +34,14 @@ describe('FairPlay experimental evidence', () => {
     assert.equal(report.verdict, 'uncertain');
     assert.ok(report.reasons.includes('gps-position-jump'));
   });
+  it('recovers walking distance after an isolated GPS jump without counting the jump', () => {
+    const samples = gps(8, 1.5);
+    samples[3] = { ...samples[3], longitude: samples[3].longitude + 0.01 };
+    const report = assessFairPlay(samples, imu(80));
+    assert.equal(report.verdict, 'uncertain');
+    assert.ok(report.reasons.includes('gps-position-jump'));
+    assert.ok(report.gpsDistanceM !== null && report.gpsDistanceM > 4 && report.gpsDistanceM < 12);
+  });
   it('does not accuse when IMU is unavailable', () => {
     const report = assessFairPlay(gps(8), []);
     assert.equal(report.verdict, 'uncertain');
