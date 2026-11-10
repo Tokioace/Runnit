@@ -44,6 +44,7 @@ function WalkingLab() {
   const [count, setCount] = useState({ gps: 0, imu: 0 });
   const [report, setReport] = useState<ReturnType<typeof assessFairPlay> | null>(null);
   const [referenceSteps, setReferenceSteps] = useState('');
+  const [motionTrace, setMotionTrace] = useState<MotionSample[]>([]);
   const gps = useRef<PositionSample[]>([]);
   const imu = useRef<MotionSample[]>([]);
   const watch = useRef<number | null>(null);
@@ -77,6 +78,10 @@ function WalkingLab() {
     ticker.current = null;
     setActive(false);
     setReport(assessFairPlay(gps.current, imu.current));
+    // Snapshot a bounded, downsampled diagnostic trace locally for inspection.
+    const source = imu.current;
+    const stride = Math.max(1, Math.ceil(source.length / 1500));
+    setMotionTrace(source.filter((_, index) => index % stride === 0));
     setStatus('Geh-Test beendet · Bericht nur auf diesem Bildschirm, nicht gespeichert');
   };
   useEffect(() => {
@@ -110,7 +115,7 @@ function WalkingLab() {
     if (!mounted.current || !pending.current) return;
     pending.current = false;
     gps.current = []; imu.current = []; setCount({ gps: 0, imu: 0 });
-    setReport(null); setReferenceSteps(''); setElapsed(0); setPocketLock(false); start.current = performance.now();
+    setReport(null); setMotionTrace([]); setReferenceSteps(''); setElapsed(0); setPocketLock(false); start.current = performance.now();
     running.current = true; setActive(true);
     setStatus(motionAllowed ? 'GPS und Bewegungssensor aktiv · Bildschirm eingeschaltet lassen' : 'Nur GPS · Bewegungssensor nicht verfügbar oder verweigert');
     if (motionAllowed) {
@@ -193,6 +198,31 @@ function WalkingLab() {
         <p>Messqualität: {quality}</p>
         <p>Hinweise: {live.reasons.length ? live.reasons.join(', ') : 'Keine automatischen Auffälligkeiten'}</p>
       </div>}
+      {!active && report && motionTrace.length > 2 && (() => {
+        const width = 600;
+        const height = 170;
+        const max = Math.max(3, ...motionTrace.map(sample => sample.accelerationMagnitudeMps2));
+        const startTime = motionTrace[0].timestampMs;
+        const duration = Math.max(1, motionTrace[motionTrace.length - 1].timestampMs - startTime);
+        const points = motionTrace.map(sample => {
+          const x = ((sample.timestampMs - startTime) / duration) * width;
+          const y = height - (Math.min(max, sample.accelerationMagnitudeMps2) / max) * height;
+          return `${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+        return (
+          <div className="space-y-2 rounded-xl border border-cyan-300/30 bg-white/5 p-4">
+            <h3 className="font-black text-cyan-100">Bewegungssignal · Diagnose</h3>
+            <p className="text-xs text-white/70">Beschleunigungsbetrag über die gesamte Testdauer. Spitzen sind nicht automatisch Schritte. Die Kurve ist auf maximal 1.500 Messpunkte reduziert.</p>
+            <div className="overflow-x-auto rounded-lg bg-slate-950 p-2">
+              <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Beschleunigungsdiagramm des lokalen Geh-Tests" className="w-full" preserveAspectRatio="none">
+                <line x1="0" y1={height - (2 / max) * height} x2={width} y2={height - (2 / max) * height} stroke="#fbbf24" strokeDasharray="6 6" opacity="0.7" />
+                <polyline points={points} fill="none" stroke="#67e8f9" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+              </svg>
+            </div>
+            <p className="text-xs text-white/60">Dauer: {(duration / 1000).toFixed(1)} s · Skala: 0–{max.toFixed(1)} m/s² · Gelbe Linie: 2 m/s² Schwelle. Kein Export oder Upload.</p>
+          </div>
+        );
+      })()}
       {!active && report && (
         <div className="space-y-2 rounded-xl border border-cyan-300/30 bg-white/5 p-4">
           <label htmlFor="walking-reference-steps" className="block text-sm font-bold text-cyan-100">
