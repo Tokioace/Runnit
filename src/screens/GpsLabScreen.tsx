@@ -215,7 +215,10 @@ function WalkingLab() {
   };
   const exportImu = () => {
     if (running.current || !report || !imu.current.length) return;
-    const payload = createWalkingImuExport(imu.current, referenceSteps);
+    const payload = createWalkingImuExport(imu.current, referenceSteps, {
+      smoothedMs: livePeakCounter.current.timestampsMs,
+      rawMs: rawPeakCounter.current.timestampsMs,
+    });
     const url = URL.createObjectURL(new Blob([JSON.stringify(payload)], { type: 'application/json' }));
     const link = document.createElement('a');
     link.href = url;
