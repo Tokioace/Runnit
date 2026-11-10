@@ -77,7 +77,14 @@ export function assessFairPlay(
     const elapsed = (current.timestampMs - previous.timestampMs) / 1000;
     if (elapsed <= 0) continue;
     const segment = meters(previous, current);
-    if (segment / elapsed > 12) { implausibleSegments++; continue; } // reject GPS teleportation
+    if (segment / elapsed > 12) {
+      implausibleSegments++;
+      // Re-anchor after a discontinuity: otherwise every subsequent valid fix
+      // can be rejected against a stale position, hiding recovered movement.
+      // Never include the discontinuity itself in measured distance.
+      lastAccepted = current;
+      continue;
+    }
     lastAccepted = current;
     traveled += segment;
     validSegments++;
