@@ -34,6 +34,18 @@ export type FairPlayReport = Readonly<{
   motionCoverage: number;
 }>;
 
+/** Gaps between real IMU events, not between downsampled plot points. */
+export function findMotionGaps(motion: readonly MotionSample[], thresholdMs = 250): readonly Readonly<{ startMs: number; endMs: number }>[] {
+  const gaps: { startMs: number; endMs: number }[] = [];
+  for (let i = 1; i < motion.length; i++) {
+    const startMs = motion[i - 1].timestampMs;
+    const endMs = motion[i].timestampMs;
+    if (Number.isFinite(startMs) && Number.isFinite(endMs) && endMs - startMs > thresholdMs)
+      gaps.push({ startMs, endMs });
+  }
+  return gaps;
+}
+
 const rad = Math.PI / 180;
 function meters(a: PositionSample, b: PositionSample): number {
   const dLat = (b.latitude - a.latitude) * rad;
