@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Gauge, MapPinned, Radio, ShieldAlert, Timer, Waves, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PageFrame from '../components/ui/PageFrame';
+import { assessFairPlay, type MotionSample, type PositionSample } from '../lib/fairPlay';
 import { runGpsSimulation, syntheticPoint, type GpsSample } from '../lib/sprintGps';
 
 type Scenario = '50m' | '75m' | '100m' | 'still' | 'spike' | 'poor';
@@ -33,6 +34,110 @@ function buildScenario(scenario: Scenario): { samples: GpsSample[]; target: numb
   return { target, expectedSeconds: target / speed, samples: Array.from({ length: count }, (_, i) => point(i * speed, i)) };
 }
 
+type MotionEventWithPermission = typeof DeviceMotionEvent & { requestPermission?: () => Promise<'granted' | 'denied'> };
+function WalkingLab() {
+  const [active, setActive] = useState(false);
+  const [status, setStatus] = useState('Bereit – Sensorzugriff erst nach Start');
+  const [elapsed, setElapsed] = useState(0);
+  const [count, setCount] = useState({ gps: 0, imu: 0 });
+  const [report, setReport] = useState<ReturnType<typeof assessFairPlay> | null>(null);
+  const gps = useRef<PositionSample[]>([]);
+  const imu = useRef<MotionSample[]>([]);
+  const watch = useRef<number | null>(null);
+  const start = useRef(0);
+  const ticker = useRef<ReturnType<typeof setInterval> | null>(null);
+  const motionHandler = useRef<((event: DeviceMotionEvent) => void) | null>(null);
+  const running = useRef(false);
+  const stop = () => {
+    running.current = false;
+    if (watch.current !== null) navigator.geolocation.clearWatch(watch.current);
+    watch.current = null;
+    if (motionHandler.current) window.removeEventListener('devicemotion', motionHandler.current);
+    motionHandler.current = null;
+    if (ticker.current !== null) clearInterval(ticker.current);
+    ticker.current = null;
+    setActive(false);
+    setReport(assessFairPlay(gps.current, imu.current));
+    setStatus('Geh-Test beendet · Bericht nur auf diesem Bildschirm, nicht gespeichert');
+  };
+  useEffect(() => () => {
+    running.current = false;
+    if (watch.current !== null) navigator.geolocation.clearWatch(watch.current);
+    if (motionHandler.current) window.removeEventListener('devicemotion', motionHandler.current);
+    if (ticker.current !== null) clearInterval(ticker.current);
+  }, []);
+  const begin = async () => {
+    if (running.current) return;
+    if (!window.isSecureContext || !navigator.geolocation) {
+      setStatus('HTTPS und Standortunterstützung erforderlich'); return;
+    }
+    // iOS requires permission from a direct user gesture.
+    let motionAllowed = false;
+    try {
+      if (typeof DeviceMotionEvent !== 'undefined') {
+        const deviceMotion = DeviceMotionEvent as MotionEventWithPermission;
+        motionAllowed = deviceMotion.requestPermission
+          ? (await deviceMotion.requestPermission()) === 'granted' : true;
+      }
+    } catch { motionAllowed = false; }
+    gps.current = []; imu.current = []; setCount({ gps: 0, imu: 0 });
+    setReport(null); setElapsed(0); start.current = performance.now();
+    running.current = true; setActive(true);
+    setStatus(motionAllowed ? 'GPS und Bewegungssensor aktiv · Bildschirm eingeschaltet lassen' : 'Nur GPS · Bewegungssensor nicht verfügbar oder verweigert');
+    if (motionAllowed) {
+      const onMotion = (event: DeviceMotionEvent) => {
+        if (!running.current) return;
+        const a = event.acceleration;
+        if (!a || a.x === null || a.y === null || a.z === null) return;
+        const magnitude = Math.hypot(a.x, a.y, a.z);
+        if (!Number.isFinite(magnitude)) return;
+        imu.current.push({ timestampMs: performance.now(), accelerationMagnitudeMps2: magnitude });
+        if (imu.current.length > 60000) imu.current.shift();
+        setCount(v => ({ ...v, imu: imu.current.length }));
+      };
+      motionHandler.current = onMotion;
+      window.addEventListener('devicemotion', onMotion);
+    }
+    watch.current = navigator.geolocation.watchPosition(p => {
+      if (!running.current) return;
+      // Geolocation timestamps are epoch milliseconds, convert to performance clock.
+      const timestampMs = p.timestamp - performance.timeOrigin;
+      if (!Number.isFinite(timestampMs) || timestampMs < start.current - 5000) return;
+      gps.current.push({ timestampMs, latitude: p.coords.latitude, longitude: p.coords.longitude, accuracyM: p.coords.accuracy });
+      if (gps.current.length > 10000) gps.current.shift();
+      setCount(v => ({ ...v, gps: gps.current.length }));
+    }, error => setStatus('Standortfehler: ' + error.message + ' · Berechtigung/Empfang prüfen'), {
+      enableHighAccuracy: true, maximumAge: 0, timeout: 15000,
+    });
+    ticker.current = setInterval(() => setElapsed(Math.round((performance.now() - start.current) / 1000)), 1000);
+  };
+  const live = active ? assessFairPlay(gps.current, imu.current) : report;
+  return (
+    <section aria-label="Echter Geh-Einzellauf – experimentell" className="space-y-4 rounded-[28px] border border-cyan-300/30 bg-gradient-to-br from-indigo-800/40 to-[#101827] p-5">
+      <p className="text-xs font-black uppercase tracking-widest text-cyan-200">FAIRPLAY LAB · WALKING TEST · NICHT GEWERTET</p>
+      <h2 className="text-2xl font-black">Geh-Einzellauf</h2>
+      <p className="text-sm text-white/70">Normal gehen, nicht sprinten. Kein Duell, keine 50-m-Zeit, keine Rangliste. GPS und Bewegungssensor werden nur im Arbeitsspeicher ausgewertet und beim Verlassen verworfen. Kein Mikrofon.</p>
+      <p role="status" className="text-sm text-amber-200">{status}</p>
+      <button type="button" onClick={active ? stop : () => { void begin(); }} className="min-h-14 w-full rounded-xl bg-cyan-300 px-5 font-black text-slate-950">
+        {active ? 'Geh-Test stoppen und Bericht anzeigen' : 'Geh-Test starten · Sensorzugriff erlauben'}
+      </button>
+      <div className="grid grid-cols-3 gap-2 text-center text-sm">
+        <div><strong className="block text-xl">{elapsed}s</strong>Zeit</div>
+        <div><strong className="block text-xl">{count.gps}</strong>GPS-Fixes</div>
+        <div><strong className="block text-xl">{count.imu}</strong>IMU-Samples</div>
+      </div>
+      {live && <div aria-live="polite" className="space-y-2 rounded-xl bg-white/5 p-4 text-sm">
+        <p className="font-bold">Lokaler {active ? 'Zwischenstand' : 'Geh-Testbericht'}: {live.verdict === 'plausible' ? 'Plausibel (experimentell)' : 'Unsicher / nicht ausreichend belegt'}</p>
+        <p>GPS-Strecke (Schätzung): {live.gpsDistanceM?.toFixed(1) ?? '—'} m · Tempo: {live.gpsSpeedMps?.toFixed(2) ?? '—'} m/s</p>
+        <p>GPS-Mediangenauigkeit: {live.gpsAccuracyMedianM?.toFixed(1) ?? '—'} m · Bewegungssensor-Abdeckung: {Math.round(live.motionCoverage * 100)}%</p>
+        <p>Erkannte Schritte: {live.detectedSteps} · Kadenz: {live.cadenceSpm?.toFixed(0) ?? '—'} Schritte/min</p>
+        <p>Hinweise: {live.reasons.length ? live.reasons.join(', ') : 'Keine automatischen Auffälligkeiten'}</p>
+      </div>}
+      <p className="text-xs text-white/55">Bildschirmsperre, Energiesparen und iOS können Sensorupdates stoppen. Schrittzählung und GPS-Distanz sind unkalibrierte Schätzungen. Fehlende Schritte sind kein Betrugsnachweis.</p>
+    </section>
+  );
+}
+
 export default function GpsLabScreen() {
   const [scenario, setScenario] = useState<Scenario>('50m');
   const { source, result } = useMemo(() => {
@@ -58,6 +163,8 @@ export default function GpsLabScreen() {
           Alle Koordinaten und Zeiten sind künstlich. Diese Ergebnisse sind nicht für Duelle oder Ranglisten zulässig.
         </div>
       </div>
+
+      <WalkingLab />
 
       <section className="space-y-4" aria-labelledby="scenario-heading">
         <div className="flex items-end justify-between gap-3">
