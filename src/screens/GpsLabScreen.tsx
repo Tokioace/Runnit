@@ -134,7 +134,7 @@ function WalkingLab() {
     ticker.current = setInterval(() => setElapsed(Math.round((performance.now() - start.current) / 1000)), 1000);
   };
   const live = active ? assessFairPlay(gps.current, imu.current) : report;
-  const quality = !live ? 'Noch keine Messung' : live.reasons.includes('gps-position-jump') ? 'GPS-Sprung erkannt · Messung unsicher, kein Betrugsnachweis' : live.reasons.includes('insufficient-gps') || live.reasons.includes('poor-gps-accuracy') ? 'GPS-Daten fehlen oder sind ungenau' : live.reasons.includes('insufficient-motion-coverage') ? 'Bewegungssensordaten fehlen oder sind lückenhaft' : 'Keine auffälligen Messfehler erkannt (unkalibriert)';
+  const quality = !live ? 'Noch keine Messung' : live.reasons.includes('gps-position-jump') ? 'GPS-Sprung erkannt · Messung unsicher, kein Betrugsnachweis' : live.reasons.includes('insufficient-gps') || live.reasons.includes('poor-gps-accuracy') ? 'GPS-Daten fehlen oder sind ungenau' : live.reasons.includes('insufficient-motion-coverage') ? 'Bewegungssensordaten fehlen oder sind lückenhaft' : live.reasons.includes('walking-cadence-needs-calibration') ? 'Schrittfrequenz für normales Gehen ungewöhnlich hoch · Handbewegungen möglich, bitte in Hosentasche vergleichen' : 'Keine auffälligen Messfehler erkannt (unkalibriert)';
   return (
     <section aria-label="Echter Geh-Einzellauf – experimentell" className="space-y-4 rounded-[28px] border border-cyan-300/30 bg-gradient-to-br from-indigo-800/40 to-[#101827] p-5">
       <p className="text-xs font-black uppercase tracking-widest text-cyan-200">FAIRPLAY LAB · WALKING TEST · NICHT GEWERTET</p>
