@@ -6,6 +6,8 @@ import { assessFairPlay, type MotionSample, type PositionSample } from '../lib/f
 import { estimatePatternSteps } from '../lib/walkingPattern';
 import { createWalkingImuExport } from '../lib/walkingImuExport';
 import { detectWalkingPhase } from '../lib/walkingPhase';
+import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
+import { screenWakeLockMessage } from '../lib/screenWakeLock';
 import { runGpsSimulation, syntheticPoint, type GpsSample } from '../lib/sprintGps';
 
 type Scenario = '50m' | '75m' | '100m' | 'still' | 'spike' | 'poor';
@@ -40,6 +42,16 @@ function buildScenario(scenario: Scenario): { samples: GpsSample[]; target: numb
 type MotionEventWithPermission = typeof DeviceMotionEvent & { requestPermission?: () => Promise<'granted' | 'denied'> };
 function WalkingLab() {
   const [active, setActive] = useState(false);
+  const wakeStatus = useScreenWakeLock(active);
+  const [backgroundInterrupted, setBackgroundInterrupted] = useState(false);
+  useEffect(() => {
+    if (!active) return;
+    const markHidden = () => {
+      if (document.visibilityState === 'hidden') setBackgroundInterrupted(true);
+    };
+    document.addEventListener('visibilitychange', markHidden);
+    return () => document.removeEventListener('visibilitychange', markHidden);
+  }, [active]);
   const [pocketLock, setPocketLock] = useState(false);
   const [holdingStop, setHoldingStop] = useState(false);
   const [status, setStatus] = useState('Bereit – Sensorzugriff erst nach Start');
@@ -131,7 +143,7 @@ function WalkingLab() {
     if (!mounted.current || !pending.current) return;
     pending.current = false;
     gps.current = []; imu.current = []; setCount({ gps: 0, imu: 0 });
-    setReport(null); setPatternReport(null); setMotionTrace([]); setTraceWindowStartSec(0); setShowAxes(false); setReferenceSteps(''); setElapsed(0); setPocketLock(false); start.current = performance.now();
+    setReport(null); setPatternReport(null); setMotionTrace([]); setTraceWindowStartSec(0); setShowAxes(false); setReferenceSteps(''); setElapsed(0); setPocketLock(false); setBackgroundInterrupted(false); start.current = performance.now();
     running.current = true; recording.current = false; setActive(true);
     countdownEnd.current = performance.now() + 10000;
     setCountdown(10);
@@ -207,6 +219,8 @@ function WalkingLab() {
       <h2 className="text-2xl font-black">Geh-Einzellauf</h2>
       <p className="text-sm text-white/70">Normal gehen, nicht sprinten. Kein Duell, keine 50-m-Zeit, keine Rangliste. GPS und Bewegungssensor werden nur im Arbeitsspeicher ausgewertet und beim Verlassen verworfen. Kein Mikrofon.</p>
       <p role="status" className="text-sm text-amber-200">{status}</p>
+      {active && wakeStatus !== 'idle' && <p role="status" className={wakeStatus === 'held' ? 'text-xs font-semibold text-emerald-200' : 'text-xs font-semibold text-amber-200'}>{screenWakeLockMessage(wakeStatus)}</p>}
+      {backgroundInterrupted && <p role="alert" className="text-xs font-semibold text-amber-200">Der Test war im Hintergrund. In dieser Zeit können Sensordaten fehlen; das Ergebnis ist nicht lückenlos verifiziert.</p>}
       {active && countdown !== null && <p role="timer" className="rounded-xl bg-cyan-300/15 p-4 text-center text-3xl font-black text-cyan-100">Start in {countdown} s</p>}
       {!active ? (
         <button type="button" onClick={() => { void begin(); }} className="min-h-14 w-full rounded-xl bg-cyan-300 px-5 font-black text-slate-950">
