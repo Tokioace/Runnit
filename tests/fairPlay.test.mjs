@@ -14,10 +14,10 @@ describe('FairPlay experimental evidence', () => {
     assert.equal(report.verdict, 'uncertain');
     assert.ok(report.reasons.includes('insufficient-gps'));
   });
-  it('flags impossible average travel speed', () => {
+  it('treats impossible GPS jumps as uncertain rather than accusing a walker', () => {
     const report = assessFairPlay(gps(8, 30), imu(80));
-    assert.equal(report.verdict, 'suspicious');
-    assert.ok(report.reasons.includes('implausible-average-speed'));
+    assert.equal(report.verdict, 'uncertain');
+    assert.ok(report.reasons.includes('gps-position-jump'));
   });
   it('does not accuse when IMU is unavailable', () => {
     const report = assessFairPlay(gps(8), []);
