@@ -56,9 +56,14 @@ test('restyling preserves demo provenance and does not invent real rankings', ()
   assert.match(sheet, /keine verifizierten Sprint-Ranglisten/);
 });
 
-test('GPS lab remains simulation-only and does not request device location', () => {
+test('GPS lab separates opt-in walking sensors from synthetic race simulations', () => {
   const source = read('src/screens/GpsLabScreen.tsx');
   assert.match(source, /runGpsSimulation/);
   assert.match(source, /Simulation · kein echter Lauf/);
-  assert.doesNotMatch(source, /navigator\.geolocation|watchPosition\s*\(|getCurrentPosition\s*\(/);
+  assert.match(source, /<WalkingLab\s*\/>/);
+  assert.match(source, /watchPosition\s*\(/);
+  assert.match(source, /clearWatch\s*\(/);
+  assert.match(source, /requestPermission\s*\(/);
+  assert.match(source, /Kein Live-Rennen|keine Rangliste/i);
+  assert.doesNotMatch(source, /submitDuelResult|saveRaceResult/);
 });
