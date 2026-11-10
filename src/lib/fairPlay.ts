@@ -70,13 +70,15 @@ export function assessFairPlay(
   let traveled = 0;
   let validSegments = 0;
   let implausibleSegments = 0;
+  let lastAccepted = reliableGps[0];
   for (let i = 1; i < reliableGps.length; i++) {
-    const previous = reliableGps[i - 1];
+    const previous = lastAccepted;
     const current = reliableGps[i];
     const elapsed = (current.timestampMs - previous.timestampMs) / 1000;
     if (elapsed <= 0) continue;
     const segment = meters(previous, current);
     if (segment / elapsed > 12) { implausibleSegments++; continue; } // reject GPS teleportation
+    lastAccepted = current;
     traveled += segment;
     validSegments++;
   }
@@ -107,11 +109,13 @@ export function assessFairPlay(
   if (reliableGps.length < 3 || durationMs < 1000) reasons.push('insufficient-gps');
   if (accuracy === null || accuracy > 15) reasons.push('poor-gps-accuracy');
   if (overlap.length < 10 || coverage < 0.7) reasons.push('insufficient-motion-coverage');
-  if (implausibleSegments > 0 || (speed !== null && speed > 12)) reasons.push('implausible-average-speed');
+  if (implausibleSegments > 0) reasons.push('gps-position-jump');
+  if (speed !== null && speed > 12) reasons.push('implausible-average-speed');
   if (speed !== null && speed > 3 && stepTimes.filter(t => t >= first!.timestampMs && t <= last!.timestampMs).length < 2)
     reasons.push('movement-without-detected-steps');
   // Missing steps alone must not be treated as cheating: phone placement matters.
   // GPS alone is not proof of cheating, especially during walking or weak reception.
+  // A GPS jump is a measurement-quality issue, not evidence of cheating.
   const suspicious = reasons.includes('implausible-average-speed');
   const uncertain = reasons.length > 0 || stepTimes.length < 3;
   return {
