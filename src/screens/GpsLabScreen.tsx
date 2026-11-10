@@ -261,7 +261,7 @@ function WalkingLab() {
       <div aria-live="polite" aria-atomic="true" role="status" className="rounded-2xl border border-cyan-300/40 bg-cyan-300/10 p-5 text-center">
         <p className="text-xs font-black uppercase tracking-widest text-cyan-200">LIVE · erkannte Schrittspitzen</p>
         <strong className="mt-2 block text-6xl font-black tabular-nums text-white">{liveStepCount}</strong>
-        <p className="mt-2 text-xs text-white/65">Jede bestätigte Spitze wird sofort angezeigt (ca. 0,3 s Erkennungsverzögerung). Experimentell, noch keine verifizierte Schrittzahl.</p>
+        <p className="mt-2 text-xs text-white/65">Jede erkannte Spitze wird unmittelbar nach einem lokalen Beschleunigungsmaximum angezeigt (typisch 1–2 Sensorsamples Verzögerung). Experimentell, noch keine verifizierte Schrittzahl.</p>
       </div>
       {live && <div className="space-y-2 rounded-xl bg-white/5 p-4 text-sm">
         <p className="font-bold">Lokaler {active ? 'Zwischenstand' : 'Geh-Testbericht'}: {live.verdict === 'plausible' ? 'Plausibel (experimentell)' : 'Unsicher / nicht ausreichend belegt'}</p>
