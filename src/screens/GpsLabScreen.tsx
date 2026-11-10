@@ -3,6 +3,7 @@ import { ArrowRight, Gauge, MapPinned, Radio, ShieldAlert, Timer, Waves, Zap } f
 import { Link } from 'react-router-dom';
 import PageFrame from '../components/ui/PageFrame';
 import { assessFairPlay, type MotionSample, type PositionSample } from '../lib/fairPlay';
+import { estimatePatternSteps } from '../lib/walkingPattern';
 import { runGpsSimulation, syntheticPoint, type GpsSample } from '../lib/sprintGps';
 
 type Scenario = '50m' | '75m' | '100m' | 'still' | 'spike' | 'poor';
@@ -43,6 +44,7 @@ function WalkingLab() {
   const [elapsed, setElapsed] = useState(0);
   const [count, setCount] = useState({ gps: 0, imu: 0 });
   const [report, setReport] = useState<ReturnType<typeof assessFairPlay> | null>(null);
+  const [patternReport, setPatternReport] = useState<ReturnType<typeof estimatePatternSteps> | null>(null);
   const [referenceSteps, setReferenceSteps] = useState('');
   const [motionTrace, setMotionTrace] = useState<MotionSample[]>([]);
   const [traceWindowStartSec, setTraceWindowStartSec] = useState(0);
@@ -80,6 +82,7 @@ function WalkingLab() {
     ticker.current = null;
     setActive(false);
     setReport(assessFairPlay(gps.current, imu.current));
+    setPatternReport(estimatePatternSteps(imu.current));
     // Snapshot a bounded, downsampled diagnostic trace locally for inspection.
     const source = imu.current;
     const stride = Math.max(1, Math.ceil(source.length / 1500));
@@ -117,7 +120,7 @@ function WalkingLab() {
     if (!mounted.current || !pending.current) return;
     pending.current = false;
     gps.current = []; imu.current = []; setCount({ gps: 0, imu: 0 });
-    setReport(null); setMotionTrace([]); setTraceWindowStartSec(0); setShowAxes(false); setReferenceSteps(''); setElapsed(0); setPocketLock(false); start.current = performance.now();
+    setReport(null); setPatternReport(null); setMotionTrace([]); setTraceWindowStartSec(0); setShowAxes(false); setReferenceSteps(''); setElapsed(0); setPocketLock(false); start.current = performance.now();
     running.current = true; setActive(true);
     setStatus(motionAllowed ? 'GPS und Bewegungssensor aktiv · Bildschirm eingeschaltet lassen' : 'Nur GPS · Bewegungssensor nicht verfügbar oder verweigert');
     if (motionAllowed) {
@@ -199,6 +202,13 @@ function WalkingLab() {
         <p>Erkannte Schritte: {live.detectedSteps} · Kadenz: {live.cadenceSpm?.toFixed(0) ?? '—'} Schritte/min</p>
         <p>Messqualität: {quality}</p>
         <p>Hinweise: {live.reasons.length ? live.reasons.join(', ') : 'Keine automatischen Auffälligkeiten'}</p>
+      </div>}
+      {!active && report && patternReport && <div className="space-y-2 rounded-xl border border-violet-300/30 bg-violet-300/10 p-4 text-sm">
+        <h3 className="font-black text-violet-100">Experimenteller A/B-Vergleich · nur Geh-Test</h3>
+        <p>Bisherige Spitzenerkennung: <strong>{report.detectedSteps}</strong> Schritte</p>
+        <p>Gefiltertes Bewegungsmuster: <strong>{patternReport.count}</strong> Schritte · Kadenz: {patternReport.cadenceSpm?.toFixed(0) ?? '—'} /min</p>
+        {Number.isSafeInteger(Number(referenceSteps)) && Number(referenceSteps) > 0 && Number(referenceSteps) <= 100000 && <p>Abweichung zur manuellen Referenz: bisher {((report.detectedSteps - Number(referenceSteps)) / Number(referenceSteps) * 100).toFixed(1)} % · gefiltert {((patternReport.count - Number(referenceSteps)) / Number(referenceSteps) * 100).toFixed(1)} %</p>}
+        <p className="text-xs text-amber-200">Beide Werte sind unkalibrierte Schätzungen. Das neue Verfahren verändert weder FairPlay-Urteil noch Rennen oder Ranglisten.</p>
       </div>}
       {!active && report && motionTrace.length > 2 && (() => {
         const width = 600;
