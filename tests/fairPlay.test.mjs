@@ -8,7 +8,22 @@ const gps = (count, speed = 5, accuracy = 3) => Array.from({ length: count }, (_
 const imu = (count, start = 0) => Array.from({ length: count }, (_, i) => ({
   timestampMs: start + i * 100, accelerationMagnitudeMps2: i % 5 === 2 ? 4 : 0.3,
 }));
+const walkingImu = (intervalMs, durationMs = 30000) => Array.from({ length: Math.floor(durationMs / 20) }, (_, i) => ({
+  timestampMs: i * 20,
+  accelerationMagnitudeMps2: i * 20 % intervalMs === 0 ? 4 : 0.3,
+}));
 describe('FairPlay experimental evidence', () => {
+  it('flags fast step peaks during ordinary walking as uncertainty, not fraud', () => {
+    const report = assessFairPlay(gps(30, 1.45), walkingImu(320));
+    assert.equal(report.verdict, 'uncertain');
+    assert.ok(report.reasons.includes('walking-cadence-needs-calibration'));
+    assert.ok(report.cadenceSpm > 175);
+  });
+  it('does not flag ordinary walking cadence', () => {
+    const report = assessFairPlay(gps(30, 1.45), walkingImu(600));
+    assert.equal(report.verdict, 'plausible');
+    assert.ok(!report.reasons.includes('walking-cadence-needs-calibration'));
+  });
   it('returns uncertain with no data, never automatically verified', () => {
     const report = assessFairPlay([], []);
     assert.equal(report.verdict, 'uncertain');
