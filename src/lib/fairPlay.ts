@@ -116,7 +116,7 @@ export function assessFairPlay(
   const stepTimes: number[] = [];
   let rhythmicRun: number[] = [];
   const flushRun = () => {
-    if (rhythmicRun.length >= 4) stepTimes.push(...rhythmicRun);
+    if (rhythmicRun.length >= 3) stepTimes.push(...rhythmicRun);
     rhythmicRun = [];
   };
   for (const time of candidates) {
@@ -127,7 +127,8 @@ export function assessFairPlay(
     }
     if (rhythmicRun.length >= 2) {
       const previous = rhythmicRun[rhythmicRun.length - 1] - rhythmicRun[rhythmicRun.length - 2];
-      if (Math.abs(interval - previous) > Math.max(120, previous * 0.30)) {
+      // Allow pace variation and turns without accepting isolated shocks.
+      if (Math.abs(interval - previous) > Math.max(180, previous * 0.45)) {
         flushRun(); rhythmicRun = [time]; continue;
       }
     }
