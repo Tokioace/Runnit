@@ -16,8 +16,18 @@ describe('FairPlay experimental evidence', () => {
   it('flags fast step peaks during ordinary walking as uncertainty, not fraud', () => {
     const report = assessFairPlay(gps(30, 1.45), walkingImu(320));
     assert.equal(report.verdict, 'uncertain');
-    assert.ok(report.reasons.includes('walking-cadence-needs-calibration'));
-    assert.ok(report.cadenceSpm > 175);
+    assert.ok(report.detectedSteps === 0);
+    assert.equal(report.cadenceSpm, null);
+  });
+  it('rejects isolated pocket shakes without a rhythmic sequence', () => {
+    const shocks = [0, 470, 1820, 2250, 4100, 5200].flatMap(t => [
+      { timestampMs: t, accelerationMagnitudeMps2: 0.2 },
+      { timestampMs: t + 20, accelerationMagnitudeMps2: 5 },
+      { timestampMs: t + 40, accelerationMagnitudeMps2: 0.2 },
+    ]);
+    const report = assessFairPlay([], shocks);
+    assert.equal(report.detectedSteps, 0);
+    assert.equal(report.verdict, 'uncertain');
   });
   it('does not flag ordinary walking cadence', () => {
     const report = assessFairPlay(gps(30, 1.45), walkingImu(600));
