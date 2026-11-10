@@ -20,6 +20,8 @@ import { LeaderboardSheet } from '../components/leaderboard/Sheet';
 import { leaderboardSourceLabel, type LeaderboardSource } from '../lib/leaderboardProvenance';
 import { MapHUD } from '../components/map/MapHUD';
 import { parseGeographyPoint } from '../lib/duelLocation';
+import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
+import { screenWakeLockMessage, type ScreenWakeLockStatus } from '../lib/screenWakeLock';
 
 // Types
 type Coordinates = {
@@ -848,6 +850,9 @@ export default function MapScreen() {
     | { status: 'running'; duelId: string; startedAt: number; targetDistanceM: number }
     | { status: 'finished'; duelId: string; startedAt: number; endedAt: number; targetDistanceM: number }
   >({ status: 'idle' });
+  // Browser motion and GPS callbacks can be suspended when iOS locks the screen.
+  // Keep it awake for the entire countdown and race, not just the step sampler.
+  const wakeStatus = useScreenWakeLock(Boolean(matchOverlay) || race.status === 'countdown' || race.status === 'running');
 
   // Derive current user display - Demo mode with generated user
   useEffect(() => {
@@ -1534,6 +1539,7 @@ export default function MapScreen() {
       {/* Match countdown overlay */}
       {matchOverlay && (
         <MatchCountdownOverlay
+          wakeStatus={wakeStatus}
           startsAt={matchOverlay.startsAt}
           onReady={async () => {
             if (!authUser) {
@@ -1561,6 +1567,7 @@ export default function MapScreen() {
 
       {race.status === 'running' && authUser && (
         <RaceOverlay
+          wakeStatus={wakeStatus}
           startedAt={race.startedAt}
           targetDistanceM={race.targetDistanceM}
           onFinish={async (endedAt, metrics) => {
@@ -1683,7 +1690,7 @@ export default function MapScreen() {
   );
 }
 
-function MatchCountdownOverlay({ startsAt, onReady, onDone }: { startsAt: number; onReady: () => void; onDone: () => void }) {
+function MatchCountdownOverlay({ startsAt, wakeStatus, onReady, onDone }: { startsAt: number; wakeStatus: ScreenWakeLockStatus | 'idle'; onReady: () => void; onDone: () => void }) {
   const [remainingMs, setRemainingMs] = useState(Math.max(0, startsAt - Date.now()));
   const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
@@ -1734,11 +1741,12 @@ function MatchCountdownOverlay({ startsAt, onReady, onDone }: { startsAt: number
         {seconds}
       </div>
       <p className="mt-8 text-sm font-semibold text-white/60">Mach dich bereit.</p>
+      {wakeStatus !== 'idle' && <p role="status" className={wakeStatus === 'held' ? 'mt-3 max-w-sm text-center text-xs text-emerald-200' : 'mt-3 max-w-sm text-center text-xs text-amber-200'}>{screenWakeLockMessage(wakeStatus)}</p>}
     </div>
   );
 }
 
-function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: number; targetDistanceM: number; onFinish: (endedAt: number, metrics?: DuelMetrics) => void }) {
+function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { startedAt: number; targetDistanceM: number; wakeStatus: ScreenWakeLockStatus | 'idle'; onFinish: (endedAt: number, metrics?: DuelMetrics) => void }) {
   const [elapsedMs, setElapsedMs] = useState(Math.max(0, Date.now() - startedAt));
   const [acceptedDistanceM, setAcceptedDistanceM] = useState(0);
   const [displayDistanceM, setDisplayDistanceM] = useState(0);
@@ -1879,6 +1887,7 @@ function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: numb
   return (
     <div className="fixed inset-0 z-[1250] flex flex-col items-center justify-center gap-6 bg-[#070913]/90 px-5 text-white backdrop-blur-xl">
       <p className="text-xs font-black uppercase tracking-[0.3em] text-emerald-300">RUNNIT · LIVE RACE</p>
+      {wakeStatus !== 'idle' && <p role="status" className={wakeStatus === 'held' ? 'max-w-sm text-center text-xs text-emerald-200' : 'max-w-sm text-center text-xs text-amber-200'}>{screenWakeLockMessage(wakeStatus)}</p>}
       <div className="w-full max-w-sm rounded-[32px] border border-violet-300/25 bg-gradient-to-br from-violet-500/25 to-cyan-500/10 p-8 text-center shadow-[0_0_60px_rgba(139,92,246,.13)]">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/50">Laufzeit</p>
         <p className="mt-3 text-6xl font-black tracking-[-0.07em] tabular-nums text-white">{seconds}<span className="ml-1 text-2xl text-emerald-300">s</span></p>
