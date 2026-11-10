@@ -25,3 +25,22 @@ describe('local walking IMU export', () => {
     assert.equal(result.samples[0].tMs, 0);
   });
 });
+
+describe('live peak diagnostics', () => {
+  it('exports only relative peak times and keeps the old export compatible', () => {
+    const origin = 1589123456789;
+    const samples = [
+      { timestampMs: origin, accelerationMagnitudeMps2: 1 },
+      { timestampMs: origin + 1200, accelerationMagnitudeMps2: 2 },
+    ];
+    const raw = createWalkingImuExport(samples, '100');
+    assert.equal(raw.peakDiagnostics, undefined);
+    const withPeaks = createWalkingImuExport(samples, '100', {
+      smoothedMs: [origin + 200, origin + 700, origin - 1, Infinity],
+      rawMs: [origin + 180, origin + 690, origin + 2000],
+    });
+    assert.deepEqual(withPeaks.peakDiagnostics.smoothedLivePeakMs, [200, 700]);
+    assert.deepEqual(withPeaks.peakDiagnostics.rawLivePeakMs, [180, 690]);
+    assert.ok(!JSON.stringify(withPeaks).includes(String(origin)));
+  });
+});
