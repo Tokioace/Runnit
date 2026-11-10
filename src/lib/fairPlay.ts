@@ -20,6 +20,8 @@ export type FairPlayReport = Readonly<{
   verdict: FairPlayVerdict;
   reasons: string[];
   detectedSteps: number;
+  /** Monotonic timestamps of accepted gait peaks, for local diagnostic plotting only. */
+  acceptedStepTimesMs: readonly number[];
   cadenceSpm: number | null;
   gpsDistanceM: number | null;
   gpsSpeedMps: number | null;
@@ -166,6 +168,7 @@ export function assessFairPlay(
     verdict: suspicious ? 'suspicious' : uncertain ? 'uncertain' : 'plausible',
     reasons,
     detectedSteps: stepTimes.length,
+    acceptedStepTimesMs: stepTimes,
     cadenceSpm: cadence !== null && Number.isFinite(cadence) ? cadence : null,
     gpsDistanceM: distance,
     gpsSpeedMps: speed,
