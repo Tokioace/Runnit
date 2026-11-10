@@ -5,6 +5,7 @@ import PageFrame from '../components/ui/PageFrame';
 import { assessFairPlay, type MotionSample, type PositionSample } from '../lib/fairPlay';
 import { estimatePatternSteps } from '../lib/walkingPattern';
 import { createWalkingImuExport } from '../lib/walkingImuExport';
+import { detectWalkingPhase } from '../lib/walkingPhase';
 import { runGpsSimulation, syntheticPoint, type GpsSample } from '../lib/sprintGps';
 
 type Scenario = '50m' | '75m' | '100m' | 'still' | 'spike' | 'poor';
@@ -43,6 +44,10 @@ function WalkingLab() {
   const [holdingStop, setHoldingStop] = useState(false);
   const [status, setStatus] = useState('Bereit – Sensorzugriff erst nach Start');
   const [elapsed, setElapsed] = useState(0);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownEnd = useRef(0);
+  const recording = useRef(false);
   const [count, setCount] = useState({ gps: 0, imu: 0 });
   const [report, setReport] = useState<ReturnType<typeof assessFairPlay> | null>(null);
   const [patternReport, setPatternReport] = useState<ReturnType<typeof estimatePatternSteps> | null>(null);
@@ -74,6 +79,10 @@ function WalkingLab() {
     cancelStopHold();
     setPocketLock(false);
     running.current = false;
+    recording.current = false;
+    setCountdown(null);
+    if (countdownTimer.current !== null) clearInterval(countdownTimer.current);
+    countdownTimer.current = null;
     pending.current = false;
     if (watch.current !== null) navigator.geolocation.clearWatch(watch.current);
     watch.current = null;
@@ -100,6 +109,7 @@ function WalkingLab() {
     if (watch.current !== null) navigator.geolocation.clearWatch(watch.current);
     if (motionHandler.current) window.removeEventListener('devicemotion', motionHandler.current);
     if (ticker.current !== null) clearInterval(ticker.current);
+    if (countdownTimer.current !== null) clearInterval(countdownTimer.current);
     };
   }, []);
   const begin = async () => {
@@ -122,11 +132,28 @@ function WalkingLab() {
     pending.current = false;
     gps.current = []; imu.current = []; setCount({ gps: 0, imu: 0 });
     setReport(null); setPatternReport(null); setMotionTrace([]); setTraceWindowStartSec(0); setShowAxes(false); setReferenceSteps(''); setElapsed(0); setPocketLock(false); start.current = performance.now();
-    running.current = true; setActive(true);
-    setStatus(motionAllowed ? 'GPS und Bewegungssensor aktiv · Bildschirm eingeschaltet lassen' : 'Nur GPS · Bewegungssensor nicht verfügbar oder verweigert');
+    running.current = true; recording.current = false; setActive(true);
+    countdownEnd.current = performance.now() + 10000;
+    setCountdown(10);
+    setStatus('10 Sekunden Vorbereitung · Handy in die Hosentasche stecken, danach 100 Schritte gehen');
+    countdownTimer.current = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((countdownEnd.current - performance.now()) / 1000));
+      setCountdown(remaining);
+      if (remaining === 0) {
+        if (countdownTimer.current !== null) clearInterval(countdownTimer.current);
+        countdownTimer.current = null;
+        if (!running.current) return;
+        gps.current = []; imu.current = []; setCount({ gps: 0, imu: 0 });
+        start.current = performance.now();
+        recording.current = true;
+        setCountdown(null);
+        setElapsed(0);
+        setStatus(motionAllowed ? 'Messung läuft · 100 Schritte gehen, dann stehen bleiben' : 'Messung läuft · Bewegungssensor nicht verfügbar');
+      }
+    }, 100);
     if (motionAllowed) {
       const onMotion = (event: DeviceMotionEvent) => {
-        if (!running.current) return;
+        if (!running.current || !recording.current) return;
         const a = event.acceleration;
         if (!a || a.x === null || a.y === null || a.z === null) return;
         const magnitude = Math.hypot(a.x, a.y, a.z);
@@ -140,7 +167,7 @@ function WalkingLab() {
     }
     try {
     watch.current = navigator.geolocation.watchPosition(p => {
-      if (!running.current) return;
+      if (!running.current || !recording.current) return;
       // Geolocation timestamps are epoch milliseconds, convert to performance clock.
       const timestampMs = p.timestamp - performance.timeOrigin;
       if (!Number.isFinite(timestampMs) || timestampMs < start.current - 5000) return;
@@ -159,7 +186,7 @@ function WalkingLab() {
       setStatus('GPS konnte nicht gestartet werden · Berechtigung/Browser prüfen');
       return;
     }
-    ticker.current = setInterval(() => setElapsed(Math.round((performance.now() - start.current) / 1000)), 1000);
+    ticker.current = setInterval(() => { if (recording.current) setElapsed(Math.round((performance.now() - start.current) / 1000)); }, 1000);
   };
   const exportImu = () => {
     if (running.current || !report || !imu.current.length) return;
@@ -171,7 +198,8 @@ function WalkingLab() {
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
-  const live = active ? assessFairPlay(gps.current, imu.current) : report;
+  const live = active && recording.current ? assessFairPlay(gps.current, imu.current) : report;
+  const walkingPhase = !active && report ? detectWalkingPhase(imu.current) : null;
   const quality = !live ? 'Noch keine Messung' : live.reasons.includes('gps-position-jump') ? 'GPS-Sprung erkannt · Messung unsicher, kein Betrugsnachweis' : live.reasons.includes('insufficient-gps') || live.reasons.includes('poor-gps-accuracy') ? 'GPS-Daten fehlen oder sind ungenau' : live.reasons.includes('insufficient-motion-coverage') ? 'Bewegungssensordaten fehlen oder sind lückenhaft' : live.reasons.includes('walking-cadence-needs-calibration') ? 'Schrittfrequenz für normales Gehen ungewöhnlich hoch · Handbewegungen möglich, bitte in Hosentasche vergleichen' : 'Keine auffälligen Messfehler erkannt (unkalibriert)';
   return (
     <section aria-label="Echter Geh-Einzellauf – experimentell" className="space-y-4 rounded-[28px] border border-cyan-300/30 bg-gradient-to-br from-indigo-800/40 to-[#101827] p-5">
@@ -179,6 +207,7 @@ function WalkingLab() {
       <h2 className="text-2xl font-black">Geh-Einzellauf</h2>
       <p className="text-sm text-white/70">Normal gehen, nicht sprinten. Kein Duell, keine 50-m-Zeit, keine Rangliste. GPS und Bewegungssensor werden nur im Arbeitsspeicher ausgewertet und beim Verlassen verworfen. Kein Mikrofon.</p>
       <p role="status" className="text-sm text-amber-200">{status}</p>
+      {active && countdown !== null && <p role="timer" className="rounded-xl bg-cyan-300/15 p-4 text-center text-3xl font-black text-cyan-100">Start in {countdown} s</p>}
       {!active ? (
         <button type="button" onClick={() => { void begin(); }} className="min-h-14 w-full rounded-xl bg-cyan-300 px-5 font-black text-slate-950">
           Geh-Test starten · Sensorzugriff erlauben
@@ -213,6 +242,11 @@ function WalkingLab() {
         <p>Erkannte Schritte: {live.detectedSteps} · Kadenz: {live.cadenceSpm?.toFixed(0) ?? '—'} Schritte/min</p>
         <p>Messqualität: {quality}</p>
         <p>Hinweise: {live.reasons.length ? live.reasons.join(', ') : 'Keine automatischen Auffälligkeiten'}</p>
+      </div>}
+      {!active && report && walkingPhase && <div className="rounded-xl border border-cyan-300/30 bg-cyan-300/10 p-4 text-sm space-y-2">
+        <h3 className="font-black text-cyan-100">Automatisch geschätzte Gehphase</h3>
+        {walkingPhase ? <p>Bewegungsbeginn ca. {(walkingPhase.startMs / 1000).toFixed(1)} s · Bewegungsende ca. {(walkingPhase.endMs / 1000).toFixed(1)} s nach Messbeginn</p> : <p>Keine ausreichend zusammenhängende Gehphase erkennbar.</p>}
+        <p className="text-xs text-white/70">Nur diagnostische Schätzung aus der Bewegung; keine bestätigten einzelnen Schritte. Handy-Herausnehmen kann die Grenzen verfälschen.</p>
       </div>}
       {!active && report && patternReport && <div className="space-y-2 rounded-xl border border-violet-300/30 bg-violet-300/10 p-4 text-sm">
         <h3 className="font-black text-violet-100">Experimenteller A/B-Vergleich · nur Geh-Test</h3>
@@ -310,7 +344,7 @@ function WalkingLab() {
         <p className="text-xs text-white/70">JSON mit relativen Millisekunden, Beschleunigung X/Y/Z und Betrag; keine GPS-Koordinaten, keine Standort-Zeitstempel, kein Upload. Die Datei kann trotzdem sensible Bewegungsmuster enthalten. Nur bewusst und freiwillig teilen.</p>
         <button type="button" onClick={exportImu} className="min-h-12 w-full rounded-xl border border-violet-300/50 bg-violet-300/20 px-4 font-bold text-violet-100">IMU-Daten als JSON herunterladen</button>
       </div>}
-      <p className="text-xs text-white/55">Bildschirmsperre, Energiesparen und iOS können Sensorupdates stoppen. Schrittzählung und GPS-Distanz sind unkalibrierte Schätzungen. Fehlende Schritte sind kein Betrugsnachweis.</p>
+      <p className="text-xs text-white/55">Der 10-Sekunden-Countdown beginnt nach der Sensorfreigabe. Erst danach werden Messwerte gesammelt. Bildschirmsperre, Energiesparen und iOS können Sensorupdates stoppen. Schrittzählung und GPS-Distanz sind unkalibrierte Schätzungen. Fehlende Schritte sind kein Betrugsnachweis.</p>
     </section>
   );
 }
