@@ -2,24 +2,29 @@ import type { MotionSample } from './fairPlay';
 
 /**
  * Experimental, causal peak counter for foreground DeviceMotion samples.
- * Detects raw acceleration crests backed by a local 250 ms rise, then
- * debounces subsequent crests for 450 ms. This avoids losing short footfall
- * impulses to smoothing while suppressing multiple crests from one step.
+ * Detects acceleration crests backed by a local 250 ms rise and
+ * debounces subsequent crests for 450 ms. The optional causal 67 ms
+ * smoothing reduces brief pocket-motion crests during walking; it is
+ * opt-in so that sprint cadence is not accidentally filtered.
  *
  * Counts are provisional: device position, pace and phone handling affect
  * sensitivity; this does not verify a step or provide FairPlay evidence.
  */
 export class LiveStepPeakCounter {
   private recent: { t: number; value: number }[] = [];
+  private rawWindow: { t: number; value: number }[] = [];
   private lastInputMs: number | null = null;
   private lastStepMs = -Infinity;
   private accepted: number[] = [];
+
+  constructor(private readonly smoothingWindowMs = 0) {}
 
   get count(): number { return this.accepted.length; }
   get timestampsMs(): readonly number[] { return this.accepted; }
 
   reset(): void {
     this.recent = [];
+    this.rawWindow = [];
     this.lastInputMs = null;
     this.lastStepMs = -Infinity;
     this.accepted = [];
@@ -34,9 +39,17 @@ export class LiveStepPeakCounter {
       // Never infer steps across suspended sensor events or stale timestamps.
       // Previously accepted steps remain visible.
       this.recent = [];
+      this.rawWindow = [];
     }
     this.lastInputMs = t;
-    this.recent.push({ t, value });
+    let observed = value;
+    if (this.smoothingWindowMs > 0 && Number.isFinite(this.smoothingWindowMs)) {
+      this.rawWindow.push({ t, value });
+      while (this.rawWindow.length > 1 && this.rawWindow[0].t < t - this.smoothingWindowMs)
+        this.rawWindow.shift();
+      observed = this.rawWindow.reduce((sum, sample) => sum + sample.value, 0) / this.rawWindow.length;
+    }
+    this.recent.push({ t, value: observed });
     // Keep at most the preceding 250 ms plus the two nearest neighbours.
     while (this.recent.length > 3 && this.recent[0].t < t - 270) this.recent.shift();
     const length = this.recent.length;
