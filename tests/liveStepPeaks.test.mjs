@@ -42,3 +42,15 @@ test('reset begins a new recording at zero', () => {
   assert.equal(detector.count, 0);
   assert.deepEqual(detector.timestampsMs, []);
 });
+
+test('double-crested footfall and low-amplitude pocket motion do not become extra steps', () => {
+  const detector = new LiveStepPeakCounter();
+  for (let t = 0; t <= 5000; t += 16) {
+    const value = 0.25 + [800, 1550, 2300, 3050, 3800].reduce((sum, center) =>
+      sum + 6.5 * Math.exp(-0.5 * ((t - center) / 35) ** 2)
+          + 4 * Math.exp(-0.5 * ((t - center - 110) / 30) ** 2), 0)
+          + 0.15 * Math.abs(Math.sin(t / 33));
+    detector.push({ timestampMs: t, accelerationMagnitudeMps2: value });
+  }
+  assert.equal(detector.count, 5);
+});
