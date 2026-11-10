@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import PageFrame from '../components/ui/PageFrame';
 import { assessFairPlay, type MotionSample, type PositionSample } from '../lib/fairPlay';
 import { estimatePatternSteps } from '../lib/walkingPattern';
+import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { createWalkingImuExport } from '../lib/walkingImuExport';
 import { detectWalkingPhase } from '../lib/walkingPhase';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
@@ -61,6 +62,7 @@ function WalkingLab() {
   const countdownEnd = useRef(0);
   const recording = useRef(false);
   const [count, setCount] = useState({ gps: 0, imu: 0 });
+  const [liveStepCount, setLiveStepCount] = useState(0);
   const [report, setReport] = useState<ReturnType<typeof assessFairPlay> | null>(null);
   const [patternReport, setPatternReport] = useState<ReturnType<typeof estimatePatternSteps> | null>(null);
   const [referenceSteps, setReferenceSteps] = useState('');
@@ -69,6 +71,7 @@ function WalkingLab() {
   const [showAxes, setShowAxes] = useState(false);
   const gps = useRef<PositionSample[]>([]);
   const imu = useRef<MotionSample[]>([]);
+  const livePeakCounter = useRef(new LiveStepPeakCounter());
   const watch = useRef<number | null>(null);
   const start = useRef(0);
   const ticker = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -103,6 +106,8 @@ function WalkingLab() {
     if (ticker.current !== null) clearInterval(ticker.current);
     ticker.current = null;
     setActive(false);
+    setCount({ gps: gps.current.length, imu: imu.current.length });
+    setLiveStepCount(livePeakCounter.current.count);
     setReport(assessFairPlay(gps.current, imu.current));
     setPatternReport(estimatePatternSteps(imu.current));
     // Snapshot a bounded, downsampled diagnostic trace locally for inspection.
@@ -142,7 +147,7 @@ function WalkingLab() {
     } catch { motionAllowed = false; }
     if (!mounted.current || !pending.current) return;
     pending.current = false;
-    gps.current = []; imu.current = []; setCount({ gps: 0, imu: 0 });
+    gps.current = []; imu.current = []; livePeakCounter.current.reset(); setLiveStepCount(0); setCount({ gps: 0, imu: 0 });
     setReport(null); setPatternReport(null); setMotionTrace([]); setTraceWindowStartSec(0); setShowAxes(false); setReferenceSteps(''); setElapsed(0); setPocketLock(false); setBackgroundInterrupted(false); start.current = performance.now();
     running.current = true; recording.current = false; setActive(true);
     countdownEnd.current = performance.now() + 10000;
@@ -155,7 +160,7 @@ function WalkingLab() {
         if (countdownTimer.current !== null) clearInterval(countdownTimer.current);
         countdownTimer.current = null;
         if (!running.current) return;
-        gps.current = []; imu.current = []; setCount({ gps: 0, imu: 0 });
+        gps.current = []; imu.current = []; livePeakCounter.current.reset(); setLiveStepCount(0); setCount({ gps: 0, imu: 0 });
         start.current = performance.now();
         recording.current = true;
         setCountdown(null);
@@ -170,9 +175,13 @@ function WalkingLab() {
         if (!a || a.x === null || a.y === null || a.z === null) return;
         const magnitude = Math.hypot(a.x, a.y, a.z);
         if (!Number.isFinite(magnitude)) return;
-        imu.current.push({ timestampMs: performance.now(), accelerationMagnitudeMps2: magnitude, accelerationX: a.x, accelerationY: a.y, accelerationZ: a.z });
+        const sample: MotionSample = { timestampMs: performance.now(), accelerationMagnitudeMps2: magnitude, accelerationX: a.x, accelerationY: a.y, accelerationZ: a.z };
+        imu.current.push(sample);
+        const nextStepCount = livePeakCounter.current.push(sample);
+        if (nextStepCount !== null) setLiveStepCount(nextStepCount);
         if (imu.current.length > 60000) imu.current.shift();
-        setCount(v => ({ ...v, imu: imu.current.length }));
+        // Rendering the historical FairPlay report at 60 Hz would be costly.
+        if (imu.current.length % 12 === 0) setCount(v => ({ ...v, imu: imu.current.length }));
       };
       motionHandler.current = onMotion;
       window.addEventListener('devicemotion', onMotion);
@@ -249,11 +258,16 @@ function WalkingLab() {
         <div><strong className="block text-xl">{count.gps}</strong>GPS-Fixes</div>
         <div><strong className="block text-xl">{count.imu}</strong>IMU-Samples</div>
       </div>
-      {live && <div aria-live="polite" className="space-y-2 rounded-xl bg-white/5 p-4 text-sm">
+      <div aria-live="polite" aria-atomic="true" role="status" className="rounded-2xl border border-cyan-300/40 bg-cyan-300/10 p-5 text-center">
+        <p className="text-xs font-black uppercase tracking-widest text-cyan-200">LIVE · erkannte Schrittspitzen</p>
+        <strong className="mt-2 block text-6xl font-black tabular-nums text-white">{liveStepCount}</strong>
+        <p className="mt-2 text-xs text-white/65">Jede bestätigte Spitze wird sofort angezeigt (ca. 0,3 s Erkennungsverzögerung). Experimentell, noch keine verifizierte Schrittzahl.</p>
+      </div>
+      {live && <div className="space-y-2 rounded-xl bg-white/5 p-4 text-sm">
         <p className="font-bold">Lokaler {active ? 'Zwischenstand' : 'Geh-Testbericht'}: {live.verdict === 'plausible' ? 'Plausibel (experimentell)' : 'Unsicher / nicht ausreichend belegt'}</p>
         <p>GPS-Strecke (Schätzung): {live.gpsDistanceM?.toFixed(1) ?? '—'} m · Tempo: {live.gpsSpeedMps?.toFixed(2) ?? '—'} m/s</p>
         <p>GPS-Mediangenauigkeit: {live.gpsAccuracyMedianM?.toFixed(1) ?? '—'} m · Bewegungssensor-Abdeckung: {Math.round(live.motionCoverage * 100)}%</p>
-        <p>Erkannte Schritte: {live.detectedSteps} · Kadenz: {live.cadenceSpm?.toFixed(0) ?? '—'} Schritte/min</p>
+        <p>Bisherige FairPlay-Schätzung: {live.detectedSteps} Schritte · Kadenz: {live.cadenceSpm?.toFixed(0) ?? '—'} Schritte/min</p>
         <p>Messqualität: {quality}</p>
         <p>Hinweise: {live.reasons.length ? live.reasons.join(', ') : 'Keine automatischen Auffälligkeiten'}</p>
       </div>}
@@ -264,10 +278,11 @@ function WalkingLab() {
       </div>}
       {!active && report && patternReport && <div className="space-y-2 rounded-xl border border-violet-300/30 bg-violet-300/10 p-4 text-sm">
         <h3 className="font-black text-violet-100">Experimenteller A/B-Vergleich · nur Geh-Test</h3>
-        <p>Bisherige Spitzenerkennung: <strong>{report.detectedSteps}</strong> Schritte</p>
+        <p>Neuer Live-Spitzenzähler: <strong>{liveStepCount}</strong> Schritte</p>
+        <p>Bisherige FairPlay-Erkennung: <strong>{report.detectedSteps}</strong> Schritte</p>
         <p>Gefiltertes Bewegungsmuster: <strong>{patternReport.count}</strong> Schritte · Kadenz: {patternReport.cadenceSpm?.toFixed(0) ?? '—'} /min</p>
-        {Number.isSafeInteger(Number(referenceSteps)) && Number(referenceSteps) > 0 && Number(referenceSteps) <= 100000 && <p>Abweichung zur manuellen Referenz: bisher {((report.detectedSteps - Number(referenceSteps)) / Number(referenceSteps) * 100).toFixed(1)} % · gefiltert {((patternReport.count - Number(referenceSteps)) / Number(referenceSteps) * 100).toFixed(1)} %</p>}
-        <p className="text-xs text-amber-200">Beide Werte sind unkalibrierte Schätzungen. Das neue Verfahren verändert weder FairPlay-Urteil noch Rennen oder Ranglisten.</p>
+        {Number.isSafeInteger(Number(referenceSteps)) && Number(referenceSteps) > 0 && Number(referenceSteps) <= 100000 && <p>Abweichung zur manuellen Referenz: live {((liveStepCount - Number(referenceSteps)) / Number(referenceSteps) * 100).toFixed(1)} % · bisher {((report.detectedSteps - Number(referenceSteps)) / Number(referenceSteps) * 100).toFixed(1)} % · gefiltert {((patternReport.count - Number(referenceSteps)) / Number(referenceSteps) * 100).toFixed(1)} %</p>}
+        <p className="text-xs text-amber-200">Alle drei Verfahren sind unkalibrierte Schätzungen. Der neue Live-Zähler verändert weder FairPlay-Urteil noch Ranglisten.</p>
       </div>}
       {!active && report && motionTrace.length > 2 && (() => {
         const width = 600;
@@ -343,9 +358,9 @@ function WalkingLab() {
             className="min-h-12 w-full rounded-lg border border-white/30 bg-slate-900 px-3 text-white" />
           {Number.isSafeInteger(Number(referenceSteps)) && Number(referenceSteps) > 0 && Number(referenceSteps) <= 100000 ? (
             <p className="text-sm" role="status">
-              Runnit: {report.detectedSteps} · Referenz: {Number(referenceSteps)} · Abweichung:
-              {' '}{((report.detectedSteps - Number(referenceSteps)) / Number(referenceSteps) * 100).toFixed(1)} %
-              {' '}({report.detectedSteps - Number(referenceSteps) >= 0 ? '+' : ''}{report.detectedSteps - Number(referenceSteps)} Schritte)
+              Live: {liveStepCount} · FairPlay: {report.detectedSteps} · Referenz: {Number(referenceSteps)} · Abweichung:
+              {' '}{((liveStepCount - Number(referenceSteps)) / Number(referenceSteps) * 100).toFixed(1)} %
+              {' '}({liveStepCount - Number(referenceSteps) >= 0 ? '+' : ''}{liveStepCount - Number(referenceSteps)} Schritte)
             </p>
           ) : (
             <p className="text-xs text-white/60">Nach dem Test eine positive ganze Schrittzahl eingeben. Vergleich nur lokal; keine Speicherung.</p>
