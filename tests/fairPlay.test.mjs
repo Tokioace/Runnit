@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { assessFairPlay } from '../src/lib/fairPlay.ts';
+import { assessFairPlay, findMotionGaps } from '../src/lib/fairPlay.ts';
 
 const gps = (count, speed = 5, accuracy = 3) => Array.from({ length: count }, (_, i) => ({
   timestampMs: i * 1000, latitude: 0, longitude: i * speed / 111194.93, accuracyM: accuracy,
@@ -69,5 +69,16 @@ describe('FairPlay experimental evidence', () => {
     assert.equal(report.acceptedStepTimesMs.length, report.detectedSteps);
     assert.equal(report.candidatePeaks.filter(p => p.reason === 'accepted').length, report.detectedSteps);
     assert.ok(report.acceptedStepTimesMs.every((t, i, values) => i === 0 || t > values[i - 1]));
+  });
+});
+
+describe('IMU diagnostic gaps', () => {
+  it('marks pauses greater than 250 ms without treating normal 20 ms samples as gaps', () => {
+    const samples = [0, 20, 40, 400, 420, 900].map(timestampMs => ({ timestampMs, accelerationMagnitudeMps2: 2 }));
+    assert.deepEqual(findMotionGaps(samples), [{ startMs: 40, endMs: 400 }, { startMs: 420, endMs: 900 }]);
+  });
+  it('does not report gaps on empty or single-sample input', () => {
+    assert.deepEqual(findMotionGaps([]), []);
+    assert.deepEqual(findMotionGaps([{ timestampMs: 0, accelerationMagnitudeMps2: 1 }]), []);
   });
 });
