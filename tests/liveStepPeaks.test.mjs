@@ -54,3 +54,40 @@ test('double-crested footfall and low-amplitude pocket motion do not become extr
   }
   assert.equal(detector.count, 5);
 });
+
+test('walking smoothing ignores narrow post-footfall shakes without missing real peaks', () => {
+  const walking = new LiveStepPeakCounter(67);
+  const unfiltered = new LiveStepPeakCounter();
+  const centers = Array.from({ length: 25 }, (_, i) => 650 + i * 680);
+  for (let t = 0; t <= 18500; t += 16) {
+    const value = 0.25 + centers.reduce((sum, center) =>
+      sum + 7 * Math.exp(-0.5 * ((t - center) / 60) ** 2)
+          + 5 * Math.exp(-0.5 * ((t - center - 510) / 7) ** 2), 0);
+    walking.push({ timestampMs: t, accelerationMagnitudeMps2: value });
+    unfiltered.push({ timestampMs: t, accelerationMagnitudeMps2: value });
+  }
+  assert.equal(walking.count, centers.length);
+  assert.equal(unfiltered.count, centers.length);
+  // Equal totals may hide a false peak that replaced a later real step.
+  for (let i = 0; i < centers.length; i++)
+    assert.ok(Math.abs(walking.timestampsMs[i] - centers[i]) < 100,
+      `walking peak ${i} drifted from the footfall`);
+  assert.ok(unfiltered.timestampsMs.some((time, i) => Math.abs(time - centers[i]) >= 100));
+});
+
+test('walking smoothing resets its buffer after suspended samples and on reset', () => {
+  const walking = new LiveStepPeakCounter(67);
+  for (let t = 0; t <= 2400; t += 16)
+    walking.push({ timestampMs: t, accelerationMagnitudeMps2: pulse(t, 900) });
+  assert.equal(walking.count, 1);
+  // A lone high reading after a gap must not inherit an earlier moving average.
+  walking.push({ timestampMs: 4500, accelerationMagnitudeMps2: 20 });
+  for (let t = 4516; t <= 4900; t += 16)
+    walking.push({ timestampMs: t, accelerationMagnitudeMps2: 0.25 });
+  assert.equal(walking.count, 1);
+  walking.reset();
+  assert.equal(walking.count, 0);
+  for (let t = 0; t <= 2400; t += 16)
+    walking.push({ timestampMs: t, accelerationMagnitudeMps2: pulse(t, 900) });
+  assert.equal(walking.count, 1);
+});
