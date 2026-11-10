@@ -111,6 +111,11 @@ export function assessFairPlay(
   if (overlap.length < 10 || coverage < 0.7) reasons.push('insufficient-motion-coverage');
   if (implausibleSegments > 0) reasons.push('gps-position-jump');
   if (speed !== null && speed > 12) reasons.push('implausible-average-speed');
+  // During ordinary walking, very high detected cadence can indicate extra
+  // peaks from handheld phone motion. Flag uncertainty, never cheating.
+  // This heuristic is not a validated gait classifier or a step correction.
+  if (speed !== null && speed >= 0.5 && speed <= 2.2 && cadence !== null && cadence > 175)
+    reasons.push('walking-cadence-needs-calibration');
   if (speed !== null && speed > 3 && stepTimes.filter(t => t >= first!.timestampMs && t <= last!.timestampMs).length < 2)
     reasons.push('movement-without-detected-steps');
   // Missing steps alone must not be treated as cheating: phone placement matters.
