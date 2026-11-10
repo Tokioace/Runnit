@@ -45,6 +45,7 @@ function WalkingLab() {
   const [report, setReport] = useState<ReturnType<typeof assessFairPlay> | null>(null);
   const [referenceSteps, setReferenceSteps] = useState('');
   const [motionTrace, setMotionTrace] = useState<MotionSample[]>([]);
+  const [traceWindowStartSec, setTraceWindowStartSec] = useState(0);
   const gps = useRef<PositionSample[]>([]);
   const imu = useRef<MotionSample[]>([]);
   const watch = useRef<number | null>(null);
@@ -115,7 +116,7 @@ function WalkingLab() {
     if (!mounted.current || !pending.current) return;
     pending.current = false;
     gps.current = []; imu.current = []; setCount({ gps: 0, imu: 0 });
-    setReport(null); setMotionTrace([]); setReferenceSteps(''); setElapsed(0); setPocketLock(false); start.current = performance.now();
+    setReport(null); setMotionTrace([]); setTraceWindowStartSec(0); setReferenceSteps(''); setElapsed(0); setPocketLock(false); start.current = performance.now();
     running.current = true; setActive(true);
     setStatus(motionAllowed ? 'GPS und Bewegungssensor aktiv · Bildschirm eingeschaltet lassen' : 'Nur GPS · Bewegungssensor nicht verfügbar oder verweigert');
     if (motionAllowed) {
@@ -201,25 +202,49 @@ function WalkingLab() {
       {!active && report && motionTrace.length > 2 && (() => {
         const width = 600;
         const height = 170;
-        const max = Math.max(3, ...motionTrace.map(sample => sample.accelerationMagnitudeMps2));
-        const startTime = motionTrace[0].timestampMs;
-        const duration = Math.max(1, motionTrace[motionTrace.length - 1].timestampMs - startTime);
-        const points = motionTrace.map(sample => {
-          const x = ((sample.timestampMs - startTime) / duration) * width;
-          const y = height - (Math.min(max, sample.accelerationMagnitudeMps2) / max) * height;
-          return `${x.toFixed(1)},${y.toFixed(1)}`;
-        }).join(' ');
+        const origin = start.current;
+        const durationSec = Math.max(0, (motionTrace[motionTrace.length - 1].timestampMs - origin) / 1000);
+        const windowSec = 10;
+        const maxStart = Math.max(0, durationSec - windowSec);
+        const from = Math.min(traceWindowStartSec, maxStart);
+        const to = from + windowSec;
+        const visible = motionTrace.filter(sample => {
+          const seconds = (sample.timestampMs - origin) / 1000;
+          return seconds >= from && seconds <= to;
+        });
+        const max = Math.max(3, ...visible.map(sample => sample.accelerationMagnitudeMps2));
+        const xAt = (timestampMs: number) => ((timestampMs - origin) / 1000 - from) / windowSec * width;
+        const yAt = (magnitude: number) => height - Math.min(max, magnitude) / max * height;
+        const points = visible.map(sample => `${xAt(sample.timestampMs).toFixed(1)},${yAt(sample.accelerationMagnitudeMps2).toFixed(1)}`).join(' ');
+        const accepted = report.acceptedStepTimesMs.filter(t => xAt(t) >= 0 && xAt(t) <= width);
         return (
-          <div className="space-y-2 rounded-xl border border-cyan-300/30 bg-white/5 p-4">
-            <h3 className="font-black text-cyan-100">Bewegungssignal · Diagnose</h3>
-            <p className="text-xs text-white/70">Beschleunigungsbetrag über die gesamte Testdauer. Spitzen sind nicht automatisch Schritte. Die Kurve ist auf maximal 1.500 Messpunkte reduziert.</p>
+          <div className="space-y-3 rounded-xl border border-cyan-300/30 bg-white/5 p-4">
+            <h3 className="font-black text-cyan-100">Schritt-Diagnose · Zeit und erkannte Spitzen</h3>
+            <p className="text-xs text-white/70">Blau: gemessene Beschleunigung · Grün: von Runnit gezählter Schritt · Gelb: 2 m/s² Schwelle. Ein grüner Punkt ist keine unabhängig bestätigte Schrittbewegung.</p>
+            <label htmlFor="walking-trace-time" className="block text-sm font-bold">
+              Zeitfenster: {from.toFixed(1)}–{to.toFixed(1)} s seit Teststart
+            </label>
+            <input id="walking-trace-time" type="range" min="0" max={maxStart} step="0.1"
+              value={from} onChange={event => setTraceWindowStartSec(Number(event.target.value))}
+              className="w-full accent-cyan-300" aria-label="Zeitfenster des Beschleunigungsdiagramms verschieben" />
             <div className="overflow-x-auto rounded-lg bg-slate-950 p-2">
-              <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Beschleunigungsdiagramm des lokalen Geh-Tests" className="w-full" preserveAspectRatio="none">
-                <line x1="0" y1={height - (2 / max) * height} x2={width} y2={height - (2 / max) * height} stroke="#fbbf24" strokeDasharray="6 6" opacity="0.7" />
+              <svg viewBox={`0 0 ${width} ${height + 28}`} role="img" aria-label="Beschleunigung und gezählte Schritte mit Zeitachse in Sekunden" className="w-full">
+                {[0, 2, 4, 6, 8, 10].map(offset => (
+                  <g key={offset}>
+                    <line x1={offset / windowSec * width} y1="0" x2={offset / windowSec * width} y2={height} stroke="#64748b" opacity="0.3" />
+                    <text x={offset / windowSec * width} y={height + 18} textAnchor={offset === 0 ? 'start' : offset === 10 ? 'end' : 'middle'} fill="#cbd5e1" fontSize="12">{(from + offset).toFixed(1)} s</text>
+                  </g>
+                ))}
+                <line x1="0" y1={yAt(2)} x2={width} y2={yAt(2)} stroke="#fbbf24" strokeDasharray="6 6" opacity="0.7" />
                 <polyline points={points} fill="none" stroke="#67e8f9" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+                {accepted.map((timestamp, index) => {
+                  const nearest = visible.reduce<MotionSample | null>((best, sample) =>
+                    !best || Math.abs(sample.timestampMs - timestamp) < Math.abs(best.timestampMs - timestamp) ? sample : best, null);
+                  return <circle key={index} cx={xAt(timestamp)} cy={yAt(nearest?.accelerationMagnitudeMps2 ?? 0)} r="4" fill="#4ade80" stroke="#052e16" strokeWidth="1" />;
+                })}
               </svg>
             </div>
-            <p className="text-xs text-white/60">Dauer: {(duration / 1000).toFixed(1)} s · Skala: 0–{max.toFixed(1)} m/s² · Gelbe Linie: 2 m/s² Schwelle. Kein Export oder Upload.</p>
+            <p className="text-xs text-white/60">Zeitauflösung: Achse 2 s, Schieberegler 0,1 s · Im Ausschnitt {accepted.length} gezählte Schritte · Gesamter Test: {report.detectedSteps}. Diagramm zeigt eine reduzierte Signalstichprobe, Marker stammen aus der vollständigen Schritterkennung. Nur im Browser-Arbeitsspeicher.</p>
           </div>
         );
       })()}
