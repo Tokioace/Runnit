@@ -48,8 +48,11 @@ function WalkingLab() {
   const ticker = useRef<ReturnType<typeof setInterval> | null>(null);
   const motionHandler = useRef<((event: DeviceMotionEvent) => void) | null>(null);
   const running = useRef(false);
+  const pending = useRef(false);
+  const mounted = useRef(true);
   const stop = () => {
     running.current = false;
+    pending.current = false;
     if (watch.current !== null) navigator.geolocation.clearWatch(watch.current);
     watch.current = null;
     if (motionHandler.current) window.removeEventListener('devicemotion', motionHandler.current);
@@ -60,15 +63,22 @@ function WalkingLab() {
     setReport(assessFairPlay(gps.current, imu.current));
     setStatus('Geh-Test beendet · Bericht nur auf diesem Bildschirm, nicht gespeichert');
   };
-  useEffect(() => () => {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+    mounted.current = false;
+    pending.current = false;
     running.current = false;
     if (watch.current !== null) navigator.geolocation.clearWatch(watch.current);
     if (motionHandler.current) window.removeEventListener('devicemotion', motionHandler.current);
     if (ticker.current !== null) clearInterval(ticker.current);
+    };
   }, []);
   const begin = async () => {
-    if (running.current) return;
+    if (running.current || pending.current) return;
+    pending.current = true;
     if (!window.isSecureContext || !navigator.geolocation) {
+      pending.current = false;
       setStatus('HTTPS und Standortunterstützung erforderlich'); return;
     }
     // iOS requires permission from a direct user gesture.
@@ -80,6 +90,8 @@ function WalkingLab() {
           ? (await deviceMotion.requestPermission()) === 'granted' : true;
       }
     } catch { motionAllowed = false; }
+    if (!mounted.current || !pending.current) return;
+    pending.current = false;
     gps.current = []; imu.current = []; setCount({ gps: 0, imu: 0 });
     setReport(null); setElapsed(0); start.current = performance.now();
     running.current = true; setActive(true);
@@ -98,6 +110,7 @@ function WalkingLab() {
       motionHandler.current = onMotion;
       window.addEventListener('devicemotion', onMotion);
     }
+    try {
     watch.current = navigator.geolocation.watchPosition(p => {
       if (!running.current) return;
       // Geolocation timestamps are epoch milliseconds, convert to performance clock.
@@ -106,12 +119,22 @@ function WalkingLab() {
       gps.current.push({ timestampMs, latitude: p.coords.latitude, longitude: p.coords.longitude, accuracyM: p.coords.accuracy });
       if (gps.current.length > 10000) gps.current.shift();
       setCount(v => ({ ...v, gps: gps.current.length }));
-    }, error => setStatus('Standortfehler: ' + error.message + ' · Berechtigung/Empfang prüfen'), {
+    }, error => {
+      if (!running.current) return;
+      setStatus('Standortfehler: ' + error.message + ' · Berechtigung/Empfang prüfen');
+      if (error.code === 1) stop();
+    }, {
       enableHighAccuracy: true, maximumAge: 0, timeout: 15000,
     });
+    } catch {
+      stop();
+      setStatus('GPS konnte nicht gestartet werden · Berechtigung/Browser prüfen');
+      return;
+    }
     ticker.current = setInterval(() => setElapsed(Math.round((performance.now() - start.current) / 1000)), 1000);
   };
   const live = active ? assessFairPlay(gps.current, imu.current) : report;
+  const quality = !live ? 'Noch keine Messung' : live.reasons.includes('gps-position-jump') ? 'GPS-Sprung erkannt · Messung unsicher, kein Betrugsnachweis' : live.reasons.includes('insufficient-gps') || live.reasons.includes('poor-gps-accuracy') ? 'GPS-Daten fehlen oder sind ungenau' : live.reasons.includes('insufficient-motion-coverage') ? 'Bewegungssensordaten fehlen oder sind lückenhaft' : 'Keine auffälligen Messfehler erkannt (unkalibriert)';
   return (
     <section aria-label="Echter Geh-Einzellauf – experimentell" className="space-y-4 rounded-[28px] border border-cyan-300/30 bg-gradient-to-br from-indigo-800/40 to-[#101827] p-5">
       <p className="text-xs font-black uppercase tracking-widest text-cyan-200">FAIRPLAY LAB · WALKING TEST · NICHT GEWERTET</p>
@@ -131,6 +154,7 @@ function WalkingLab() {
         <p>GPS-Strecke (Schätzung): {live.gpsDistanceM?.toFixed(1) ?? '—'} m · Tempo: {live.gpsSpeedMps?.toFixed(2) ?? '—'} m/s</p>
         <p>GPS-Mediangenauigkeit: {live.gpsAccuracyMedianM?.toFixed(1) ?? '—'} m · Bewegungssensor-Abdeckung: {Math.round(live.motionCoverage * 100)}%</p>
         <p>Erkannte Schritte: {live.detectedSteps} · Kadenz: {live.cadenceSpm?.toFixed(0) ?? '—'} Schritte/min</p>
+        <p>Messqualität: {quality}</p>
         <p>Hinweise: {live.reasons.length ? live.reasons.join(', ') : 'Keine automatischen Auffälligkeiten'}</p>
       </div>}
       <p className="text-xs text-white/55">Bildschirmsperre, Energiesparen und iOS können Sensorupdates stoppen. Schrittzählung und GPS-Distanz sind unkalibrierte Schätzungen. Fehlende Schritte sind kein Betrugsnachweis.</p>
