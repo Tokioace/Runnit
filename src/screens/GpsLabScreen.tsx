@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import PageFrame from '../components/ui/PageFrame';
 import { assessFairPlay, type MotionSample, type PositionSample } from '../lib/fairPlay';
 import { estimatePatternSteps } from '../lib/walkingPattern';
+import { createWalkingImuExport } from '../lib/walkingImuExport';
 import { runGpsSimulation, syntheticPoint, type GpsSample } from '../lib/sprintGps';
 
 type Scenario = '50m' | '75m' | '100m' | 'still' | 'spike' | 'poor';
@@ -160,6 +161,16 @@ function WalkingLab() {
     }
     ticker.current = setInterval(() => setElapsed(Math.round((performance.now() - start.current) / 1000)), 1000);
   };
+  const exportImu = () => {
+    if (running.current || !report || !imu.current.length) return;
+    const payload = createWalkingImuExport(imu.current, referenceSteps);
+    const url = URL.createObjectURL(new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'runnit-imu-gehtest.json';
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
   const live = active ? assessFairPlay(gps.current, imu.current) : report;
   const quality = !live ? 'Noch keine Messung' : live.reasons.includes('gps-position-jump') ? 'GPS-Sprung erkannt · Messung unsicher, kein Betrugsnachweis' : live.reasons.includes('insufficient-gps') || live.reasons.includes('poor-gps-accuracy') ? 'GPS-Daten fehlen oder sind ungenau' : live.reasons.includes('insufficient-motion-coverage') ? 'Bewegungssensordaten fehlen oder sind lückenhaft' : live.reasons.includes('walking-cadence-needs-calibration') ? 'Schrittfrequenz für normales Gehen ungewöhnlich hoch · Handbewegungen möglich, bitte in Hosentasche vergleichen' : 'Keine auffälligen Messfehler erkannt (unkalibriert)';
   return (
@@ -294,6 +305,11 @@ function WalkingLab() {
           <p className="text-xs text-amber-200">Experimenteller Vergleich, keine automatische Sensorkalibrierung oder Bestätigung der Genauigkeit.</p>
         </div>
       )}
+      {!active && report && imu.current.length > 0 && <div className="space-y-2 rounded-xl border border-violet-300/30 bg-violet-300/10 p-4">
+        <h3 className="font-black text-violet-100">IMU-Messreihe lokal exportieren</h3>
+        <p className="text-xs text-white/70">JSON mit relativen Millisekunden, Beschleunigung X/Y/Z und Betrag; keine GPS-Koordinaten, keine Standort-Zeitstempel, kein Upload. Die Datei kann trotzdem sensible Bewegungsmuster enthalten. Nur bewusst und freiwillig teilen.</p>
+        <button type="button" onClick={exportImu} className="min-h-12 w-full rounded-xl border border-violet-300/50 bg-violet-300/20 px-4 font-bold text-violet-100">IMU-Daten als JSON herunterladen</button>
+      </div>}
       <p className="text-xs text-white/55">Bildschirmsperre, Energiesparen und iOS können Sensorupdates stoppen. Schrittzählung und GPS-Distanz sind unkalibrierte Schätzungen. Fehlende Schritte sind kein Betrugsnachweis.</p>
     </section>
   );
