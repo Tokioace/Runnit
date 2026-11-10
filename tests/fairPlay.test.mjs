@@ -65,5 +65,7 @@ describe('FairPlay experimental evidence', () => {
     const report = assessFairPlay(gps(8), imu(80));
     assert.equal(report.verdict, 'plausible');
     assert.ok(report.detectedSteps > 2);
+    assert.equal(report.acceptedStepTimesMs.length, report.detectedSteps);
+    assert.ok(report.acceptedStepTimesMs.every((t, i, values) => i === 0 || t > values[i - 1]));
   });
 });
