@@ -17,7 +17,11 @@ export class LiveStepPeakCounter {
   private lastStepMs = -Infinity;
   private accepted: number[] = [];
 
-  constructor(private readonly smoothingWindowMs = 0) {}
+  private readonly smoothingWindowMs: number;
+
+  constructor(smoothingWindowMs = 0) {
+    this.smoothingWindowMs = smoothingWindowMs;
+  }
 
   get count(): number { return this.accepted.length; }
   get timestampsMs(): readonly number[] { return this.accepted; }
