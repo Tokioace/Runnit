@@ -37,6 +37,8 @@ function buildScenario(scenario: Scenario): { samples: GpsSample[]; target: numb
 type MotionEventWithPermission = typeof DeviceMotionEvent & { requestPermission?: () => Promise<'granted' | 'denied'> };
 function WalkingLab() {
   const [active, setActive] = useState(false);
+  const [pocketLock, setPocketLock] = useState(false);
+  const [holdingStop, setHoldingStop] = useState(false);
   const [status, setStatus] = useState('Bereit – Sensorzugriff erst nach Start');
   const [elapsed, setElapsed] = useState(0);
   const [count, setCount] = useState({ gps: 0, imu: 0 });
@@ -48,9 +50,22 @@ function WalkingLab() {
   const ticker = useRef<ReturnType<typeof setInterval> | null>(null);
   const motionHandler = useRef<((event: DeviceMotionEvent) => void) | null>(null);
   const running = useRef(false);
+  const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelStopHold = () => {
+    if (stopTimer.current !== null) clearTimeout(stopTimer.current);
+    stopTimer.current = null;
+    setHoldingStop(false);
+  };
+  const beginStopHold = () => {
+    if (!running.current || pocketLock || stopTimer.current !== null) return;
+    setHoldingStop(true);
+    stopTimer.current = setTimeout(() => { stopTimer.current = null; stop(); }, 2000);
+  };
   const pending = useRef(false);
   const mounted = useRef(true);
   const stop = () => {
+    cancelStopHold();
+    setPocketLock(false);
     running.current = false;
     pending.current = false;
     if (watch.current !== null) navigator.geolocation.clearWatch(watch.current);
@@ -67,6 +82,7 @@ function WalkingLab() {
     mounted.current = true;
     return () => {
     mounted.current = false;
+    if (stopTimer.current !== null) clearTimeout(stopTimer.current);
     pending.current = false;
     running.current = false;
     if (watch.current !== null) navigator.geolocation.clearWatch(watch.current);
@@ -93,7 +109,7 @@ function WalkingLab() {
     if (!mounted.current || !pending.current) return;
     pending.current = false;
     gps.current = []; imu.current = []; setCount({ gps: 0, imu: 0 });
-    setReport(null); setElapsed(0); start.current = performance.now();
+    setReport(null); setElapsed(0); setPocketLock(false); start.current = performance.now();
     running.current = true; setActive(true);
     setStatus(motionAllowed ? 'GPS und Bewegungssensor aktiv · Bildschirm eingeschaltet lassen' : 'Nur GPS · Bewegungssensor nicht verfügbar oder verweigert');
     if (motionAllowed) {
@@ -141,9 +157,28 @@ function WalkingLab() {
       <h2 className="text-2xl font-black">Geh-Einzellauf</h2>
       <p className="text-sm text-white/70">Normal gehen, nicht sprinten. Kein Duell, keine 50-m-Zeit, keine Rangliste. GPS und Bewegungssensor werden nur im Arbeitsspeicher ausgewertet und beim Verlassen verworfen. Kein Mikrofon.</p>
       <p role="status" className="text-sm text-amber-200">{status}</p>
-      <button type="button" onClick={active ? stop : () => { void begin(); }} className="min-h-14 w-full rounded-xl bg-cyan-300 px-5 font-black text-slate-950">
-        {active ? 'Geh-Test stoppen und Bericht anzeigen' : 'Geh-Test starten · Sensorzugriff erlauben'}
-      </button>
+      {!active ? (
+        <button type="button" onClick={() => { void begin(); }} className="min-h-14 w-full rounded-xl bg-cyan-300 px-5 font-black text-slate-950">
+          Geh-Test starten · Sensorzugriff erlauben
+        </button>
+      ) : pocketLock ? (
+        <div className="space-y-3 rounded-xl border border-cyan-300/40 bg-slate-950/80 p-4 text-center">
+          <p className="font-black text-cyan-200">Taschensperre aktiv · Messung läuft weiter</p>
+          <p className="text-sm text-white/70">Zum Entsperren den Regler bewusst nach rechts bewegen. Normales Tippen beendet den Test nicht.</p>
+          <input type="range" min="0" max="100" defaultValue="0" aria-label="Taschensperre entsperren" className="w-full accent-cyan-300" onChange={event => {
+            if (Number(event.currentTarget.value) >= 95) { setPocketLock(false); event.currentTarget.value = '0'; }
+          }} />
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <button type="button" onClick={() => { cancelStopHold(); setPocketLock(true); }} className="min-h-12 w-full rounded-xl border border-cyan-300/50 bg-cyan-300/10 font-bold text-cyan-100">
+            Taschensperre aktivieren
+          </button>
+          <button type="button" onPointerDown={beginStopHold} onPointerUp={cancelStopHold} onPointerCancel={cancelStopHold} onPointerLeave={cancelStopHold} onContextMenu={event => event.preventDefault()} className="min-h-14 w-full select-none touch-none rounded-xl bg-amber-300 px-5 font-black text-slate-950">
+            {holdingStop ? 'Weiter halten – 2 Sekunden zum Beenden' : '2 Sekunden halten: Test stoppen und Bericht anzeigen'}
+          </button>
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-2 text-center text-sm">
         <div><strong className="block text-xl">{elapsed}s</strong>Zeit</div>
         <div><strong className="block text-xl">{count.gps}</strong>GPS-Fixes</div>
