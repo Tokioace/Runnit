@@ -66,7 +66,20 @@ export function assessFairPlay(
   const first = reliableGps[0];
   const last = reliableGps[reliableGps.length - 1];
   const durationMs = first && last ? last.timestampMs - first.timestampMs : 0;
-  const distance = durationMs > 0 ? meters(first, last) : null;
+  // Displacement is not walked distance: accumulate plausible consecutive GPS segments.
+  let traveled = 0;
+  let validSegments = 0;
+  for (let i = 1; i < reliableGps.length; i++) {
+    const previous = reliableGps[i - 1];
+    const current = reliableGps[i];
+    const elapsed = (current.timestampMs - previous.timestampMs) / 1000;
+    if (elapsed <= 0) continue;
+    const segment = meters(previous, current);
+    if (segment / elapsed > 12) continue; // reject GPS teleportation
+    traveled += segment;
+    validSegments++;
+  }
+  const distance = durationMs > 0 && validSegments > 0 ? traveled : null;
   const speed = distance !== null ? distance / (durationMs / 1000) : null;
 
   // Conservative peak detector: local maxima, refractory period 250ms.
@@ -97,7 +110,8 @@ export function assessFairPlay(
   if (speed !== null && speed > 3 && stepTimes.filter(t => t >= first!.timestampMs && t <= last!.timestampMs).length < 2)
     reasons.push('movement-without-detected-steps');
   // Missing steps alone must not be treated as cheating: phone placement matters.
-  const suspicious = reasons.includes('implausible-average-speed');
+  // GPS alone is not proof of cheating, especially during walking or weak reception.
+  const suspicious = false;
   const uncertain = reasons.length > 0 || stepTimes.length < 3;
   return {
     verdict: suspicious ? 'suspicious' : uncertain ? 'uncertain' : 'plausible',
