@@ -43,6 +43,7 @@ function WalkingLab() {
   const [elapsed, setElapsed] = useState(0);
   const [count, setCount] = useState({ gps: 0, imu: 0 });
   const [report, setReport] = useState<ReturnType<typeof assessFairPlay> | null>(null);
+  const [referenceSteps, setReferenceSteps] = useState('');
   const gps = useRef<PositionSample[]>([]);
   const imu = useRef<MotionSample[]>([]);
   const watch = useRef<number | null>(null);
@@ -109,7 +110,7 @@ function WalkingLab() {
     if (!mounted.current || !pending.current) return;
     pending.current = false;
     gps.current = []; imu.current = []; setCount({ gps: 0, imu: 0 });
-    setReport(null); setElapsed(0); setPocketLock(false); start.current = performance.now();
+    setReport(null); setReferenceSteps(''); setElapsed(0); setPocketLock(false); start.current = performance.now();
     running.current = true; setActive(true);
     setStatus(motionAllowed ? 'GPS und Bewegungssensor aktiv · Bildschirm eingeschaltet lassen' : 'Nur GPS · Bewegungssensor nicht verfügbar oder verweigert');
     if (motionAllowed) {
@@ -192,6 +193,28 @@ function WalkingLab() {
         <p>Messqualität: {quality}</p>
         <p>Hinweise: {live.reasons.length ? live.reasons.join(', ') : 'Keine automatischen Auffälligkeiten'}</p>
       </div>}
+      {!active && report && (
+        <div className="space-y-2 rounded-xl border border-cyan-300/30 bg-white/5 p-4">
+          <label htmlFor="walking-reference-steps" className="block text-sm font-bold text-cyan-100">
+            Kalibriervergleich · selbst gezählte Schritte
+          </label>
+          <input id="walking-reference-steps" type="number" min="1" max="100000" step="1"
+            inputMode="numeric" value={referenceSteps}
+            onChange={event => setReferenceSteps(event.target.value)}
+            placeholder="Zum Beispiel 100"
+            className="min-h-12 w-full rounded-lg border border-white/30 bg-slate-900 px-3 text-white" />
+          {Number.isSafeInteger(Number(referenceSteps)) && Number(referenceSteps) > 0 && Number(referenceSteps) <= 100000 ? (
+            <p className="text-sm" role="status">
+              Runnit: {report.detectedSteps} · Referenz: {Number(referenceSteps)} · Abweichung:
+              {' '}{((report.detectedSteps - Number(referenceSteps)) / Number(referenceSteps) * 100).toFixed(1)} %
+              {' '}({report.detectedSteps - Number(referenceSteps) >= 0 ? '+' : ''}{report.detectedSteps - Number(referenceSteps)} Schritte)
+            </p>
+          ) : (
+            <p className="text-xs text-white/60">Nach dem Test eine positive ganze Schrittzahl eingeben. Vergleich nur lokal; keine Speicherung.</p>
+          )}
+          <p className="text-xs text-amber-200">Experimenteller Vergleich, keine automatische Sensorkalibrierung oder Bestätigung der Genauigkeit.</p>
+        </div>
+      )}
       <p className="text-xs text-white/55">Bildschirmsperre, Energiesparen und iOS können Sensorupdates stoppen. Schrittzählung und GPS-Distanz sind unkalibrierte Schätzungen. Fehlende Schritte sind kein Betrugsnachweis.</p>
     </section>
   );
