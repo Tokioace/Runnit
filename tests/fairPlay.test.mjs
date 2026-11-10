@@ -26,6 +26,7 @@ describe('FairPlay experimental evidence', () => {
     ]);
     const report = assessFairPlay([], shocks);
     assert.equal(report.detectedSteps, 0);
+    assert.ok(report.candidatePeaks.some(p => p.reason === 'irregular-rhythm'));
     assert.equal(report.verdict, 'uncertain');
   });
   it('does not flag ordinary walking cadence', () => {
@@ -66,6 +67,7 @@ describe('FairPlay experimental evidence', () => {
     assert.equal(report.verdict, 'plausible');
     assert.ok(report.detectedSteps > 2);
     assert.equal(report.acceptedStepTimesMs.length, report.detectedSteps);
+    assert.equal(report.candidatePeaks.filter(p => p.reason === 'accepted').length, report.detectedSteps);
     assert.ok(report.acceptedStepTimesMs.every((t, i, values) => i === 0 || t > values[i - 1]));
   });
 });

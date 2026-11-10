@@ -8,6 +8,9 @@ export type MotionSample = Readonly<{
   timestampMs: number;
   accelerationMagnitudeMps2: number;
   rotationMagnitudeRadps?: number;
+  accelerationX?: number;
+  accelerationY?: number;
+  accelerationZ?: number;
 }>;
 export type PositionSample = Readonly<{
   timestampMs: number;
@@ -22,6 +25,8 @@ export type FairPlayReport = Readonly<{
   detectedSteps: number;
   /** Monotonic timestamps of accepted gait peaks, for local diagnostic plotting only. */
   acceptedStepTimesMs: readonly number[];
+  /** Candidate peaks and reason for exclusion; local diagnostics, not ground truth. */
+  candidatePeaks: readonly Readonly<{ timestampMs: number; reason: 'accepted' | 'refractory' | 'weak-prominence' | 'irregular-rhythm' }>[];
   cadenceSpm: number | null;
   gpsDistanceM: number | null;
   gpsSpeedMps: number | null;
@@ -98,6 +103,7 @@ export function assessFairPlay(
   // secondary peaks. Confirm a run of rhythmic peaks before counting it.
   // This is NOT a validated pedometer; synthetic and on-device tests required.
   const candidates: number[] = [];
+  const candidatePeaks: { timestampMs: number; reason: 'accepted' | 'refractory' | 'weak-prominence' | 'irregular-rhythm' }[] = [];
   for (let i = 2; i < imu.length - 2; i++) {
     const p = imu[i];
     if (p.accelerationMagnitudeMps2 < 2.0 ||
@@ -110,9 +116,15 @@ export function assessFairPlay(
       localMin = Math.min(localMin, imu[j].accelerationMagnitudeMps2);
     for (let j = i + 1; j < imu.length && imu[j].timestampMs - p.timestampMs <= 100; j++)
       localMin = Math.min(localMin, imu[j].accelerationMagnitudeMps2);
-    if (p.accelerationMagnitudeMps2 - localMin < 1.2) continue;
+    if (p.accelerationMagnitudeMps2 - localMin < 1.2) {
+      candidatePeaks.push({ timestampMs: p.timestampMs, reason: 'weak-prominence' });
+      continue;
+    }
     // At most one candidate per 350ms; preserve stronger peaks in that window.
-    if (candidates.length && p.timestampMs - candidates[candidates.length - 1] < 350) continue;
+    if (candidates.length && p.timestampMs - candidates[candidates.length - 1] < 350) {
+      candidatePeaks.push({ timestampMs: p.timestampMs, reason: 'refractory' });
+      continue;
+    }
     candidates.push(p.timestampMs);
   }
   const stepTimes: number[] = [];
@@ -137,6 +149,9 @@ export function assessFairPlay(
     rhythmicRun.push(time);
   }
   flushRun();
+  const acceptedSet = new Set(stepTimes);
+  for (const time of candidates) candidatePeaks.push({ timestampMs: time, reason: acceptedSet.has(time) ? 'accepted' : 'irregular-rhythm' });
+  candidatePeaks.sort((a, b) => a.timestampMs - b.timestampMs);
   const cadence = stepTimes.length >= 3
     ? 60000 * (stepTimes.length - 1) / (stepTimes[stepTimes.length - 1] - stepTimes[0])
     : null;
@@ -169,6 +184,7 @@ export function assessFairPlay(
     reasons,
     detectedSteps: stepTimes.length,
     acceptedStepTimesMs: stepTimes,
+    candidatePeaks,
     cadenceSpm: cadence !== null && Number.isFinite(cadence) ? cadence : null,
     gpsDistanceM: distance,
     gpsSpeedMps: speed,

@@ -46,6 +46,7 @@ function WalkingLab() {
   const [referenceSteps, setReferenceSteps] = useState('');
   const [motionTrace, setMotionTrace] = useState<MotionSample[]>([]);
   const [traceWindowStartSec, setTraceWindowStartSec] = useState(0);
+  const [showAxes, setShowAxes] = useState(false);
   const gps = useRef<PositionSample[]>([]);
   const imu = useRef<MotionSample[]>([]);
   const watch = useRef<number | null>(null);
@@ -116,7 +117,7 @@ function WalkingLab() {
     if (!mounted.current || !pending.current) return;
     pending.current = false;
     gps.current = []; imu.current = []; setCount({ gps: 0, imu: 0 });
-    setReport(null); setMotionTrace([]); setTraceWindowStartSec(0); setReferenceSteps(''); setElapsed(0); setPocketLock(false); start.current = performance.now();
+    setReport(null); setMotionTrace([]); setTraceWindowStartSec(0); setShowAxes(false); setReferenceSteps(''); setElapsed(0); setPocketLock(false); start.current = performance.now();
     running.current = true; setActive(true);
     setStatus(motionAllowed ? 'GPS und Bewegungssensor aktiv · Bildschirm eingeschaltet lassen' : 'Nur GPS · Bewegungssensor nicht verfügbar oder verweigert');
     if (motionAllowed) {
@@ -126,7 +127,7 @@ function WalkingLab() {
         if (!a || a.x === null || a.y === null || a.z === null) return;
         const magnitude = Math.hypot(a.x, a.y, a.z);
         if (!Number.isFinite(magnitude)) return;
-        imu.current.push({ timestampMs: performance.now(), accelerationMagnitudeMps2: magnitude });
+        imu.current.push({ timestampMs: performance.now(), accelerationMagnitudeMps2: magnitude, accelerationX: a.x, accelerationY: a.y, accelerationZ: a.z });
         if (imu.current.length > 60000) imu.current.shift();
         setCount(v => ({ ...v, imu: imu.current.length }));
       };
@@ -213,14 +214,18 @@ function WalkingLab() {
           return seconds >= from && seconds <= to;
         });
         const max = Math.max(3, ...visible.map(sample => sample.accelerationMagnitudeMps2));
+        const axisMax = Math.max(max, ...visible.flatMap(sample => [Math.abs(sample.accelerationX ?? 0), Math.abs(sample.accelerationY ?? 0), Math.abs(sample.accelerationZ ?? 0)]));
         const xAt = (timestampMs: number) => ((timestampMs - origin) / 1000 - from) / windowSec * width;
         const yAt = (magnitude: number) => height - Math.min(max, magnitude) / max * height;
         const points = visible.map(sample => `${xAt(sample.timestampMs).toFixed(1)},${yAt(sample.accelerationMagnitudeMps2).toFixed(1)}`).join(' ');
         const accepted = report.acceptedStepTimesMs.filter(t => xAt(t) >= 0 && xAt(t) <= width);
+        const candidates = report.candidatePeaks.filter(p => xAt(p.timestampMs) >= 0 && xAt(p.timestampMs) <= width);
+        const axisPoints = (axis: 'accelerationX' | 'accelerationY' | 'accelerationZ') => visible.filter(sample => sample[axis] !== undefined).map(sample => String(xAt(sample.timestampMs)) + ',' + String(height / 2 - (sample[axis] ?? 0) / axisMax * height / 2)).join(' ');
         return (
           <div className="space-y-3 rounded-xl border border-cyan-300/30 bg-white/5 p-4">
             <h3 className="font-black text-cyan-100">Schritt-Diagnose · Zeit und erkannte Spitzen</h3>
             <p className="text-xs text-white/70">Blau: gemessene Beschleunigung · Grün: von Runnit gezählter Schritt · Gelb: 2 m/s² Schwelle. Ein grüner Punkt ist keine unabhängig bestätigte Schrittbewegung.</p>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showAxes} onChange={event => setShowAxes(event.target.checked)} /> X/Y/Z-Achsen anzeigen (rot/grün/violett)</label>
             <label htmlFor="walking-trace-time" className="block text-sm font-bold">
               Zeitfenster: {from.toFixed(1)}–{to.toFixed(1)} s seit Teststart
             </label>
@@ -237,6 +242,14 @@ function WalkingLab() {
                 ))}
                 <line x1="0" y1={yAt(2)} x2={width} y2={yAt(2)} stroke="#fbbf24" strokeDasharray="6 6" opacity="0.7" />
                 <polyline points={points} fill="none" stroke="#67e8f9" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+                {showAxes && (['accelerationX', 'accelerationY', 'accelerationZ'] as const).map((axis, index) => (
+                  <polyline key={axis} points={axisPoints(axis)} fill="none" stroke={['#fb7185', '#86efac', '#c4b5fd'][index]} strokeWidth="1" opacity="0.8" />
+                ))}
+                {candidates.filter(candidate => candidate.reason !== 'accepted').map((candidate, index) => (
+                  <circle key={index} cx={xAt(candidate.timestampMs)} cy={height - 5} r="2.5" fill="#fb923c">
+                    <title>{candidate.reason}</title>
+                  </circle>
+                ))}
                 {accepted.map((timestamp, index) => {
                   const nearest = visible.reduce<MotionSample | null>((best, sample) =>
                     !best || Math.abs(sample.timestampMs - timestamp) < Math.abs(best.timestampMs - timestamp) ? sample : best, null);
@@ -244,6 +257,7 @@ function WalkingLab() {
                 })}
               </svg>
             </div>
+            <p className="text-xs text-white/60">Orange Punkte unten: {candidates.filter(p => p.reason !== 'accepted').length} verworfene Kandidaten. Die Achsen sind gerätebezogen.</p>
             <p className="text-xs text-white/60">Zeitauflösung: Achse 2 s, Schieberegler 0,1 s · Im Ausschnitt {accepted.length} gezählte Schritte · Gesamter Test: {report.detectedSteps}. Diagramm zeigt eine reduzierte Signalstichprobe, Marker stammen aus der vollständigen Schritterkennung. Nur im Browser-Arbeitsspeicher.</p>
           </div>
         );
