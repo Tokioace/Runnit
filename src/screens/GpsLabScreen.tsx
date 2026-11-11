@@ -7,7 +7,7 @@ import { estimatePatternSteps } from '../lib/walkingPattern';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { createWalkingImuExport } from '../lib/walkingImuExport';
 import { detectWalkingPhase } from '../lib/walkingPhase';
-import { findImuGaps, splitTraceAtGaps } from '../lib/imuGapDiagnostics';
+import { findImuGaps, splitTraceAtGaps, summarizeImuGaps } from '../lib/imuGapDiagnostics';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage } from '../lib/screenWakeLock';
 import { runGpsSimulation, syntheticPoint, type GpsSample } from '../lib/sprintGps';
@@ -354,7 +354,7 @@ function WalkingLab() {
                 })}
               </svg>
             </div>
-            <p className="text-xs text-amber-200">Echte IMU-Sensorlücken über 250 ms: {motionGaps.length} insgesamt, {visibleGaps.length} im Ausschnitt (gelb). Diagramm-Ausdünnung wird nicht als Sensorlücke gezählt.</p>
+            <p className="text-xs text-amber-200">Echte IMU-Sensorlücken über 250 ms: {motionGaps.length} insgesamt, {visibleGaps.length} im Ausschnitt (gelb). Längste Unterbrechung: {(summarizeImuGaps(motionGaps).longestGapMs / 1000).toFixed(2)} s; gesamte Lückenzeit: {(summarizeImuGaps(motionGaps).totalGapMs / 1000).toFixed(2)} s. Diagramm-Ausdünnung wird nicht als Sensorlücke gezählt.</p>
             <p className="text-xs text-white/60">Orange Punkte unten: {candidates.filter(p => p.reason !== 'accepted').length} verworfene Kandidaten. Die Achsen sind gerätebezogen.</p>
             <p className="text-xs text-white/60">Zeitauflösung: Achse 2 s, Schieberegler 0,1 s · Im Ausschnitt {accepted.length} gezählte Schritte · Gesamter Test: {report.detectedSteps}. Diagramm zeigt eine reduzierte Signalstichprobe, Marker stammen aus der vollständigen Schritterkennung. Nur im Browser-Arbeitsspeicher.</p>
           </div>
