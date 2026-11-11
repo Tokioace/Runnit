@@ -28,6 +28,45 @@ const statusTitle: Record<ReturnType<typeof analyzeSprintCadence>['status'], str
 const percent = (distance: number, target: number) => Math.max(0, Math.min(100, 100 * distance / target));
 const seconds = (ms: number) => (ms / 1000).toFixed(2).replace('.', ',');
 
+// Lane positions are derived only from synthetic distances and are clamped so
+// the runner markers remain visible at both START and FINISH on small screens.
+function RaceTrackLane({ title, distanceM, targetMeters, finished, rival }: {
+  title: string; distanceM: number; targetMeters: DemoRaceMeters;
+  finished: boolean; rival?: boolean;
+}) {
+  const progress = percent(distanceM, targetMeters);
+  return (
+    <div className="space-y-2" aria-label={`${title}: ${distanceM.toFixed(1)} von ${targetMeters} Metern`}>
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span className={`font-black uppercase tracking-[0.12em] ${rival ? 'text-fuchsia-200' : 'text-cyan-100'}`}>
+          {title} {finished && <span className="ml-1 text-emerald-300">· FINISH</span>}
+        </span>
+        <span className={`font-black tabular-nums ${rival ? 'text-fuchsia-200' : 'text-cyan-200'}`}>
+          {distanceM.toFixed(1)} / {targetMeters} m
+        </span>
+      </div>
+      <div className="relative h-14 overflow-hidden rounded-xl border border-white/10 bg-gradient-to-r from-[#121a34] to-[#122239]">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-25"
+          style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent 0, transparent 18%, rgba(255,255,255,.4) 18.3%, transparent 18.6%)' }} />
+        <span aria-hidden="true" className="absolute bottom-1 left-2 text-[9px] font-black tracking-widest text-white/35">START</span>
+        <span aria-hidden="true" className="absolute bottom-1 right-2 text-[9px] font-black tracking-widest text-white/50">ZIEL</span>
+        <div aria-hidden="true" className="absolute bottom-0 right-4 top-0 w-1.5 opacity-75"
+          style={{ backgroundImage: 'repeating-linear-gradient(180deg,#ffffff 0,#ffffff 6px,#26243b 6px,#26243b 12px)' }} />
+        <div aria-hidden="true" className={`absolute left-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full transition-[width] duration-75 motion-reduce:transition-none ${rival ? 'bg-fuchsia-300/60' : 'bg-cyan-300/70'}`}
+          style={{ width: `${progress}%` }} />
+        <span aria-hidden="true" className={`absolute top-2 flex h-8 w-8 items-center justify-center rounded-full border text-xl shadow-[0_0_18px_rgba(0,0,0,.35)] transition-[left] duration-75 ease-linear motion-reduce:transition-none ${rival ? 'border-fuchsia-300/70 bg-fuchsia-600' : 'border-cyan-200/70 bg-blue-600'} ${finished ? 'ring-2 ring-emerald-300/50' : ''}`}
+          style={{ left: `${2 + progress * 0.9}%` }}>
+          🏃
+        </span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+        <div style={{ width: progress + '%' }}
+          className={`h-full rounded-full transition-[width] duration-75 motion-reduce:transition-none ${rival ? 'bg-gradient-to-r from-violet-500 to-fuchsia-300' : 'bg-gradient-to-r from-fuchsia-500 via-blue-400 to-cyan-300'}`} />
+      </div>
+    </div>
+  );
+}
+
 export default function SprintArenaLabScreen() {
   const [cadenceMode, setCadenceMode] = useState<SyntheticSprintMode>('running-225');
   const [distance, setDistance] = useState<DemoRaceMeters>(100);
@@ -42,14 +81,21 @@ export default function SprintArenaLabScreen() {
   const isRunning = startEpochMs !== null && !isCountdown && !race.finished;
   const isFinished = startEpochMs !== null && !isCountdown && race.finished;
   const active = isCountdown || isRunning;
+  const firstFinishLabel = race.firstFinisher === 'you'
+    ? 'Du warst zuerst im Ziel'
+    : race.firstFinisher === 'rival' ? 'Gegner zuerst im Ziel' : 'Gleichzeitig im Ziel';
+  const liveLead = Math.abs(race.leadMeters) < 0.05
+    ? 'Kopf an Kopf · 0,0 m'
+    : `${Math.abs(race.leadMeters).toFixed(1)} m · ${race.leadMeters > 0 ? 'Du liegst vorn' : 'Gegner liegt vorn'}`;
   const countdownNumber = Math.max(1, Math.ceil((startEpochMs ?? nowMs) / 1000 - nowMs / 1000));
 
   useEffect(() => {
-    if (startEpochMs === null || nowMs >= startEpochMs + race.rivalFinishMs + 20000 ||
-      nowMs >= startEpochMs + Math.max(race.rivalFinishMs, race.yourFinishMs)) return;
+    if (startEpochMs === null || race.finished) return;
+    // Only this synthetic clock advances. The personal stopwatch in the HUD
+    // freezes independently at yourFinishMs, even while the opponent is running.
     const id = window.setInterval(() => setNowMs(Date.now()), 80);
     return () => window.clearInterval(id);
-  }, [startEpochMs, nowMs >= (startEpochMs ?? Infinity) + Math.max(race.rivalFinishMs, race.yourFinishMs)]);
+  }, [startEpochMs, race.finished]);
 
   const resetRace = () => { setStartEpochMs(null); setNowMs(0); };
   const startRace = () => {
@@ -78,32 +124,40 @@ export default function SprintArenaLabScreen() {
               <p className="text-xs font-extrabold uppercase tracking-[0.19em] text-cyan-100/65">HEAD TO HEAD</p>
               <p className="mt-1 text-5xl font-black tracking-[-0.07em] text-white">{distance}<span className="ml-1 text-xl tracking-normal text-emerald-300">M</span></p>
             </div>
-            <div className="flex items-center gap-2 rounded-xl border border-white/15 bg-[#07101d]/50 px-3 py-2">
-              <Timer className="h-5 w-5 text-cyan-300" aria-hidden="true" />
-              <span className="font-mono text-xl font-black tabular-nums">{seconds(race.elapsedMs)}s</span>
+            <div className={`flex flex-col items-end rounded-xl border px-3 py-2 ${race.youFinished ? 'border-emerald-300/60 bg-emerald-300/10' : 'border-white/15 bg-[#07101d]/50'}`}>
+              <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/60">
+                <Timer className="h-4 w-4 text-cyan-300" aria-hidden="true" />
+                {race.youFinished ? 'DEINE ZIELZEIT' : 'DEINE UHR'}
+              </span>
+              <span className={`mt-0.5 font-mono text-xl font-black tabular-nums ${race.youFinished ? 'text-emerald-200' : 'text-white'}`}>
+                {seconds(race.yourElapsedMs)}s
+              </span>
             </div>
           </div>
-          <div className="mt-8 rounded-[24px] border border-white/10 bg-[#080e21]/55 p-4">
-            <div className="flex items-center justify-between gap-2 text-xs">
-              <span className="font-black uppercase tracking-widest text-cyan-100">YOU</span>
-              <span className="font-black tabular-nums text-cyan-200">{race.youMeters.toFixed(1)} / {distance} m</span>
+          <div className="mt-7 space-y-5 rounded-[24px] border border-white/10 bg-[#080e21]/55 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">
+                DUAL LANE // LIVE DEMO
+              </span>
+              <span className="rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-black text-white/65">
+                ZIEL {distance} M
+              </span>
             </div>
-            <div className="mt-2 h-4 overflow-hidden rounded-full bg-white/10">
-              <div style={{ width: percent(race.youMeters, distance) + '%' }}
-                className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 via-blue-400 to-cyan-300 transition-[width] duration-75" />
+            <RaceTrackLane title="YOU" distanceM={race.youMeters} targetMeters={distance} finished={race.youFinished} />
+            <RaceTrackLane title="RIVAL · SIM" distanceM={race.rivalMeters} targetMeters={distance} finished={race.rivalFinished} rival />
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-xs font-bold text-white/70" aria-live="polite">
+              {race.firstFinisher !== null
+                ? <div className="space-y-1">
+                    <p className="font-black text-emerald-200">{firstFinishLabel}</p>
+                    <p>
+                      {race.firstFinisher === 'tie'
+                        ? 'Beim Zieleinlauf gleichauf'
+                        : `Abstand beim ersten Zieleinlauf: ${race.firstFinishGapM?.toFixed(1)} m`}
+                      {race.finishMarginMs !== null && ` · Zeitunterschied: ${seconds(race.finishMarginMs)} s`}
+                    </p>
+                  </div>
+                : active && !isCountdown ? liveLead : 'Beide Figuren warten am Start'}
             </div>
-            <div className="mt-6 flex items-center justify-between gap-2 text-xs">
-              <span className="font-black uppercase tracking-widest text-violet-200">RIVAL · SIM</span>
-              <span className="font-black tabular-nums text-violet-200">{race.rivalMeters.toFixed(1)} / {distance} m</span>
-            </div>
-            <div className="mt-2 h-4 overflow-hidden rounded-full bg-white/10">
-              <div style={{ width: percent(race.rivalMeters, distance) + '%' }}
-                className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-300 transition-[width] duration-75" />
-            </div>
-            <p className="mt-5 text-right text-xs font-bold text-white/60">
-              {active || isFinished ? `Abstand in der Demo: ${Math.abs(race.leadMeters).toFixed(1)} m · ${race.leadMeters >= 0 ? 'Du liegst vorn' : 'Gegner liegt vorn'}`
-                : 'Beide Figuren warten am Start'}
-            </p>
           </div>
           <div className="mt-5 flex min-h-20 items-center justify-center rounded-2xl border border-emerald-300/25 bg-[#08182a]/70 p-4 text-center" aria-live="polite">
             {isCountdown ? <p className="text-6xl font-black tabular-nums tracking-[-0.1em] text-amber-200">{countdownNumber}</p> :
@@ -113,7 +167,16 @@ export default function SprintArenaLabScreen() {
                   {race.winner === 'you' ? 'DEMO-SIEG' : race.winner === 'rival' ? 'DEMO-NIEDERLAGE' : 'DEMO-GLEICHSTAND'}
                 </p>
                 <p className="text-xs text-white/65">Du: {seconds(race.yourFinishMs)} s · Gegner: {seconds(race.rivalFinishMs)} s (künstliche Zeiten)</p>
-              </div> : isRunning ? <p className="text-3xl font-black italic tracking-[0.07em] text-emerald-300">GO! GO! GO!</p>
+                <p className="text-xs font-black text-cyan-200">Zeitunterschied: {seconds(Math.abs(race.yourFinishMs - race.rivalFinishMs))} s</p>
+              </div> : isRunning ? (
+                <div className="space-y-1">
+                  {race.firstFinisher ? (
+                    <p className="text-2xl font-black italic tracking-[0.05em] text-emerald-300">FINISH! <span className="text-sm not-italic">{firstFinishLabel}</span></p>
+                  ) : <p className="text-3xl font-black italic tracking-[0.07em] text-emerald-300">GO! GO! GO!</p>}
+                  {race.youFinished && !race.rivalFinished && <p className="text-xs font-bold text-white/70">Deine Uhr steht. Gegner läuft noch.</p>}
+                  {race.rivalFinished && !race.youFinished && <p className="text-xs font-bold text-white/70">Gegner im Ziel. Deine Uhr läuft weiter.</p>}
+                </div>
+              )
                 : <p className="flex items-center gap-2 text-base font-extrabold text-white/70"><Flag className="h-5 w-5" aria-hidden="true" /> BEREIT FÜR DIE DEMO</p>}
           </div>
         </div>

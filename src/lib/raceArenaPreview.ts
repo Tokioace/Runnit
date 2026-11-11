@@ -7,6 +7,16 @@ export type DemoRaceScenario = 'balanced' | 'chase' | 'fast-rival';
 export type DemoRaceSnapshot = Readonly<{
   targetMeters: DemoRaceMeters;
   elapsedMs: number;
+  /** Your on-screen stopwatch stops at your own finish, independently of rival. */
+  yourElapsedMs: number;
+  youFinished: boolean;
+  rivalFinished: boolean;
+  /** Status of the first runner to cross, even while the other keeps running. */
+  firstFinisher: 'you' | 'rival' | 'tie' | null;
+  /** Distance between runners at the FIRST finish (never after both reach 100%). */
+  firstFinishGapM: number | null;
+  /** Difference between simulated finish times; available only once winner has crossed. */
+  finishMarginMs: number | null;
   youMeters: number;
   rivalMeters: number;
   leadMeters: number;
@@ -54,12 +64,23 @@ export function demoRaceSnapshot(input: {
   const rivalFinishMs = finishMs(targetMeters, rivalSpeed);
   const youMeters = Math.min(targetMeters, distanceAt(safeElapsedMs / 1000, youSpeed));
   const rivalMeters = Math.min(targetMeters, distanceAt(safeElapsedMs / 1000, rivalSpeed));
-  const finished = safeElapsedMs >= Math.max(yourFinishMs, rivalFinishMs);
-  const winner = finished
-    ? yourFinishMs === rivalFinishMs ? 'tie' : yourFinishMs < rivalFinishMs ? 'you' : 'rival'
-    : null;
+  const youFinished = safeElapsedMs >= yourFinishMs;
+  const rivalFinished = safeElapsedMs >= rivalFinishMs;
+  const firstFinishMs = Math.min(yourFinishMs, rivalFinishMs);
+  const firstFinisher = safeElapsedMs < firstFinishMs ? null
+    : yourFinishMs === rivalFinishMs ? 'tie' : yourFinishMs < rivalFinishMs ? 'you' : 'rival';
+  const firstFinishGapM = firstFinisher === null ? null : firstFinisher === 'tie' ? 0
+    : firstFinisher === 'you'
+      ? Math.max(0, targetMeters - distanceAt(firstFinishMs / 1000, rivalSpeed))
+      : Math.max(0, targetMeters - distanceAt(firstFinishMs / 1000, youSpeed));
+  const finished = youFinished && rivalFinished;
+  const winner = finished ? firstFinisher : null;
   return {
-    targetMeters, elapsedMs: safeElapsedMs, youMeters, rivalMeters,
+    targetMeters, elapsedMs: safeElapsedMs,
+    yourElapsedMs: Math.min(safeElapsedMs, yourFinishMs), youFinished, rivalFinished,
+    firstFinisher, firstFinishGapM,
+    finishMarginMs: firstFinisher === null ? null : Math.abs(yourFinishMs - rivalFinishMs),
+    youMeters, rivalMeters,
     leadMeters: youMeters - rivalMeters,
     yourFinishMs, rivalFinishMs, finished, winner,
   };

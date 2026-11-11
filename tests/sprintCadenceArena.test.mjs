@@ -109,3 +109,69 @@ test('sprint page and model are separate from GPS, live sensors, Supabase and ra
   }
   assert.doesNotMatch(engine, /walkingStrideM|stepDistanceM|walkingCalibration/);
 });
+
+test('personal stopwatch freezes at own simulated finish while the rival is still running', () => {
+  for (const targetMeters of [50, 75, 100]) {
+    const seed = demoRaceSnapshot({ targetMeters, scenario: 'chase', elapsedMs: 0 });
+    const justBefore = demoRaceSnapshot({ targetMeters, scenario: 'chase', elapsedMs: seed.yourFinishMs - 1 });
+    assert.equal(justBefore.youFinished, false);
+    assert.equal(justBefore.firstFinisher, null);
+    assert.equal(justBefore.firstFinishGapM, null);
+    const firstFinish = demoRaceSnapshot({ targetMeters, scenario: 'chase', elapsedMs: seed.yourFinishMs });
+    assert.equal(firstFinish.youFinished, true);
+    assert.equal(firstFinish.rivalFinished, false);
+    assert.equal(firstFinish.finished, false);
+    assert.equal(firstFinish.firstFinisher, 'you');
+    assert.equal(firstFinish.yourElapsedMs, seed.yourFinishMs);
+    assert.ok(firstFinish.firstFinishGapM > 0);
+    assert.equal(firstFinish.finishMarginMs, seed.rivalFinishMs - seed.yourFinishMs);
+    const afterFinish = demoRaceSnapshot({ targetMeters, scenario: 'chase', elapsedMs: seed.rivalFinishMs + 1000 });
+    assert.equal(afterFinish.yourElapsedMs, seed.yourFinishMs, 'own stopwatch must remain frozen');
+    assert.equal(afterFinish.leadMeters, 0, 'both displayed track positions equal at end');
+    assert.ok(afterFinish.firstFinishGapM > 0, 'historical finish gap survives both bars reaching 100%');
+    assert.equal(afterFinish.winner, 'you');
+  }
+});
+
+test('when the rival wins, own stopwatch keeps running until own finish', () => {
+  const seed = demoRaceSnapshot({ targetMeters: 100, scenario: 'fast-rival', elapsedMs: 0 });
+  const firstFinish = demoRaceSnapshot({ targetMeters: 100, scenario: 'fast-rival', elapsedMs: seed.rivalFinishMs });
+  assert.equal(firstFinish.firstFinisher, 'rival');
+  assert.equal(firstFinish.rivalFinished, true);
+  assert.equal(firstFinish.youFinished, false);
+  assert.equal(firstFinish.yourElapsedMs, seed.rivalFinishMs, 'your stopwatch does not stop when rival finishes');
+  assert.ok(firstFinish.firstFinishGapM > 0);
+  const ownFinish = demoRaceSnapshot({ targetMeters: 100, scenario: 'fast-rival', elapsedMs: seed.yourFinishMs + 2000 });
+  assert.equal(ownFinish.yourElapsedMs, seed.yourFinishMs);
+  assert.equal(ownFinish.winner, 'rival');
+  assert.equal(ownFinish.finishMarginMs, seed.yourFinishMs - seed.rivalFinishMs);
+});
+
+test('zero time has no phantom finish and snapshot never advances the personal clock past finish', () => {
+  for (const scenario of ['balanced', 'chase', 'fast-rival']) {
+    const start = demoRaceSnapshot({ targetMeters: 100, scenario, elapsedMs: 0 });
+    assert.equal(start.yourElapsedMs, 0);
+    assert.equal(start.youFinished, false);
+    assert.equal(start.rivalFinished, false);
+    assert.equal(start.firstFinisher, null);
+    const late = demoRaceSnapshot({ targetMeters: 100, scenario, elapsedMs: 999999 });
+    assert.equal(late.yourElapsedMs, late.yourFinishMs);
+    assert.equal(late.finished, true);
+    assert.equal(late.firstFinishGapM >= 0, true);
+  }
+});
+
+test('HUD renders frozen personal time, two moving running lanes and historical finish gap', () => {
+  const screen = read('src/screens/SprintArenaLabScreen.tsx');
+  assert.match(screen, /seconds\(race\.yourElapsedMs\)/);
+  assert.match(screen, /DEINE ZIELZEIT/);
+  assert.match(screen, /firstFinishGapM\?\.toFixed\(1\)/);
+  assert.match(screen, /Abstand beim ersten Zieleinlauf/);
+  assert.match(screen, /<RaceTrackLane title="YOU"/);
+  assert.match(screen, /<RaceTrackLane title="RIVAL · SIM"/);
+  assert.match(screen, /transition-\[left\]/);
+  assert.match(screen, /role="status"/);
+  assert.doesNotMatch(screen, /Abstand in der Demo: .*race\.leadMeters/);
+  const map = read('src/screens/MapScreen.tsx');
+  assert.match(map, /Renn-Grafik testen · Demo ohne zweiten Läufer/);
+});
