@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Activity, ArrowLeft, ArrowRight, Flag, Footprints, Gauge, RotateCcw, ShieldAlert, Timer, Trophy, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PageFrame from '../components/ui/PageFrame';
+import AnimatedRunner from '../components/ui/AnimatedRunner';
 import { analyzeSprintCadence, syntheticSprintTrace, type SyntheticSprintMode } from '../lib/sprintCadence';
 import { demoRaceSnapshot, type DemoRaceMeters, type DemoRaceScenario } from '../lib/raceArenaPreview';
 
@@ -31,9 +32,9 @@ const seconds = (ms: number) => (ms / 1000).toFixed(2).replace('.', ',');
 // Synthetic runner positions are expressed as percentages of track width.
 // Translation by the same percentage of the marker's width keeps both start
 // and finish markers entirely inside a clipped lane, even on narrow iPhones.
-function RaceTrackLane({ title, distanceM, targetMeters, finished, rival }: {
+function RaceTrackLane({ title, distanceM, targetMeters, finished, moving, rival }: {
   title: string; distanceM: number; targetMeters: DemoRaceMeters;
-  finished: boolean; rival?: boolean;
+  finished: boolean; moving: boolean; rival?: boolean;
 }) {
   const progress = percent(distanceM, targetMeters);
   return (
@@ -49,16 +50,18 @@ function RaceTrackLane({ title, distanceM, targetMeters, finished, rival }: {
       <div className="relative h-14 overflow-hidden rounded-xl border border-white/10 bg-gradient-to-r from-[#121a34] to-[#122239]">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-25"
           style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent 0, transparent 18%, rgba(255,255,255,.4) 18.3%, transparent 18.6%)' }} />
-        <span aria-hidden="true" className="absolute bottom-1 left-2 text-[9px] font-black tracking-widest text-white/35">START</span>
-        <span aria-hidden="true" className="absolute bottom-1 right-2 text-[9px] font-black tracking-widest text-white/50">ZIEL</span>
         <div aria-hidden="true" className="absolute bottom-0 right-4 top-0 w-1.5 opacity-75"
           style={{ backgroundImage: 'repeating-linear-gradient(180deg,#ffffff 0,#ffffff 6px,#26243b 6px,#26243b 12px)' }} />
         <div aria-hidden="true" className={`absolute left-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full transition-[width] duration-75 motion-reduce:transition-none ${rival ? 'bg-fuchsia-300/60' : 'bg-cyan-300/70'}`}
           style={{ width: `${progress}%` }} />
-        <span aria-hidden="true" className={`absolute top-2 flex h-8 w-8 items-center justify-center rounded-full border text-xl shadow-[0_0_18px_rgba(0,0,0,.35)] transition-[left,transform] duration-75 ease-linear motion-reduce:transition-none ${rival ? 'border-fuchsia-300/70 bg-fuchsia-600' : 'border-cyan-200/70 bg-blue-600'} ${finished ? 'ring-2 ring-emerald-300/50' : ''}`}
+        <span aria-hidden="true" className={`absolute top-1.5 flex h-10 w-10 items-center justify-center rounded-full border shadow-[0_0_18px_rgba(0,0,0,.35)] transition-[left,transform] duration-75 ease-linear motion-reduce:transition-none ${rival ? 'border-fuchsia-300/70 bg-fuchsia-700' : 'border-cyan-200/70 bg-blue-700'} ${finished ? 'ring-2 ring-emerald-300/50' : ''}`}
           style={{ left: `${progress}%`, transform: `translateX(-${progress}%)` }}>
-          🏃
+          <AnimatedRunner moving={moving} rival={rival} cycleMs={rival ? 395 : 355} />
         </span>
+      </div>
+      <div className="flex items-center justify-between gap-2 px-1 text-[10px] font-black uppercase tracking-[0.14em]" aria-hidden="true">
+        <span className="text-white/45">START</span>
+        <span className="rounded-md border border-emerald-300/30 bg-emerald-300/10 px-2 py-1 text-emerald-200">ZIEL</span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
         <div style={{ width: progress + '%' }}
@@ -144,8 +147,8 @@ export default function SprintArenaLabScreen() {
                 ZIEL {distance} M
               </span>
             </div>
-            <RaceTrackLane title="YOU" distanceM={race.youMeters} targetMeters={distance} finished={race.youFinished} />
-            <RaceTrackLane title="RIVAL · SIM" distanceM={race.rivalMeters} targetMeters={distance} finished={race.rivalFinished} rival />
+            <RaceTrackLane title="YOU" distanceM={race.youMeters} targetMeters={distance} finished={race.youFinished} moving={isRunning && !race.youFinished} />
+            <RaceTrackLane title="RIVAL · SIM" distanceM={race.rivalMeters} targetMeters={distance} finished={race.rivalFinished} moving={isRunning && !race.rivalFinished} rival />
             <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-xs font-bold text-white/70" aria-live="polite">
               {race.firstFinisher !== null
                 ? <div className="space-y-1">
