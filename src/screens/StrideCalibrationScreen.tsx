@@ -20,6 +20,7 @@ export default function StrideCalibrationScreen() {
   const [height, setHeight] = useState('');
   const [phase, setPhase] = useState<Phase>('idle');
   const phaseRef = useRef<Phase>('idle');
+  const phaseEpochMs = useRef(0);
   const [startFixes, setStartFixes] = useState<CalibrationFix[]>([]);
   const [endFixes, setEndFixes] = useState<CalibrationFix[]>([]);
   const [steps, setSteps] = useState(0);
@@ -33,7 +34,7 @@ export default function StrideCalibrationScreen() {
   const motionListener = useRef<((event: DeviceMotionEvent) => void) | null>(null);
   const [gpsError, setGpsError] = useState<string | null>(null);
 
-  const setPhaseBoth = (next: Phase) => { phaseRef.current = next; setPhase(next); };
+  const setPhaseBoth = (next: Phase) => { phaseEpochMs.current = Date.now(); phaseRef.current = next; setPhase(next); };
   const stopSensors = () => {
     if (locationWatch.current !== null && navigator.geolocation) {
       navigator.geolocation.clearWatch(locationWatch.current);
@@ -121,7 +122,8 @@ export default function StrideCalibrationScreen() {
           latitude: c.latitude, longitude: c.longitude,
           accuracyM: c.accuracy, timestampMs: position.timestamp,
         };
-        if (!Number.isFinite(fix.accuracyM) || fix.accuracyM <= 0 || fix.accuracyM > 8) return;
+        if (!Number.isFinite(fix.timestampMs) || fix.timestampMs < phaseEpochMs.current || fix.timestampMs > Date.now() + 2000 ||
+          !Number.isFinite(fix.accuracyM) || fix.accuracyM <= 0 || fix.accuracyM > 8) return;
         const update = (previous: CalibrationFix[]) => {
           // Ignore cached and non-monotonic GPS callbacks and limit local buffers.
           if (previous.some(p => p.timestampMs >= fix.timestampMs)) return previous;
