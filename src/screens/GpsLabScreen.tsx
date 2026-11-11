@@ -7,6 +7,7 @@ import { estimatePatternSteps } from '../lib/walkingPattern';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { createWalkingImuExport } from '../lib/walkingImuExport';
 import { detectWalkingPhase } from '../lib/walkingPhase';
+import { findImuGaps, splitTraceAtGaps } from '../lib/imuGapDiagnostics';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage } from '../lib/screenWakeLock';
 import { runGpsSimulation, syntheticPoint, type GpsSample } from '../lib/sprintGps';
@@ -68,6 +69,7 @@ function WalkingLab() {
   const [patternReport, setPatternReport] = useState<ReturnType<typeof estimatePatternSteps> | null>(null);
   const [referenceSteps, setReferenceSteps] = useState('');
   const [motionTrace, setMotionTrace] = useState<MotionSample[]>([]);
+  const [motionGaps, setMotionGaps] = useState<{ startMs: number; endMs: number }[]>([]);
   const [traceWindowStartSec, setTraceWindowStartSec] = useState(0);
   const [showAxes, setShowAxes] = useState(false);
   const gps = useRef<PositionSample[]>([]);
@@ -117,6 +119,7 @@ function WalkingLab() {
     const source = imu.current;
     const stride = Math.max(1, Math.ceil(source.length / 1500));
     setMotionTrace(source.filter((_, index) => index % stride === 0));
+    setMotionGaps(findImuGaps(source));
     setStatus('Geh-Test beendet · Bericht nur auf diesem Bildschirm, nicht gespeichert');
   };
   useEffect(() => {
@@ -151,7 +154,7 @@ function WalkingLab() {
     if (!mounted.current || !pending.current) return;
     pending.current = false;
     gps.current = []; imu.current = []; livePeakCounter.current.reset(); rawPeakCounter.current.reset(); setLiveStepCount(0); setRawStepCount(0); setCount({ gps: 0, imu: 0 });
-    setReport(null); setPatternReport(null); setMotionTrace([]); setTraceWindowStartSec(0); setShowAxes(false); setReferenceSteps(''); setElapsed(0); setPocketLock(false); setBackgroundInterrupted(false); start.current = performance.now();
+    setReport(null); setPatternReport(null); setMotionTrace([]); setMotionGaps([]); setTraceWindowStartSec(0); setShowAxes(false); setReferenceSteps(''); setElapsed(0); setPocketLock(false); setBackgroundInterrupted(false); start.current = performance.now();
     running.current = true; recording.current = false; setActive(true);
     countdownEnd.current = performance.now() + 10000;
     setCountdown(10);
@@ -309,7 +312,8 @@ function WalkingLab() {
         const axisMax = Math.max(max, ...visible.flatMap(sample => [Math.abs(sample.accelerationX ?? 0), Math.abs(sample.accelerationY ?? 0), Math.abs(sample.accelerationZ ?? 0)]));
         const xAt = (timestampMs: number) => ((timestampMs - origin) / 1000 - from) / windowSec * width;
         const yAt = (magnitude: number) => height - Math.min(max, magnitude) / max * height;
-        const points = visible.map(sample => `${xAt(sample.timestampMs).toFixed(1)},${yAt(sample.accelerationMagnitudeMps2).toFixed(1)}`).join(' ');
+        const visibleGaps = motionGaps.filter(g => xAt(g.endMs) >= 0 && xAt(g.startMs) <= width);
+        const segments = splitTraceAtGaps(visible, motionGaps);
         const accepted = report.acceptedStepTimesMs.filter(t => xAt(t) >= 0 && xAt(t) <= width);
         const candidates = report.candidatePeaks.filter(p => xAt(p.timestampMs) >= 0 && xAt(p.timestampMs) <= width);
         const axisPoints = (axis: 'accelerationX' | 'accelerationY' | 'accelerationZ') => visible.filter(sample => sample[axis] !== undefined).map(sample => String(xAt(sample.timestampMs)) + ',' + String(height / 2 - (sample[axis] ?? 0) / axisMax * height / 2)).join(' ');
@@ -333,7 +337,8 @@ function WalkingLab() {
                   </g>
                 ))}
                 <line x1="0" y1={yAt(2)} x2={width} y2={yAt(2)} stroke="#fbbf24" strokeDasharray="6 6" opacity="0.7" />
-                <polyline points={points} fill="none" stroke="#67e8f9" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+                {visibleGaps.map((gap, index) => <rect key={index} x={Math.max(0, xAt(gap.startMs))} y="0" width={Math.max(0, Math.min(width, xAt(gap.endMs)) - Math.max(0, xAt(gap.startMs)))} height={height} fill="#f59e0b" opacity="0.15" />)}
+                {segments.map((segment, index) => <polyline key={index} points={segment.map(sample => `${xAt(sample.timestampMs).toFixed(1)},${yAt(sample.accelerationMagnitudeMps2).toFixed(1)}`).join(' ')} fill="none" stroke="#67e8f9" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />)}
                 {showAxes && (['accelerationX', 'accelerationY', 'accelerationZ'] as const).map((axis, index) => (
                   <polyline key={axis} points={axisPoints(axis)} fill="none" stroke={['#fb7185', '#86efac', '#c4b5fd'][index]} strokeWidth="1" opacity="0.8" />
                 ))}
@@ -349,6 +354,7 @@ function WalkingLab() {
                 })}
               </svg>
             </div>
+            <p className="text-xs text-amber-200">Echte IMU-Sensorlücken über 250 ms: {motionGaps.length} insgesamt, {visibleGaps.length} im Ausschnitt (gelb). Diagramm-Ausdünnung wird nicht als Sensorlücke gezählt.</p>
             <p className="text-xs text-white/60">Orange Punkte unten: {candidates.filter(p => p.reason !== 'accepted').length} verworfene Kandidaten. Die Achsen sind gerätebezogen.</p>
             <p className="text-xs text-white/60">Zeitauflösung: Achse 2 s, Schieberegler 0,1 s · Im Ausschnitt {accepted.length} gezählte Schritte · Gesamter Test: {report.detectedSteps}. Diagramm zeigt eine reduzierte Signalstichprobe, Marker stammen aus der vollständigen Schritterkennung. Nur im Browser-Arbeitsspeicher.</p>
           </div>
