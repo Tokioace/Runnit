@@ -11,6 +11,8 @@ export function createWalkingImuExport(
     s.accelerationMagnitudeMps2 >= 0 &&
     s.accelerationMagnitudeMps2 < 200
   );
+  // DeviceMotion callbacks may arrive out of order. Keep exported times monotonic.
+  valid.sort((a, b) => a.timestampMs - b.timestampMs);
   const origin = valid[0]?.timestampMs ?? 0;
   const end = valid[valid.length - 1]?.timestampMs ?? origin;
   const relativePeakTimes = (times: readonly number[]) => times
