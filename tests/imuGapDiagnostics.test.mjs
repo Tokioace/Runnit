@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { findImuGaps, splitTraceAtGaps } from '../src/lib/imuGapDiagnostics.ts';
+import { findImuGaps, splitTraceAtGaps, summarizeImuGaps } from '../src/lib/imuGapDiagnostics.ts';
 
 describe('diagnostic IMU gaps, independent of measurement algorithms', () => {
   it('does not misclassify a decimated continuous signal as missing sensor data', () => {
@@ -20,5 +20,18 @@ describe('diagnostic IMU gaps, independent of measurement algorithms', () => {
     const full = [{ timestampMs: 400 }, { timestampMs: NaN }, { timestampMs: 0 }, { timestampMs: 0 }];
     assert.deepEqual(findImuGaps(full), [{ startMs: 0, endMs: 400 }]);
     assert.equal(full[0].timestampMs, 400);
+  });
+});
+
+
+describe('descriptive IMU dropout summary', () => {
+  it('reports number, total duration and longest actual full-rate gap', () => {
+    const samples = [0, 20, 40, 400, 420, 1020, 1040].map(timestampMs => ({ timestampMs }));
+    const gaps = findImuGaps(samples);
+    assert.deepEqual(summarizeImuGaps(gaps), { count: 2, totalGapMs: 960, longestGapMs: 600 });
+  });
+  it('returns zeros for continuous samples and ignores malformed intervals', () => {
+    assert.deepEqual(summarizeImuGaps(findImuGaps([{ timestampMs: 0 }, { timestampMs: 20 }])), { count: 0, totalGapMs: 0, longestGapMs: 0 });
+    assert.deepEqual(summarizeImuGaps([{ startMs: 10, endMs: 0 }, { startMs: NaN, endMs: 100 }]), { count: 0, totalGapMs: 0, longestGapMs: 0 });
   });
 });
