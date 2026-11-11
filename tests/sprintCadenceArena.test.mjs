@@ -169,9 +169,29 @@ test('HUD renders frozen personal time, two moving running lanes and historical 
   assert.match(screen, /Abstand beim ersten Zieleinlauf/);
   assert.match(screen, /<RaceTrackLane title="YOU"/);
   assert.match(screen, /<RaceTrackLane title="RIVAL · SIM"/);
-  assert.match(screen, /transition-\[left\]/);
+  assert.match(screen, /transition-\\[left,transform\\]/);
   assert.match(screen, /role="status"/);
   assert.doesNotMatch(screen, /Abstand in der Demo: .*race\.leadMeters/);
   const map = read('src/screens/MapScreen.tsx');
   assert.match(map, /Renn-Grafik testen · Demo ohne zweiten Läufer/);
+});
+
+test('mobile runner avatars remain entirely in lane at start, mid-race and finish', () => {
+  const screen = read('src/screens/SprintArenaLabScreen.tsx');
+  assert.ok(screen.includes('left: \`${progress}%\`'));
+  assert.ok(screen.includes('transform: \`translateX(-${progress}%)\`'));
+  assert.match(screen, /flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs/);
+  assert.match(screen, /whitespace-nowrap font-black tabular-nums/);
+
+  // In CSS left: p% uses track width, while translateX(-p%) uses
+  // the runner badge's own width; endpoints remain fully visible.
+  for (const trackWidth of [210, 280, 375]) {
+    for (const markerWidth of [32, 40]) {
+      for (const progress of [0, 1, 30, 66.4, 99, 100]) {
+        const left = trackWidth * progress / 100 - markerWidth * progress / 100;
+        assert.ok(left >= 0, 'badge starts inside the track');
+        assert.ok(left + markerWidth <= trackWidth + 1e-8, 'badge ends inside the track');
+      }
+    }
+  }
 });
