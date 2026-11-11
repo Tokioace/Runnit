@@ -1,0 +1,12 @@
+{
+  "id": "/",
+  "name": "RUNNIT",
+  "short_name": "RUNNIT",
+  "description": "Fordere echte Leute zu Sprint-Duellen heraus.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#070d21",
+  "theme_color": "#070d21"
+}
