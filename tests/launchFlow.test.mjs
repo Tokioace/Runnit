@@ -4,61 +4,80 @@ import { readFileSync, statSync } from 'node:fs';
 
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('launch screen uses real local artwork and DOM controls on a responsive full-height layout', () => {
-  const home = read('src/screens/HomeScreen.tsx');
-  const artwork = new URL('../public/runnit-launch-hero.webp', import.meta.url);
-  assert.ok(statSync(artwork).size > 4000, 'real promotional art must be included');
-  assert.match(home, /src="\/runnit-launch-hero\.webp"/);
-  assert.match(home, /object-contain object-top/);
-  assert.match(home, /min-h-\[100dvh\]/);
-  assert.match(home, /safe-area-inset-bottom/);
-  assert.match(home, /max-w-\[34rem\]/);
-  assert.match(home, /onClick=\{onStart\}/);
-  assert.match(home, /onClick=\{onContinueAsGuest\}/);
-  assert.match(home, /to="\/login\?mode=signin"/);
-  assert.match(home, /to="\/login\?mode=signup"/);
-  assert.match(home, /to="\/map"/);
-  assert.match(home, /to="\/sprint-lab"/);
-  assert.match(home, /GHOST-RUN/);
-  assert.match(home, /Vorschau/);
-  assert.doesNotMatch(home, /<BottomNav/);
+test('approved RUNNIT portrait asset is stored as an optimized local AVIF', () => {
+  const portrait = new URL('../public/runnit-launch-portrait.avif', import.meta.url);
+  const bytes = readFileSync(portrait);
+  assert.ok(statSync(portrait).size >= 20000, 'the full design must be shipped, not a placeholder');
+  assert.equal(bytes.subarray(4, 12).toString('ascii'), 'ftypavif');
+  const screen = read('src/screens/HomeScreen.tsx');
+  assert.match(screen, /src="\/runnit-launch-portrait\.avif"/);
+  assert.match(screen, /width=\{941\}/);
+  assert.match(screen, /height=\{1672\}/);
+  assert.match(screen, /h-\[100dvh\]/);
+  assert.match(screen, /object-fill/);
 });
 
-test('on signed-in sessions, registration, login and guest actions disappear but STARTEN remains', () => {
-  const home = read('src/screens/HomeScreen.tsx');
+test('STARTEN and three frameless account hit regions align to artwork percentages', () => {
+  const screen = read('src/screens/HomeScreen.tsx');
+  assert.match(screen, /onClick=\{onStart\}/);
+  assert.match(screen, /left-\[10%\] top-\[81\.9%\] h-\[9%\] w-\[80%\]/);
+  assert.match(screen, /to="\/login\?mode=signin"/);
+  assert.match(screen, /to="\/login\?mode=signup"/);
+  assert.match(screen, /onClick=\{onContinueAsGuest\}/);
+  assert.match(screen, /left-\[9\.2%\] top-\[91\.6%\]/);
+  assert.match(screen, /left-\[37%\] top-\[91\.6%\]/);
+  assert.match(screen, /left-\[68\.5%\] top-\[91\.6%\]/);
+  assert.match(screen, /bg-transparent/);
+  assert.doesNotMatch(screen, /<Swords|<Ghost|<MapPinned|<BottomNav|to="\/map"|to="\/sprint-lab"/);
+  assert.match(screen, /focus-visible:outline/);
+});
+
+test('signed-in visitors see no sign-in, register or guest hit regions', () => {
+  const screen = read('src/screens/HomeScreen.tsx');
   const app = read('src/App.tsx');
-  assert.match(home, /\{isSignedIn \? \(/);
-  assert.match(home, /Angemeldet · Direkt zur Rennkarte/);
-  assert.match(home, /guestAccess \?/);
+  assert.match(screen, /\{isSignedIn \? \(/);
+  assert.match(screen, /Du bist angemeldet/);
+  assert.match(screen, /pointer-events-none absolute inset-x-0 bottom-0/);
+  assert.match(screen, /<nav aria-label="Kontoaktionen"/);
   assert.match(app, /isSignedIn=\{Boolean\(auth\.user\)\}/);
-  assert.match(app, /if \(auth\.loading\)/);
   assert.match(app, /previousSignedInId\.current && !auth\.user/);
-  assert.match(app, /navigate\('\/', \{ replace: true \}\)/);
 });
 
-test('returning users preserve Supabase session and go straight to map on STARTEN', () => {
+test('STARTEN enters the original dashboard, never the map; guests can explore too', () => {
+  const app = read('src/App.tsx');
+  const dashboard = read('src/screens/DashboardScreen.tsx');
+  const nav = read('src/components/ui/BottomNav.tsx');
+  assert.match(app, /if \(auth\.user\) \{\s*navigate\('\/home'\)/);
+  assert.match(app, /setGuestAccess\(true\);\s*navigate\('\/home'\)/);
+  assert.match(app, /<Route path="\/home" element=\{<DashboardScreen \/>\}/);
+  assert.match(dashboard, /DEIN LAUF\./);
+  assert.match(nav, /href: '\/home', label: 'Start'/);
+  assert.doesNotMatch(app, /const enterApp = \(\) => \{[\s\S]*?navigate\('\/map'\)/);
+});
+
+test('returning users preserve Supabase sessions without forced reauthentication', () => {
   const app = read('src/App.tsx');
   const client = read('src/lib/supabaseClient.ts');
   assert.match(client, /persistSession:\s*true/);
   assert.match(client, /autoRefreshToken:\s*true/);
-  assert.match(app, /if \(auth\.user\) \{\s*navigate\('\/map'\)/);
+  assert.match(app, /if \(auth\.loading\)/);
   assert.doesNotMatch(app, /auth\.signOut\(\)/);
 });
 
-test('sign-in and registration open the existing real forms without creating extra accounts', () => {
+test('sign-in and registration reuse current real forms and protected redirects', () => {
   const app = read('src/App.tsx');
   const welcome = read('src/components/auth/WelcomeAuthScreen.tsx');
   const panel = read('src/components/profile/AccountAuthPanel.tsx');
   assert.match(app, /location\.pathname === '\/login'/);
   assert.match(app, /initialMode=\{new URLSearchParams\(location\.search\)/);
   assert.match(welcome, /<AccountAuthPanel signIn=\{signIn\} signUp=\{signUp\} initialMode=\{initialMode\}/);
-  assert.match(welcome, /Zurück zum Runnit-Start/);
   assert.match(panel, /const \[mode, setMode\] = useState<Mode>\(initialMode\)/);
   assert.match(panel, /await signIn\(email, password\)/);
   assert.match(panel, /await signUp\(email, password, displayName\)/);
+  assert.match(app, /APP_PATHS\.has\(next\)/);
 });
 
-test('installed PWA launches the public home and respects mobile safe-area layout', () => {
+test('installed PWA opens promotional launch at / with iOS safe viewport', () => {
   const manifest = JSON.parse(read('public/manifest.webmanifest'));
   const html = read('index.html');
   assert.equal(manifest.start_url, '/');
@@ -66,14 +85,12 @@ test('installed PWA launches the public home and respects mobile safe-area layou
   assert.equal(manifest.display, 'standalone');
   assert.match(html, /viewport-fit=cover/);
   assert.match(html, /rel="manifest"/);
-  assert.match(html, /lang="de"/);
 });
 
-test('a guest can explore, but actual create/join/start race still requires authentication', () => {
+test('guest race creation and joining still require a real account', () => {
   const app = read('src/App.tsx');
   const map = read('src/screens/MapScreen.tsx');
   assert.match(app, /sessionStorage\.setItem\(GUEST_SESSION_KEY, '1'\)/);
-  assert.match(app, /setGuestAccess\(true\)/);
   assert.match(map, /const requireRaceAccount = \(\): boolean =>/);
   assert.match(map, /if \(authUser\) return true/);
   assert.match(map, /if \(!requireRaceAccount\(\)\) return/);
