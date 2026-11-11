@@ -66,5 +66,5 @@ test('guest profile provides sign-in instead of invented private statistics', ()
 test('guest navigation cannot be an open redirect through next parameter', () => {
   const app = read('src/App.tsx');
   assert.match(app, /const next = new URLSearchParams\(search\)\.get\('next'\)/);
-  assert.ok(app.includes("next && APP_PATHS.has(next) ? next : '/'"));
+  assert.ok(app.includes("next && APP_PATHS.has(next) ? next : '/home'"));
 });
