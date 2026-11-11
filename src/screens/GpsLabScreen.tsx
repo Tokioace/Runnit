@@ -10,6 +10,9 @@ import { detectWalkingPhase } from '../lib/walkingPhase';
 import { findImuGaps, splitTraceAtGaps, summarizeImuGaps } from '../lib/imuGapDiagnostics';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage } from '../lib/screenWakeLock';
+import { useSupabaseUser } from '../hooks/useSupabaseUser';
+import { selectWalkingFusionEvidence } from '../lib/walkingFusionEvidence';
+import { reconcileWalkingDistance } from '../lib/walkingDistanceFusion';
 import { runGpsSimulation, syntheticPoint, type GpsSample } from '../lib/sprintGps';
 
 type Scenario = '50m' | '75m' | '100m' | 'still' | 'spike' | 'poor';
@@ -43,6 +46,8 @@ function buildScenario(scenario: Scenario): { samples: GpsSample[]; target: numb
 
 type MotionEventWithPermission = typeof DeviceMotionEvent & { requestPermission?: () => Promise<'granted' | 'denied'> };
 function WalkingLab() {
+  const { user } = useSupabaseUser();
+  const [straightRouteConfirmed, setStraightRouteConfirmed] = useState(false);
   const [active, setActive] = useState(false);
   const wakeStatus = useScreenWakeLock(active);
   const [backgroundInterrupted, setBackgroundInterrupted] = useState(false);
@@ -154,7 +159,7 @@ function WalkingLab() {
     if (!mounted.current || !pending.current) return;
     pending.current = false;
     gps.current = []; imu.current = []; livePeakCounter.current.reset(); rawPeakCounter.current.reset(); setLiveStepCount(0); setRawStepCount(0); setCount({ gps: 0, imu: 0 });
-    setReport(null); setPatternReport(null); setMotionTrace([]); setMotionGaps([]); setTraceWindowStartSec(0); setShowAxes(false); setReferenceSteps(''); setElapsed(0); setPocketLock(false); setBackgroundInterrupted(false); start.current = performance.now();
+    setStraightRouteConfirmed(false); setReport(null); setPatternReport(null); setMotionTrace([]); setMotionGaps([]); setTraceWindowStartSec(0); setShowAxes(false); setReferenceSteps(''); setElapsed(0); setPocketLock(false); setBackgroundInterrupted(false); start.current = performance.now();
     running.current = true; recording.current = false; setActive(true);
     countdownEnd.current = performance.now() + 10000;
     setCountdown(10);
@@ -231,6 +236,22 @@ function WalkingLab() {
   };
   const live = active && recording.current ? assessFairPlay(gps.current, imu.current) : report;
   const walkingPhase = !active && report ? detectWalkingPhase(imu.current) : null;
+  // Reuse captured raw readings and confirmed live-peak timestamps; do not
+  // change their algorithms or modify the racing / FairPlay decision path.
+  const fusionEvidence = !active && report ? selectWalkingFusionEvidence({
+    motion: imu.current, gps: gps.current,
+    peakTimesMs: livePeakCounter.current.timestampsMs,
+    walkingPhase, backgroundInterrupted,
+  }) : null;
+  const fusion = fusionEvidence?.usable ? reconcileWalkingDistance({
+    walkingStrideM: user?.walkingCalibration?.walkingStrideM ?? null,
+    stepCount: fusionEvidence.alignedSteps,
+    startGps: fusionEvidence.startGps,
+    currentGps: fusionEvidence.endGps,
+    nowMs: Math.max(fusionEvidence.phaseEndMs ?? 0, fusionEvidence.endGps?.timestampMs ?? 0),
+    sensorContinuous: fusionEvidence.sensorContinuous,
+    straightRoute: straightRouteConfirmed,
+  }) : null;
   const quality = !live ? 'Noch keine Messung' : live.reasons.includes('gps-position-jump') ? 'GPS-Sprung erkannt · Messung unsicher, kein Betrugsnachweis' : live.reasons.includes('insufficient-gps') || live.reasons.includes('poor-gps-accuracy') ? 'GPS-Daten fehlen oder sind ungenau' : live.reasons.includes('insufficient-motion-coverage') ? 'Bewegungssensordaten fehlen oder sind lückenhaft' : live.reasons.includes('walking-cadence-needs-calibration') ? 'Schrittfrequenz für normales Gehen ungewöhnlich hoch · Handbewegungen möglich, bitte in Hosentasche vergleichen' : 'Keine auffälligen Messfehler erkannt (unkalibriert)';
   return (
     <section aria-label="Echter Geh-Einzellauf – experimentell" className="space-y-4 rounded-[28px] border border-cyan-300/30 bg-gradient-to-br from-indigo-800/40 to-[#101827] p-5">
@@ -286,6 +307,89 @@ function WalkingLab() {
         {walkingPhase ? <p>Bewegungsbeginn ca. {(walkingPhase.startMs / 1000).toFixed(1)} s · Bewegungsende ca. {(walkingPhase.endMs / 1000).toFixed(1)} s nach Messbeginn</p> : <p>Keine ausreichend zusammenhängende Gehphase erkennbar.</p>}
         <p className="text-xs text-white/70">Nur diagnostische Schätzung aus der Bewegung; keine bestätigten einzelnen Schritte. Handy-Herausnehmen kann die Grenzen verfälschen.</p>
       </div>}
+      {!active && report && (
+        <section aria-label="Echte experimentelle GPS-IMU-Distanzanalyse"
+          className="space-y-4 rounded-[26px] border border-cyan-300/25 bg-gradient-to-br from-[#231b4a] via-[#14223c] to-[#0e3036] p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-300">GPS × IMU · REAL DATA LAB</p>
+            <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[10px] font-black text-amber-100">
+              LOKAL · NICHT GEWERTET
+            </span>
+          </div>
+          <h3 className="text-xl font-black text-white">Deine echte Gehstrecke im Vergleich</h3>
+          <p className="text-xs leading-6 text-white/65">
+            Erst nach dem Test: Runnit gleicht die bereits erfassten GPS-Punkte mit den zeitlich passenden
+            Live-Schrittspitzen ab. Keine zusätzlichen Sensorrechte, kein Standort-Upload.
+          </p>
+          {user?.walkingCalibration ? (
+            <p className="text-xs font-semibold text-cyan-100">
+              Persönliche Gehschrittlänge: {(user.walkingCalibration.walkingStrideM * 100).toFixed(1)} cm
+              {' '}· Körpergröße: {user.walkingCalibration.heightCm} cm
+            </p>
+          ) : (
+            <div className="space-y-2 rounded-xl border border-amber-300/20 bg-amber-300/10 p-3">
+              <p className="text-xs text-amber-100">Keine gültige persönliche Gehkalibrierung gespeichert.
+                Ein GPS-Wert ist deshalb keine gemeinsame GPS-/IMU-Distanz.</p>
+              <Link to="/calibration" className="inline-flex min-h-11 items-center text-sm font-black text-cyan-200 underline underline-offset-4">
+                Schrittlänge kalibrieren
+              </Link>
+            </div>
+          )}
+          {fusionEvidence && <p className="text-xs leading-5 text-white/65" role="status">{fusionEvidence.reason}</p>}
+          {fusionEvidence && fusionEvidence.phaseStartMs !== null &&
+            <p className="text-xs text-white/60">
+              Zugeordnete Gehphase: {fusionEvidence.durationSeconds?.toFixed(1)} s ·
+              {' '}{fusionEvidence.alignedSteps} Live-Schritte im Zeitfenster
+              {fusionEvidence.startGps && fusionEvidence.endGps ? ' · GPS-Endpunkte vorhanden' : ' · GPS-Endpunkte unvollständig'}
+            </p>}
+          {fusionEvidence?.usable && (
+            <>
+              <label className="flex items-start gap-3 rounded-xl border border-white/15 bg-white/[0.045] p-3 text-xs leading-6 text-white/75">
+                <input type="checkbox" checked={straightRouteConfirmed}
+                  onChange={event => setStraightRouteConfirmed(event.target.checked)}
+                  className="mt-1 h-4 w-4 shrink-0 accent-cyan-300" />
+                <span>Ich bin im erkannten Gehabschnitt annähernd geradeaus gelaufen. Nur dann ist die GPS-Luftlinie ein sinnvoller Vergleich zur Schrittdistanz.</span>
+              </label>
+              {fusion && (
+                <div className="space-y-4">
+                  <div className="rounded-[22px] border border-emerald-300/20 bg-[#090f20]/55 p-5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.19em] text-cyan-200">Geschätzte Gehstrecke · {fusion.mode}</p>
+                    <p className="mt-2 text-5xl font-black tabular-nums tracking-[-0.06em] text-white">
+                      {fusion.estimatedDistanceM === null ? '—' : fusion.estimatedDistanceM.toFixed(1)}
+                      <span className="ml-2 text-xl text-emerald-300">m</span>
+                    </p>
+                    <p className="mt-2 text-xs leading-5 text-white/70">{fusion.reason}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.07] p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-cyan-200">IMU-SCHRITTDISTANZ</p>
+                      <p className="mt-2 text-2xl font-black tabular-nums">{fusion.stepDistanceM?.toFixed(1) ?? '—'} m</p>
+                    </div>
+                    <div className="rounded-2xl border border-violet-300/15 bg-violet-300/[0.07] p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-violet-200">GPS-LUFTLINIE</p>
+                      <p className="mt-2 text-2xl font-black tabular-nums">{fusion.gpsDisplacementM?.toFixed(1) ?? '—'} m</p>
+                    </div>
+                  </div>
+                  {fusion.disagreementM !== null && <p className="text-xs text-amber-100">
+                    Unterschied GPS ↔ Schritte: {fusion.disagreementM.toFixed(1)} m.
+                    Die GPS-Genauigkeitsangaben sind keine garantierte Fehlergrenze.
+                  </p>}
+                </div>
+              )}
+            </>
+          )}
+          {fusionEvidence && !fusionEvidence.usable && (
+            <p className="rounded-xl border border-amber-300/25 bg-amber-300/10 p-3 text-xs leading-6 text-amber-100">
+              Keine gemeinsame Distanz ausgegeben. Schlechte Synchronisierung oder Sensorlücken werden nicht überbrückt.
+            </p>
+          )}
+          <p className="text-xs leading-6 text-white/50">
+            Nur geradliniges Gehen, keine Sprintmessung. GPS und GPS-kalibrierte Schrittlänge
+            sind statistisch nicht unabhängig. Keine Verifizierung, Rangliste oder
+            automatische Speicherung; beim Verlassen gehen Rohdaten verloren.
+          </p>
+        </section>
+      )}
       {!active && report && patternReport && <div className="space-y-2 rounded-xl border border-violet-300/30 bg-violet-300/10 p-4 text-sm">
         <h3 className="font-black text-violet-100">Experimenteller A/B-Vergleich · nur Geh-Test</h3>
         <p>Live-Spitzenzähler (geglättet): <strong>{liveStepCount}</strong> Schritte</p>
@@ -407,14 +511,14 @@ export default function GpsLabScreen() {
     <PageFrame
       kicker="RUNNIT ENGINEERING"
       title="GPS-Testlabor."
-      description="Prüfe, wie unsere Sprintlogik auf Geschwindigkeit, Rauschen und Messfehler reagiert – ganz ohne echte Standortdaten."
+      description="Vergleiche echte, ausdrücklich gestartete Geh-Sensormessungen lokal und teste darunter künstliche Sprint-GPS-Szenarien."
       icon={<Timer className="h-7 w-7" aria-hidden="true" />}
     >
       <div role="note" className="flex gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/[0.075] p-4">
         <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" aria-hidden="true" />
         <div className="text-xs leading-6 text-amber-100/85">
-          <strong className="block text-sm text-amber-100">Simulation · kein echter Lauf</strong>
-          Alle Koordinaten und Zeiten sind künstlich. Diese Ergebnisse sind nicht für Duelle oder Ranglisten zulässig.
+          <strong className="block text-sm text-amber-100">Zwei klar getrennte Testbereiche</strong>
+          Oben misst der Geh-Test auf Wunsch echte GPS-/IMU-Signale nur lokal. Die Sprint-Szenarien darunter verwenden ausschließlich künstliche Daten. Nichts davon zählt für Duelle oder Ranglisten.
         </div>
       </div>
 

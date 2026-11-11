@@ -145,6 +145,10 @@ export default function FusionLabScreen() {
           <p>Das Verfahren ist vorerst nur für geradliniges <strong>Gehen</strong> gedacht. GPS und kalibrierte Schrittlänge sind nicht unabhängig voneinander; echte Genauigkeit muss später mit Referenzstrecken validiert werden.</p>
         </div>
       </div>
+      <Link to="/gps-lab" className="flex min-h-14 items-center justify-between rounded-2xl border border-emerald-300/25 bg-gradient-to-r from-emerald-500/15 to-cyan-500/10 px-5 text-sm font-extrabold text-emerald-100">
+        <span className="flex items-center gap-2"><Footprints className="h-5 w-5" aria-hidden="true" /> Echte Sensorfusion im Geh-Test prüfen</span>
+        <ArrowRight className="h-5 w-5" aria-hidden="true" />
+      </Link>
       <Link to="/calibration" className="flex min-h-14 items-center justify-between rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.065] px-5 text-sm font-extrabold text-cyan-100">
         <span className="flex items-center gap-2"><Waves className="h-5 w-5" aria-hidden="true" /> Zur persönlichen Gehkalibrierung</span>
         <ArrowRight className="h-5 w-5" aria-hidden="true" />
