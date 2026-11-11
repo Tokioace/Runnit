@@ -511,14 +511,14 @@ export default function GpsLabScreen() {
     <PageFrame
       kicker="RUNNIT ENGINEERING"
       title="GPS-Testlabor."
-      description="Prüfe, wie unsere Sprintlogik auf Geschwindigkeit, Rauschen und Messfehler reagiert – ganz ohne echte Standortdaten."
+      description="Vergleiche echte, ausdrücklich gestartete Geh-Sensormessungen lokal und teste darunter künstliche Sprint-GPS-Szenarien."
       icon={<Timer className="h-7 w-7" aria-hidden="true" />}
     >
       <div role="note" className="flex gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/[0.075] p-4">
         <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" aria-hidden="true" />
         <div className="text-xs leading-6 text-amber-100/85">
-          <strong className="block text-sm text-amber-100">Simulation · kein echter Lauf</strong>
-          Alle Koordinaten und Zeiten sind künstlich. Diese Ergebnisse sind nicht für Duelle oder Ranglisten zulässig.
+          <strong className="block text-sm text-amber-100">Zwei klar getrennte Testbereiche</strong>
+          Oben misst der Geh-Test auf Wunsch echte GPS-/IMU-Signale nur lokal. Die Sprint-Szenarien darunter verwenden ausschließlich künstliche Daten. Nichts davon zählt für Duelle oder Ranglisten.
         </div>
       </div>
 
