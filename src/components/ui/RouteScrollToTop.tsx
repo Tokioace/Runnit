@@ -28,17 +28,20 @@ export default function RouteScrollToTop() {
     const previous = window.history.scrollRestoration;
     try { window.history.scrollRestoration = 'manual'; } catch { /* Browser may disallow it. */ }
 
+    let pageShowFrame: number | null = null;
     const onPageShow = () => {
       resetPageScrollToTop(window, document);
-      const frame = window.requestAnimationFrame(() => resetPageScrollToTop(window, document));
-      // A frame scheduled during pageshow normally runs; there is nothing
-      // to cancel if the browser destroys this page during navigation.
-      void frame;
+      if (pageShowFrame !== null) window.cancelAnimationFrame(pageShowFrame);
+      pageShowFrame = window.requestAnimationFrame(() => {
+        pageShowFrame = null;
+        resetPageScrollToTop(window, document);
+      });
     };
     window.addEventListener('pageshow', onPageShow);
 
     return () => {
       window.removeEventListener('pageshow', onPageShow);
+      if (pageShowFrame !== null) window.cancelAnimationFrame(pageShowFrame);
       try { window.history.scrollRestoration = previous; } catch { /* Browser may disallow it. */ }
     };
   }, []);
