@@ -19,7 +19,7 @@ test('app reads restored session before opening sign-in UI', () => {
   assert.match(hook, /supabase\.auth\.getSession\(\)/);
   assert.match(hook, /supabase\.auth\.onAuthStateChange/);
   assert.match(app, /if \(auth\.loading\)/);
-  assert.ok(app.includes("!auth.user && location.pathname === '/login'"));
+  assert.ok(app.includes("!auth.user && accountPage"));
 });
 
 test('sign-out requires confirmation and warns it invalidates saved login', () => {
