@@ -3,7 +3,8 @@ import type { MotionSample } from './fairPlay';
 /** Estimates the sustained movement interval; not a validated step detector. */
 export function detectWalkingPhase(samples: MotionSample[]): { startMs: number; endMs: number } | null {
   if (samples.length < 30) return null;
-  const first = samples[0].timestampMs;
+  const first = samples.find(sample => Number.isFinite(sample.timestampMs) && Number.isFinite(sample.accelerationMagnitudeMps2))?.timestampMs;
+  if (first === undefined) return null;
   const bins = new Map<number, { energy: number; count: number }>();
   for (const sample of samples) {
     if (!Number.isFinite(sample.timestampMs) || !Number.isFinite(sample.accelerationMagnitudeMps2)) continue;
@@ -19,7 +20,8 @@ export function detectWalkingPhase(samples: MotionSample[]): { startMs: number; 
   let best: { start: number; end: number } | null = null;
   let start = active[0], end = active[0];
   for (const index of active.slice(1)) {
-    if (index - end <= 2) { end = index; continue; }
+    // Never bridge a missing 500 ms window: the IMU may have stopped recording.
+    if (index - end === 1) { end = index; continue; }
     if (!best || end - start > best.end - best.start) best = { start, end };
     start = end = index;
   }
