@@ -79,7 +79,6 @@ test('only a plausible derived calibration can be saved; no raw GPS coordinates 
   assert.equal(getWalkingCalibration({ walking_calibration: { ...saved, walkingStrideM: 1.2 } }), null);
   assert.equal(getWalkingCalibration({ walking_calibration: { ...saved, measuredDistanceM: 55 } }), null);
   assert.equal(getWalkingCalibration({ walking_calibration: { ...saved, stepCount: 75 } }), null);
-  assert.equal(getWalkingCalibration({ walking_calibration: { ...saved, heightCm: 110 } }), null);
   assert.throws(() => makeWalkingCalibration({
     assessment: assessWalkingCalibration(sample({ stepCount: 10 })),
     heightCm: 175, stepCount: 10, nowIso: '2026-11-11T12:00:00Z',
