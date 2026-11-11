@@ -169,7 +169,7 @@ test('HUD renders frozen personal time, two moving running lanes and historical 
   assert.match(screen, /Abstand beim ersten Zieleinlauf/);
   assert.match(screen, /<RaceTrackLane title="YOU"/);
   assert.match(screen, /<RaceTrackLane title="RIVAL · SIM"/);
-  assert.match(screen, /transition-\\[left,transform\\]/);
+  assert.ok(screen.includes('transition-[left,transform]'));
   assert.match(screen, /role="status"/);
   assert.doesNotMatch(screen, /Abstand in der Demo: .*race\.leadMeters/);
   const map = read('src/screens/MapScreen.tsx');
