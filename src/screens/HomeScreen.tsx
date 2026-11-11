@@ -25,7 +25,7 @@ export default function HomeScreen({ isSignedIn, guestAccess, onStart, onContinu
     <main className="relative isolate min-h-[100dvh] w-full overflow-hidden bg-[#070c20] text-white">
       {/* Fill any unused space on very tall / wide screens with atmospheric
           color, rather than distorting or cutting off the actual artwork. */}
-      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
         <img
           src="/runnit-launch-portrait.avif"
           alt=""
@@ -34,7 +34,7 @@ export default function HomeScreen({ isSignedIn, guestAccess, onStart, onContinu
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#070c20]/30 via-[#080c24]/55 to-[#070c20]/95" />
       </div>
-      <div className="relative mx-auto flex min-h-[100dvh] w-full flex-col items-center justify-start">
+      <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full flex-col items-center justify-start">
         <div
           className="relative aspect-[941/1672] w-full shrink-0 overflow-hidden bg-[#070c20]"
           style={{ maxWidth: 'min(600px, 56.28dvh)' }}
