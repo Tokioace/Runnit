@@ -4,9 +4,13 @@ import type { MotionSample } from './fairPlay';
 export function detectWalkingPhase(samples: MotionSample[]): { startMs: number; endMs: number } | null {
   if (samples.length < 30) return null;
   // DeviceMotion events can arrive out of order. Anchor bins to the earliest valid sample.
-  const timestamps = samples.filter(sample => Number.isFinite(sample.timestampMs) && Number.isFinite(sample.accelerationMagnitudeMps2) && sample.accelerationMagnitudeMps2 >= 0).map(sample => sample.timestampMs);
-  if (!timestamps.length) return null;
-  const first = Math.min(...timestamps);
+  let first = Infinity;
+  for (const sample of samples) {
+    if (Number.isFinite(sample.timestampMs) && Number.isFinite(sample.accelerationMagnitudeMps2) && sample.accelerationMagnitudeMps2 >= 0) {
+      first = Math.min(first, sample.timestampMs);
+    }
+  }
+  if (!Number.isFinite(first)) return null;
   const bins = new Map<number, { energy: number; count: number }>();
   for (const sample of samples) {
     if (!Number.isFinite(sample.timestampMs) || !Number.isFinite(sample.accelerationMagnitudeMps2) || sample.accelerationMagnitudeMps2 < 0) continue;
