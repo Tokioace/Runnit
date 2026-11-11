@@ -57,14 +57,14 @@ export default function HomeScreen({ isSignedIn, guestAccess, onStart, onContinu
         ) : (
           <nav aria-label="Kontoaktionen" className="pointer-events-none absolute inset-0">
             <Link
-              to="/login?mode=signin"
+              to="/login"
               aria-label="ANMELDEN"
               className="absolute left-[9.2%] top-[91.6%] h-[6.3%] w-[27%] pointer-events-auto rounded-md bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-100"
             >
               <span className="sr-only">ANMELDEN</span>
             </Link>
             <Link
-              to="/login?mode=signup"
+              to="/register"
               aria-label="REGISTRIEREN"
               className="absolute left-[37%] top-[91.6%] h-[6.3%] w-[28.5%] pointer-events-auto rounded-md bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-100"
             >
