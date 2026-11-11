@@ -54,12 +54,14 @@ export default function App() {
     return () => data.subscription.unsubscribe();
   }, [navigate]);
 
-  const enterGuestMode = () => {
+  const enterGuestMode = (destination?: string) => {
+    // The landing page may enter browsing mode directly in an allowed local
+    // screen; an auth-page guest action still returns to its safe next route.
+    const target = destination && APP_PATHS.has(destination) ? destination
+      : location.pathname === '/login' ? safeLoginReturnPath(location.search) : '/map';
     try { window.sessionStorage.setItem(GUEST_SESSION_KEY, '1'); } catch { /* Private browsing may block storage. */ }
     setGuestAccess(true);
-    if (location.pathname === '/login' || location.pathname === AUTH_CALLBACK_PATH) {
-      navigate(location.pathname === AUTH_CALLBACK_PATH ? '/map' : safeLoginReturnPath(location.search), { replace: true });
-    }
+    navigate(target, { replace: location.pathname === '/login' || location.pathname === AUTH_CALLBACK_PATH });
   };
 
   if (auth.loading) {
