@@ -21,8 +21,8 @@ export default function HomeScreen({ isSignedIn, guestAccess, onStart, onContinu
         <img
           src="/runnit-launch-hero.webp"
           alt=""
-          width="160"
-          height="284"
+          width="256"
+          height="455"
           decoding="async"
           className="absolute inset-0 h-full w-full object-contain object-top opacity-95"
         />
