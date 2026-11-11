@@ -1,4 +1,4 @@
-import { BarChart3, Flag, ShieldCheck, Timer, Trophy, UserRound, ArrowRight, Ruler } from 'lucide-react';
+import { BarChart3, Flag, ShieldCheck, Timer, Trophy, UserRound, ArrowRight, Ruler, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PageFrame from '../components/ui/PageFrame';
 import AccountDetailsPanel from '../components/profile/AccountDetailsPanel';
@@ -40,6 +40,21 @@ export default function ProfileScreen() {
             ) : <p className="text-sm leading-6 text-white/65">Noch keine persönliche Schrittlänge gespeichert. Für die Kalibrierung benötigst du eine gerade Strecke im Freien und gutes GPS.</p>}
             <Link to="/calibration" className="flex min-h-12 items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 px-4 text-sm font-extrabold">
               {user.walkingCalibration ? 'Kalibrierung wiederholen' : 'Schrittlänge kalibrieren'}
+            </Link>
+          </section>
+
+          <section aria-label="GPS und IMU Sensorfusion" className="relative overflow-hidden rounded-3xl border border-violet-300/20 bg-gradient-to-r from-[#201a42] via-[#122642] to-[#123239] p-5">
+            <div className="pointer-events-none absolute -right-9 -top-12 h-36 w-36 rounded-full bg-cyan-400/10 blur-3xl" aria-hidden="true" />
+            <div className="relative flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-300/10">
+                <Activity className="h-6 w-6 text-cyan-200" aria-hidden="true" />
+              </span>
+              <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300">NEUES TESTLABOR</p>
+                <h2 className="mt-1 text-lg font-black">GPS × IMU Fusion</h2></div>
+            </div>
+            <p className="relative mt-3 text-xs leading-6 text-white/65">Teste Signalfehler und die spätere Distanzberechnung interaktiv, auch drinnen. Alle Daten sind simuliert.</p>
+            <Link to="/fusion-lab" className="relative mt-4 flex min-h-12 items-center justify-between rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 px-4 text-sm font-extrabold">
+              Sensorfusion ausprobieren <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </section>
 
