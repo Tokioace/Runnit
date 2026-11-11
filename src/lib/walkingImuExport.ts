@@ -17,7 +17,8 @@ export function createWalkingImuExport(
   const end = valid[valid.length - 1]?.timestampMs ?? origin;
   const relativePeakTimes = (times: readonly number[]) => times
     .filter(t => Number.isFinite(t) && t >= origin && t <= end)
-    .map(t => Math.round((t - origin) * 1000) / 1000);
+    .map(t => Math.round((t - origin) * 1000) / 1000)
+    .sort((a, b) => a - b);
   const referenceNumber = Number(reference);
   const referenceSteps = reference.trim() !== '' && Number.isSafeInteger(referenceNumber) &&
     referenceNumber > 0 && referenceNumber <= 100000 ? referenceNumber : null;
