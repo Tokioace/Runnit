@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Footprints, LoaderCircle } from 'lucide-react';
 import MapScreen from './screens/MapScreen';
 import HomeScreen from './screens/HomeScreen';
+import DashboardScreen from './screens/DashboardScreen';
 import LeaderboardScreen from './screens/LeaderboardScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import GpsLabScreen from './screens/GpsLabScreen';
@@ -15,7 +16,7 @@ import { AUTH_CALLBACK_PATH } from './lib/authRedirect';
 import { useSupabaseUser } from './hooks/useSupabaseUser';
 
 const GUEST_SESSION_KEY = 'runnit:guest-mode';
-const APP_PATHS = new Set(['/', '/map', '/leaderboard', '/profile', '/gps-lab', '/calibration', '/fusion-lab', '/sprint-lab']);
+const APP_PATHS = new Set(['/', '/home', '/map', '/leaderboard', '/profile', '/gps-lab', '/calibration', '/fusion-lab', '/sprint-lab']);
 
 /**
  * Guest mode is a local UI preference, NOT a Supabase authentication identity.
@@ -32,7 +33,7 @@ function wasGuestModeChosen(): boolean {
 
 function safeLoginReturnPath(search: string): string {
   const next = new URLSearchParams(search).get('next');
-  return next && APP_PATHS.has(next) ? next : '/map';
+  return next && APP_PATHS.has(next) ? next : '/home';
 }
 
 export default function App() {
@@ -40,14 +41,32 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const [guestAccess, setGuestAccess] = useState(wasGuestModeChosen);
+  const previousSignedInId = useRef<string | null>(null);
 
   const enterGuestMode = () => {
-    try { window.sessionStorage.setItem(GUEST_SESSION_KEY, '1'); } catch { /* Private browsing may block storage. */ }
+    // This is only a browsing preference. It never creates an Auth user.
+    try { window.sessionStorage.setItem(GUEST_SESSION_KEY, '1'); } catch { /* Safari can restrict storage. */ }
     setGuestAccess(true);
-    if (location.pathname === '/login' || location.pathname === AUTH_CALLBACK_PATH) {
-      navigate(location.pathname === AUTH_CALLBACK_PATH ? '/map' : safeLoginReturnPath(location.search), { replace: true });
+    navigate('/home');
+  };
+
+  const enterApp = () => {
+    if (auth.user) {
+      navigate('/home');
+    } else {
+      enterGuestMode();
     }
   };
+
+  useEffect(() => {
+    if (auth.loading) return;
+    // Only a real signed-in -> signed-out transition returns to the welcome
+    // screen. An unauthenticated first launch is not an implicit logout.
+    if (previousSignedInId.current && !auth.user) {
+      navigate('/', { replace: true });
+    }
+    previousSignedInId.current = auth.user?.id ?? null;
+  }, [auth.loading, auth.user?.id, navigate]);
 
   if (auth.loading) {
     return (
@@ -62,7 +81,7 @@ export default function App() {
   }
 
   if (location.pathname === AUTH_CALLBACK_PATH) {
-    return auth.user ? <Navigate to="/map" replace /> : <AuthCallbackScreen onContinueAsGuest={enterGuestMode} />;
+    return auth.user ? <Navigate to="/home" replace /> : <AuthCallbackScreen onContinueAsGuest={enterGuestMode} />;
   }
 
   // Explicit login requests always open the account screen, even after a
@@ -72,9 +91,11 @@ export default function App() {
     return <Navigate to={safeLoginReturnPath(location.search)} replace />;
   }
 
-  if (!auth.user && (!guestAccess || location.pathname === '/login')) {
+  if (!auth.user && location.pathname === '/login') {
     return (
       <WelcomeAuthScreen
+        key={new URLSearchParams(location.search).get('mode') === 'signup' ? 'signup' : 'signin'}
+        initialMode={new URLSearchParams(location.search).get('mode') === 'signup' ? 'signup' : 'signin'}
         signInWithProvider={auth.signInWithProvider}
         sendMagicLink={auth.sendMagicLink}
         verifyEmailOtp={auth.verifyEmailOtp}
@@ -89,7 +110,8 @@ export default function App() {
   return (
     <div className="dark">
       <Routes>
-        <Route path="/" element={<HomeScreen />} />
+        <Route path="/" element={<HomeScreen isSignedIn={Boolean(auth.user)} guestAccess={guestAccess} onStart={enterApp} onContinueAsGuest={enterGuestMode} />} />
+        <Route path="/home" element={<DashboardScreen />} />
         <Route path="/map" element={<MapScreen />} />
         <Route path="/leaderboard" element={<LeaderboardScreen />} />
         <Route path="/profile" element={<ProfileScreen />} />

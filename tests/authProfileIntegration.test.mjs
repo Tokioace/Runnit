@@ -9,7 +9,7 @@ test('app allows opt-in guests to browse and preserves explicit login route', ()
   assert.match(app, /wasGuestModeChosen/);
   assert.match(app, /guestAccess/);
   assert.match(app, /location\.pathname === AUTH_CALLBACK_PATH/);
-  assert.match(app, /!auth\.user && \(!guestAccess \|\| location\.pathname === '\/login'\)/);
+  assert.ok(app.includes("!auth.user && location.pathname === '/login'"));
   assert.match(app, /<WelcomeAuthScreen/);
   assert.match(app, /<Route path="\/map" element=\{<MapScreen \/>\}/);
 });

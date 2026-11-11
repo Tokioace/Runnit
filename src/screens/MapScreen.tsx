@@ -1402,7 +1402,7 @@ export default function MapScreen() {
   }
 
   return (
-    <div className="runnit-map relative h-screen w-screen overflow-hidden bg-[#090b13] text-white">
+    <div className="runnit-map relative h-[100dvh] w-full overflow-hidden bg-[#090b13] text-white">
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={initialZoom}

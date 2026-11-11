@@ -18,7 +18,7 @@ type Props = {
  */
 export default function PageFrame({ kicker, title, description, icon, children, aside }: Props) {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#090b13] pb-32 text-white">
+    <main className="relative min-h-[100dvh] overflow-hidden bg-[#090b13] pb-[calc(8rem+env(safe-area-inset-bottom,0px))] text-white">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
         <div className="absolute -right-36 -top-28 h-96 w-96 rounded-full bg-violet-600/20 blur-[90px]" />
         <div className="absolute -left-40 top-[26rem] h-80 w-80 rounded-full bg-cyan-500/10 blur-[85px]" />

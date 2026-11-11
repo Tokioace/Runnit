@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, Map, Trophy, User } from 'lucide-react';
 
 const tabs = [
-  { href: '/', label: 'Start', icon: Home },
+  { href: '/home', label: 'Start', icon: Home },
   { href: '/map', label: 'Karte', icon: Map },
   { href: '/leaderboard', label: 'Rangliste', icon: Trophy },
   { href: '/profile', label: 'Profil', icon: User },

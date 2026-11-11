@@ -3,7 +3,7 @@ import { ArrowRight, LockKeyhole, Mail, ShieldCheck, UserPlus } from 'lucide-rea
 import type { UseSupabaseUserReturn } from '../../hooks/useSupabaseUser';
 import { getAccountDisplayNameError } from '../../lib/accountProfile';
 
-type Props = Pick<UseSupabaseUserReturn, 'signIn' | 'signUp'>;
+type Props = Pick<UseSupabaseUserReturn, 'signIn' | 'signUp'> & { initialMode?: Mode };
 type Mode = 'signin' | 'signup';
 
 function publicAuthError(error: unknown): string {
@@ -26,8 +26,8 @@ function publicAuthError(error: unknown): string {
   return 'Die Anmeldung konnte nicht abgeschlossen werden. Bitte prüfe die Angaben und versuche es erneut.';
 }
 
-export default function AccountAuthPanel({ signIn, signUp }: Props) {
-  const [mode, setMode] = useState<Mode>('signin');
+export default function AccountAuthPanel({ signIn, signUp, initialMode = 'signin' }: Props) {
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
