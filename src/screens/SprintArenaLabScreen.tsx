@@ -28,8 +28,9 @@ const statusTitle: Record<ReturnType<typeof analyzeSprintCadence>['status'], str
 const percent = (distance: number, target: number) => Math.max(0, Math.min(100, 100 * distance / target));
 const seconds = (ms: number) => (ms / 1000).toFixed(2).replace('.', ',');
 
-// Lane positions are derived only from synthetic distances and are clamped so
-// the runner markers remain visible at both START and FINISH on small screens.
+// Synthetic runner positions are expressed as percentages of track width.
+// Translation by the same percentage of the marker's width keeps both start
+// and finish markers entirely inside a clipped lane, even on narrow iPhones.
 function RaceTrackLane({ title, distanceM, targetMeters, finished, rival }: {
   title: string; distanceM: number; targetMeters: DemoRaceMeters;
   finished: boolean; rival?: boolean;
@@ -37,11 +38,11 @@ function RaceTrackLane({ title, distanceM, targetMeters, finished, rival }: {
   const progress = percent(distanceM, targetMeters);
   return (
     <div className="space-y-2" aria-label={`${title}: ${distanceM.toFixed(1)} von ${targetMeters} Metern`}>
-      <div className="flex items-center justify-between gap-2 text-xs">
-        <span className={`font-black uppercase tracking-[0.12em] ${rival ? 'text-fuchsia-200' : 'text-cyan-100'}`}>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
+        <span className={`whitespace-nowrap font-black uppercase tracking-[0.10em] ${rival ? 'text-fuchsia-200' : 'text-cyan-100'}`}>
           {title} {finished && <span className="ml-1 text-emerald-300">· FINISH</span>}
         </span>
-        <span className={`font-black tabular-nums ${rival ? 'text-fuchsia-200' : 'text-cyan-200'}`}>
+        <span className={`whitespace-nowrap font-black tabular-nums ${rival ? 'text-fuchsia-200' : 'text-cyan-200'}`}>
           {distanceM.toFixed(1)} / {targetMeters} m
         </span>
       </div>
@@ -54,8 +55,8 @@ function RaceTrackLane({ title, distanceM, targetMeters, finished, rival }: {
           style={{ backgroundImage: 'repeating-linear-gradient(180deg,#ffffff 0,#ffffff 6px,#26243b 6px,#26243b 12px)' }} />
         <div aria-hidden="true" className={`absolute left-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full transition-[width] duration-75 motion-reduce:transition-none ${rival ? 'bg-fuchsia-300/60' : 'bg-cyan-300/70'}`}
           style={{ width: `${progress}%` }} />
-        <span aria-hidden="true" className={`absolute top-2 flex h-8 w-8 items-center justify-center rounded-full border text-xl shadow-[0_0_18px_rgba(0,0,0,.35)] transition-[left] duration-75 ease-linear motion-reduce:transition-none ${rival ? 'border-fuchsia-300/70 bg-fuchsia-600' : 'border-cyan-200/70 bg-blue-600'} ${finished ? 'ring-2 ring-emerald-300/50' : ''}`}
-          style={{ left: `${2 + progress * 0.9}%` }}>
+        <span aria-hidden="true" className={`absolute top-2 flex h-8 w-8 items-center justify-center rounded-full border text-xl shadow-[0_0_18px_rgba(0,0,0,.35)] transition-[left,transform] duration-75 ease-linear motion-reduce:transition-none ${rival ? 'border-fuchsia-300/70 bg-fuchsia-600' : 'border-cyan-200/70 bg-blue-600'} ${finished ? 'ring-2 ring-emerald-300/50' : ''}`}
+          style={{ left: `${progress}%`, transform: `translateX(-${progress}%)` }}>
           🏃
         </span>
       </div>
