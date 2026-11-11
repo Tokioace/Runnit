@@ -112,3 +112,79 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .runnit-map .leaflet-tile-pane { transition: none; }
 }
+
+
+/* Animated runners in the fictional 1v1 arena. CSS controls only the local
+   SVG limbs; elapsed time and positioning remain in the existing demo model.
+   No animation runs at rest, during countdown or after the respective finish. */
+.runnit-sprint-runner {
+  display: block;
+  overflow: visible;
+}
+
+.runnit-sprint-arm--front,
+.runnit-sprint-arm--back,
+.runnit-sprint-leg--front,
+.runnit-sprint-leg--back,
+.runnit-sprint-body {
+  transform-box: view-box;
+}
+
+.runnit-sprint-arm--front,
+.runnit-sprint-arm--back {
+  transform-origin: 23px 21px;
+}
+
+.runnit-sprint-leg--front,
+.runnit-sprint-leg--back {
+  transform-origin: 19px 30px;
+}
+
+.runnit-sprint-body {
+  transform-origin: 23px 24px;
+}
+
+.runnit-sprint-runner--moving .runnit-sprint-arm--front {
+  animation: runnit-sprint-swing-forward var(--runnit-run-cycle, 370ms) ease-in-out infinite alternate;
+}
+
+.runnit-sprint-runner--moving .runnit-sprint-arm--back {
+  animation: runnit-sprint-swing-back var(--runnit-run-cycle, 370ms) ease-in-out infinite alternate;
+}
+
+.runnit-sprint-runner--moving .runnit-sprint-leg--front {
+  animation: runnit-sprint-swing-back var(--runnit-run-cycle, 370ms) ease-in-out infinite alternate;
+}
+
+.runnit-sprint-runner--moving .runnit-sprint-leg--back {
+  animation: runnit-sprint-swing-forward var(--runnit-run-cycle, 370ms) ease-in-out infinite alternate;
+}
+
+.runnit-sprint-runner--moving .runnit-sprint-body {
+  animation: runnit-sprint-bob calc(var(--runnit-run-cycle, 370ms) / 2) ease-in-out infinite alternate;
+}
+
+@keyframes runnit-sprint-swing-forward {
+  from { transform: rotate(-34deg); }
+  to { transform: rotate(35deg); }
+}
+
+@keyframes runnit-sprint-swing-back {
+  from { transform: rotate(35deg); }
+  to { transform: rotate(-34deg); }
+}
+
+@keyframes runnit-sprint-bob {
+  from { transform: translateY(0); }
+  to { transform: translateY(-1.6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .runnit-sprint-runner--moving .runnit-sprint-arm--front,
+  .runnit-sprint-runner--moving .runnit-sprint-arm--back,
+  .runnit-sprint-runner--moving .runnit-sprint-leg--front,
+  .runnit-sprint-runner--moving .runnit-sprint-leg--back,
+  .runnit-sprint-runner--moving .runnit-sprint-body {
+    animation: none !important;
+  }
+}
