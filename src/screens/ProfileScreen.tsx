@@ -58,6 +58,23 @@ export default function ProfileScreen() {
             </Link>
           </section>
 
+          <section aria-label="Sprint-Arena Testbildschirm" className="relative overflow-hidden rounded-3xl border border-fuchsia-300/25 bg-gradient-to-r from-[#3c1b5a] via-[#162d50] to-[#0a3a43] p-5">
+            <div className="pointer-events-none absolute -right-12 -top-10 h-40 w-40 rounded-full bg-fuchsia-400/15 blur-3xl" aria-hidden="true" />
+            <div className="relative flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-fuchsia-300/30 bg-fuchsia-300/10">
+                <Flag className="h-6 w-6 text-fuchsia-200" aria-hidden="true" />
+              </span>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300">RACE ENGINE · NEW</p>
+                <h2 className="mt-1 text-lg font-black">Sprint Arena · 1v1</h2>
+              </div>
+            </div>
+            <p className="relative mt-3 text-xs leading-6 text-white/65">Erlebe Countdown, Gegnerfortschritt und das neue Sprint-Kadenz-Testlabor. Ausschließlich Simulation, keine echten Läufer.</p>
+            <Link to="/sprint-lab" className="relative mt-4 flex min-h-12 items-center justify-between rounded-xl bg-gradient-to-r from-fuchsia-600 to-cyan-600 px-4 text-sm font-extrabold">
+              Sprint Arena testen <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </section>
+
           <section aria-label="Deine zukünftigen Sportstatistiken" className="space-y-4">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-xl font-extrabold tracking-tight">Sportliche Leistungen</h2>
