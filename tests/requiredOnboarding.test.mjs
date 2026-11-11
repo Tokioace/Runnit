@@ -57,8 +57,8 @@ test('start is public and account forms are shown only after explicit login navi
   assert.match(app, /<WelcomeAuthScreen/);
   assert.ok(app.includes("<Route path=\"/\" element={<HomeScreen"));
   assert.match(home, /onContinueAsGuest/);
-  assert.match(home, /to="\\/login\\?mode=signup"/);
-  assert.match(home, /to="\\/login\\?mode=signin"/);
+  assert.ok(home.includes("to=\"/login?mode=signup\""));
+  assert.ok(home.includes("to=\"/login?mode=signin\""));
   for (const name of ['MapScreen', 'LeaderboardScreen', 'ProfileScreen', 'GpsLabScreen']) {
     assert.ok(app.includes('element={<' + name + ' />}'), name);
   }
