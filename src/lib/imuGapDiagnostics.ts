@@ -19,3 +19,22 @@ export function splitTraceAtGaps<T extends { timestampMs: number }>(samples: rea
   }
   return segments;
 }
+
+/** Descriptive gap duration only; never used to correct step counts or FairPlay verdicts. */
+export function summarizeImuGaps(gaps: readonly { startMs: number; endMs: number }[]): {
+  count: number;
+  totalGapMs: number;
+  longestGapMs: number;
+} {
+  let totalGapMs = 0;
+  let longestGapMs = 0;
+  let count = 0;
+  for (const gap of gaps) {
+    const duration = gap.endMs - gap.startMs;
+    if (!Number.isFinite(duration) || duration <= 0) continue;
+    totalGapMs += duration;
+    longestGapMs = Math.max(longestGapMs, duration);
+    count++;
+  }
+  return { count, totalGapMs, longestGapMs };
+}
