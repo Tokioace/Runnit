@@ -20,6 +20,7 @@ import { LeaderboardSheet } from '../components/leaderboard/Sheet';
 import { leaderboardSourceLabel, type LeaderboardSource } from '../lib/leaderboardProvenance';
 import { MapHUD } from '../components/map/MapHUD';
 import { parseGeographyPoint } from '../lib/duelLocation';
+import { cancelHostedOpenDuel, cancelHostedDuelMessage, listHostedOpenDuels, type HostedOpenDuel } from '../db/cancelHostedDuel';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage, type ScreenWakeLockStatus } from '../lib/screenWakeLock';
@@ -550,11 +551,13 @@ function HostRunDialog({
   open,
   onClose,
   onHost,
+  onDemo,
   defaultDistance,
 }: {
   open: boolean;
   onClose: () => void;
   onHost: (distanceMeters: number) => Promise<void>;
+  onDemo: () => void;
   defaultDistance?: number;
 }) {
   const { t } = useI18n();
@@ -623,6 +626,10 @@ function HostRunDialog({
           </select>
         </div>
         <p className="mb-4 text-xs leading-5 text-white/60">Nach dem Erstellen bleibt dein Duell offen, bis ein zweiter Läufer beitritt. Erst dann startet der Countdown.</p>
+        <button type="button" onClick={onDemo} disabled={submitting}
+          className="mb-4 flex min-h-12 w-full items-center justify-center rounded-xl border border-cyan-300/40 bg-cyan-300/10 px-4 text-sm font-extrabold text-cyan-100 disabled:opacity-50">
+          Renn-Grafik allein testen · Simulation
+        </button>
         {hostError && <p role="alert" className="mb-4 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-xs leading-5 text-rose-100">{hostError}</p>}
         <div className="flex items-center justify-end gap-3">
           <button
@@ -840,6 +847,11 @@ export default function MapScreen() {
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
+  // Own live lobby is visible even when its map popup is closed or GPS changes.
+  const [hostedOpenDuels, setHostedOpenDuels] = useState<HostedOpenDuel[]>([]);
+  const [hostedDuelsLoadError, setHostedDuelsLoadError] = useState(false);
+  const [cancelConfirmation, setCancelConfirmation] = useState<HostedOpenDuel | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancellingRunId, setCancellingRunId] = useState<string | null>(null);
   const [loadingGhosts, setLoadingGhosts] = useState(false);
   const [loadingDuels, setLoadingDuels] = useState(false);
@@ -1139,6 +1151,29 @@ export default function MapScreen() {
     };
   }, [generateDemoRuns, userCoords, authUser?.id]);
 
+  // Fetch only this authenticated host's open, unjoined lobbies. Keep the
+  // cancellation action independent from the 5-km map search and Leaflet popup.
+  useEffect(() => {
+    if (!authUser) {
+      setHostedOpenDuels([]);
+      setHostedDuelsLoadError(false);
+      setCancelConfirmation(null);
+      return;
+    }
+    let active = true;
+    void listHostedOpenDuels(supabase, authUser.id)
+      .then(runs => {
+        if (!active) return;
+        setHostedOpenDuels(runs);
+        setHostedDuelsLoadError(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setHostedDuelsLoadError(true);
+      });
+    return () => { active = false; };
+  }, [authUser?.id]);
+
   // No Realtime subscription while exploring as an unauthenticated guest.
   // Realtime updates for duels
   useEffect(() => {
@@ -1260,32 +1295,46 @@ export default function MapScreen() {
       targetDistanceM: distanceMeters,
     };
     setOpenRuns(previous => [created, ...previous.filter(run => run.id !== created.id)]);
+    setHostedOpenDuels(previous => [
+      { id: created.id, hostUserId: authUser.id, distanceMeters,
+        createdAt: created.createdAt ?? null },
+      ...previous.filter(run => run.id !== created.id),
+    ]);
+    setHostedDuelsLoadError(false);
     setRaceNotice(`Dein ${distanceMeters}-m-Rennen wurde erstellt. Warte auf einen zweiten Läufer; dann startet der Countdown.`);
   };
 
-  const handleCancelHostedRun = async (run: OpenRun) => {
+  const handleCancelHostedRun = (run: HostedOpenDuel) => {
     if (!authUser || run.hostUserId !== authUser.id || run.id.startsWith('demo-run-')) return;
-    if (!window.confirm('Möchtest du dein offenes Rennen wirklich absagen?')) return;
+    // No window.confirm: embedded iOS Safari/PWA and Leaflet popups can dismiss
+    // the native prompt before the user sees what happened.
+    setCancelError(null);
+    setCancelConfirmation(run);
+  };
+
+  const confirmCancelHostedRun = async () => {
+    const run = cancelConfirmation;
+    if (!authUser || !run || run.hostUserId !== authUser.id || cancellingRunId) return;
     setCancellingRunId(run.id);
+    setCancelError(null);
     setRaceNotice(null);
     try {
-      const { data, error } = await supabase
-        .from('duels')
-        .update({ status: 'cancelled' })
-        .eq('id', run.id)
-        .eq('host_user_id', authUser.id)
-        .eq('status', 'open')
-        .is('challenger_user_id', null)
-        .select('id');
-      if (error) throw error;
-      if (!data?.length) {
-        setRaceNotice('Rennen konnte nicht abgesagt werden. Es wurde möglicherweise bereits gestartet oder ein Läufer ist beigetreten.');
-        return;
+      const result = await cancelHostedOpenDuel(supabase, run.id, authUser.id);
+      const message = cancelHostedDuelMessage(result);
+      if (result.status === 'cancelled') {
+        setHostedOpenDuels(previous => previous.filter(item => item.id !== run.id));
+        setOpenRuns(previous => previous.filter(item => item.id !== run.id));
+        setCancelConfirmation(null);
+        setRaceNotice(message);
+      } else {
+        // Do not remove a row unless the server actually returned cancellation.
+        setCancelError(message);
+        setRaceNotice(message);
+        // Refresh own lobby statuses after a possible concurrent challenger join.
+        void listHostedOpenDuels(supabase, authUser.id)
+          .then(runs => { setHostedOpenDuels(runs); setHostedDuelsLoadError(false); })
+          .catch(() => setHostedDuelsLoadError(true));
       }
-      setOpenRuns(prev => prev.filter(item => item.id !== run.id));
-      setRaceNotice('Dein Rennen wurde abgesagt.');
-    } catch {
-      setRaceNotice('Rennen konnte nicht abgesagt werden. Bitte versuche es erneut.');
     } finally {
       setCancellingRunId(null);
     }
@@ -1414,7 +1463,7 @@ export default function MapScreen() {
                   <div className="space-y-2">
                     <p className="rounded-xl bg-emerald-300/15 px-3 py-2 text-xs font-semibold text-emerald-100">Dein Rennen · Wartet auf Mitläufer</p>
                     <button type="button" disabled={cancellingRunId === r.id}
-                      onClick={() => { void handleCancelHostedRun(r); }}
+                      onClick={() => handleCancelHostedRun({ id: r.id, hostUserId: r.hostUserId ?? '', distanceMeters: r.distanceMeters, createdAt: r.createdAt ?? null })}
                       className="w-full rounded-xl border border-rose-400/50 bg-rose-500/15 px-4 py-3 text-sm font-bold text-rose-100 disabled:opacity-50">
                       {cancellingRunId === r.id ? 'Wird abgesagt …' : 'Rennen absagen'}
                     </button>
@@ -1432,6 +1481,32 @@ export default function MapScreen() {
           </MapBadgeMarker>
         ))}
       </MapContainer>
+
+      {authUser && (hostedOpenDuels.length > 0 || hostedDuelsLoadError) && (
+        <section aria-label="Meine offenen Rennen"
+          className="pointer-events-auto absolute inset-x-4 top-28 z-[960] mx-auto max-h-[35dvh] max-w-sm space-y-3 overflow-y-auto rounded-[22px] border border-emerald-300/30 bg-[#0a1424]/95 p-4 text-white shadow-[0_16px_50px_rgba(0,0,0,.48)] backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-black text-emerald-200">Meine offenen Rennen</p>
+            <span className="text-xs tabular-nums text-white/60">{hostedOpenDuels.length} offen</span>
+          </div>
+          {hostedDuelsLoadError && <p role="alert" className="text-xs leading-5 text-amber-200">
+            Offene Rennen konnten nicht aktualisiert werden. Bitte Verbindung prüfen oder Karte neu öffnen.
+          </p>}
+          {hostedOpenDuels.map(run => (
+            <div key={run.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.06] p-3">
+              <div>
+                <p className="text-sm font-extrabold">{run.distanceMeters} m Sprint</p>
+                <p className="mt-1 text-[11px] text-white/55">Wartet auf zweiten Läufer</p>
+              </div>
+              <button type="button" disabled={cancellingRunId === run.id}
+                onClick={() => handleCancelHostedRun(run)}
+                className="min-h-11 shrink-0 rounded-xl border border-rose-300/45 bg-rose-500/20 px-4 text-xs font-extrabold text-rose-100 disabled:opacity-40">
+                Rennen absagen
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
 
       {(players.some((player) => player.source === 'demo') ||
         openRuns.some((run) => run.id.startsWith('demo-run-'))) && (
@@ -1623,10 +1698,16 @@ export default function MapScreen() {
       )}
 
       {raceNotice && (
-        <div role="status" className="pointer-events-auto absolute inset-x-4 bottom-44 z-[951] mx-auto max-w-sm rounded-2xl border border-amber-300/25 bg-[#191827]/95 px-4 py-3 text-xs leading-5 text-amber-100 shadow-lg">
+        <div role="status" className="pointer-events-auto absolute inset-x-4 bottom-56 z-[951] mx-auto max-w-sm rounded-2xl border border-amber-300/25 bg-[#191827]/95 px-4 py-3 text-xs leading-5 text-amber-100 shadow-lg">
           {raceNotice}
         </div>
       )}
+
+      {/* Standalone art preview works without GPS, opponents, or account writes. */}
+      <button type="button" onClick={() => navigate('/sprint-lab')}
+        className="pointer-events-auto absolute inset-x-4 bottom-40 z-[951] mx-auto flex min-h-12 max-w-sm items-center justify-center gap-2 rounded-xl border border-cyan-300/35 bg-[#0b2037]/95 px-4 text-sm font-extrabold text-cyan-100 shadow-[0_8px_30px_rgba(0,0,0,.4)] backdrop-blur">
+        Renn-Grafik testen · Demo ohne zweiten Läufer
+      </button>
 
       {/* Guests may explore the map; creating or joining runs opens login. */}
       <div className="pointer-events-none absolute inset-x-4 bottom-24 z-[950] flex justify-center gap-2.5">
@@ -1661,10 +1742,35 @@ export default function MapScreen() {
         />
       </BottomSheet>
 
+      {cancelConfirmation && (
+        <div className="fixed inset-0 z-[1450] flex items-center justify-center bg-[#050816]/85 p-5 text-white backdrop-blur-md">
+          <section role="dialog" aria-modal="true" aria-labelledby="cancel-hosted-title"
+            className="w-full max-w-sm space-y-5 rounded-[28px] border border-rose-300/30 bg-gradient-to-br from-[#2a1936] to-[#101929] p-6 shadow-[0_24px_85px_rgba(0,0,0,.65)]">
+            <h2 id="cancel-hosted-title" className="text-xl font-black">Rennen wirklich absagen?</h2>
+            <p className="text-sm leading-6 text-white/70">
+              Dein {cancelConfirmation.distanceMeters}-m-Rennen wird nur dann abgesagt,
+              wenn noch niemand beigetreten ist. Danach verschwindet es aus den offenen Rennen.
+            </p>
+            {cancelError && <p role="alert" className="rounded-xl border border-rose-300/30 bg-rose-400/10 p-3 text-xs leading-5 text-rose-100">{cancelError}</p>}
+            <button type="button" disabled={Boolean(cancellingRunId)}
+              onClick={() => { void confirmCancelHostedRun(); }}
+              className="min-h-14 w-full rounded-xl bg-rose-500 px-4 font-black text-white disabled:opacity-40">
+              {cancellingRunId ? 'Absage wird bestätigt …' : 'Ja, Rennen absagen'}
+            </button>
+            <button type="button" disabled={Boolean(cancellingRunId)}
+              onClick={() => { setCancelConfirmation(null); setCancelError(null); }}
+              className="min-h-12 w-full rounded-xl border border-white/20 bg-white/5 px-4 font-bold text-white/80 disabled:opacity-40">
+              Nein, Rennen behalten
+            </button>
+          </section>
+        </div>
+      )}
+
       <HostRunDialog
         open={hostOpen && Boolean(authUser)}
         onClose={() => setHostOpen(false)}
         onHost={handleHostRun}
+        onDemo={() => { setHostOpen(false); navigate('/sprint-lab'); }}
         defaultDistance={50}
       />
 
