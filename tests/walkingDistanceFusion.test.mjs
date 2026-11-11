@@ -92,5 +92,7 @@ test('demo UI declares fake data and has no writes or calls to race scoring', ()
   assert.match(screen, /GPS-Sprung/);
   assert.match(profile, /to="\/fusion-lab"/);
   assert.match(app, /<Route path="\/fusion-lab" element=\{<FusionLabScreen \/>\}/);
-  assert.doesNotMatch(screen + fusion, /(?:from\\s+['\"][^'\"]*(?:db|supabase)|(?:submitDuelResult|readyForDuel|createDuel)\\s*\\()/i);
+  for (const prohibited of ['submitDuelResult(', 'readyForDuel(', 'createDuel(', "from '../db/", "from '../lib/supabaseClient"]) {
+    assert.equal((screen + fusion).includes(prohibited), false, 'No race or DB integration in simulator');
+  }
 });
