@@ -10,7 +10,8 @@ import { resetPageScrollToTop } from '../../lib/pageScroll';
  * also runs when App shows its loading/login state or returns from a callback.
  *
  * The extra animation frame covers mobile Safari's delayed layout updates.
- * pageShow also handles opening an existing tab via back-forward cache.
+ * pageshow also handles back-forward cache; visibilitychange covers returning
+ * to the open iPhone PWA from another app.
  */
 export default function RouteScrollToTop() {
   const { pathname, key } = useLocation();
@@ -37,10 +38,15 @@ export default function RouteScrollToTop() {
         resetPageScrollToTop(window, document);
       });
     };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') onPageShow();
+    };
     window.addEventListener('pageshow', onPageShow);
+    document.addEventListener('visibilitychange', onVisible);
 
     return () => {
       window.removeEventListener('pageshow', onPageShow);
+      document.removeEventListener('visibilitychange', onVisible);
       if (pageShowFrame !== null) window.cancelAnimationFrame(pageShowFrame);
       try { window.history.scrollRestoration = previous; } catch { /* Browser may disallow it. */ }
     };
