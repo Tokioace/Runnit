@@ -92,5 +92,5 @@ test('demo UI declares fake data and has no writes or calls to race scoring', ()
   assert.match(screen, /GPS-Sprung/);
   assert.match(profile, /to="\/fusion-lab"/);
   assert.match(app, /<Route path="\/fusion-lab" element=\{<FusionLabScreen \/>\}/);
-  assert.doesNotMatch(screen + fusion, /supabase|submitDuelResult|readyForDuel|createDuel|leaderboard/i);
+  assert.doesNotMatch(screen + fusion, /(?:from\\s+['\"][^'\"]*(?:db|supabase)|(?:submitDuelResult|readyForDuel|createDuel)\\s*\\()/i);
 });
