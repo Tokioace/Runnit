@@ -3,7 +3,7 @@ import { ArrowRight, LockKeyhole, Mail, ShieldCheck, UserPlus } from 'lucide-rea
 import type { UseSupabaseUserReturn } from '../../hooks/useSupabaseUser';
 import { getAccountDisplayNameError } from '../../lib/accountProfile';
 
-type Props = Pick<UseSupabaseUserReturn, 'signIn' | 'signUp'> & { initialMode?: Mode };
+type Props = Pick<UseSupabaseUserReturn, 'signIn' | 'signUp'> & { initialMode?: Mode; hideModeSwitch?: boolean };
 type Mode = 'signin' | 'signup';
 
 function publicAuthError(error: unknown): string {
@@ -26,7 +26,7 @@ function publicAuthError(error: unknown): string {
   return 'Die Anmeldung konnte nicht abgeschlossen werden. Bitte prüfe die Angaben und versuche es erneut.';
 }
 
-export default function AccountAuthPanel({ signIn, signUp, initialMode = 'signin' }: Props) {
+export default function AccountAuthPanel({ signIn, signUp, initialMode = 'signin', hideModeSwitch = false }: Props) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,6 +34,7 @@ export default function AccountAuthPanel({ signIn, signUp, initialMode = 'signin
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [registrationSubmitted, setRegistrationSubmitted] = useState(false);
 
   const switchMode = (next: Mode) => {
     if (pending) return;
@@ -63,7 +64,13 @@ export default function AccountAuthPanel({ signIn, signUp, initialMode = 'signin
       } else {
         await signUp(email, password, displayName);
         setPassword('');
-        setMode('signin');
+        if (hideModeSwitch) {
+          // Keep registration and login distinct: never switch the form to login
+          // underneath a /register URL after a successful account request.
+          setRegistrationSubmitted(true);
+        } else {
+          setMode('signin');
+        }
         setInfo('Falls die Registrierung möglich ist, erhältst du eine E-Mail zur Bestätigung. Prüfe auch den Spamordner und melde dich danach an.');
       }
     } catch (e) {
@@ -85,7 +92,7 @@ export default function AccountAuthPanel({ signIn, signUp, initialMode = 'signin
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/[0.045] p-1.5" role="group" aria-label="Kontomodus">
+      {!hideModeSwitch && <div className="mt-6 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/[0.045] p-1.5" role="group" aria-label="Kontomodus">
         {([{ key: 'signin', label: 'Anmelden' }, { key: 'signup', label: 'Registrieren' }] as const).map(({ key, label }) => (
           <button key={key} type="button" aria-pressed={mode === key} disabled={pending}
             onClick={() => switchMode(key)}
@@ -93,9 +100,11 @@ export default function AccountAuthPanel({ signIn, signUp, initialMode = 'signin
             {label}
           </button>
         ))}
-      </div>
+      </div>}
 
-      <form onSubmit={(event) => { void submit(event); }} className="mt-6 space-y-4">
+      {registrationSubmitted ? (
+        <p role="status" className="mt-6 rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-4 py-4 text-sm leading-6 text-emerald-100">{info}</p>
+      ) : <form onSubmit={(event) => { void submit(event); }} className="mt-6 space-y-4">
         {mode === 'signup' && (
           <div>
             <label htmlFor="account-nickname" className="mb-2 block text-xs font-semibold text-white/75">Anzeigename</label>
@@ -126,7 +135,7 @@ export default function AccountAuthPanel({ signIn, signUp, initialMode = 'signin
           {pending ? 'Bitte warten …' : mode === 'signin' ? 'Anmelden' : 'Konto erstellen'}
           {!pending && <ArrowRight className="h-5 w-5" aria-hidden="true" />}
         </button>
-      </form>
+      </form>}
       <p className="mt-5 flex items-start gap-2 text-xs leading-6 text-white/50">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" aria-hidden="true" />
         E-Mail und Passwort werden für die Anmeldung an Supabase Auth gesendet, nicht in der App-Ansicht angezeigt.

@@ -84,18 +84,22 @@ export default function App() {
     return auth.user ? <Navigate to="/home" replace /> : <AuthCallbackScreen onContinueAsGuest={enterGuestMode} />;
   }
 
-  // Explicit login requests always open the account screen, even after a
-  // guest has already entered the app. Only known local routes can be used
-  // as a post-login destination.
-  if (auth.user && location.pathname === '/login') {
+  // Dedicated routes for the two intents. Keep the previous
+  // /login?mode=signup link supported for existing bookmarks.
+  const accountPage = location.pathname === '/login' || location.pathname === '/register';
+  const accountMode = location.pathname === '/register' ||
+    new URLSearchParams(location.search).get('mode') === 'signup' ? 'signup' : 'signin';
+
+  // Authenticated users do not need a second account or login.
+  if (auth.user && accountPage) {
     return <Navigate to={safeLoginReturnPath(location.search)} replace />;
   }
 
-  if (!auth.user && location.pathname === '/login') {
+  if (!auth.user && accountPage) {
     return (
       <WelcomeAuthScreen
-        key={new URLSearchParams(location.search).get('mode') === 'signup' ? 'signup' : 'signin'}
-        initialMode={new URLSearchParams(location.search).get('mode') === 'signup' ? 'signup' : 'signin'}
+        key={accountMode}
+        initialMode={accountMode}
         signInWithProvider={auth.signInWithProvider}
         sendMagicLink={auth.sendMagicLink}
         verifyEmailOtp={auth.verifyEmailOtp}

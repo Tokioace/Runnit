@@ -52,13 +52,13 @@ test('unknown callback errors are not rendered as server-provided HTML or string
 test('start is public and account forms are shown only after explicit login navigation', () => {
   const app = read('src/App.tsx');
   const home = read('src/screens/HomeScreen.tsx');
-  assert.ok(app.includes("!auth.user && location.pathname === '/login'"));
+  assert.ok(app.includes("!auth.user && accountPage"));
   assert.ok(app.includes("sessionStorage.setItem(GUEST_SESSION_KEY, '1')"));
   assert.match(app, /<WelcomeAuthScreen/);
   assert.ok(app.includes("<Route path=\"/\" element={<HomeScreen"));
   assert.match(home, /onContinueAsGuest/);
-  assert.ok(home.includes("to=\"/login?mode=signup\""));
-  assert.ok(home.includes("to=\"/login?mode=signin\""));
+  assert.ok(home.includes("to=\"/register\""));
+  assert.ok(home.includes("to=\"/login\""));
   for (const name of ['MapScreen', 'LeaderboardScreen', 'ProfileScreen', 'GpsLabScreen']) {
     assert.ok(app.includes('element={<' + name + ' />}'), name);
   }

@@ -21,8 +21,8 @@ test('STARTEN and three frameless account hit regions align to artwork percentag
   const screen = read('src/screens/HomeScreen.tsx');
   assert.match(screen, /onClick=\{onStart\}/);
   assert.match(screen, /left-\[10%\] top-\[81\.9%\] h-\[9%\] w-\[80%\]/);
-  assert.match(screen, /to="\/login\?mode=signin"/);
-  assert.match(screen, /to="\/login\?mode=signup"/);
+  assert.match(screen, /to="\/login"/);
+  assert.match(screen, /to="\/register"/);
   assert.match(screen, /onClick=\{onContinueAsGuest\}/);
   assert.match(screen, /left-\[9\.2%\] top-\[91\.6%\]/);
   assert.match(screen, /left-\[37%\] top-\[91\.6%\]/);
@@ -69,7 +69,8 @@ test('sign-in and registration reuse current real forms and protected redirects'
   const welcome = read('src/components/auth/WelcomeAuthScreen.tsx');
   const panel = read('src/components/profile/AccountAuthPanel.tsx');
   assert.match(app, /location\.pathname === '\/login'/);
-  assert.match(app, /initialMode=\{new URLSearchParams\(location\.search\)/);
+  assert.match(app, /location\.pathname === '\/register'/);
+  assert.match(app, /initialMode=\{accountMode\}/);
   assert.match(welcome, /<AccountAuthPanel signIn=\{signIn\} signUp=\{signUp\} initialMode=\{initialMode\}/);
   assert.match(panel, /const \[mode, setMode\] = useState<Mode>\(initialMode\)/);
   assert.match(panel, /await signIn\(email, password\)/);
