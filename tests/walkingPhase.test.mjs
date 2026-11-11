@@ -21,6 +21,14 @@ describe('walking phase diagnostic', () => {
     const trace = [{ timestampMs: NaN, accelerationMagnitudeMps2: 2 }, ...samples(1000, 5000, 2)];
     assert.deepEqual(detectWalkingPhase(trace), { startMs: 0, endMs: 4000 });
   });
+  it('uses earliest valid timestamp even if IMU samples arrive out of order', () => {
+    const trace = [...samples(3000, 6500, 2), ...samples(0, 3000, 0.2)];
+    assert.deepEqual(detectWalkingPhase(trace), { startMs: 3000, endMs: 6500 });
+  });
+  it('ignores negative acceleration magnitudes instead of treating them as walking', () => {
+    const trace = [...samples(0, 5000, -5), ...samples(5000, 6500, 0.2)];
+    assert.equal(detectWalkingPhase(trace), null);
+  });
   it('rejects stationary jitter and short phone handling', () => {
     assert.equal(detectWalkingPhase(samples(0, 5000, 0.3)), null);
     assert.equal(detectWalkingPhase([...samples(0, 6000, 0.2), ...samples(6000, 7000, 4)]), null);
