@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 type Props = {
   isSignedIn: boolean;
   guestAccess: boolean;
@@ -53,18 +55,18 @@ export default function HomeScreen({ isSignedIn, guestAccess, onStart, onContinu
             <span className="sr-only">Du bist angemeldet. Anmelden und Registrieren sind nicht erforderlich.</span>
           </div>
         ) : (
-          <nav aria-label="Kontoaktionen" className="contents">
-            <a
-              href="/login?mode=signin"
+          <nav aria-label="Kontoaktionen" className="pointer-events-none absolute inset-0">
+            <Link
+              to="/login?mode=signin"
               aria-label="ANMELDEN"
-              className="absolute left-[9.2%] top-[91.6%] h-[6.3%] w-[27%] rounded-md bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-100"
+              className="absolute left-[9.2%] top-[91.6%] h-[6.3%] w-[27%] pointer-events-auto rounded-md bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-100"
             >
               <span className="sr-only">ANMELDEN</span>
-            </a>
-            <a
-              href="/login?mode=signup"
+            </Link>
+            <Link
+              to="/login?mode=signup"
               aria-label="REGISTRIEREN"
-              className="absolute left-[37%] top-[91.6%] h-[6.3%] w-[28.5%] rounded-md bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-100"
+              className="absolute left-[37%] top-[91.6%] h-[6.3%] w-[28.5%] pointer-events-auto rounded-md bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-100"
             >
               <span className="sr-only">REGISTRIEREN</span>
             </a>
@@ -72,7 +74,7 @@ export default function HomeScreen({ isSignedIn, guestAccess, onStart, onContinu
               type="button"
               aria-label="ALS GAST fortfahren"
               onClick={onContinueAsGuest}
-              className="absolute left-[68.5%] top-[91.6%] h-[6.3%] w-[25%] rounded-md bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-100"
+              className="absolute left-[68.5%] top-[91.6%] h-[6.3%] w-[25%] pointer-events-auto rounded-md bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-100"
             >
               <span className="sr-only">{guestAccess ? 'ALS GAST weiter' : 'ALS GAST fortfahren'}</span>
             </button>
