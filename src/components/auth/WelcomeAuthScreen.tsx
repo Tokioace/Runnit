@@ -186,8 +186,8 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
               <p className="text-xs leading-5 text-white/60">Die Anbieter müssen im RUNNIT-Backend freigeschaltet sein.</p>
               {providers.map(({ id, title, marker, style }) => (
                 <button key={id} type="button" disabled={Boolean(pending)} onClick={() => { void startProvider(id); }}
-                  className={\`flex min-h-14 w-full items-center gap-4 rounded-2xl border px-4 py-3 text-left text-sm font-bold transition-colors disabled:opacity-55 \${style}\`}>
-                  <span className={\`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xl font-black \${id === 'apple' ? 'text-slate-950' : id === 'facebook' ? 'text-blue-400' : 'text-white'}\`} aria-hidden="true">{marker}</span>
+                  className={`flex min-h-14 w-full items-center gap-4 rounded-2xl border px-4 py-3 text-left text-sm font-bold transition-colors disabled:opacity-55 ${style}`}>
+                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xl font-black ${id === 'apple' ? 'text-slate-950' : id === 'facebook' ? 'text-blue-400' : 'text-white'}`} aria-hidden="true">{marker}</span>
                   <span className="flex-1">{pending === id ? 'Weiterleitung …' : title}</span>
                   <ArrowRight className="h-4 w-4 opacity-55" aria-hidden="true" />
                 </button>
@@ -218,7 +218,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
                   className="min-h-14 w-full rounded-2xl border border-white/20 bg-[#0d1322] px-4 text-sm text-white outline-none placeholder:text-white/30 focus:ring-2 focus:ring-cyan-300/50" />
                 <button type="submit" disabled={Boolean(pending) || emailResendCooldown > 0}
                   className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-4 text-sm font-extrabold text-[#061027] transition hover:brightness-110 disabled:opacity-50">
-                  {pending === 'email' ? 'E-Mail wird angefordert …' : emailResendCooldown > 0 ? \`Erneut senden in \${emailResendCooldown} s\` : verificationEmail ? 'Neuen Link oder Code senden' : 'Anmeldelink senden'}
+                  {pending === 'email' ? 'E-Mail wird angefordert …' : emailResendCooldown > 0 ? `Erneut senden in ${emailResendCooldown} s` : verificationEmail ? 'Neuen Link oder Code senden' : 'Anmeldelink senden'}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </button>
               </form>
