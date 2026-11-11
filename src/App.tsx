@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Footprints, LoaderCircle } from 'lucide-react';
 import MapScreen from './screens/MapScreen';
@@ -13,6 +13,7 @@ import WelcomeAuthScreen from './components/auth/WelcomeAuthScreen';
 import AuthCallbackScreen from './components/auth/AuthCallbackScreen';
 import { AUTH_CALLBACK_PATH } from './lib/authRedirect';
 import { useSupabaseUser } from './hooks/useSupabaseUser';
+import { supabase } from './lib/supabaseClient';
 
 const GUEST_SESSION_KEY = 'runnit:guest-mode';
 const APP_PATHS = new Set(['/', '/map', '/leaderboard', '/profile', '/gps-lab', '/calibration', '/fusion-lab', '/sprint-lab']);
@@ -41,6 +42,18 @@ export default function App() {
   const navigate = useNavigate();
   const [guestAccess, setGuestAccess] = useState(wasGuestModeChosen);
 
+  // Explicit sign-out always resets the guest choice as well. This prevents
+  // reopening private screens accidentally after leaving an account.
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== 'SIGNED_OUT') return;
+      try { window.sessionStorage.removeItem(GUEST_SESSION_KEY); } catch { /* Storage unavailable. */ }
+      setGuestAccess(false);
+      navigate('/', { replace: true });
+    });
+    return () => data.subscription.unsubscribe();
+  }, [navigate]);
+
   const enterGuestMode = () => {
     try { window.sessionStorage.setItem(GUEST_SESSION_KEY, '1'); } catch { /* Private browsing may block storage. */ }
     setGuestAccess(true);
@@ -65,16 +78,17 @@ export default function App() {
     return auth.user ? <Navigate to="/map" replace /> : <AuthCallbackScreen onContinueAsGuest={enterGuestMode} />;
   }
 
-  // Explicit login requests always open the account screen, even after a
-  // guest has already entered the app. Only known local routes can be used
-  // as a post-login destination.
+  // An explicit login request is the only place the complete auth form lives.
+  // Opening the app no longer forces unauthenticated visitors into signup.
   if (auth.user && location.pathname === '/login') {
     return <Navigate to={safeLoginReturnPath(location.search)} replace />;
   }
 
-  if (!auth.user && (!guestAccess || location.pathname === '/login')) {
+  if (!auth.user && location.pathname === '/login') {
     return (
       <WelcomeAuthScreen
+        key={new URLSearchParams(location.search).get('mode') === 'signup' ? 'signup' : 'signin'}
+        initialIntent={new URLSearchParams(location.search).get('mode') === 'signup' ? 'signup' : 'signin'}
         signInWithProvider={auth.signInWithProvider}
         sendMagicLink={auth.sendMagicLink}
         verifyEmailOtp={auth.verifyEmailOtp}
@@ -86,10 +100,16 @@ export default function App() {
     );
   }
 
+  // First-time visitors see the hero screen, not an auth wall.
+  // Authenticated users bypass this gate without losing their persisted session.
+  if (!auth.user && !guestAccess && location.pathname !== '/') {
+    return <Navigate to="/" replace />;
+  }
+
   return (
     <div className="dark">
       <Routes>
-        <Route path="/" element={<HomeScreen />} />
+        <Route path="/" element={<HomeScreen signedIn={Boolean(auth.user)} onStartAsGuest={enterGuestMode} sessionCheckFailed={auth.loadError} />} />
         <Route path="/map" element={<MapScreen />} />
         <Route path="/leaderboard" element={<LeaderboardScreen />} />
         <Route path="/profile" element={<ProfileScreen />} />
