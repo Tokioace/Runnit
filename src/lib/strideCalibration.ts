@@ -130,7 +130,13 @@ export function getWalkingCalibration(metadata: unknown): WalkingCalibration | n
     && Number.isFinite(v.heightCm) && (v.heightCm as number) >= 100 && (v.heightCm as number) <= 230
     && Number.isInteger(v.stepCount) && (v.stepCount as number) >= MIN_STEPS && (v.stepCount as number) <= MAX_STEPS
     && typeof v.measuredDistanceM === 'number' && v.measuredDistanceM >= 25 && v.measuredDistanceM <= 150
-    && typeof v.walkingStrideM === 'number' && v.walkingStrideM > 0 && v.walkingStrideM <= 2
+    && typeof v.walkingStrideM === 'number' && Number.isFinite(v.walkingStrideM)
+    && v.walkingStrideM > 0 && v.walkingStrideM <= 2
+    // Metadata is client-editable: do not accept internally contradictory
+    // calibration values. Allow rounding of stored distance (0.1m) and stride (0.001m).
+    && Math.abs(v.walkingStrideM - (v.measuredDistanceM as number) / (v.stepCount as number)) <= 0.002
+    && v.walkingStrideM >= (v.heightCm as number) / 100 * 0.28 - 0.001
+    && v.walkingStrideM <= (v.heightCm as number) / 100 * 0.7 + 0.001
     && typeof v.endpointAccuracyRatio === 'number' && v.endpointAccuracyRatio >= 0 && v.endpointAccuracyRatio <= MAX_ACCURACY_RATIO
     && typeof v.calibratedAt === 'string' && Number.isFinite(Date.parse(v.calibratedAt))
     ? v as WalkingCalibration : null;

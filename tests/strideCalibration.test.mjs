@@ -74,6 +74,11 @@ test('only a plausible derived calibration can be saved; no raw GPS coordinates 
   assert.doesNotMatch(JSON.stringify(saved), /latitude|longitude|startFixes|endFixes/);
   assert.deepEqual(getWalkingCalibration({ walking_calibration: saved }), saved);
   assert.equal(getWalkingCalibration({ walking_calibration: { ...saved, walkingStrideM: 100 } }), null);
+  // Client-editable metadata must not silently inject a different stride
+  // while keeping individually plausible fields and a valid method/version.
+  assert.equal(getWalkingCalibration({ walking_calibration: { ...saved, walkingStrideM: 1.2 } }), null);
+  assert.equal(getWalkingCalibration({ walking_calibration: { ...saved, measuredDistanceM: 55 } }), null);
+  assert.equal(getWalkingCalibration({ walking_calibration: { ...saved, stepCount: 75 } }), null);
   assert.throws(() => makeWalkingCalibration({
     assessment: assessWalkingCalibration(sample({ stepCount: 10 })),
     heightCm: 175, stepCount: 10, nowIso: '2026-11-11T12:00:00Z',
