@@ -1,125 +1,108 @@
-import { Link } from 'react-router-dom';
-import {
-  Activity,
-  ArrowRight,
-  ChevronRight,
-  Footprints,
-  MapPinned,
-  Navigation,
-  ShieldCheck,
-  Timer,
-  Trophy,
-  Zap,
-} from 'lucide-react';
-import BottomNav from '../components/ui/BottomNav';
+import { ArrowRight, FlagTriangleRight, Ghost, MapPin, ShieldCheck, UserRound, UserPlus, Zap } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import splashArtwork from '../assets/runnitSplashArt';
+
+type Props = {
+  signedIn: boolean;
+  sessionCheckFailed?: boolean;
+  onStartAsGuest: (destination?: string) => void;
+};
 
 /**
- * This screen is deliberately independent of Supabase and geolocation.
- * Visiting the landing page must not request location permissions or invent
- * live opponents, achievements, rankings or race results.
+ * A real, responsive launcher, not a screenshot with unclickable pseudo-buttons.
+ * The illustrated artwork is decorative; every interactive control lives in
+ * HTML and therefore works with keyboard, touch and screen readers.
+ * The only required action is STARTEN. Guest exploration stays opt-in.
  */
-export default function HomeScreen() {
+export default function HomeScreen({ signedIn, sessionCheckFailed, onStartAsGuest }: Props) {
+  const navigate = useNavigate();
+
+  const enter = (destination = '/map') => {
+    if (signedIn) navigate(destination);
+    else onStartAsGuest(destination);
+  };
+
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#090b13] pb-28 text-white">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-        <div className="absolute -right-32 -top-28 h-96 w-96 rounded-full bg-violet-600/20 blur-[90px]" />
-        <div className="absolute -left-40 top-[26rem] h-80 w-80 rounded-full bg-cyan-500/10 blur-[85px]" />
-        <div className="absolute inset-x-0 top-0 h-[28rem] opacity-30"
-          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px)', backgroundSize: '38px 38px', maskImage: 'linear-gradient(to bottom, black, transparent)' }} />
+    <main className="relative isolate min-h-[100svh] min-h-[100dvh] w-full overflow-x-hidden bg-[#071125] text-white md:grid md:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden md:relative md:inset-auto" aria-hidden="true">
+        <img src={splashArtwork} alt="" fetchPriority="high" decoding="async"
+          className="absolute inset-0 h-full w-full object-cover object-[center_16%] md:object-center" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#060a19]/10 via-transparent via-40% to-[#071125] md:bg-gradient-to-r md:from-transparent md:to-[#071125]/50" />
       </div>
 
-      <div className="relative mx-auto max-w-xl px-5 pt-8 sm:pt-12">
-        <header className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-violet-300/30 bg-violet-500/20 shadow-[0_0_30px_rgba(139,92,246,.17)]">
-              <Footprints className="h-6 w-6 text-violet-200" aria-hidden="true" />
-            </div>
-            <div>
-              <span className="block text-xl font-black tracking-[0.1em] text-white">RUNNIT<span className="text-emerald-300">.</span></span>
-              <span className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">Sprint · Duell · Community</span>
-            </div>
-          </div>
-          <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-white/65">BETA</span>
-        </header>
+      <div className="relative z-10 mx-auto flex min-h-[100svh] min-h-[100dvh] w-full max-w-xl flex-col justify-end px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-7 md:justify-center md:px-8 lg:px-12">
+        <div className="flex-1 md:hidden" aria-hidden="true" />
 
-        <section className="relative mt-12 sm:mt-16" aria-labelledby="home-title">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-xs font-semibold text-emerald-200">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-            Bereit für deinen nächsten Sprint?
+        <div className="relative rounded-[26px] border border-cyan-300/20 bg-[#081025]/90 p-4 shadow-[0_22px_80px_rgba(0,0,0,.55)] backdrop-blur-xl sm:p-6 md:bg-[#0c1426]/94">
+          <div className="mb-4 md:mb-7">
+            <h1 className="font-black italic tracking-[-0.06em] text-[clamp(2rem,9vw,3.5rem)] leading-none text-white md:text-[clamp(2.8rem,5vw,5rem)]">
+              RUNNIT<span className="text-cyan-300">.</span>
+            </h1>
+            <p className="mt-2 text-xs font-black uppercase tracking-[0.13em] text-cyan-200 sm:text-sm">
+              CHALLENGE. RACE. BEAT.
+            </p>
+            <p className="mt-3 text-xs leading-5 text-white/75 sm:text-sm">
+              Fordere echte Menschen in deiner Nähe zu einem Sprint-Duell heraus.
+            </p>
           </div>
-          <h1 id="home-title" className="max-w-md text-[clamp(2.8rem,12vw,4.8rem)] font-black leading-[0.99] tracking-[-0.055em]">
-            DEIN<br />
-            TEMPO.<br />
-            <span className="bg-gradient-to-r from-violet-300 via-cyan-200 to-emerald-300 bg-clip-text text-transparent">DEIN LAUF.</span>
-          </h1>
-          <p className="mt-6 max-w-sm text-sm leading-7 text-white/65 sm:text-base">
-            Erkunde Sprint-Herausforderungen, probiere die Zeitmessung aus und begleite
-            die Entwicklung von Runnit – Schritt für Schritt.
-          </p>
-        </section>
 
-        <section className="mt-9 space-y-3" aria-label="Dein Einstieg">
-          <Link to="/map" className="group flex min-h-16 items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-4 shadow-[0_14px_45px_rgba(99,102,241,.23)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
-            <span className="flex items-center gap-3">
-              <MapPinned className="h-6 w-6 shrink-0" aria-hidden="true" />
-              <span>
-                <span className="block font-bold">Karte erkunden</span>
-                <span className="block text-xs text-white/80">Herausforderungen auf der Karte · Beta</span>
-              </span>
-            </span>
-            <ArrowRight className="h-5 w-5 shrink-0 transition-transform group-hover:translate-x-1" aria-hidden="true" />
-          </Link>
-          <Link to="/gps-lab" className="group flex min-h-16 items-center justify-between gap-4 rounded-2xl border border-emerald-200/25 bg-emerald-300/10 px-5 py-4 transition hover:bg-emerald-300/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
-            <span className="flex items-center gap-3">
-              <Timer className="h-6 w-6 shrink-0 text-emerald-200" aria-hidden="true" />
-              <span>
-                <span className="block font-bold">GPS-Testlabor</span>
-                <span className="block text-xs text-white/65">50, 75 und 100 Meter simulieren</span>
-              </span>
-            </span>
-            <ChevronRight className="h-5 w-5 shrink-0 text-emerald-200" aria-hidden="true" />
-          </Link>
-        </section>
-
-        <section className="mt-10" aria-labelledby="explore-heading">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 id="explore-heading" className="text-lg font-extrabold">Entdecke Runnit</h2>
-            <span className="text-xs font-medium text-white/40">Entwicklungsstand</span>
+          <div className="grid grid-cols-3 gap-2" aria-label="Runnit entdecken">
+            <button type="button" onClick={() => enter('/map')}
+              className="flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-xl border border-cyan-300/45 bg-cyan-300/10 px-1.5 py-2 text-center text-[10px] font-black uppercase tracking-wide text-cyan-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white sm:text-xs">
+              <FlagTriangleRight className="h-6 w-6 text-cyan-200" aria-hidden="true" />
+              1v1 Duell
+            </button>
+            <button type="button" onClick={() => enter('/sprint-lab')}
+              className="flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-xl border border-fuchsia-300/45 bg-fuchsia-300/10 px-1.5 py-2 text-center text-[10px] font-black uppercase tracking-wide text-fuchsia-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white sm:text-xs">
+              <Ghost className="h-6 w-6 text-fuchsia-200" aria-hidden="true" />
+              <span>Ghost-Run <span className="block text-[9px] text-white/60">Vorschau</span></span>
+            </button>
+            <button type="button" onClick={() => enter('/map')}
+              className="flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-xl border border-amber-300/45 bg-amber-300/10 px-1.5 py-2 text-center text-[10px] font-black uppercase tracking-wide text-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white sm:text-xs">
+              <MapPin className="h-6 w-6 text-amber-200" aria-hidden="true" />
+              In deiner Nähe
+            </button>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Link to="/leaderboard" className="group flex min-h-40 flex-col justify-between rounded-3xl border border-white/10 bg-white/[0.045] p-4 transition hover:border-violet-300/30 hover:bg-white/[0.075]">
-              <Trophy className="h-6 w-6 text-violet-300" aria-hidden="true" />
-              <div>
-                <h3 className="font-bold">Ranglisten</h3>
-                <p className="mt-1 text-xs leading-5 text-white/50">Datenquellen transparent · noch ohne offizielle Wertung</p>
+
+          <button type="button" onClick={() => enter('/map')}
+            className="mt-4 flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl border border-cyan-100/60 bg-gradient-to-r from-cyan-300 via-sky-400 to-violet-500 px-4 py-3 text-lg font-black italic tracking-[0.05em] text-[#071329] shadow-[0_0_32px_rgba(0,220,255,.36)] transition-transform active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:min-h-16 sm:text-xl">
+            <Zap className="h-6 w-6" aria-hidden="true" />
+            STARTEN
+            <ArrowRight className="h-6 w-6" aria-hidden="true" />
+          </button>
+
+          {signedIn ? (
+            <p className="mt-3 flex items-center justify-center gap-2 text-center text-[11px] font-semibold text-emerald-200">
+              <ShieldCheck className="h-4 w-4" aria-hidden="true" /> Angemeldet · direkt zur Rennkarte
+            </p>
+          ) : (
+            <>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Link to="/login?mode=signin&next=%2Fmap"
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-2 text-xs font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white sm:text-sm">
+                  <UserRound className="h-4 w-4" aria-hidden="true" /> Anmelden
+                </Link>
+                <Link to="/login?mode=signup&next=%2Fmap"
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-2 text-xs font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white sm:text-sm">
+                  <UserPlus className="h-4 w-4" aria-hidden="true" /> Registrieren
+                </Link>
               </div>
-            </Link>
-            <Link to="/profile" className="group flex min-h-40 flex-col justify-between rounded-3xl border border-white/10 bg-white/[0.045] p-4 transition hover:border-cyan-300/30 hover:bg-white/[0.075]">
-              <Activity className="h-6 w-6 text-cyan-300" aria-hidden="true" />
-              <div>
-                <h3 className="font-bold">Mein Profil</h3>
-                <p className="mt-1 text-xs leading-5 text-white/50">Dein Konto, Anzeigename und künftige Leistungen</p>
-              </div>
-            </Link>
-          </div>
-        </section>
-
-        <div className="mt-8 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" aria-hidden="true" />
-          <p className="text-xs leading-6 text-white/55">
-            Dein Standort wird auf dieser Startseite nicht angefragt. Die Kartenfunktion
-            verwendet Standortdienste erst, wenn du sie öffnest. GPS-Zeiten sind derzeit
-            experimentell und nicht offiziell verifiziert.
-          </p>
-        </div>
-
-        <div className="mt-7 flex items-center justify-center gap-5 text-[11px] font-medium text-white/35">
-          <span className="flex items-center gap-1.5"><Zap className="h-3 w-3" aria-hidden="true" /> Sprint</span>
-          <span className="flex items-center gap-1.5"><Navigation className="h-3 w-3" aria-hidden="true" /> Entdecken</span>
-          <span className="flex items-center gap-1.5"><ShieldCheck className="h-3 w-3" aria-hidden="true" /> Fair Play</span>
+              <button type="button" onClick={() => onStartAsGuest('/map')}
+                className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg text-xs font-bold text-cyan-100 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                Als Gast fortfahren <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <p className="mt-1 text-center text-[10px] leading-4 text-white/55">
+                Ohne Konto erkunden. Für echte Rennen wird eine Anmeldung benötigt.
+              </p>
+            </>
+          )}
+          {sessionCheckFailed && !signedIn && (
+            <p role="status" className="mt-3 text-center text-xs text-amber-200">
+              Deine bestehende Sitzung konnte nicht geprüft werden. Melde dich bei Bedarf erneut an.
+            </p>
+          )}
         </div>
       </div>
-      <BottomNav />
     </main>
   );
 }
