@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   ArrowRight, CheckCircle2, ChevronLeft, Footprints,
-  LockKeyhole, Mail, ShieldCheck, Sparkles, Timer, Users,
+  LockKeyhole, Mail, ShieldCheck,
 } from 'lucide-react';
 import type { UseSupabaseUserReturn } from '../../hooks/useSupabaseUser';
 import type { SocialProvider } from '../../lib/authRedirect';
@@ -126,165 +126,152 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
   };
 
   return (
-    <main className="relative min-h-[100dvh] overflow-hidden bg-[#090b13] px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-white">
+    <main className="relative min-h-[100dvh] overflow-hidden bg-[#080d21] px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] text-white sm:px-6">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-        <div className="absolute -right-36 -top-32 h-[26rem] w-[26rem] rounded-full bg-violet-600/25 blur-[95px]" />
-        <div className="absolute -left-36 top-[26rem] h-[22rem] w-[22rem] rounded-full bg-cyan-500/10 blur-[80px]" />
-        <div className="absolute inset-x-0 top-0 h-[30rem] opacity-25"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px)',
-            backgroundSize: '38px 38px',
-            maskImage: 'linear-gradient(to bottom,black,transparent)',
-          }}
-        />
+        <div className="absolute -right-40 -top-48 h-[28rem] w-[28rem] rounded-full bg-fuchsia-600/25 blur-[100px]" />
+        <div className="absolute -left-36 top-[23rem] h-[24rem] w-[24rem] rounded-full bg-cyan-500/10 blur-[85px]" />
+        <div className="absolute inset-x-0 top-0 h-[25rem] opacity-25" style={{
+          backgroundImage: 'linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px)',
+          backgroundSize: '38px 38px',
+          maskImage: 'linear-gradient(to bottom,black,transparent)',
+        }} />
       </div>
 
-      <div className="relative mx-auto max-w-md">
-        <Link to="/" className="mb-5 inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-bold text-white/80 hover:text-white">
-          <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Zurück zum Runnit-Start
+      <div className="relative mx-auto w-full max-w-md">
+        <Link to="/" className="mb-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white/80 hover:text-white">
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Zurück zu RUNNIT
         </Link>
+
         <header className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-300/30 bg-violet-500/20 shadow-[0_0_32px_rgba(139,92,246,.2)]">
-              <Footprints className="h-6 w-6 text-violet-200" aria-hidden="true" />
+          <span className="flex items-center gap-2.5 text-lg font-black italic tracking-[0.14em]">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-300/25 bg-cyan-300/10">
+              <Footprints className="h-5 w-5 text-cyan-200" aria-hidden="true" />
             </span>
-            <span className="text-xl font-black tracking-[0.1em]">RUNNIT<span className="text-emerald-300">.</span></span>
-          </div>
-          <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-bold tracking-wider text-white/55">BETA</span>
+            RUNNIT<span className="text-cyan-300">.</span>
+          </span>
+          <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[10px] font-bold tracking-widest text-white/50">BETA</span>
         </header>
 
-        <section aria-labelledby="welcome-title" className="mt-12">
-          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-[11px] font-bold tracking-wide text-emerald-200">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> YOUR RUN STARTS HERE
-          </span>
-          <h1 id="welcome-title" className="mt-5 text-[clamp(2.8rem,12vw,4.3rem)] font-black leading-[1.01] tracking-[-0.065em]">
-            BEREIT.<br />
-            <span className="bg-gradient-to-r from-violet-300 via-cyan-200 to-emerald-300 bg-clip-text text-transparent">FÜR RUNNIT.</span>
-          </h1>
-          <p className="mt-5 max-w-sm text-sm leading-7 text-white/65">
-            Erstelle dein Konto in wenigen Schritten oder melde dich an.
-            Danach wartet deine Sprint-Welt auf dich.
+        <section aria-labelledby="account-page-title" className="mt-6">
+          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">
+            {initialMode === 'signup' ? 'NEUER RUNNER // JOIN' : 'WELCOME BACK // SIGN IN'}
           </p>
-          <div className="mt-6 flex flex-wrap gap-2 text-[11px] font-semibold text-white/50">
-            <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-2"><Timer className="h-3.5 w-3.5 text-cyan-200" aria-hidden="true" /> Sprints</span>
-            <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-2"><Users className="h-3.5 w-3.5 text-violet-200" aria-hidden="true" /> Duelle</span>
-            <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-2"><Sparkles className="h-3.5 w-3.5 text-emerald-200" aria-hidden="true" /> Community</span>
-          </div>
+          <h1 id="account-page-title" className="mt-2 text-[clamp(2.2rem,10vw,3.4rem)] font-black italic uppercase leading-none tracking-[-0.04em]">
+            {initialMode === 'signup' ? 'REGISTRIEREN.' : 'ANMELDEN.'}
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-white/70">
+            {initialMode === 'signup'
+              ? 'Erstelle dein RUNNIT-Konto, damit du echte Lauf-Duelle starten und annehmen kannst.'
+              : 'Du hast schon ein Konto? Melde dich mit deiner E-Mail-Adresse und deinem Passwort an – du brauchst kein neues Konto.'}
+          </p>
         </section>
 
-        <section aria-label="Anmelden oder registrieren" className="mt-9 rounded-[30px] border border-violet-300/20 bg-gradient-to-br from-[#1c1a32] via-[#141727] to-[#101928] p-5 shadow-[0_20px_70px_rgba(0,0,0,.3)]">
-          <div className="mb-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">SCHNELL STARTEN</p>
-            <h2 className="mt-2 text-xl font-extrabold tracking-tight">Konto erstellen oder anmelden</h2>
-            <p className="mt-1.5 text-xs leading-5 text-white/55">Schon registriert? Nutze einfach „Mit E-Mail fortfahren“ – du brauchst kein neues Konto.</p>
-          </div>
-
-          {emailMode === 'hidden' ? (
+        <section aria-label={initialMode === 'signup' ? 'Konto registrieren' : 'Bei RUNNIT anmelden'} className="mt-5">
+          {emailMode === 'password' ? (
             <div className="space-y-3">
+              <AccountAuthPanel signIn={signIn} signUp={signUp} initialMode={initialMode} hideModeSwitch />
+              {initialMode === 'signin' && (
+                <button type="button" onClick={openEmail} className="min-h-11 w-full rounded-xl text-center text-xs font-bold text-cyan-200 hover:text-white">
+                  Lieber ohne Passwort? Anmeldelink oder Code verwenden
+                </button>
+              )}
+              <button type="button" onClick={() => { setEmailMode('hidden'); setError(null); setNotice(null); }}
+                className="min-h-11 w-full rounded-xl border border-white/15 bg-white/5 px-4 text-center text-xs font-bold text-white/80 hover:bg-white/10">
+                Weitere Anmeldearten (Apple, Google, Facebook)
+              </button>
+            </div>
+          ) : emailMode === 'hidden' ? (
+            <div className="space-y-3 rounded-[26px] border border-violet-300/20 bg-[#11172b]/95 p-5">
+              <h2 className="text-lg font-extrabold">Mit einem Anbieter fortfahren</h2>
+              <p className="text-xs leading-5 text-white/60">Die Anbieter müssen im RUNNIT-Backend freigeschaltet sein.</p>
               {providers.map(({ id, title, marker, style }) => (
                 <button key={id} type="button" disabled={Boolean(pending)} onClick={() => { void startProvider(id); }}
-                  className={`flex min-h-14 w-full items-center gap-4 rounded-2xl border px-4 py-3 text-left text-sm font-bold transition-colors disabled:opacity-55 ${style}`}>
-                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xl font-black ${id === 'apple' ? 'text-slate-950' : id === 'facebook' ? 'text-blue-400' : 'text-white'}`} aria-hidden="true">{marker}</span>
+                  className={\`flex min-h-14 w-full items-center gap-4 rounded-2xl border px-4 py-3 text-left text-sm font-bold transition-colors disabled:opacity-55 \${style}\`}>
+                  <span className={\`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xl font-black \${id === 'apple' ? 'text-slate-950' : id === 'facebook' ? 'text-blue-400' : 'text-white'}\`} aria-hidden="true">{marker}</span>
                   <span className="flex-1">{pending === id ? 'Weiterleitung …' : title}</span>
                   <ArrowRight className="h-4 w-4 opacity-55" aria-hidden="true" />
                 </button>
               ))}
-              <div className="flex items-center gap-3 py-1 text-[11px] font-bold uppercase tracking-widest text-white/35">
-                <span className="h-px flex-1 bg-white/10" />oder<span className="h-px flex-1 bg-white/10" />
-              </div>
-              <button type="button" disabled={Boolean(pending)} onClick={openEmail}
-                className="flex min-h-14 w-full items-center gap-4 rounded-2xl border border-violet-300/25 bg-violet-500/15 px-4 text-left text-sm font-extrabold text-white transition-colors hover:bg-violet-500/25 disabled:opacity-55">
-                <Mail className="h-6 w-6 text-violet-200" aria-hidden="true" />
-                <span className="flex-1">Mit E-Mail fortfahren</span>
-                <ArrowRight className="h-4 w-4 text-white/60" aria-hidden="true" />
+              <button type="button" onClick={() => { setEmailMode('password'); setError(null); setNotice(null); }}
+                className="flex min-h-12 w-full items-center gap-3 rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-4 text-sm font-bold text-cyan-100">
+                <Mail className="h-5 w-5" aria-hidden="true" /> Mit E-Mail fortfahren
               </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <button type="button" disabled={Boolean(pending)} onClick={() => { setEmailMode('hidden'); setError(null); setNotice(null); }}
-                className="inline-flex min-h-10 items-center gap-2 rounded-lg text-xs font-semibold text-violet-200 hover:text-white">
-                <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Alle Anmeldearten
-              </button>
-
-              {emailMode === 'magic-link' ? (
-                <>
-                  <div>
-                    <h3 className="text-lg font-extrabold">Ohne Passwort anmelden</h3>
-                    <p className="mt-1 text-xs leading-5 text-white/55">Du erhältst einen Anmeldelink. Alternativ kannst du einen sechsstelligen Code direkt hier eingeben, sofern er in der E-Mail steht.</p>
-                  </div>
-                  <form onSubmit={event => { void submitEmail(event); }} className="space-y-3">
-                    <label htmlFor="welcome-email" className="block text-xs font-bold text-white/70">Deine E-Mail-Adresse</label>
-                    <input id="welcome-email" type="email" required autoComplete="email" inputMode="email"
-                      disabled={Boolean(pending)} value={email} onChange={e => { setEmail(e.target.value); setVerificationEmail(null); setOtpCode(''); setNotice(null); }}
-                      placeholder="name@beispiel.de"
-                      className="min-h-14 w-full rounded-2xl border border-white/20 bg-[#0d1322] px-4 text-sm text-white outline-none placeholder:text-white/30 focus:ring-2 focus:ring-violet-300/50" />
-                    <button type="submit" disabled={Boolean(pending) || emailResendCooldown > 0}
-                      className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-violet-500 to-indigo-600 px-4 text-sm font-extrabold text-white transition hover:brightness-110 disabled:opacity-50">
-                      {pending === 'email' ? 'E-Mail wird angefordert …' : emailResendCooldown > 0 ? `Erneut senden in ${emailResendCooldown} s` : verificationEmail ? 'Neuen Link oder Code senden' : 'Anmeldelink senden'}
-                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                  </form>
-                  {verificationEmail && (
-                    <form onSubmit={event => { void submitOtpCode(event); }} className="space-y-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
-                      <p className="flex items-center gap-2 text-xs font-bold text-emerald-200">
-                        <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        E-Mail angefordert
-                      </p>
-                      <label htmlFor="welcome-otp" className="block text-xs font-semibold text-white/75">Sechsstelliger E-Mail-Code (falls vorhanden)</label>
-                      <input id="welcome-otp" name="one-time-code" type="text" inputMode="numeric"
-                        autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required
-                        value={otpCode} disabled={Boolean(pending)}
-                        onChange={event => setOtpCode(event.target.value.replace(/[^0-9]/g, ''))}
-                        placeholder="123456"
-                        className="min-h-14 w-full rounded-2xl border border-emerald-300/20 bg-[#0d1322] px-4 text-center text-lg font-black tracking-[0.2em] text-white outline-none placeholder:text-white/20 focus:ring-2 focus:ring-emerald-300/50" />
-                      <button type="submit" disabled={Boolean(pending) || otpCode.length !== 6}
-                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-sm font-extrabold text-slate-950 transition hover:brightness-110 disabled:opacity-50">
-                        {pending === 'otp' ? 'Code wird geprüft …' : 'Mit Code anmelden'}
-                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                      </button>
-                      <p className="text-[11px] leading-5 text-white/50">Du kannst im selben Browser bleiben. Wenn deine Mail nur einen Link enthält, muss für den Code die Supabase-Mailvorlage ergänzt werden.</p>
-                    </form>
-                  )}
-                  <button type="button" onClick={() => { setEmailMode('password'); setError(null); setNotice(null); }}
-                    className="min-h-11 w-full rounded-xl text-center text-xs font-semibold text-cyan-200 hover:text-white">
-                    Lieber mit E-Mail und Passwort anmelden?
-                  </button>
-                </>
-              ) : (
-                <>
-                  <AccountAuthPanel signIn={signIn} signUp={signUp} initialMode={initialMode} />
-                  <button type="button" onClick={() => { setEmailMode('magic-link'); setError(null); setNotice(null); }}
-                    className="min-h-11 w-full rounded-xl text-center text-xs font-semibold text-cyan-200 hover:text-white">
-                    Stattdessen einen Anmeldelink nutzen
-                  </button>
-                </>
+              {initialMode === 'signin' && (
+                <button type="button" onClick={openEmail} className="min-h-11 w-full text-center text-xs font-bold text-cyan-200">
+                  Anmeldelink oder E-Mail-Code nutzen
+                </button>
               )}
             </div>
+          ) : (
+            <section aria-label="Anmeldelink und E-Mail-Code" className="space-y-4 rounded-[26px] border border-cyan-300/20 bg-[#11172b]/95 p-5">
+              <button type="button" onClick={() => { setEmailMode('password'); setError(null); setNotice(null); }}
+                className="inline-flex min-h-10 items-center gap-2 text-xs font-semibold text-cyan-200 hover:text-white">
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Zur Anmeldung mit Passwort
+              </button>
+              <h2 className="text-lg font-extrabold">Ohne Passwort anmelden</h2>
+              <p className="text-xs leading-5 text-white/60">Du erhältst einen Anmeldelink. Alternativ kannst du den sechsstelligen Code eingeben, falls er in der E-Mail steht.</p>
+              <form onSubmit={event => { void submitEmail(event); }} className="space-y-3">
+                <label htmlFor="welcome-email" className="block text-xs font-bold text-white/75">E-Mail-Adresse</label>
+                <input id="welcome-email" type="email" required autoComplete="email" inputMode="email"
+                  disabled={Boolean(pending)} value={email} onChange={e => { setEmail(e.target.value); setVerificationEmail(null); setOtpCode(''); setNotice(null); }}
+                  placeholder="name@beispiel.de"
+                  className="min-h-14 w-full rounded-2xl border border-white/20 bg-[#0d1322] px-4 text-sm text-white outline-none placeholder:text-white/30 focus:ring-2 focus:ring-cyan-300/50" />
+                <button type="submit" disabled={Boolean(pending) || emailResendCooldown > 0}
+                  className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-4 text-sm font-extrabold text-[#061027] transition hover:brightness-110 disabled:opacity-50">
+                  {pending === 'email' ? 'E-Mail wird angefordert …' : emailResendCooldown > 0 ? \`Erneut senden in \${emailResendCooldown} s\` : verificationEmail ? 'Neuen Link oder Code senden' : 'Anmeldelink senden'}
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </form>
+              {verificationEmail && (
+                <form onSubmit={event => { void submitOtpCode(event); }} className="space-y-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
+                  <p className="flex items-center gap-2 text-xs font-bold text-emerald-200">
+                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> E-Mail angefordert
+                  </p>
+                  <label htmlFor="welcome-otp" className="block text-xs font-semibold text-white/75">Sechsstelliger E-Mail-Code (falls vorhanden)</label>
+                  <input id="welcome-otp" name="one-time-code" type="text" inputMode="numeric"
+                    autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required
+                    value={otpCode} disabled={Boolean(pending)}
+                    onChange={event => setOtpCode(event.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="123456"
+                    className="min-h-14 w-full rounded-2xl border border-emerald-300/20 bg-[#0d1322] px-4 text-center text-lg font-black tracking-[0.2em] text-white outline-none placeholder:text-white/20 focus:ring-2 focus:ring-emerald-300/50" />
+                  <button type="submit" disabled={Boolean(pending) || otpCode.length !== 6}
+                    className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-sm font-extrabold text-slate-950 disabled:opacity-50">
+                    {pending === 'otp' ? 'Code wird geprüft …' : 'Mit Code anmelden'}
+                  </button>
+                  <p className="text-[11px] leading-5 text-white/55">Der Code funktioniert im selben Browser. Falls du nur einen Link erhältst, muss die Supabase-Mailvorlage einen Code enthalten.</p>
+                </form>
+              )}
+            </section>
           )}
 
-          <div className="mt-5 border-t border-white/10 pt-5">
-            <button type="button" onClick={onContinueAsGuest} disabled={Boolean(pending)}
-              className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.08] px-4 text-left text-sm font-extrabold text-emerald-100 transition hover:bg-emerald-300/[0.14] disabled:opacity-50">
-              <span>Als Gast fortfahren</span>
-              <ArrowRight className="h-5 w-5 shrink-0" aria-hidden="true" />
-            </button>
-            <p className="mt-2 text-xs leading-5 text-white/55">Ohne Konto die Karte, Ranglisten, das Profil und das GPS-Testlabor ansehen. Für das Veranstalten, Beitreten oder Starten eines Rennens benötigst du eine Anmeldung.</p>
-          </div>
-          {loadError && <p role="status" className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/10 p-3 text-xs leading-5 text-amber-100">Der bisherige Kontostatus konnte nicht geladen werden. Versuche deine Anmeldung erneut.</p>}
-          {error && <p role="alert" className="mt-4 rounded-xl border border-rose-300/25 bg-rose-400/10 p-3 text-xs leading-5 text-rose-100">{error}</p>}
-          {notice && <p role="status" className="mt-4 rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-xs leading-6 text-emerald-100">{notice}</p>}
-        </section>
+          <p className="mt-5 text-center text-sm font-medium text-white/65">
+            {initialMode === 'signin' ? 'Noch kein Konto?' : 'Schon registriert?'}
+            {' '}
+            <Link to={initialMode === 'signin' ? '/register' : '/login'}
+              className="inline-flex min-h-11 items-center font-black text-cyan-200 underline decoration-cyan-200/50 underline-offset-4 hover:text-white">
+              {initialMode === 'signin' ? 'Jetzt registrieren' : 'Jetzt anmelden'}
+            </Link>
+          </p>
 
-        <p className="mt-5 rounded-xl border border-cyan-300/15 bg-cyan-300/[0.055] p-3 text-xs leading-6 text-white/65">
-          Du bleibst normalerweise im selben Browser angemeldet. Öffne Runnit künftig immer in Safari unter derselben Adresse. In-App-Browser, private Tabs und andere Vorschau-Adressen teilen gespeicherte Anmeldungen nicht.
+          <button type="button" onClick={onContinueAsGuest} disabled={Boolean(pending)}
+            className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 text-sm font-bold text-white/60 underline decoration-white/30 underline-offset-4 hover:text-white disabled:opacity-50">
+            Als Gast fortfahren
+          </button>
+          <p className="mt-1 text-center text-xs leading-5 text-white/45">Ohne Anmeldung die App entdecken. Echte Rennen benötigen ein Konto.</p>
+          {loadError && <p role="status" className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/10 p-3 text-xs leading-5 text-amber-100">Der bisherige Kontostatus konnte nicht geladen werden. Versuche deine Anmeldung erneut.</p>}
+          {error && <p role="alert" className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs text-rose-100">{error}</p>}
+          {notice && <p role="status" className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-3 text-xs leading-5 text-emerald-100">{notice}</p>}
+        </section>
+        <p className="mt-5 rounded-xl border border-cyan-300/15 bg-cyan-300/[0.055] p-3 text-[11px] leading-5 text-white/55">
+          Du bleibst normalerweise im selben Browser angemeldet. In-App-Browser, private Tabs und andere Vorschau-Adressen teilen gespeicherte Anmeldungen nicht.
         </p>
-        <p className="mt-6 flex items-start gap-2 text-xs leading-6 text-white/45">
-          <ShieldCheck className="mt-1 h-4 w-4 shrink-0 text-emerald-300/70" aria-hidden="true" />
-          Die Anmeldung erfolgt über Supabase und den gewählten Anbieter. Apple, Google und Facebook benötigen eine gesonderte Freischaltung im Runnit-Backend. Gäste können Runnit erkunden; Rennen benötigen eine Anmeldung.
+        <p className="mt-5 flex gap-2 text-[11px] leading-5 text-white/40">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300/70" aria-hidden="true" />
+          Die Anmeldung erfolgt über Supabase Auth. Apple, Google und Facebook benötigen eine gesonderte Freischaltung.
         </p>
-        <div className="mt-7 flex items-center justify-center gap-2 text-[11px] font-semibold text-white/25">
-          <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" /> Zugang nur mit eigenem Konto
-        </div>
+        <p className="mt-4 flex justify-center gap-2 text-[10px] font-semibold text-white/30">
+          <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" /> Dein persönlicher Zugang
+        </p>
       </div>
     </main>
   );
