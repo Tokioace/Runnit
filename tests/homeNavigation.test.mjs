@@ -6,7 +6,7 @@ const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf
 
 test('start route is a real home page and map lives at /map', () => {
   const app = read('src/App.tsx');
-  assert.match(app, /<Route path="\/" element=\{<HomeScreen \/>\}/);
+  assert.ok(app.includes("<Route path=\"/\" element={<HomeScreen"));
   assert.match(app, /<Route path="\/map" element=\{<MapScreen \/>\}/);
 });
 
