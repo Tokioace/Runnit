@@ -21,11 +21,10 @@ export default function HomeScreen({ isSignedIn, guestAccess, onStart, onContinu
         <img
           src="/runnit-launch-hero.webp"
           alt=""
-          width="256"
-          height="455"
-          fetchPriority="high"
+          width="160"
+          height="284"
           decoding="async"
-          className="absolute inset-0 h-full w-full object-cover object-[center_20%] opacity-95"
+          className="absolute inset-0 h-full w-full object-contain object-top opacity-95"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#040a1b]/10 via-transparent via-[48%] to-[#070d21] to-[78%]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_28%,rgba(6,9,28,0.44)_100%)]" />
