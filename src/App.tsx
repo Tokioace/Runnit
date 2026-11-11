@@ -8,13 +8,14 @@ import ProfileScreen from './screens/ProfileScreen';
 import GpsLabScreen from './screens/GpsLabScreen';
 import StrideCalibrationScreen from './screens/StrideCalibrationScreen';
 import FusionLabScreen from './screens/FusionLabScreen';
+import SprintArenaLabScreen from './screens/SprintArenaLabScreen';
 import WelcomeAuthScreen from './components/auth/WelcomeAuthScreen';
 import AuthCallbackScreen from './components/auth/AuthCallbackScreen';
 import { AUTH_CALLBACK_PATH } from './lib/authRedirect';
 import { useSupabaseUser } from './hooks/useSupabaseUser';
 
 const GUEST_SESSION_KEY = 'runnit:guest-mode';
-const APP_PATHS = new Set(['/', '/map', '/leaderboard', '/profile', '/gps-lab', '/calibration', '/fusion-lab']);
+const APP_PATHS = new Set(['/', '/map', '/leaderboard', '/profile', '/gps-lab', '/calibration', '/fusion-lab', '/sprint-lab']);
 
 /**
  * Guest mode is a local UI preference, NOT a Supabase authentication identity.
@@ -95,6 +96,7 @@ export default function App() {
         <Route path="/gps-lab" element={<GpsLabScreen />} />
         <Route path="/calibration" element={<StrideCalibrationScreen />} />
         <Route path="/fusion-lab" element={<FusionLabScreen />} />
+        <Route path="/sprint-lab" element={<SprintArenaLabScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
