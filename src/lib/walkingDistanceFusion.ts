@@ -1,4 +1,15 @@
-import { distanceBetweenFixes, type CalibrationFix } from './strideCalibration';
+import type { CalibrationFix } from './strideCalibration';
+
+// Node's strip-types regression runner cannot resolve extensionless runtime
+// imports of TypeScript modules. Keep this tiny distance primitive independent.
+function distanceBetweenFixes(a: CalibrationFix, b: CalibrationFix): number {
+  const rad = Math.PI / 180;
+  const dLat = (b.latitude - a.latitude) * rad;
+  const dLon = (b.longitude - a.longitude) * rad;
+  const h = Math.sin(dLat / 2) ** 2
+    + Math.cos(a.latitude * rad) * Math.cos(b.latitude * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
 
 /**
  * Pure, experimental walking-distance reconciliation.
