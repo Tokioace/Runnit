@@ -59,7 +59,9 @@ test('restyling preserves demo provenance and does not invent real rankings', ()
 test('GPS lab separates opt-in walking sensors from synthetic race simulations', () => {
   const source = read('src/screens/GpsLabScreen.tsx');
   assert.match(source, /runGpsSimulation/);
-  assert.match(source, /Simulation · kein echter Lauf/);
+  assert.match(source, /Zwei klar getrennte Testbereiche/);
+  assert.match(source, /Sprint-Szenarien darunter verwenden ausschließlich künstliche Daten/);
+  assert.match(source, /REAL DATA LAB/);
   assert.match(source, /<WalkingLab\s*\/>/);
   assert.match(source, /watchPosition\s*\(/);
   assert.match(source, /clearWatch\s*\(/);
