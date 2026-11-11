@@ -15,7 +15,9 @@ test('home page does not request geolocation or import Supabase', () => {
   assert.doesNotMatch(home, /navigator\.geolocation|useUserLocation|watchPosition\s*\(|getCurrentPosition\s*\(/);
   assert.doesNotMatch(home, /from ['"][^'"]*supabase/i);
   assert.match(home, /to="\/map"/);
-  assert.match(home, /to="\/gps-lab"/);
+  assert.match(home, /to="\/sprint-lab"/);
+  assert.match(home, /Als Gast fortfahren/);
+  assert.match(home, /STARTEN/);
 });
 
 test('bottom navigation has independent Home and Map tabs', () => {
