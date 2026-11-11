@@ -3,11 +3,13 @@ import type { MotionSample } from './fairPlay';
 /** Estimates the sustained movement interval; not a validated step detector. */
 export function detectWalkingPhase(samples: MotionSample[]): { startMs: number; endMs: number } | null {
   if (samples.length < 30) return null;
-  const first = samples.find(sample => Number.isFinite(sample.timestampMs) && Number.isFinite(sample.accelerationMagnitudeMps2))?.timestampMs;
-  if (first === undefined) return null;
+  // DeviceMotion events can arrive out of order. Anchor bins to the earliest valid sample.
+  const timestamps = samples.filter(sample => Number.isFinite(sample.timestampMs) && Number.isFinite(sample.accelerationMagnitudeMps2) && sample.accelerationMagnitudeMps2 >= 0).map(sample => sample.timestampMs);
+  if (!timestamps.length) return null;
+  const first = Math.min(...timestamps);
   const bins = new Map<number, { energy: number; count: number }>();
   for (const sample of samples) {
-    if (!Number.isFinite(sample.timestampMs) || !Number.isFinite(sample.accelerationMagnitudeMps2)) continue;
+    if (!Number.isFinite(sample.timestampMs) || !Number.isFinite(sample.accelerationMagnitudeMps2) || sample.accelerationMagnitudeMps2 < 0) continue;
     const index = Math.floor((sample.timestampMs - first) / 500);
     if (index < 0) continue;
     const bin = bins.get(index) ?? { energy: 0, count: 0 };
