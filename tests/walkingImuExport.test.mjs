@@ -44,3 +44,19 @@ describe('live peak diagnostics', () => {
     assert.ok(!JSON.stringify(withPeaks).includes(String(origin)));
   });
 });
+
+
+describe('out-of-order IMU export', () => {
+  it('sorts valid samples before relative normalization and retains peak diagnostics', () => {
+    const origin = 1589123456789;
+    const result = createWalkingImuExport([
+      { timestampMs: origin + 80, accelerationMagnitudeMps2: 3 },
+      { timestampMs: origin, accelerationMagnitudeMps2: 1 },
+      { timestampMs: origin + 40, accelerationMagnitudeMps2: 2 },
+    ], '3', { smoothedMs: [origin + 40], rawMs: [origin + 80] });
+    assert.deepEqual(result.samples.map(s => s.tMs), [0, 40, 80]);
+    assert.deepEqual(result.samples.map(s => s.magnitude), [1, 2, 3]);
+    assert.deepEqual(result.peakDiagnostics.smoothedLivePeakMs, [40]);
+    assert.ok(!JSON.stringify(result).includes(String(origin)));
+  });
+});
