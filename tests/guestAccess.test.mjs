@@ -11,7 +11,7 @@ test('guest mode requires a deliberate opt-in and never creates a Supabase ident
   assert.match(welcome, /onContinueAsGuest/);
   assert.match(app, /sessionStorage\.getItem\(GUEST_SESSION_KEY\)/);
   assert.match(app, /sessionStorage\.setItem\(GUEST_SESSION_KEY, '1'\)/);
-  assert.ok(app.includes("!auth.user && location.pathname === '/login'"));
+  assert.ok(app.includes("!auth.user && accountPage"));
   assert.doesNotMatch(app, /signInAnonymously|signInWithIdToken|service_role/);
 });
 
