@@ -6,10 +6,11 @@ import {
 import type { UseSupabaseUserReturn } from '../../hooks/useSupabaseUser';
 import type { SocialProvider } from '../../lib/authRedirect';
 import AccountAuthPanel from '../profile/AccountAuthPanel';
+import { Link } from 'react-router-dom';
 
 type Props = Pick<UseSupabaseUserReturn,
   'signInWithProvider' | 'sendMagicLink' | 'verifyEmailOtp' | 'signIn' | 'signUp' | 'loadError'
-> & { onContinueAsGuest: () => void };
+> & { onContinueAsGuest: () => void; initialMode?: 'signin' | 'signup' };
 
 type EmailMode = 'hidden' | 'magic-link' | 'password';
 
@@ -50,8 +51,8 @@ function authErrorMessage(error: unknown): string {
   return 'Anmeldung konnte nicht gestartet werden. Bitte versuche es erneut oder nutze E-Mail.';
 }
 
-export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, verifyEmailOtp, signIn, signUp, loadError, onContinueAsGuest }: Props) {
-  const [emailMode, setEmailMode] = useState<EmailMode>('hidden');
+export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, verifyEmailOtp, signIn, signUp, loadError, onContinueAsGuest, initialMode = 'signin' }: Props) {
+  const [emailMode, setEmailMode] = useState<EmailMode>('password');
   const [email, setEmail] = useState('');
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState('');
@@ -139,6 +140,9 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
       </div>
 
       <div className="relative mx-auto max-w-md">
+        <Link to="/" className="mb-5 inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-bold text-white/80 hover:text-white">
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Zurück zum Runnit-Start
+        </Link>
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-300/30 bg-violet-500/20 shadow-[0_0_32px_rgba(139,92,246,.2)]">
@@ -248,7 +252,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
                 </>
               ) : (
                 <>
-                  <AccountAuthPanel signIn={signIn} signUp={signUp} />
+                  <AccountAuthPanel signIn={signIn} signUp={signUp} initialMode={initialMode} />
                   <button type="button" onClick={() => { setEmailMode('magic-link'); setError(null); setNotice(null); }}
                     className="min-h-11 w-full rounded-xl text-center text-xs font-semibold text-cyan-200 hover:text-white">
                     Stattdessen einen Anmeldelink nutzen
