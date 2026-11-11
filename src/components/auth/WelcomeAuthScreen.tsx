@@ -9,7 +9,7 @@ import AccountAuthPanel from '../profile/AccountAuthPanel';
 
 type Props = Pick<UseSupabaseUserReturn,
   'signInWithProvider' | 'sendMagicLink' | 'verifyEmailOtp' | 'signIn' | 'signUp' | 'loadError'
-> & { onContinueAsGuest: () => void };
+> & { onContinueAsGuest: () => void; initialIntent?: 'signin' | 'signup' };
 
 type EmailMode = 'hidden' | 'magic-link' | 'password';
 
@@ -50,8 +50,8 @@ function authErrorMessage(error: unknown): string {
   return 'Anmeldung konnte nicht gestartet werden. Bitte versuche es erneut oder nutze E-Mail.';
 }
 
-export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, verifyEmailOtp, signIn, signUp, loadError, onContinueAsGuest }: Props) {
-  const [emailMode, setEmailMode] = useState<EmailMode>('hidden');
+export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, verifyEmailOtp, signIn, signUp, loadError, onContinueAsGuest, initialIntent = 'signin' }: Props) {
+  const [emailMode, setEmailMode] = useState<EmailMode>(initialIntent === 'signup' ? 'password' : 'hidden');
   const [email, setEmail] = useState('');
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState('');
@@ -248,7 +248,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
                 </>
               ) : (
                 <>
-                  <AccountAuthPanel signIn={signIn} signUp={signUp} />
+                  <AccountAuthPanel signIn={signIn} signUp={signUp} initialMode={initialIntent} />
                   <button type="button" onClick={() => { setEmailMode('magic-link'); setError(null); setNotice(null); }}
                     className="min-h-11 w-full rounded-xl text-center text-xs font-semibold text-cyan-200 hover:text-white">
                     Stattdessen einen Anmeldelink nutzen
