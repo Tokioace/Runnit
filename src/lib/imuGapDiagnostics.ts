@@ -12,7 +12,8 @@ export function findImuGaps(samples: readonly { timestampMs: number }[], thresho
 export function splitTraceAtGaps<T extends { timestampMs: number }>(samples: readonly T[], gaps: readonly { startMs: number; endMs: number }[]): T[][] {
   const segments: T[][] = [];
   for (const sample of samples) {
-    const previous = segments[segments.length - 1]?.at(-1);
+    const last = segments[segments.length - 1];
+    const previous = last?.[last.length - 1];
     if (!previous || gaps.some(g => g.startMs >= previous.timestampMs && g.endMs <= sample.timestampMs)) segments.push([]);
     segments[segments.length - 1].push(sample);
   }
