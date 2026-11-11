@@ -4,12 +4,14 @@ import {
   getAccountDisplayName, getAccountDisplayNameError, normalizeDisplayName,
 } from '../lib/accountProfile';
 import { authCallbackUrl, type SocialProvider } from '../lib/authRedirect';
+import { getWalkingCalibration, type WalkingCalibration } from '../lib/strideCalibration';
 
 export type AuthUser = {
   id: string;
   email?: string;
   displayName: string;
   emailConfirmed: boolean;
+  walkingCalibration: WalkingCalibration | null;
   createdAt?: string;
 };
 
@@ -22,6 +24,7 @@ function toAuthUser(user: SessionUser | null | undefined): AuthUser | null {
     email: user.email || undefined,
     displayName: getAccountDisplayName(user.user_metadata),
     emailConfirmed: Boolean(user.email_confirmed_at),
+    walkingCalibration: getWalkingCalibration(user.user_metadata),
     createdAt: user.created_at,
   };
 }

@@ -1,4 +1,4 @@
-import { BarChart3, Flag, ShieldCheck, Timer, Trophy, UserRound, ArrowRight } from 'lucide-react';
+import { BarChart3, Flag, ShieldCheck, Timer, Trophy, UserRound, ArrowRight, Ruler } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PageFrame from '../components/ui/PageFrame';
 import AccountDetailsPanel from '../components/profile/AccountDetailsPanel';
@@ -28,6 +28,20 @@ export default function ProfileScreen() {
       ) : user ? (
         <>
           <AccountDetailsPanel user={user} updateDisplayName={updateDisplayName} changePassword={changePassword} signOut={signOut} />
+
+          <section aria-label="Individuelle Gehschrittlänge" className="space-y-3 rounded-3xl border border-cyan-300/20 bg-gradient-to-br from-cyan-500/10 to-violet-500/10 p-5">
+            <div className="flex items-center gap-3"><Ruler className="h-6 w-6 text-cyan-200" aria-hidden="true" />
+              <h2 className="text-lg font-black">Deine Schrittkalibrierung</h2></div>
+            {user.walkingCalibration ? (
+              <>
+                <p className="text-3xl font-black tabular-nums text-emerald-200">{(user.walkingCalibration.walkingStrideM * 100).toFixed(1)} cm <span className="text-xs font-semibold text-white/55">pro Gehschritt</span></p>
+                <p className="text-xs leading-5 text-white/60">Körpergröße: {user.walkingCalibration.heightCm} cm · {user.walkingCalibration.stepCount} Schritte · Experimentelle GPS-Endpunktmessung. Noch nicht für Sprintwertungen verwendet.</p>
+              </>
+            ) : <p className="text-sm leading-6 text-white/65">Noch keine persönliche Schrittlänge gespeichert. Für die Kalibrierung benötigst du eine gerade Strecke im Freien und gutes GPS.</p>}
+            <Link to="/calibration" className="flex min-h-12 items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 px-4 text-sm font-extrabold">
+              {user.walkingCalibration ? 'Kalibrierung wiederholen' : 'Schrittlänge kalibrieren'}
+            </Link>
+          </section>
 
           <section aria-label="Deine zukünftigen Sportstatistiken" className="space-y-4">
             <div className="flex items-center justify-between gap-3">
