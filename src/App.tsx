@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { Footprints, LoaderCircle } from 'lucide-react';
 import MapScreen from './screens/MapScreen';
 import HomeScreen from './screens/HomeScreen';
+import DashboardScreen from './screens/DashboardScreen';
 import LeaderboardScreen from './screens/LeaderboardScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import GpsLabScreen from './screens/GpsLabScreen';
@@ -15,7 +16,7 @@ import { AUTH_CALLBACK_PATH } from './lib/authRedirect';
 import { useSupabaseUser } from './hooks/useSupabaseUser';
 
 const GUEST_SESSION_KEY = 'runnit:guest-mode';
-const APP_PATHS = new Set(['/', '/map', '/leaderboard', '/profile', '/gps-lab', '/calibration', '/fusion-lab', '/sprint-lab']);
+const APP_PATHS = new Set(['/', '/home', '/map', '/leaderboard', '/profile', '/gps-lab', '/calibration', '/fusion-lab', '/sprint-lab']);
 
 /**
  * Guest mode is a local UI preference, NOT a Supabase authentication identity.
@@ -32,7 +33,7 @@ function wasGuestModeChosen(): boolean {
 
 function safeLoginReturnPath(search: string): string {
   const next = new URLSearchParams(search).get('next');
-  return next && APP_PATHS.has(next) ? next : '/';
+  return next && APP_PATHS.has(next) ? next : '/home';
 }
 
 export default function App() {
@@ -46,12 +47,12 @@ export default function App() {
     // This is only a browsing preference. It never creates an Auth user.
     try { window.sessionStorage.setItem(GUEST_SESSION_KEY, '1'); } catch { /* Safari can restrict storage. */ }
     setGuestAccess(true);
-    navigate('/map');
+    navigate('/home');
   };
 
   const enterApp = () => {
     if (auth.user) {
-      navigate('/map');
+      navigate('/home');
     } else {
       enterGuestMode();
     }
@@ -80,7 +81,7 @@ export default function App() {
   }
 
   if (location.pathname === AUTH_CALLBACK_PATH) {
-    return auth.user ? <Navigate to="/" replace /> : <AuthCallbackScreen onContinueAsGuest={enterGuestMode} />;
+    return auth.user ? <Navigate to="/home" replace /> : <AuthCallbackScreen onContinueAsGuest={enterGuestMode} />;
   }
 
   // Explicit login requests always open the account screen, even after a
@@ -110,6 +111,7 @@ export default function App() {
     <div className="dark">
       <Routes>
         <Route path="/" element={<HomeScreen isSignedIn={Boolean(auth.user)} guestAccess={guestAccess} onStart={enterApp} onContinueAsGuest={enterGuestMode} />} />
+        <Route path="/home" element={<DashboardScreen />} />
         <Route path="/map" element={<MapScreen />} />
         <Route path="/leaderboard" element={<LeaderboardScreen />} />
         <Route path="/profile" element={<ProfileScreen />} />
