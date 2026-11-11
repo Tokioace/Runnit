@@ -16,7 +16,7 @@ test('main secondary pages share the same visual shell without modifying the app
     assert.match(page, /<PageFrame/);
   }
   const home = read('src/screens/HomeScreen.tsx');
-  assert.match(home, /DEIN LAUF\./);
+  assert.match(home, /RUNNIT – Challenge/);
 });
 
 test('mobile sheet appears above the map buttons and has an accessible close control', () => {
