@@ -77,3 +77,22 @@ describe('out-of-order peak diagnostics', () => {
     assert.ok(!JSON.stringify(result).includes(String(origin)));
   });
 });
+
+
+describe('empty walking IMU exports', () => {
+  it('does not fabricate peak times when the sample list is empty', () => {
+    const result = createWalkingImuExport([], '', { smoothedMs: [0, 10], rawMs: [0] });
+    assert.deepEqual(result.samples, []);
+    assert.deepEqual(result.peakDiagnostics.smoothedLivePeakMs, []);
+    assert.deepEqual(result.peakDiagnostics.rawLivePeakMs, []);
+  });
+  it('drops orphan peaks if all IMU readings are invalid', () => {
+    const result = createWalkingImuExport([
+      { timestampMs: 0, accelerationMagnitudeMps2: Infinity },
+      { timestampMs: 100, accelerationMagnitudeMps2: -1 },
+    ], '100', { smoothedMs: [0, 100], rawMs: [0] });
+    assert.deepEqual(result.samples, []);
+    assert.deepEqual(result.peakDiagnostics.smoothedLivePeakMs, []);
+    assert.deepEqual(result.peakDiagnostics.rawLivePeakMs, []);
+  });
+});
