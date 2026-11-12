@@ -420,7 +420,7 @@ function WalkingLab() {
         const segments = splitTraceAtGaps(visible, motionGaps);
         const accepted = report.acceptedStepTimesMs.filter(t => xAt(t) >= 0 && xAt(t) <= width);
         const candidates = report.candidatePeaks.filter(p => xAt(p.timestampMs) >= 0 && xAt(p.timestampMs) <= width);
-        const axisPoints = (axis: 'accelerationX' | 'accelerationY' | 'accelerationZ') => visible.filter(sample => sample[axis] !== undefined).map(sample => String(xAt(sample.timestampMs)) + ',' + String(height / 2 - (sample[axis] ?? 0) / axisMax * height / 2)).join(' ');
+        const axisPoints = (segment: MotionSample[], axis: 'accelerationX' | 'accelerationY' | 'accelerationZ') => segment.filter(sample => sample[axis] !== undefined).map(sample => String(xAt(sample.timestampMs)) + ',' + String(height / 2 - (sample[axis] ?? 0) / axisMax * height / 2)).join(' ');
         return (
           <div className="space-y-3 rounded-xl border border-cyan-300/30 bg-white/5 p-4">
             <h3 className="font-black text-cyan-100">Schritt-Diagnose · Zeit und erkannte Spitzen</h3>
@@ -443,9 +443,11 @@ function WalkingLab() {
                 <line x1="0" y1={yAt(2)} x2={width} y2={yAt(2)} stroke="#fbbf24" strokeDasharray="6 6" opacity="0.7" />
                 {visibleGaps.map((gap, index) => <rect key={index} x={Math.max(0, xAt(gap.startMs))} y="0" width={Math.max(0, Math.min(width, xAt(gap.endMs)) - Math.max(0, xAt(gap.startMs)))} height={height} fill="#f59e0b" opacity="0.15" />)}
                 {segments.map((segment, index) => <polyline key={index} points={segment.map(sample => `${xAt(sample.timestampMs).toFixed(1)},${yAt(sample.accelerationMagnitudeMps2).toFixed(1)}`).join(' ')} fill="none" stroke="#67e8f9" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />)}
-                {showAxes && (['accelerationX', 'accelerationY', 'accelerationZ'] as const).map((axis, index) => (
-                  <polyline key={axis} points={axisPoints(axis)} fill="none" stroke={['#fb7185', '#86efac', '#c4b5fd'][index]} strokeWidth="1" opacity="0.8" />
-                ))}
+                {showAxes && (['accelerationX', 'accelerationY', 'accelerationZ'] as const).flatMap((axis, index) =>
+                  segments.map((segment, segmentIndex) => (
+                    <polyline key={axis + '-' + segmentIndex} points={axisPoints(segment, axis)} fill="none" stroke={['#fb7185', '#86efac', '#c4b5fd'][index]} strokeWidth="1" opacity="0.8" />
+                  ))
+                )}
                 {candidates.filter(candidate => candidate.reason !== 'accepted').map((candidate, index) => (
                   <circle key={index} cx={xAt(candidate.timestampMs)} cy={height - 5} r="2.5" fill="#fb923c">
                     <title>{candidate.reason}</title>
