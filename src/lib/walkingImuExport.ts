@@ -15,7 +15,8 @@ export function createWalkingImuExport(
   valid.sort((a, b) => a.timestampMs - b.timestampMs);
   const origin = valid[0]?.timestampMs ?? 0;
   const end = valid[valid.length - 1]?.timestampMs ?? origin;
-  const relativePeakTimes = (times: readonly number[]) => times
+  // With no valid IMU samples there is no legitimate interval for peak diagnostics.
+  const relativePeakTimes = (times: readonly number[]) => valid.length === 0 ? [] : times
     .filter(t => Number.isFinite(t) && t >= origin && t <= end)
     .map(t => Math.round((t - origin) * 1000) / 1000)
     .sort((a, b) => a - b);
