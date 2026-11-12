@@ -71,6 +71,14 @@ export function keepScreenAwake(
 
   const onVisibility = () => {
     if (!source.isVisible()) {
+      // Release explicitly: browsers may not dispatch a release event before
+      // hiding the page. Never claim a wake lock survives backgrounding.
+      if (held) {
+        const previous = held;
+        held = null;
+        previous.removeEventListener('release', onRelease);
+        void previous.release().catch(() => {});
+      }
       report('hidden');
     } else {
       void acquire();
