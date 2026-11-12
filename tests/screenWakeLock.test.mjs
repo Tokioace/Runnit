@@ -95,3 +95,22 @@ test('locked display is never falsely claimed as background measurement support'
   assert.match(screenWakeLockMessage('held'), /nicht mit der Seitentaste sperren/);
   assert.match(screenWakeLockMessage('hidden'), /Messung möglicherweise unterbrochen/);
 });
+
+
+test('backgrounding proactively releases the wake lock and reacquires on return', async () => {
+  const h = harness();
+  const stop = keepScreenAwake(h.source, h.listen);
+  await settle();
+  assert.equal(h.requests, 1);
+  h.setVisible(false);
+  await settle();
+  assert.equal(h.releases, 1);
+  assert.equal(h.statuses.at(-1), 'hidden');
+  h.setVisible(true);
+  await settle();
+  assert.equal(h.requests, 2);
+  assert.equal(h.statuses.at(-1), 'held');
+  stop();
+  await settle();
+  assert.equal(h.releases, 2);
+});
