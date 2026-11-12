@@ -35,3 +35,19 @@ describe('descriptive IMU dropout summary', () => {
     assert.deepEqual(summarizeImuGaps([{ startMs: 10, endMs: 0 }, { startMs: NaN, endMs: 100 }]), { count: 0, totalGapMs: 0, longestGapMs: 0 });
   });
 });
+
+
+describe('XYZ trace segmentation', () => {
+  it('retains axis values while splitting all diagnostic traces on real IMU gaps', () => {
+    const full = [
+      { timestampMs: 0, accelerationX: 1, accelerationY: 2, accelerationZ: 3 },
+      { timestampMs: 20, accelerationX: 4, accelerationY: 5, accelerationZ: 6 },
+      { timestampMs: 400, accelerationX: 7, accelerationY: 8, accelerationZ: 9 },
+      { timestampMs: 420, accelerationX: 10, accelerationY: 11, accelerationZ: 12 },
+    ];
+    const segments = splitTraceAtGaps(full, findImuGaps(full));
+    assert.deepEqual(segments.map(segment => segment.map(s => s.accelerationX)), [[1, 4], [7, 10]]);
+    assert.deepEqual(segments.flatMap(segment => segment.map(s => s.accelerationY)), [2, 5, 8, 11]);
+    assert.deepEqual(segments.flatMap(segment => segment.map(s => s.accelerationZ)), [3, 6, 9, 12]);
+  });
+});
