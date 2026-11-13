@@ -70,3 +70,18 @@ describe('IMU dropout threshold and sample integrity', () => {
     assert.deepEqual(summarizeImuGaps(gaps), { count: 2, totalGapMs: 760, longestGapMs: 380 });
   });
 });
+
+describe('invalid diagnostic gap threshold fallback', () => {
+  it('uses the standard 250 ms threshold for zero, negative and nonfinite values', () => {
+    const samples = [0, 20, 250, 501].map(timestampMs => ({ timestampMs }));
+    const expected = [{ startMs: 250, endMs: 501 }];
+    for (const threshold of [0, -1, NaN, Infinity, -Infinity]) {
+      assert.deepEqual(findImuGaps(samples, threshold), expected, String(threshold));
+    }
+    assert.deepEqual(findImuGaps(samples, 10), [
+      { startMs: 0, endMs: 20 },
+      { startMs: 20, endMs: 250 },
+      { startMs: 250, endMs: 501 },
+    ]);
+  });
+});
