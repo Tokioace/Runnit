@@ -1,9 +1,11 @@
 /** Diagnostic-only IMU gaps, computed from full-rate samples before chart decimation. */
 export function findImuGaps(samples: readonly { timestampMs: number }[], thresholdMs = 250): { startMs: number; endMs: number }[] {
+  // Invalid thresholds must not label ordinary sampling intervals as sensor dropouts.
+  const effectiveThresholdMs = Number.isFinite(thresholdMs) && thresholdMs > 0 ? thresholdMs : 250;
   const times = samples.map(s => s.timestampMs).filter(Number.isFinite).sort((a, b) => a - b);
   const gaps: { startMs: number; endMs: number }[] = [];
   for (let i = 1; i < times.length; i++) {
-    if (times[i] - times[i - 1] > thresholdMs) gaps.push({ startMs: times[i - 1], endMs: times[i] });
+    if (times[i] - times[i - 1] > effectiveThresholdMs) gaps.push({ startMs: times[i - 1], endMs: times[i] });
   }
   return gaps;
 }
