@@ -51,3 +51,22 @@ describe('XYZ trace segmentation', () => {
     assert.deepEqual(segments.flatMap(segment => segment.map(s => s.accelerationZ)), [3, 6, 9, 12]);
   });
 });
+
+describe('IMU dropout threshold and sample integrity', () => {
+  it('does not flag a 250 ms interval but flags an interval strictly above it', () => {
+    const samples = [0, 250, 501].map(timestampMs => ({ timestampMs }));
+    assert.deepEqual(findImuGaps(samples), [{ startMs: 250, endMs: 501 }]);
+    assert.deepEqual(findImuGaps(samples, 251), []);
+  });
+
+  it('keeps diagnostic segments and full-rate samples unchanged', () => {
+    const samples = [0, 20, 400, 420, 800, 820].map(timestampMs => ({ timestampMs }));
+    const snapshot = structuredClone(samples);
+    const gaps = findImuGaps(samples);
+    const segments = splitTraceAtGaps(samples, gaps);
+    assert.deepEqual(segments.map(segment => segment.map(s => s.timestampMs)), [[0, 20], [400, 420], [800, 820]]);
+    assert.deepEqual(segments.flat(), snapshot);
+    assert.deepEqual(samples, snapshot);
+    assert.deepEqual(summarizeImuGaps(gaps), { count: 2, totalGapMs: 760, longestGapMs: 380 });
+  });
+});
