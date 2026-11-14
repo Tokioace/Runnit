@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Activity, ArrowRight, Award, ChevronRight, Crown, Flame, Flag, Footprints,
@@ -31,6 +32,7 @@ const futureBadges = [
 export default function ProfileScreen() {
   const { user, loading, loadError, signOut, updateDisplayName, changePassword } = useSupabaseUser();
   const displayName = loading ? 'WIRD GELADEN' : user?.displayName || 'GAST';
+  const [selectedTab, setSelectedTab] = useState<'profil' | 'ziele' | 'erfolge'>('profil');
 
   return (
     <main className="runnit-game-home runnit-profile-master relative min-h-[100dvh] w-full max-w-full overflow-x-clip text-white">
@@ -52,9 +54,9 @@ export default function ProfileScreen() {
         </header>
 
         <nav className="runnit-profile-tabs grid grid-cols-3 gap-1.5" aria-label="Profilbereiche">
-          <a href="#profil" className="runnit-profile-tab runnit-profile-tab-active"><UserRound aria-hidden="true" /><span>PROFIL</span></a>
-          <a href="#ziele" className="runnit-profile-tab"><Medal aria-hidden="true" /><span>ZIELE</span></a>
-          <a href="#erfolge" className="runnit-profile-tab"><Trophy aria-hidden="true" /><span>ERFOLGE</span></a>
+          <a href="#profil" onClick={() => setSelectedTab('profil')} aria-current={selectedTab === 'profil' ? 'location' : undefined} className={'runnit-profile-tab' + (selectedTab === 'profil' ? ' runnit-profile-tab-active' : '')}><UserRound aria-hidden="true" /><span>PROFIL</span></a>
+          <a href="#ziele" onClick={() => setSelectedTab('ziele')} aria-current={selectedTab === 'ziele' ? 'location' : undefined} className={'runnit-profile-tab' + (selectedTab === 'ziele' ? ' runnit-profile-tab-active' : '')}><Medal aria-hidden="true" /><span>ZIELE</span></a>
+          <a href="#erfolge" onClick={() => setSelectedTab('erfolge')} aria-current={selectedTab === 'erfolge' ? 'location' : undefined} className={'runnit-profile-tab' + (selectedTab === 'erfolge' ? ' runnit-profile-tab-active' : '')}><Trophy aria-hidden="true" /><span>ERFOLGE</span></a>
         </nav>
 
         <section id="profil" aria-labelledby="profile-stats-title">

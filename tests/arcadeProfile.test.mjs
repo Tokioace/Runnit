@@ -47,3 +47,21 @@ test('existing profile security, calibration and user flows remain connected', (
   assert.match(profile, /to="\/login\?next=%2Fprofile"/);
   assert.match(details, /signOut\(\)/);
 });
+
+
+test('arcade profile tabs keep selected-neon state in sync with their targets', () => {
+  const profile = read('src/screens/ProfileScreen.tsx');
+  assert.match(profile, /selectedTab/);
+  assert.match(profile, /setSelectedTab\('profil'\)/);
+  assert.match(profile, /setSelectedTab\('ziele'\)/);
+  assert.match(profile, /setSelectedTab\('erfolge'\)/);
+  assert.match(profile, /aria-current=\{selectedTab ===/);
+});
+
+test('editable account inputs prevent Safari focus zoom', () => {
+  const detail = read('src/components/profile/AccountDetailsPanel.tsx');
+  assert.equal(detail.match(/px-4 py-3 text-base text-white/g)?.length, 3);
+  assert.match(detail, /id="edit-display-name"/);
+  assert.match(detail, /id="new-account-password"/);
+  assert.match(detail, /id="confirm-account-password"/);
+});
