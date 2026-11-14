@@ -79,6 +79,7 @@ function WalkingLab() {
   const [showAxes, setShowAxes] = useState(false);
   const gps = useRef<PositionSample[]>([]);
   const imu = useRef<MotionSample[]>([]);
+  const lastMotionSampleAt = useRef<number | null>(null);
   const livePeakCounter = useRef(new LiveStepPeakCounter(67));
   const rawPeakCounter = useRef(new LiveStepPeakCounter());
   const watch = useRef<number | null>(null);
@@ -158,7 +159,7 @@ function WalkingLab() {
     } catch { motionAllowed = false; }
     if (!mounted.current || !pending.current) return;
     pending.current = false;
-    gps.current = []; imu.current = []; livePeakCounter.current.reset(); rawPeakCounter.current.reset(); setLiveStepCount(0); setRawStepCount(0); setCount({ gps: 0, imu: 0 });
+    gps.current = []; imu.current = []; lastMotionSampleAt.current = null; livePeakCounter.current.reset(); rawPeakCounter.current.reset(); setLiveStepCount(0); setRawStepCount(0); setCount({ gps: 0, imu: 0 });
     setStraightRouteConfirmed(false); setReport(null); setPatternReport(null); setMotionTrace([]); setMotionGaps([]); setTraceWindowStartSec(0); setShowAxes(false); setReferenceSteps(''); setElapsed(0); setPocketLock(false); setBackgroundInterrupted(false); start.current = performance.now();
     running.current = true; recording.current = false; setActive(true);
     countdownEnd.current = performance.now() + 10000;
@@ -189,6 +190,7 @@ function WalkingLab() {
         const sample: MotionSample = { timestampMs: performance.now(), accelerationMagnitudeMps2: magnitude, accelerationX: a.x, accelerationY: a.y, accelerationZ: a.z };
         imu.current.push(sample);
         rawPeakCounter.current.push(sample);
+        lastMotionSampleAt.current = performance.now();
         const nextStepCount = livePeakCounter.current.push(sample);
         if (nextStepCount !== null) setLiveStepCount(nextStepCount);
         if (imu.current.length > 60000) imu.current.shift();
@@ -289,6 +291,11 @@ function WalkingLab() {
         <div><strong className="block text-xl">{count.gps}</strong>GPS-Fixes</div>
         <div><strong className="block text-xl">{count.imu}</strong>IMU-Samples</div>
       </div>
+      {active && countdown === null && count.imu > 0 && lastMotionSampleAt.current !== null && performance.now() - lastMotionSampleAt.current > 1500 && (
+        <p role="alert" className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm font-semibold text-amber-100">
+          Bewegungssensor liefert seit mehr als 1,5 Sekunden keine neuen Werte. iOS kann die Messung unterbrechen; fehlende Schritte nicht als Betrug werten.
+        </p>
+      )}
       <div aria-live="polite" aria-atomic="true" role="status" className="rounded-2xl border border-cyan-300/40 bg-cyan-300/10 p-5 text-center">
         <p className="text-xs font-black uppercase tracking-widest text-cyan-200">LIVE · erkannte Schrittspitzen</p>
         <strong className="mt-2 block text-6xl font-black tabular-nums text-white">{liveStepCount}</strong>
