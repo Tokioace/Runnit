@@ -209,7 +209,6 @@ export default function ArcadeMapLibreView({
       pitch: PITCH_DEGREES,
       bearing: BEARING_DEGREES,
       maxPitch: 65,
-      antialias: true,
       attributionControl: { compact: false },
       cooperativeGestures: false,
     });
