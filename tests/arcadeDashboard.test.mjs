@@ -111,3 +111,24 @@ test('master reference layout is compact without flattened UI and preserves safe
   assert.match(home, /runnit-game-start group/);
   assert.match(home, /XP NOCH NICHT VERFÜGBAR/);
 });
+
+
+test('three preview slots preserve the master composition with no invented records', () => {
+  const home = read('src/screens/DashboardScreen.tsx');
+  const css = read('src/styles/runnitMaster.css');
+  assert.match(home, /type VerifiedRacePreview/);
+  assert.match(home, /type VerifiedRankPreview/);
+  assert.match(home, /recentRaces = \[\], rankings = \[\]/);
+  assert.match(home, /source === 'verified'/);
+  assert.match(home, /runnit-arcade-races/);
+  assert.match(home, /runnit-arcade-ranking/);
+  assert.match(home, /NOCH KEINE VERIFIZIERTEN RENNEN/);
+  assert.match(home, /NOCH KEINE OFFIZIELLEN PLÄTZE/);
+  assert.match(home, /aria-hidden="true"/);
+  assert.match(css, /\.runnit-arcade-ghost/);
+  assert.match(css, /\.runnit-game-start::before/);
+  assert.match(css, /runnit-game-duel/);
+  assert.match(read('public/runnit-arcade-city.svg'), /<text/);
+  assert.match(read('public/runnit-duel-art.svg'), /<text/);
+  assert.doesNotMatch(home, /TurboKai|Stergios_R|76\.420|5\.420/);
+});
