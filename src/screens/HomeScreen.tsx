@@ -34,7 +34,7 @@ export default function HomeScreen({ isSignedIn, guestAccess, onStart, onContinu
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#070c20]/30 via-[#080c24]/55 to-[#070c20]/95" />
       </div>
-      <div className="relative z-10 mx-auto flex h-full w-full flex-col items-center justify-start">
+      <div className="relative z-10 mx-auto flex h-full w-full flex-col items-center justify-center overflow-hidden">
         <div className="runnit-launch-art relative aspect-[941/1672] w-full shrink-0 overflow-hidden bg-[#070c20]">
         <img
           src="/runnit-launch-portrait.avif"

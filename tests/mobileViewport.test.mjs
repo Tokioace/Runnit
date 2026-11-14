@@ -42,3 +42,28 @@ test('page titles, navigation and map CTAs respect narrow mobile widths', () => 
   assert.match(map, /basis-0 flex-1/);
   assert.match(app, /window\.scrollTo\(0, 0\)/);
 });
+
+
+test('account form fonts remain 16px without depending only on focus CSS', () => {
+  const panel = read('src/components/profile/AccountAuthPanel.tsx');
+  assert.equal(panel.match(/px-4 py-3 text-base text-white outline-none/g)?.length, 3);
+  assert.match(panel, /id="account-email"/);
+  assert.match(panel, /id="account-password"/);
+  assert.match(panel, /id="account-nickname"/);
+});
+
+test('the unmodified portrait launch remains viewport-filling while wide art is centered', () => {
+  const launch = read('src/screens/HomeScreen.tsx');
+  const css = read('src/index.css');
+  assert.match(launch, /h-full w-full flex-col items-center justify-center overflow-hidden/);
+  assert.match(css, /\.runnit-launch-art/);
+  assert.match(css, /height: 100dvh/);
+});
+
+test('map status messages respect iOS top safe area and race icon stays legible', () => {
+  const map = read('src/screens/MapScreen.tsx');
+  assert.equal(map.match(/top-\[calc\(5\.5rem\+env\(safe-area-inset-top\)\)\]/g)?.length, 2);
+  assert.equal(map.match(/max-w-\[calc\(100%-2rem\)\]/g)?.length, 2);
+  assert.match(map, /<Trophy className="h-5 w-5 shrink-0"/);
+  assert.match(map, /basis-0 flex-1 items-center/);
+});
