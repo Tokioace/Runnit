@@ -173,7 +173,10 @@ test('HUD renders frozen personal time, two moving running lanes and historical 
   assert.match(screen, /role="status"/);
   assert.doesNotMatch(screen, /Abstand in der Demo: .*race\.leadMeters/);
   const map = read('src/screens/MapScreen.tsx');
-  assert.match(map, /Renn-Grafik testen · Demo ohne zweiten Läufer/);
+  const arcadeMap = read('src/components/map/ArcadeMapChrome.tsx');
+  assert.match(arcadeMap, /Renn-Grafik testen · Nur Simulation/);
+  assert.match(arcadeMap, /to="\/sprint-lab"/);
+  assert.doesNotMatch(map, /runnit-map-demo-link/);
 });
 
 test('mobile runner avatars remain entirely in lane at start, mid-race and finish', () => {
