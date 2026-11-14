@@ -1,0 +1,293 @@
+
+/*
+ * RUNNIT dashboard reference-spacing pass.
+ * The original user supplied 864x1536 visual mock is the art-direction target.
+ * All cards/buttons/stats remain semantic DOM; no frozen screen overlay.
+ * These rules are scoped to Dashboard to avoid changing GPS, map, auth.
+ */
+.runnit-dash-master {
+  --dash-cyan: #3df4ff;
+  --dash-lime: #c6fc0b;
+  --dash-pink: #f127d5;
+  --dash-ink: #060c29;
+  background-color: #070a2c;
+}
+.runnit-dash-master .runnit-game-content {
+  max-width: 520px;
+}
+/* Original portrait illustration is cropped only as a decorative runner layer.
+   Remove the old splash wording by limiting the visible area under the logo. */
+.runnit-dash-master .runnit-game-hero {
+  position: relative;
+  isolation: isolate;
+}
+.runnit-dash-master .runnit-hero-glow {
+  position: absolute;
+  z-index: 0;
+  inset: 18% -2% 6%;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 45% 70% at 16% 48%,rgba(19,232,255,.25),transparent 75%),
+    linear-gradient(110deg,transparent 50%,rgba(237,46,217,.12));
+}
+.runnit-dash-master .runnit-hero-portrait {
+  z-index: 1;
+  width: 39%;
+  left: -11px;
+  top: 31px;
+  height: calc(100% - 20px);
+  background-size: auto 375%;
+  background-position: 60% 27%;
+  mask-image: linear-gradient(90deg,#000 58%,rgba(0,0,0,.84) 76%,transparent 99%);
+}
+.runnit-dash-master .runnit-game-logo {
+  width: min(75%,470px);
+  margin-inline: auto;
+}
+.runnit-dash-master .runnit-game-logo img {
+  max-height: none;
+}
+.runnit-dash-master .runnit-game-motto {
+  position: relative;
+  margin: 0 auto;
+  width: max-content;
+  max-width: 90%;
+  font-size: clamp(11px,3.2vw,17px);
+  transform: rotate(-3deg);
+  text-shadow: 0 2px 8px #03011e, 0 0 7px #3b125b;
+}
+.runnit-dash-master .runnit-game-settings {
+  position: absolute;
+  top: 8px;
+  right: 0;
+  z-index: 4;
+}
+.runnit-dash-master .runnit-game-ranks {
+  margin-left: 27%;
+  gap: 5px;
+}
+.runnit-dash-master .runnit-game-ranks > span:nth-child(2) {
+  border-color: #ff69fa;
+  box-shadow: inset 0 1px #fff, 0 3px #dd27ef,0 0 13px rgba(246,49,228,.54);
+}
+.runnit-dash-master .runnit-game-ranks > span:nth-child(3) {
+  border-color: #81abff;
+}
+/* High-contrast glossy glass, neon outline and beveled corners approximate
+   the art while allowing each section to grow for real strings later. */
+.runnit-dash-master .runnit-game-hud {
+  background:
+    linear-gradient(127deg,rgba(116,175,255,.28),transparent 28%),
+    linear-gradient(157deg,#18244d,#10264d 56%,#080d2c);
+  border-color:#fe61ff;
+  box-shadow:inset 0 2px #d6eeff, 0 0 0 1px rgba(40,238,255,.75),0 0 16px rgba(217,21,253,.65);
+}
+.runnit-dash-master .runnit-game-avatar {
+  border-color:#39f6ff;
+  background-position:center,52% 18%;
+  background-size:auto,auto 355%;
+}
+.runnit-dash-master .runnit-hud-xp-placeholder {
+  white-space:nowrap;
+  font-size: clamp(7px,1.65vw,9px);
+}
+.runnit-dash-master .runnit-game-xp {
+  background:linear-gradient(90deg,rgba(39,233,250,.13),rgba(12,16,46,.8));
+  border-color:#54cdea;
+}
+.runnit-dash-master .runnit-game-mode {
+  border:1.5px solid #81ddff;
+  box-shadow: inset 0 2px rgba(255,255,255,.8),0 2px #1381d7,0 0 12px #15cbef;
+  background:linear-gradient(138deg,#2472b0,#0e2b61 51%,#070e2f);
+}
+.runnit-dash-master .runnit-game-mode.is-lime {
+  border:2px solid #d9ff16;
+  color:#fff;
+  box-shadow:inset 0 2px #f3ffa8,0 2px #d6fb00,0 0 13px rgba(218,255,0,.8);
+  background:linear-gradient(135deg,#8edd00 0%,#518e02 24%,#121f1b 83%);
+}
+.runnit-dash-master .runnit-game-panel {
+  background:
+    repeating-linear-gradient(145deg,rgba(134,206,255,.035) 0 2px,transparent 2px 19px),
+    linear-gradient(135deg,rgba(66,178,255,.17),transparent 29%),
+    linear-gradient(170deg,#1c3264 0%,#0b2349 55%,#081334 100%);
+  border:1.5px solid #46e8ff;
+  box-shadow:inset 0 2px 0 rgba(231,253,255,.82),0 0 14px rgba(5,224,255,.48),0 5px 14px rgba(0,0,0,.36);
+}
+.runnit-dash-master .runnit-game-stat {
+  background:linear-gradient(142deg,#2775ae,#153869 38%,#0c1b49 100%);
+  box-shadow:inset 0 2px rgba(249,255,255,.87),0 2px #1cbdff,0 0 9px rgba(16,232,255,.55);
+}
+.runnit-dash-master .runnit-game-duel {
+  box-shadow:inset 0 2px #f9ffff,0 0 12px rgba(24,233,255,.64),0 3px #ec2df5;
+}
+.runnit-dash-master .runnit-game-start {
+  background:linear-gradient(172deg,#f9ffff 0%,#5af9ff 38%,#02d8f5 66%,#8860fd 100%);
+  box-shadow:inset 0 2px #fff,inset 0 -5px rgba(22,28,86,.28),0 0 0 3px #a81ad7,0 0 20px #0cf1ff,0 8px 21px #04041c;
+}
+.runnit-dash-master .runnit-game-start span { white-space:nowrap; }
+/* Reference width = 864, a 390 CSS px display has scale ~.45. Actual touch
+   targets must remain >=44px; we therefore compress gaps before button text. */
+@media (max-width:540px) and (orientation:portrait) {
+  .runnit-dash-master .runnit-game-content {
+    padding-left: max(10px,env(safe-area-inset-left));
+    padding-right:max(10px,env(safe-area-inset-right));
+    padding-bottom:calc(83px + env(safe-area-inset-bottom,0px));
+    padding-top:max(8px,env(safe-area-inset-top,0px));
+  }
+  .runnit-dash-master .runnit-game-hero {
+    min-height: 126px;
+    padding: 0 2px;
+  }
+  .runnit-dash-master .runnit-game-logo {
+    width: min(77%,335px);
+  }
+  .runnit-dash-master .runnit-game-logo img {
+    width:100%;
+    height:auto;
+    max-height:63px;
+  }
+  .runnit-dash-master .runnit-game-motto {
+    font-size:clamp(10px,2.8vw,13px);
+    margin-top:-1px;
+  }
+  .runnit-dash-master .runnit-game-settings {
+    top:1px;
+    width:34px;height:34px;
+  }
+  .runnit-dash-master .runnit-game-ranks {
+    position:absolute;
+    left:26%;
+    right:0;
+    bottom:1px;
+    margin-left:0;
+    margin-top:0;
+  }
+  .runnit-dash-master .runnit-game-ranks span {
+    min-height:35px;
+    font-size:clamp(7px,1.95vw,9px);
+    gap:2px;
+    padding:2px;
+    border-radius:9px 4px 10px 4px;
+  }
+  .runnit-dash-master .runnit-game-ranks svg {width:12px;height:12px}
+  .runnit-dash-master .runnit-hero-portrait {
+    width:38%;
+    top:33px;
+    bottom:0;
+    height:auto;
+    left:-11px;
+  }
+  .runnit-dash-master .runnit-game-hud {
+    min-height:64px;
+    padding:6px 9px;
+    margin-top:3px;
+    gap:7px;
+  }
+  .runnit-dash-master .runnit-game-avatar {width:48px;height:48px}
+  .runnit-dash-master .runnit-game-hud strong {
+    font-size:clamp(14px,4.4vw,18px);
+    line-height:1;
+  }
+  .runnit-dash-master .runnit-game-hud .text-cyan-200 {font-size:10px}
+  .runnit-dash-master .runnit-game-emblem {font-size:clamp(18px,5vw,24px)}
+  .runnit-dash-master .runnit-game-xp {height:9px;margin-top:4px}
+  .runnit-dash-master .runnit-game-modes {margin-top:10px;gap:6px}
+  .runnit-dash-master .runnit-game-mode {min-height:54px;padding:5px 1px;gap:3px}
+  .runnit-dash-master .runnit-game-mode svg {width:21px;height:21px}
+  .runnit-dash-master .runnit-game-mode span {font-size:clamp(9px,2.55vw,11px)}
+  .runnit-dash-master .runnit-game-activity {margin-top:10px;padding:7px 6px}
+  .runnit-dash-master .runnit-game-activity h1 {font-size:clamp(18px,5.4vw,24px)}
+  .runnit-dash-master .runnit-game-activity .mt-3 {margin-top:6px;gap:5px}
+  .runnit-dash-master .runnit-game-stat {
+    min-height:69px;
+    padding:5px 3px;
+    gap:4px;
+  }
+  .runnit-dash-master .runnit-stat-glyph {width:21px;height:21px}
+  .runnit-dash-master .runnit-game-stat-value {font-size:clamp(20px,5.7vw,27px);letter-spacing:-.06em}
+  .runnit-dash-master .runnit-game-stat .font-black {font-size:clamp(9px,2.6vw,12px);line-height:1.1}
+  .runnit-dash-master .runnit-game-stat .text-lime-300 {font-size:7px}
+  .runnit-dash-master .runnit-game-duel {
+    min-height:72px;
+    margin-top:10px;
+    padding:7px 11px;
+  }
+  .runnit-dash-master .runnit-game-duel h2 {font-size:clamp(22px,6.7vw,29px)}
+  .runnit-dash-master .runnit-game-duel p {margin-top:5px;font-size:clamp(9px,2.4vw,11px);line-height:1.05}
+  .runnit-dash-master .runnit-duel-speed {font-size:32px}
+  .runnit-dash-master .runnit-game-lower {margin-top:10px;gap:7px}
+  .runnit-dash-master .runnit-game-lower .runnit-game-panel {padding:6px}
+  .runnit-dash-master .runnit-game-lower h2 {min-height:18px;font-size:clamp(10px,2.9vw,13px)}
+  .runnit-dash-master .runnit-game-lower h2 svg {width:14px;height:14px}
+  .runnit-dash-master .runnit-game-empty {
+    min-height:65px;
+    margin-top:4px;
+    padding:5px;
+    gap:4px;
+  }
+  .runnit-dash-master .runnit-game-empty svg {width:22px;height:22px}
+  .runnit-dash-master .runnit-game-empty span {font-size:clamp(10px,2.6vw,12px)}
+  .runnit-dash-master .runnit-game-small-action {
+    min-height:44px;
+    margin-top:5px;
+    font-size:clamp(8px,2.15vw,10px);
+  }
+  .runnit-dash-master .runnit-game-start {
+    min-height:60px;
+    margin:14px auto 0;
+    padding:6px;
+    font-size:clamp(20px,5.6vw,26px);
+  }
+  .runnit-dash-master .runnit-game-start img {width:31px}
+  .runnit-dash-master .runnit-game-start svg {width:24px}
+  .runnit-dash-master .runnit-dashboard-lab-link {
+    width:max-content;
+    margin:10px auto 0;
+    min-height:44px;
+    font-size:10px;
+  }
+}
+/* A 320px portrait display needs its own text allowances, not ellipsis. */
+@media(max-width:360px) and (orientation:portrait) {
+  .runnit-dash-master .runnit-game-hero {min-height:120px}
+  .runnit-dash-master .runnit-game-settings {width:30px;height:30px}
+  .runnit-dash-master .runnit-game-ranks {left:22%}
+  .runnit-dash-master .runnit-game-ranks span {font-size:7px}
+  .runnit-dash-master .runnit-game-hud {padding:5px}
+  .runnit-dash-master .runnit-game-emblem {font-size:17px}
+  .runnit-dash-master .runnit-game-modes{gap:4px}
+  .runnit-dash-master .runnit-game-mode span{font-size:8.2px}
+  .runnit-dash-master .runnit-game-activity h1{font-size:18px}
+  .runnit-dash-master .runnit-game-stat{gap:2px}
+  .runnit-dash-master .runnit-stat-glyph{width:15px;height:15px}
+  .runnit-dash-master .runnit-game-stat-value{font-size:19px}
+  .runnit-dash-master .runnit-game-small-action{font-size:7.7px}
+  .runnit-dash-master .runnit-game-start{font-size:19px}
+}
+/* Five fully legible navigation links with a single clear active state.
+   Compact enough for in-app PWA, but full labels remain for native Safari. */
+@media(max-width:540px) {
+  .runnit-game-dock ul {
+    padding-top:4px;
+    padding-inline:5px;
+    padding-bottom:max(5px,env(safe-area-inset-bottom,0px));
+    gap:2px;
+  }
+  .runnit-game-dock .runnit-dock-item {
+    min-height:55px;
+    padding-block:4px;
+    gap:3px;
+    border-radius:11px;
+  }
+  .runnit-game-dock .runnit-dock-item svg {width:20px;height:20px}
+  .runnit-game-dock .runnit-dock-caption {
+    white-space:nowrap;
+    font-size:clamp(7.5px,2.12vw,10px);
+    letter-spacing:-.04em;
+    overflow:visible;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .runnit-dash-master .runnit-game-start * {transition:none}
+}
