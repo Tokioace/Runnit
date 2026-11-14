@@ -33,6 +33,8 @@ jobs:
           if [[ "${{ matrix.fix_mode }}" == "safe" ]]; then
             npm audit fix --package-lock-only --ignore-scripts || true
           else
+            # Vite 8 requires a compatible @vitejs/plugin-react major version.
+            npm pkg set 'devDependencies.@vitejs/plugin-react=^6.3.0'
             npm audit fix --force --package-lock-only --ignore-scripts || true
           fi
           git diff --stat -- package.json package-lock.json
