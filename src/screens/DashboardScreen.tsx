@@ -73,7 +73,7 @@ export default function DashboardScreen({ displayName }: DashboardProps) {
                 <div className="min-w-0">
                   <p className="text-[clamp(9px,2.5vw,14px)] font-black italic">{label}</p>
                   <p className="runnit-game-stat-value">— <small>{unit}</small></p>
-                  <p className="text-[9px] font-bold text-lime-300">NICHT VERBUNDEN</p>
+                  <p className="text-[9px] font-bold text-lime-300">KEINE DATEN</p>
                 </div>
               </div>
             ))}

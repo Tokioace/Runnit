@@ -38,3 +38,9 @@ Die erste Dashboard-Version nutzte `/home#aktivitaet` als Stats-Anker. Das war l
 Dieser PR führt vier **lokale, separate SVG-Artwork-Layer** ein: Metallic-RUNNIT-Logo mit Krone/Zielflagge, Stadt-/Brücken-/Sonnenuntergang-Hintergrund, 1v1-Rennszene und den weißen Sprint-Button-Runner. Die bereits freigegebene Portraitgrafik bleibt als dekorativer Hero-Runner erhalten. Die KPI-Zellen sind in ihrer Referenzanordnung nun horizontal gestaltet, und das mobile Dashboard wurde verdichtet.
 
 Die Assets sind visuelle Erstinterpretationen und noch nicht identisch mit den exakten Anime-Illustrationen. Vor einer 1:1-Freigabe ist eine echte iPhone-Screenshot-Gegenprüfung erforderlich. Keine fingierten Leistungsdaten und keine Änderungen an Supabase oder Messlogik.
+
+## iPhone-Bildschirmabgleich 14.11.2026 – konkrete Nachbesserungen
+
+Die vom Nutzer zugesandten sechs echten iPhone-Vorschaubilder zeigten einen mehrfach überlagerten Hero-Bereich, ungünstigen Zuschnitt des Runner-Fotos und des Avatars, in der Navigation abgeschnittenes `RANGLISTE`, zweizeilige Platzhalter im dreispaltigen Aktivitäts-HUD sowie den alten Launch-Hintergrund auf Stats. Die Stats-Überschrift war durch enge Laufweite optisch verschmolzen; die neutralen Daten-Kreise enthielten fälschlich kleine farbige Fortschrittssegmente.
+
+Nachbesserung: Quellbild-Ausschnitt unterhalb des eingebrannten Splash-Schriftzugs, Avatar-Ausschnitt zur Gesichtspartie, fünf vollständig lesbare Dock-Labels, kürzerer eindeutiger Leerwert `KEINE DATEN`, Stats mit separatem Stadthintergrund und kompakter Header-Typografie, nicht-farbige Fortschrittsringe bis echte Messdaten existieren. Kein Eingriff in Auth, GPS, Supabase oder Rennen. Die schwarzen runden Overlays und Vercel-/Browser-Chrome in den Screenshots gehören nicht zum App-Quellcode.
