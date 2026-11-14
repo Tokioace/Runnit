@@ -41,7 +41,7 @@ test('map has a neutral initial center and explicit tile failure handling', () =
   const map = read('src/screens/MapScreen.tsx');
   assert.match(map, /lat: 22, lng: 0/);
   assert.match(map, /tileerror:/);
-  assert.match(map, /tile\.openstreetmap\.org/);
+  assert.ok(map.includes('tile.openstreetmap.org'), 'OSM tile host must remain present');
   assert.doesNotMatch(map, /basemaps\.cartocdn\.com|setTileProvider|tileProvider/);
   assert.match(map, /setTileRetryCount/);
   assert.match(map, /mapTilesUnavailable/);
