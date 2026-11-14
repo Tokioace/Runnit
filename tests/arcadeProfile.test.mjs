@@ -65,3 +65,16 @@ test('editable account inputs prevent Safari focus zoom', () => {
   assert.match(detail, /id="new-account-password"/);
   assert.match(detail, /id="confirm-account-password"/);
 });
+
+
+test('profile iPhone review uses dedicated art and legible arcade headings', () => {
+  const profile = read('src/screens/ProfileScreen.tsx');
+  const css = read('src/styles/runnitMaster.css');
+  assert.match(profile, /<Crown className="runnit-profile-crown"/);
+  assert.doesNotMatch(profile, /runnit-profile-crown" aria-hidden="true">♛/);
+  assert.match(css, /runnit-profile-master \.runnit-profile-hero-character/);
+  assert.match(css, /background-image: url\('\/runnit-launch-hero\.webp'\)/);
+  assert.match(css, /runnit-profile-master \.runnit-profile-section-head > h2/);
+  assert.match(css, /runnit-profile-master \.runnit-profile-badge:last-child strong/);
+  assert.match(css, /white-space: nowrap/);
+});

@@ -45,7 +45,7 @@ export default function ProfileScreen() {
           </div>
           <div className="runnit-profile-hero-character" aria-hidden="true" />
           <div className="runnit-profile-player">
-            <span className="runnit-profile-crown" aria-hidden="true">♛</span>
+            <Crown className="runnit-profile-crown" aria-hidden="true" />
             <p className="runnit-profile-player-name">{displayName}</p>
             <p className="runnit-profile-level">LV. —</p>
             <div className="runnit-profile-xp" role="img" aria-label="XP-Fortschritt noch nicht verfügbar"><span /></div>
