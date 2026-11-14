@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet';
-import { LocateFixed, Trophy } from 'lucide-react';
+import { LocateFixed } from 'lucide-react';
 import type { LatLngExpression } from 'leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -1462,13 +1462,16 @@ export default function MapScreen() {
           />
         ))}
 
-        {/* One selected run in the arcade preview; no duplicate Leaflet popup. */}
+        {/* Tap a real run marker to open its entry in LISTE; no cards cover the map. */}
         {openRuns.map((r) => (
           <MapBadgeMarker
             key={r.id}
             position={[r.location.lat, r.location.lng]}
             iconOptions={getOpenRunIconOptions(Boolean(authUser && r.hostUserId && authUser.id === r.hostUserId))}
-            onClick={() => setSelectedRunId(r.id)}
+            onClick={() => {
+              setSelectedRunId(r.id);
+              setArcadeMapView('list');
+            }}
           />
         ))}
       </MapContainer>
@@ -1540,7 +1543,7 @@ export default function MapScreen() {
         </div>
       )}
 
-      {/* Arcade UI uses the exact same openRuns data as Leaflet markers and popups. */}
+      {/* KARTE stays unobstructed. LISTE contains the interactive run cards. */}
       <ArcadeMapChrome
         view={arcadeMapView}
         onViewChange={setArcadeMapView}
@@ -1548,7 +1551,6 @@ export default function MapScreen() {
         hasGps={Boolean(userCoords)}
         entries={arcadeRuns}
         selectedId={selectedRunId}
-        onSelect={setSelectedRunId}
         onJoin={(id) => {
           const run = openRuns.find((item) => item.id === id);
           if (run) { void handleJoinRun(run); }
@@ -1713,21 +1715,6 @@ export default function MapScreen() {
           {raceNotice}
         </div>
       )}
-
-      {/* Guests may explore the map; creating or joining runs opens login. */}
-      <div className="runnit-arcade-controls pointer-events-none absolute inset-x-4 bottom-24 z-[950] flex min-w-0 justify-center gap-2.5">
-        <button type="button" onClick={openHostRun}
-          className="pointer-events-auto flex min-h-14 min-w-0 basis-0 flex-1 items-center justify-center gap-2 rounded-2xl border border-emerald-300/20 bg-gradient-to-r from-emerald-400 to-cyan-400 px-3 py-3 text-center text-xs font-extrabold text-[#07151c] shadow-[0_12px_35px_rgba(16,185,129,.25)] transition hover:brightness-110 sm:text-sm">
-          {authUser ? 'Rennen veranstalten' : 'Rennen starten · Anmelden'}
-        </button>
-        <button type="button"
-          onClick={() => setGhostOpen(true)}
-          className="pointer-events-auto flex min-h-14 min-w-0 basis-0 flex-1 items-center justify-center gap-2 rounded-2xl border border-violet-300/25 bg-gradient-to-r from-violet-500 to-indigo-600 px-3 py-3 text-xs font-extrabold text-white shadow-[0_15px_45px_rgba(99,102,241,.36)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:text-sm"
-        >
-          <Trophy className="h-5 w-5 shrink-0" aria-hidden="true" />
-          {t('buttons.ghostRun')}
-        </button>
-      </div>
 
       {/* New Bottom Sheet for Leaderboards */}
       <BottomSheet 

@@ -36,3 +36,8 @@ Der Host-Dialog sowie die Live-Race- und Victory-Screens werden nach der Karte i
 
 ## iPhone-Abnahme nach drei Nutzer-Screenshots (15.11.2026)
 Im vorherigen Preview überdeckten große Demo-Notiz, separate Renn-Grafik-Test-Kachel, Location-Button, Leaflet-Popup und die neue Duellkarte einander. Der Map-Screen verwendet ab jetzt nur noch **eine** Duell-Vorschau: Markertaps setzen die ausgewählte ID; es gibt kein zusätzliches Leaflet-Popup. Der Demo-Status erscheint als schmale gelbe Plakette links im Kartenbereich; die eigenständige Grafik-Simulation liegt nur hinter der LISTE-Umschaltung. Die untere Aktionsleiste ist kompakter und behält mindestens 44px Touch-Flächen. GPS-, Karten-, Rennlogik und Auth-Schranken bleiben unverändert. Reale iPhone-Sichtprüfung nach diesem Commit erforderlich.
+
+
+## Nutzerentscheidung: drei Karten-Fenster entfernen (15.11.2026)
+
+Auf ausdrücklichen Wunsch wurden die permanenten **1v1-DUELL-Vorschau**, **RENNEN VERANSTALTEN** und **RANGLISTE**-Karten aus der Karte entfernt. KARTE zeigt die echte Map, Standort, Radar, Pins und BottomDock ohne die drei überdeckenden Panels. Das Antippen eines Rennmarkers öffnet jetzt **LISTE** und sortiert das gewählte Rennen nach oben; dort sind BEITRETEN und bei eigenen Rennen ABSAGEN erreichbar. **RENNEN VERANSTALTEN** steht als durchgehend verfügbarer Button oben in LISTE, auch wenn bereits Rennen existieren. RANGLISTE bleibt über die untere Navigation erreichbar. Die OSM-Attribution wurde knapp oberhalb der Navigation positioniert. Die eigentlichen Auth-, Join-, Host- und Cancel-Handler sowie die Rennengine bleiben unverändert. Dieser neue Zustand benötigt iPhone-Sichtabnahme vor Merge.

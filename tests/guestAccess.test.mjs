@@ -33,7 +33,8 @@ test('guest race host button and join button request account login before other 
   assert.match(map, /const openHostRun = \(\) => \{\s*if \(!requireRaceAccount\(\)\) return;/);
   assert.match(map, /const handleHostRun = async \(distanceMeters: number\) => \{\s*if \(!requireRaceAccount\(\)\) return;/);
   assert.match(map, /const handleJoinRun = async \(run: OpenRun\) => \{\s*if \(!requireRaceAccount\(\)\) return;/);
-  assert.match(map, /onClick=\{openHostRun\}/);
+  assert.match(map, /onHost=\{openHostRun\}/);
+  assert.match(read('src/components/map/ArcadeMapChrome.tsx'), /onClick=\{onHost\}>RENNEN VERANSTALTEN/);
   assert.match(map, /onJoin=\{\(id\) => \{/);
   assert.match(map, /if \(run\) \{ void handleJoinRun\(run\); \}/);
   assert.doesNotMatch(map, /<Popup>/);

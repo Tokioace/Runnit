@@ -17,7 +17,6 @@ type Props = {
   hasGps: boolean;
   entries: readonly ArcadeMapEntry[];
   selectedId: string | null;
-  onSelect: (id: string) => void;
   onJoin: (id: string) => void;
   onCancel: (id: string) => void;
   onHost: () => void;
@@ -28,15 +27,14 @@ function distanceLabel(meters: number | null): string {
   if (meters >= 1000) return (meters / 1000).toFixed(1).replace('.', ',') + ' km entfernt';
   return Math.round(meters) + ' m entfernt';
 }
-function ArcadeRunCard({ entry, onJoin, onCancel, onSelect, compact = false }: {
+function ArcadeRunCard({ entry, onJoin, onCancel, selected = false }: {
   entry: ArcadeMapEntry;
   onJoin: (id: string) => void;
   onCancel: (id: string) => void;
-  onSelect?: (id: string) => void;
-  compact?: boolean;
+  selected?: boolean;
 }) {
   return (
-    <article className={'runnit-arcade-map-race ' + (compact ? 'is-list-card' : 'is-preview-card')} aria-label={'1v1-Duell, ' + entry.distanceMeters + ' Meter'}>
+    <article className={'runnit-arcade-map-race is-list-card' + (selected ? ' is-selected' : '')} aria-label={'1v1-Duell, ' + entry.distanceMeters + ' Meter'}>
       <div className="runnit-arcade-map-race-thumb" aria-hidden="true"><Swords /></div>
       <div className="runnit-arcade-map-race-info">
         <div className="runnit-arcade-map-race-title">1v1 <span>DUELL</span></div>
@@ -51,17 +49,16 @@ function ArcadeRunCard({ entry, onJoin, onCancel, onSelect, compact = false }: {
         ) : (
           <button className="runnit-arcade-map-action" type="button" onClick={() => onJoin(entry.id)}>BEITRETEN <ChevronRight aria-hidden="true" /></button>
         )}
-        {compact && onSelect && (
-          <button type="button" className="runnit-arcade-map-show" onClick={() => onSelect(entry.id)}>Auf Karte <MapIcon aria-hidden="true" /></button>
-        )}
       </div>
     </article>
   );
 }
 export default function ArcadeMapChrome({
-  view, onViewChange, cityName, hasGps, entries, selectedId, onSelect, onJoin, onCancel, onHost, loading,
+  view, onViewChange, cityName, hasGps, entries, selectedId, onJoin, onCancel, onHost, loading,
 }: Props) {
-  const chosen = entries.find((entry) => entry.id === selectedId) ?? entries[0] ?? null;
+  const orderedEntries = selectedId
+    ? [...entries].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId))
+    : entries;
   return (
     <>
       <header className="runnit-arcade-map-header" aria-label="Rennen in deiner Nähe">
@@ -83,6 +80,7 @@ export default function ArcadeMapChrome({
       {view === 'list' ? (
         <section aria-label="Rennen als Liste" className="runnit-arcade-map-list">
           <div className="runnit-arcade-map-list-heading"><Flag aria-hidden="true" /> OFFENE HERAUSFORDERUNGEN <small>{entries.length} angezeigt</small></div>
+          <button type="button" className="runnit-arcade-map-host-action" onClick={onHost}>RENNEN VERANSTALTEN <ChevronRight aria-hidden="true" /></button>
           <Link to="/sprint-lab" className="runnit-arcade-map-lab-link">Renn-Grafik testen · Nur Simulation <ChevronRight aria-hidden="true" /></Link>
           {loading && <p className="runnit-arcade-map-list-hint" role="status">Rennen werden geladen …</p>}
           {!loading && entries.length === 0 && (
@@ -90,25 +88,12 @@ export default function ArcadeMapChrome({
               <Footprints aria-hidden="true" />
               <h2>NOCH KEINE RENNEN</h2>
               <p>In der aktuellen Ansicht sind keine offenen Herausforderungen verfügbar.</p>
-              <button type="button" onClick={onHost}>RENNEN VERANSTALTEN <ChevronRight aria-hidden="true" /></button>
             </div>
           )}
-          {entries.map((entry) => (
-            <ArcadeRunCard key={entry.id} entry={entry} compact onJoin={onJoin} onCancel={onCancel} onSelect={(id) => { onSelect(id); onViewChange('map'); }} />
+          {orderedEntries.map((entry) => (
+            <ArcadeRunCard key={entry.id} entry={entry} selected={entry.id === selectedId} onJoin={onJoin} onCancel={onCancel} />
           ))}
         </section>
-      ) : (
-        <aside aria-label="Ausgewähltes Rennen" className="runnit-arcade-map-preview">
-          {chosen ? (
-            <ArcadeRunCard entry={chosen} onJoin={onJoin} onCancel={onCancel} />
-          ) : (
-            <div className="runnit-arcade-map-preview-empty">
-              <Footprints aria-hidden="true" />
-              <span><strong>NOCH KEIN DUELL</strong><small>{loading ? 'Lade Rennen …' : 'Keine offenen Rennen in der aktuellen Ansicht'}</small></span>
-              <button type="button" onClick={onHost}>ERSTELLEN <ChevronRight aria-hidden="true" /></button>
-            </div>
-          )}
-        </aside>
       )}
     </>
   );
