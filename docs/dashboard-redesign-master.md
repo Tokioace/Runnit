@@ -32,3 +32,9 @@ Die zuletzt übermittelte 864 × 1536 JPEG-Illustration ist der Soll-Zustand fü
 ## Navigation-Ergänzung: separater Stats-Screen
 
 Die erste Dashboard-Version nutzte `/home#aktivitaet` als Stats-Anker. Das war lediglich ein anderer Scrollpunkt derselben Home-Seite. Der Nutzer hat das als nicht eigenständig erkannt. Die Korrektur führt `/stats` als echte Route ein, mit separatem Arcade-Statistikschirm, Wochenringen, Bestwert-Kacheln und Testlabor-Verknüpfungen. Die Datenanzeige bleibt ausdrücklich ehrlich: keine erfundenen Messwerte oder Rankings. `/home` behält seine Aktivitätsvorschau und ist weiterhin der eigenständige Hauptscreen.
+
+## Visuelle Iteration 02 – Master-Artwork
+
+Dieser PR führt vier **lokale, separate SVG-Artwork-Layer** ein: Metallic-RUNNIT-Logo mit Krone/Zielflagge, Stadt-/Brücken-/Sonnenuntergang-Hintergrund, 1v1-Rennszene und den weißen Sprint-Button-Runner. Die bereits freigegebene Portraitgrafik bleibt als dekorativer Hero-Runner erhalten. Die KPI-Zellen sind in ihrer Referenzanordnung nun horizontal gestaltet, und das mobile Dashboard wurde verdichtet.
+
+Die Assets sind visuelle Erstinterpretationen und noch nicht identisch mit den exakten Anime-Illustrationen. Vor einer 1:1-Freigabe ist eine echte iPhone-Screenshot-Gegenprüfung erforderlich. Keine fingierten Leistungsdaten und keine Änderungen an Supabase oder Messlogik.
