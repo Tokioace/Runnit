@@ -393,3 +393,41 @@ body {
   .runnit-arcade-button { transition: none !important; }
   .runnit-arcade-button:hover { transform: none; }
 }
+
+/* Clip decorative visual overflow, without altering sensor/map geometry. */
+html, body, #root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+/* iOS Safari zooms automatically when a focused form field is under 16px.
+   This changes only focused text fields; manual pinch zoom remains enabled. */
+@media (hover: none) and (pointer: coarse) {
+  #root input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+  #root textarea:focus,
+  #root select:focus {
+    font-size: 16px !important;
+  }
+}
+
+/* Keep the original art ratio (including aligned invisible buttons).
+   On tall phones expand to viewport height and crop only the sides. */
+.runnit-launch-art {
+  max-width: min(600px, 56.28dvh);
+}
+@media (max-width: 640px) and (orientation: portrait) {
+  .runnit-launch-art {
+    position: absolute;
+    left: 50%;
+    width: max(100vw, calc(100dvh * 0.5628));
+    max-width: none;
+    height: 100dvh;
+    transform: translateX(-50%);
+  }
+}
+
+/* Attribution must be readable above the bottom race/demo buttons and dock. */
+.runnit-map .leaflet-bottom.leaflet-right {
+  bottom: calc(14rem + env(safe-area-inset-bottom, 0px));
+}
