@@ -37,7 +37,10 @@ test('guest race host button and join button request account login before other 
   assert.match(read('src/components/map/ArcadeMapChrome.tsx'), /onClick=\{onHost\}>RENNEN VERANSTALTEN/);
   assert.match(map, /onJoin=\{joinArcadeRun\}/);
   assert.match(map, /if \(run\) \{ void handleJoinRun\(run\); \}/);
-  assert.match(map, /<Popup/);
+  const vector = read('src/components/map/ArcadeMapLibreView.tsx');
+  assert.match(vector, /const popup = new Popup/);
+  assert.match(vector, /callbacks\.current\.onJoinRun\(run\.id\)/);
+  assert.match(map, /<ArcadeMapLibreView/);
   assert.doesNotMatch(map, /In demo mode, create local run/);
   assert.doesNotMatch(map, /In demo mode, start race immediately/);
 });
