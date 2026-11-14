@@ -524,6 +524,12 @@ export default function GpsLabScreen() {
         </div>
       </div>
 
+      <div className="rounded-2xl border border-cyan-300/25 bg-cyan-300/[0.07] p-4">
+        <p className="text-sm font-bold text-cyan-100">Separater GPS-Feldtest auf dem Gerät</p>
+        <p className="mt-1 text-xs leading-6 text-white/70">Nur experimentelle Zeitmessung ohne Ranglistenfreigabe. Der Test fordert Standortzugriff erst nach deiner aktiven Vorbereitung an.</p>
+        <Link to="/gps-field-test" className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-cyan-300/50 bg-cyan-300/15 px-4 text-sm font-bold text-cyan-100">GPS-Feldtest öffnen</Link>
+      </div>
+
       <WalkingLab />
 
       <section className="space-y-4" aria-labelledby="scenario-heading">
