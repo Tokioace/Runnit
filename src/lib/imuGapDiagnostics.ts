@@ -1,0 +1,42 @@
+/** Diagnostic-only IMU gaps, computed from full-rate samples before chart decimation. */
+export function findImuGaps(samples: readonly { timestampMs: number }[], thresholdMs = 250): { startMs: number; endMs: number }[] {
+  // Invalid thresholds must not label ordinary sampling intervals as sensor dropouts.
+  const effectiveThresholdMs = Number.isFinite(thresholdMs) && thresholdMs > 0 ? thresholdMs : 250;
+  const times = samples.map(s => s.timestampMs).filter(Number.isFinite).sort((a, b) => a - b);
+  const gaps: { startMs: number; endMs: number }[] = [];
+  for (let i = 1; i < times.length; i++) {
+    if (times[i] - times[i - 1] > effectiveThresholdMs) gaps.push({ startMs: times[i - 1], endMs: times[i] });
+  }
+  return gaps;
+}
+
+/** Split a decimated chart trace only at verified full-rate gaps. */
+export function splitTraceAtGaps<T extends { timestampMs: number }>(samples: readonly T[], gaps: readonly { startMs: number; endMs: number }[]): T[][] {
+  const segments: T[][] = [];
+  for (const sample of samples) {
+    const last = segments[segments.length - 1];
+    const previous = last?.[last.length - 1];
+    if (!previous || gaps.some(g => g.startMs >= previous.timestampMs && g.endMs <= sample.timestampMs)) segments.push([]);
+    segments[segments.length - 1].push(sample);
+  }
+  return segments;
+}
+
+/** Descriptive gap duration only; never used to correct step counts or FairPlay verdicts. */
+export function summarizeImuGaps(gaps: readonly { startMs: number; endMs: number }[]): {
+  count: number;
+  totalGapMs: number;
+  longestGapMs: number;
+} {
+  let totalGapMs = 0;
+  let longestGapMs = 0;
+  let count = 0;
+  for (const gap of gaps) {
+    const duration = gap.endMs - gap.startMs;
+    if (!Number.isFinite(duration) || duration <= 0) continue;
+    totalGapMs += duration;
+    longestGapMs = Math.max(longestGapMs, duration);
+    count++;
+  }
+  return { count, totalGapMs, longestGapMs };
+}

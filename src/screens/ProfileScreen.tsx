@@ -1,76 +1,129 @@
-import React from 'react';
-import { Card } from '../components/ui/Card';
-import { ProfileHeader } from '../components/profile/ProfileHeader';
-import { StatCard } from '../components/profile/StatCard';
-import BottomNav from '../components/ui/BottomNav';
+import { BarChart3, Flag, ShieldCheck, Timer, Trophy, UserRound, ArrowRight, Ruler, Activity } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import PageFrame from '../components/ui/PageFrame';
+import AccountDetailsPanel from '../components/profile/AccountDetailsPanel';
+import { useSupabaseUser } from '../hooks/useSupabaseUser';
+
+const unavailableStats = [
+  { label: 'Verifizierte Bestzeit', icon: Timer },
+  { label: 'Gewertete Rennen', icon: Flag },
+  { label: 'Bestätigte Siege', icon: Trophy },
+  { label: 'Offizielle Platzierung', icon: BarChart3 },
+];
 
 export default function ProfileScreen() {
+  const { user, loading, loadError, signOut, updateDisplayName, changePassword } = useSupabaseUser();
+
   return (
-    <div className="min-h-screen bg-bg pb-24">
-      <main className="p-4 space-y-4">
-        <div className="text-center py-6">
-          <h1 className="text-2xl font-bold text-text mb-2">Profile</h1>
-          <p className="text-muted text-sm">Your running achievements and stats</p>
+    <PageFrame
+      kicker="YOUR RUNNING STORY"
+      title="Mein Profil."
+      description="Dein Runnit-Konto – persönliche Leistungen werden erst mit einer belastbaren Datengrundlage angezeigt."
+      icon={<UserRound className="h-7 w-7" aria-hidden="true" />}
+    >
+      {loading ? (
+        <div role="status" className="flex min-h-52 items-center justify-center rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-sm font-semibold text-white/60">
+          Kontostatus wird geladen …
         </div>
+      ) : user ? (
+        <>
+          <AccountDetailsPanel user={user} updateDisplayName={updateDisplayName} changePassword={changePassword} signOut={signOut} />
 
-        {/* Profile Header */}
-        <ProfileHeader 
-          username="Runner8" 
-          level={12} 
-          progress={65} 
-        />
+          <section aria-label="Individuelle Gehschrittlänge" className="space-y-3 rounded-3xl border border-cyan-300/20 bg-gradient-to-br from-cyan-500/10 to-violet-500/10 p-5">
+            <div className="flex items-center gap-3"><Ruler className="h-6 w-6 text-cyan-200" aria-hidden="true" />
+              <h2 className="text-lg font-black">Deine Schrittkalibrierung</h2></div>
+            {user.walkingCalibration ? (
+              <>
+                <p className="text-3xl font-black tabular-nums text-emerald-200">{(user.walkingCalibration.walkingStrideM * 100).toFixed(1)} cm <span className="text-xs font-semibold text-white/55">pro Gehschritt</span></p>
+                <p className="text-xs leading-5 text-white/60">Körpergröße: {user.walkingCalibration.heightCm} cm · {user.walkingCalibration.stepCount} Schritte · Experimentelle GPS-Endpunktmessung. Noch nicht für Sprintwertungen verwendet.</p>
+              </>
+            ) : <p className="text-sm leading-6 text-white/65">Noch keine persönliche Schrittlänge gespeichert. Für die Kalibrierung benötigst du eine gerade Strecke im Freien und gutes GPS.</p>}
+            <Link to="/calibration" className="flex min-h-12 items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 px-4 text-sm font-extrabold">
+              {user.walkingCalibration ? 'Kalibrierung wiederholen' : 'Schrittlänge kalibrieren'}
+            </Link>
+          </section>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard 
-            label="Best 100m" 
-            value="9.33s" 
-          />
-          <StatCard 
-            label="City Rank" 
-            value="#12" 
-          />
-          <StatCard 
-            label="Total Races" 
-            value="47" 
-          />
-          <StatCard 
-            label="Win Rate" 
-            value="68%" 
-          />
-        </div>
+          <section aria-label="GPS und IMU Sensorfusion" className="relative overflow-hidden rounded-3xl border border-violet-300/20 bg-gradient-to-r from-[#201a42] via-[#122642] to-[#123239] p-5">
+            <div className="pointer-events-none absolute -right-9 -top-12 h-36 w-36 rounded-full bg-cyan-400/10 blur-3xl" aria-hidden="true" />
+            <div className="relative flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-300/10">
+                <Activity className="h-6 w-6 text-cyan-200" aria-hidden="true" />
+              </span>
+              <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300">NEUES TESTLABOR</p>
+                <h2 className="mt-1 text-lg font-black">GPS × IMU Fusion</h2></div>
+            </div>
+            <p className="relative mt-3 text-xs leading-6 text-white/65">Teste Signalfehler und die spätere Distanzberechnung interaktiv, auch drinnen. Alle Daten sind simuliert.</p>
+            <Link to="/fusion-lab" className="relative mt-4 flex min-h-12 items-center justify-between rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 px-4 text-sm font-extrabold">
+              Sensorfusion ausprobieren <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </section>
 
-        {/* Medals */}
-        <Card className="p-4">
-          <div className="text-sm font-semibold mb-3 text-text">Recent Medals</div>
-          <div className="flex gap-3 text-2xl">
-            🥇🥈🥉🏅🎖️
-          </div>
-          <div className="mt-2 text-xs text-muted">
-            5 medals earned this month
-          </div>
-        </Card>
+          <section aria-label="Sprint-Arena Testbildschirm" className="relative overflow-hidden rounded-3xl border border-fuchsia-300/25 bg-gradient-to-r from-[#3c1b5a] via-[#162d50] to-[#0a3a43] p-5">
+            <div className="pointer-events-none absolute -right-12 -top-10 h-40 w-40 rounded-full bg-fuchsia-400/15 blur-3xl" aria-hidden="true" />
+            <div className="relative flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-fuchsia-300/30 bg-fuchsia-300/10">
+                <Flag className="h-6 w-6 text-fuchsia-200" aria-hidden="true" />
+              </span>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300">RACE ENGINE · NEW</p>
+                <h2 className="mt-1 text-lg font-black">Sprint Arena · 1v1</h2>
+              </div>
+            </div>
+            <p className="relative mt-3 text-xs leading-6 text-white/65">Erlebe Countdown, Gegnerfortschritt und das neue Sprint-Kadenz-Testlabor. Ausschließlich Simulation, keine echten Läufer.</p>
+            <Link to="/sprint-lab" className="relative mt-4 flex min-h-12 items-center justify-between rounded-xl bg-gradient-to-r from-fuchsia-600 to-cyan-600 px-4 text-sm font-extrabold">
+              Sprint Arena testen <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </section>
 
-        {/* Performance Chart Placeholder */}
-        <Card className="p-4">
-          <div className="text-sm font-semibold mb-3 text-text">Performance Trend</div>
-          <div className="h-24 bg-white/5 rounded-xl flex items-center justify-center">
-            <svg width="200" height="60" className="text-primary">
-              <polyline
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                points="10,50 50,30 90,35 130,20 170,25 190,15"
-              />
-            </svg>
+          <section aria-label="Deine zukünftigen Sportstatistiken" className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-xl font-extrabold tracking-tight">Sportliche Leistungen</h2>
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-bold text-white/45">Noch nicht verfügbar</span>
+            </div>
+            <p className="text-xs leading-6 text-white/55">
+              Es sind noch keine geprüften Laufdaten mit diesem Profil verbunden. Statt erfundener Rekorde und Medaillen zeigen wir bewusst keine Werte an.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {unavailableStats.map(({ label, icon: Icon }) => (
+                <div key={label} className="flex min-h-32 flex-col justify-between rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-4">
+                  <Icon className="h-5 w-5 text-violet-300" aria-hidden="true" />
+                  <div>
+                    <p className="text-2xl font-black tabular-nums text-white/55">—</p>
+                    <p className="mt-1 text-[11px] leading-5 text-white/50">{label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <div className="flex gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.065] p-4">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" aria-hidden="true" />
+            <p className="text-xs leading-6 text-white/65">
+              Dein Konto ist mit Supabase Auth verbunden. Das bestätigt noch keine GPS-Leistung, Identität oder Berechtigung zur offiziellen Rangliste.
+            </p>
           </div>
-          <div className="mt-2 text-xs text-muted">
-            Average time improving by 0.3s per week
+        </>
+      ) : (
+        <section aria-label="Gastprofil" className="space-y-5 rounded-3xl border border-violet-300/20 bg-gradient-to-br from-violet-500/10 to-white/[0.025] p-6">
+          <div className="flex items-center gap-3">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-300/25 bg-violet-500/15">
+              <UserRound className="h-6 w-6 text-violet-200" aria-hidden="true" />
+            </span>
+            <div>
+              <h2 className="text-lg font-extrabold">Du erkundest Runnit als Gast.</h2>
+              <p className="mt-1 text-xs leading-5 text-white/60">Für die Vorschau ist kein Konto nötig.</p>
+            </div>
           </div>
-        </Card>
-      </main>
-      
-      <BottomNav />
-    </div>
+          <p className="text-sm leading-6 text-white/65">
+            Karte, Ranglisten und GPS-Testlabor sind verfügbar. Für das Veranstalten, Beitreten oder Starten eines Rennens musst du dich anmelden. Nach der Anmeldung kannst du hier deinen Anzeigenamen verwalten.
+          </p>
+          {loadError && <p role="status" className="text-xs leading-5 text-amber-200">Dein Kontostatus konnte gerade nicht geladen werden. Du kannst die App weiter als Gast erkunden.</p>}
+          <Link to="/login?next=%2Fprofile" className="flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-violet-500 to-indigo-600 px-4 py-3 text-sm font-extrabold text-white">
+            Anmelden oder registrieren
+            <ArrowRight className="h-5 w-5" aria-hidden="true" />
+          </Link>
+        </section>
+      )}
+    </PageFrame>
   );
 }

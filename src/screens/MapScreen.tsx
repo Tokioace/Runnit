@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { Footprints, LocateFixed, Trophy } from 'lucide-react';
 import type { LatLngExpression } from 'leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -15,7 +17,13 @@ import { getDuelResults } from '../db/getDuelResults';
 import BottomNav from '../components/ui/BottomNav';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { LeaderboardSheet } from '../components/leaderboard/Sheet';
+import { leaderboardSourceLabel, type LeaderboardSource } from '../lib/leaderboardProvenance';
 import { MapHUD } from '../components/map/MapHUD';
+import { parseGeographyPoint } from '../lib/duelLocation';
+import { cancelHostedOpenDuel, cancelHostedDuelMessage, listHostedOpenDuels, type HostedOpenDuel } from '../db/cancelHostedDuel';
+import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
+import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
+import { screenWakeLockMessage, type ScreenWakeLockStatus } from '../lib/screenWakeLock';
 
 // Types
 type Coordinates = {
@@ -31,6 +39,7 @@ type Player = {
   distanceMeters: number;
   location: Coordinates;
   colorHex: string;
+  source: LeaderboardSource;
 };
 
 type OpenRun = {
@@ -53,7 +62,7 @@ type CurrentUser = {
 type TranslationDict = Record<string, string>;
 const de: TranslationDict = {
   'buttons.ghostRun': '👻 Leaderboards',
-  'buttons.hostRun': 'Rennen starten',
+  'buttons.hostRun': 'Rennen erstellen',
   'buttons.cancel': 'Abbrechen',
   'buttons.joinRun': 'Rennen beitreten',
 
@@ -79,141 +88,87 @@ function useI18n() {
   return { t };
 }
 
-// Geolocation hook
+// Geolocation errors are different: denied (1), unavailable (2), timeout (3).
+// Do not infer a denial solely from the Permissions API: mobile browsers can
+// report an out-of-date permission state after a setting changes.
+type LocationError = 'denied' | 'unavailable' | 'timeout' | null;
+
 function useUserLocation() {
   const [coords, setCoords] = useState<Coordinates | null>(null);
-  const [permissionDenied, setPermissionDenied] = useState(false);
+  const [locationError, setLocationError] = useState<LocationError>(null);
+  const [locating, setLocating] = useState(false);
   const [insecureContext, setInsecureContext] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
   const watchIdRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    if (!('geolocation' in navigator)) {
-      setUnsupported(true);
-      return;
-    }
-
-    if (typeof isSecureContext !== 'undefined' && !isSecureContext) {
-      setInsecureContext(true);
-      return;
-    }
-
-    // Reflect actual permission state and react to changes
-    let permissionHandle: any | null = null;
-    try {
-      const anyNavigator: any = navigator as any;
-      if (anyNavigator.permissions?.query) {
-        anyNavigator.permissions
-          .query({ name: 'geolocation' as any })
-          .then((status: any) => {
-            permissionHandle = status;
-            setPermissionDenied(status.state === 'denied');
-            status.onchange = () => setPermissionDenied(status.state === 'denied');
-          })
-          .catch(() => {});
-      }
-    } catch {}
-
-    const success = (pos: GeolocationPosition) => {
-      setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      setPermissionDenied(false);
-    };
-
-    const error = (err: GeolocationPositionError | any) => {
-      const deniedByCode = typeof err?.code === 'number' && err.code === (err as any).PERMISSION_DENIED;
-      const deniedByName = err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError';
-      if (deniedByCode || deniedByName) {
-        setPermissionDenied(true);
-      }
-    };
-
-    // Try watchPosition for continuous updates
-    try {
-      watchIdRef.current = navigator.geolocation.watchPosition(success, error, {
-        enableHighAccuracy: true,
-        maximumAge: 5000,
-        timeout: 8000,
-      });
-    } catch (_e) {
-      // ignore
-    }
-
-    // Fallback: single read if no updates yet
-    if (!coords) {
-      try {
-        navigator.geolocation.getCurrentPosition(success, error, {
-          enableHighAccuracy: true,
-          maximumAge: 5000,
-          timeout: 8000,
-        });
-      } catch {}
-    }
-
-    return () => {
-      if (watchIdRef.current !== null && 'geolocation' in navigator) {
-        try {
-          navigator.geolocation.clearWatch(watchIdRef.current);
-        } catch (_e) {
-          // ignore
-        }
-      }
-      if (permissionHandle) {
-        try { permissionHandle.onchange = null; } catch {}
-      }
-    };
+  const onSuccess = React.useCallback((pos: GeolocationPosition) => {
+    setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+    setLocationError(null);
+    setLocating(false);
   }, []);
 
-  const requestOnce = () => {
-    if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
-    if (typeof isSecureContext !== 'undefined' && !isSecureContext) return;
-    try {
-      // Always restart the watch after permission changes or retries
-      try {
-        if (watchIdRef.current !== null) {
-          navigator.geolocation.clearWatch(watchIdRef.current);
-          watchIdRef.current = null;
-        }
-      } catch (_e) {
-        // ignore
-      }
-
-      const onSuccess = (pos: GeolocationPosition) => {
-        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setPermissionDenied(false);
-      };
-      const onError = (err: GeolocationPositionError | any) => {
-        const deniedByCode = typeof err?.code === 'number' && err.code === (err as any).PERMISSION_DENIED;
-        const deniedByName = err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError';
-        if (deniedByCode || deniedByName) setPermissionDenied(true);
-      };
-
-      // Start a fresh continuous watch to pick up updates
-      try {
-        watchIdRef.current = navigator.geolocation.watchPosition(onSuccess, onError, {
-          enableHighAccuracy: true,
-          maximumAge: 5000,
-          timeout: 8000,
-        });
-      } catch (_e) {
-        // ignore
-      }
-
-      // Also attempt an immediate one-off read
-      try {
-        navigator.geolocation.getCurrentPosition(onSuccess, onError, {
-          enableHighAccuracy: true,
-          maximumAge: 1000,
-          timeout: 8000,
-        });
-      } catch {}
-    } catch (_e) {
-      // ignore
+  const onError = React.useCallback((err: GeolocationPositionError) => {
+    // Use numeric error codes documented by the Geolocation API; relying on
+    // instance constants like err.PERMISSION_DENIED is not cross-browser safe.
+    switch (err.code) {
+      case 1:
+        setCoords(null);
+        setLocationError('denied');
+        break;
+      case 2:
+        setLocationError('unavailable');
+        break;
+      case 3:
+        setLocationError('timeout');
+        break;
+      default:
+        setLocationError('unavailable');
     }
-  };
+    setLocating(false);
+  }, []);
 
-  return { coords, permissionDenied, requestOnce, insecureContext, unsupported };
+  const stopWatch = React.useCallback(() => {
+    if (watchIdRef.current === null || !navigator.geolocation) return;
+    navigator.geolocation.clearWatch(watchIdRef.current);
+    watchIdRef.current = null;
+  }, []);
+
+  const requestOnce = React.useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (!navigator.geolocation) {
+      setUnsupported(true);
+      setLocating(false);
+      return;
+    }
+    if (!window.isSecureContext) {
+      setInsecureContext(true);
+      setLocating(false);
+      return;
+    }
+
+    // One active watch at a time. A manual retry is a fresh request, which
+    // allows Safari to reevaluate permissions changed in iOS Settings.
+    stopWatch();
+    setLocationError(null);
+    setLocating(true);
+    try {
+      watchIdRef.current = navigator.geolocation.watchPosition(onSuccess, onError, {
+        enableHighAccuracy: true,
+        maximumAge: 3000,
+        timeout: 20000,
+      });
+    } catch {
+      setLocationError('unavailable');
+      setLocating(false);
+    }
+  }, [onSuccess, onError, stopWatch]);
+
+  useEffect(() => {
+    requestOnce();
+    return stopWatch;
+  }, [requestOnce, stopWatch]);
+
+  return { coords, locationError, locating, requestOnce, insecureContext, unsupported };
 }
 
 // Utility: format seconds to 0.00s string
@@ -414,6 +369,7 @@ const generateNationalPlayers = (() => {
       distanceMeters: 100,
       location: { lat: 52.5 + (rng() - 0.5) * 2, lng: 13.4 + (rng() - 0.5) * 2 },
       colorHex: colorForUsernameToHex(`GermanRunner${String(i + 1).padStart(2, '0')}`),
+      source: 'demo' as const,
     }));
     return cached;
   };
@@ -432,6 +388,7 @@ const generateInternationalPlayers = (() => {
       distanceMeters: 100,
       location: { lat: rng() * 180 - 90, lng: rng() * 360 - 180 },
       colorHex: colorForUsernameToHex(`WorldRunner${String(i + 1).padStart(3, '0')}`),
+      source: 'demo' as const,
     }));
     return cached;
   };
@@ -486,13 +443,13 @@ function GhostLeaderboardModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60">
-      <div className="w-full max-w-md rounded-t-2xl bg-[#0b0b0d] p-4 shadow-2xl ring-1 ring-white/10">
+    <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#050611]/75 backdrop-blur-[4px]">
+      <div className="w-full max-w-md rounded-t-[30px] border border-violet-300/20 bg-[#101322] p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white shadow-[0_-25px_80px_rgba(0,0,0,.5)]">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">{getTitle()}</h2>
+          <h2 className="text-lg font-extrabold tracking-tight text-white">{getTitle()}</h2>
           <button
             onClick={onClose}
-            className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/70 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             aria-label="Close leaderboard"
           >
             ✕
@@ -533,6 +490,7 @@ function GhostLeaderboardModal({
           </button>
         </div>
 
+        <p className="mb-3 rounded-lg border border-amber-300/30 bg-amber-400/10 px-3 py-2 text-xs leading-5 text-amber-100">Keine offiziell verifizierten Ergebnisse: Beispieldaten sind erfunden und gespeicherte Laufzeiten nicht geprüft.</p>
         <div className="mb-2 grid grid-cols-12 gap-2 px-1 text-[11px] uppercase tracking-wide text-white/60">
           <div className="col-span-2">Rang</div>
           <div className="col-span-5">Name</div>
@@ -554,11 +512,11 @@ function GhostLeaderboardModal({
               }`}
             >
               <div className="col-span-2 text-sm font-semibold text-white/90">
-                {p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `#${p.rank}`}
+                #{p.rank}
               </div>
               <div className="col-span-5 flex items-center gap-2 text-sm text-white">
                 <Avatar name={p.username} colorHex={p.colorHex} />
-                <span className="truncate">{p.username}</span>
+                <span className="min-w-0"><span className="block truncate">{p.username}</span><span className="block text-[10px] text-amber-200">{leaderboardSourceLabel(p.source)}</span></span>
               </div>
               <div className="col-span-3 text-sm text-white/90">
                 {formatSecondsToTimeString(p.bestTimeSeconds)}
@@ -593,32 +551,61 @@ function HostRunDialog({
   open,
   onClose,
   onHost,
+  onDemo,
   defaultDistance,
 }: {
   open: boolean;
   onClose: () => void;
-  onHost: (distanceMeters: number) => void;
+  onHost: (distanceMeters: number) => Promise<void>;
+  onDemo: () => void;
   defaultDistance?: number;
 }) {
   const { t } = useI18n();
   const [distance, setDistance] = useState<number>(defaultDistance ?? 50);
+  const [submitting, setSubmitting] = useState(false);
+  const [hostError, setHostError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setDistance(defaultDistance ?? 50);
+      setHostError(null);
     }
   }, [open, defaultDistance]);
 
+  const submitHost = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    setHostError(null);
+    try {
+      await onHost(distance);
+      onClose();
+    } catch (error) {
+      const code = typeof error === 'object' && error !== null && 'code' in error
+        ? String(error.code) : '';
+      const message = error instanceof Error ? error.message.toLowerCase() : '';
+      if (code === '42501' || message.includes('row-level security') || message.includes('permission denied')) {
+        setHostError('Du hast derzeit keine Berechtigung, ein Rennen zu speichern. Bitte melde dich erneut an.');
+      } else if (message.includes('network') || message.includes('fetch') || message.includes('timeout')) {
+        setHostError('Keine Verbindung zur Datenbank. Bitte prüfe deine Internetverbindung und versuche es erneut.');
+      } else {
+        setHostError('Das Rennen konnte nicht gespeichert werden. Bitte versuche es erneut.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60">
-      <div className="w-full max-w-md rounded-t-2xl bg-[#0b0b0d] p-4 shadow-2xl ring-1 ring-white/10">
+    <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#050611]/75 backdrop-blur-[4px]">
+      <div className="w-full max-w-md rounded-t-[30px] border border-violet-300/20 bg-[#101322] p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white shadow-[0_-25px_80px_rgba(0,0,0,.5)]">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">{t('host.title')}</h2>
+          <h2 className="text-lg font-extrabold tracking-tight text-white">{t('host.title')}</h2>
           <button
             onClick={onClose}
-            className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
-            aria-label="Close host dialog"
+            disabled={submitting}
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/70 transition hover:bg-white/10 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            aria-label="Rennen-Dialog schließen"
           >
             ✕
           </button>
@@ -630,7 +617,7 @@ function HostRunDialog({
           <select
             value={distance}
             onChange={(e) => setDistance(parseInt(e.target.value))}
-            className="w-full rounded-lg bg-white/5 p-3 text-white outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded-2xl border border-white/15 bg-[#161a2b] p-4 text-white outline-none focus:ring-2 focus:ring-violet-400"
             aria-label={t('host.selectDistance')}
           >
             <option value={50}>{t('host.distance.50')}</option>
@@ -638,21 +625,26 @@ function HostRunDialog({
             <option value={100}>{t('host.distance.100')}</option>
           </select>
         </div>
+        <p className="mb-4 text-xs leading-5 text-white/60">Nach dem Erstellen bleibt dein Duell offen, bis ein zweiter Läufer beitritt. Erst dann startet der Countdown.</p>
+        <button type="button" onClick={onDemo} disabled={submitting}
+          className="mb-4 flex min-h-12 w-full items-center justify-center rounded-xl border border-cyan-300/40 bg-cyan-300/10 px-4 text-sm font-extrabold text-cyan-100 disabled:opacity-50">
+          Renn-Grafik allein testen · Simulation
+        </button>
+        {hostError && <p role="alert" className="mb-4 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-xs leading-5 text-rose-100">{hostError}</p>}
         <div className="flex items-center justify-end gap-3">
           <button
             onClick={onClose}
-            className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+            disabled={submitting}
+            className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             {t('buttons.cancel')}
           </button>
           <button
-            onClick={() => {
-              onHost(distance);
-              onClose();
-            }}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            onClick={() => { void submitHost(); }}
+            disabled={submitting}
+            className="rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(99,102,241,.20)] transition hover:brightness-110 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
-            {t('buttons.hostRun')}
+            {submitting ? 'Rennen wird gespeichert …' : t('buttons.hostRun')}
           </button>
         </div>
       </div>
@@ -739,16 +731,16 @@ function AuthModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60">
-      <div className="w-full max-w-md rounded-t-2xl bg-[#0b0b0d] p-4 shadow-2xl ring-1 ring-white/10">
+    <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#050611]/75 backdrop-blur-[4px]">
+      <div className="w-full max-w-md rounded-t-[30px] border border-violet-300/20 bg-[#101322] p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white shadow-[0_-25px_80px_rgba(0,0,0,.5)]">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">
+          <h2 className="text-lg font-extrabold tracking-tight text-white">
             {user ? 'Account' : mode === 'signin' ? 'Sign in' : 'Sign up'}
           </h2>
           <button
             onClick={onClose}
-            className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
-            aria-label="Close auth"
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/70 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            aria-label="Anmeldung schließen"
           >
             ✕
           </button>
@@ -760,10 +752,10 @@ function AuthModal({
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={handleSignOut}
-                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 disabled={submitting}
               >
-                Sign out
+                Abmelden
               </button>
             </div>
           </div>
@@ -774,13 +766,13 @@ function AuthModal({
                 className={`rounded-md px-2 py-1 font-medium ${mode === 'signin' ? 'bg-indigo-600 text-white' : 'bg-white/10 text-white/80'} `}
                 onClick={() => setMode('signin')}
               >
-                Sign in
+                Anmelden
               </button>
               <button
                 className={`rounded-md px-2 py-1 font-medium ${mode === 'signup' ? 'bg-indigo-600 text-white' : 'bg-white/10 text-white/80'} `}
                 onClick={() => setMode('signup')}
               >
-                Sign up
+                Registrieren
               </button>
             </div>
 
@@ -790,14 +782,14 @@ function AuthModal({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
-                className="w-full rounded-lg bg-white/5 p-3 text-white outline-none ring-1 ring-white/10 placeholder:text-white/40 focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-xl border border-white/15 bg-[#161a2b] p-4 text-white outline-none placeholder:text-white/35 focus:ring-2 focus:ring-violet-400"
               />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
-                className="w-full rounded-lg bg-white/5 p-3 text-white outline-none ring-1 ring-white/10 placeholder:text-white/40 focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-xl border border-white/15 bg-[#161a2b] p-4 text-white outline-none placeholder:text-white/35 focus:ring-2 focus:ring-violet-400"
               />
             </div>
 
@@ -807,16 +799,16 @@ function AuthModal({
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={onClose}
-                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
-                Cancel
+                Abbrechen
               </button>
               <button
                 onClick={handleSubmit}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(99,102,241,.20)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 disabled={submitting || !email || !password}
               >
-                {mode === 'signin' ? 'Sign in' : 'Create account'}
+                {mode === 'signin' ? 'Anmelden' : 'Konto erstellen'}
               </button>
             </div>
           </div>
@@ -829,25 +821,38 @@ function AuthModal({
 // Main Screen
 export default function MapScreen() {
   const { t } = useI18n();
-  const { coords: userCoords, permissionDenied, requestOnce, insecureContext, unsupported } = useUserLocation();
+  const navigate = useNavigate();
+  const { coords: userCoords, locationError, locating, requestOnce, insecureContext, unsupported } = useUserLocation();
   const { user: authUser, loading: authLoading, signIn, signUp, signOut } = useSupabaseUser();
-  console.log('MapScreen loaded');
 
-  const defaultCenter = useMemo<Coordinates>(() => ({ lat: 0, lng: 0 }), []);
+  // Neutral global overview when neither permission nor network IP lookup succeeds.
+  // Do not suggest a real user location without a valid location fix.
+  const defaultCenter = useMemo<Coordinates>(() => ({ lat: 22, lng: 0 }), []);
   const [ipCoords, setIpCoords] = useState<Coordinates | null>(null);
   const [recenterTick, setRecenterTick] = useState(0);
   const center = userCoords ?? ipCoords ?? defaultCenter;
-  const initialZoom = userCoords ? 14 : ipCoords ? 12 : 3;
+  const initialZoom = userCoords ? 14 : ipCoords ? 12 : 2;
+  // CARTO returns watermarked tiles without an API key (HTTP success), so
+  // tileerror never fires. Use the OSM standard style for our small beta.
+  const [tileRetryCount, setTileRetryCount] = useState(0);
+  const [mapTilesUnavailable, setMapTilesUnavailable] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [ghostOpen, setGhostOpen] = useState(false);
   const [hostOpen, setHostOpen] = useState(false);
+  const [raceNotice, setRaceNotice] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [cityName, setCityName] = useState<string | null>(null);
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
+  // Own live lobby is visible even when its map popup is closed or GPS changes.
+  const [hostedOpenDuels, setHostedOpenDuels] = useState<HostedOpenDuel[]>([]);
+  const [hostedDuelsLoadError, setHostedDuelsLoadError] = useState(false);
+  const [cancelConfirmation, setCancelConfirmation] = useState<HostedOpenDuel | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [cancellingRunId, setCancellingRunId] = useState<string | null>(null);
   const [loadingGhosts, setLoadingGhosts] = useState(false);
   const [loadingDuels, setLoadingDuels] = useState(false);
   const [userTimes, setUserTimes] = useState<number[]>([]);
@@ -858,12 +863,15 @@ export default function MapScreen() {
     | { status: 'running'; duelId: string; startedAt: number; targetDistanceM: number }
     | { status: 'finished'; duelId: string; startedAt: number; endedAt: number; targetDistanceM: number }
   >({ status: 'idle' });
+  // Browser motion and GPS callbacks can be suspended when iOS locks the screen.
+  // Keep it awake for the entire countdown and race, not just the step sampler.
+  const wakeStatus = useScreenWakeLock(Boolean(matchOverlay) || race.status === 'countdown' || race.status === 'running');
 
   // Derive current user display - Demo mode with generated user
   useEffect(() => {
     if (authUser) {
-      const fallbackName = authUser.email?.split('@')[0] || 'you';
-      setCurrentUser({ id: authUser.id, username: fallbackName });
+      // Use the account's editable nickname, not the private email address.
+      setCurrentUser({ id: authUser.id, username: authUser.displayName });
     } else {
       // Demo mode: create a demo user for testing
       const demoUserId = 'demo-user-' + Math.random().toString(36).substr(2, 9);
@@ -893,11 +901,19 @@ export default function MapScreen() {
         lng: center.lng + (rng() - 0.5) * 0.01 
       },
       colorHex: colorForUsernameToHex(demoNames[i] || `CityRunner${String(i + 1).padStart(2, '0')}`),
+      source: 'demo' as const,
     }));
   }, [cityName, Math.floor(center.lat * 1000), Math.floor(center.lng * 1000)]);
 
+  // Guests explore labeled demo previews without querying protected run data.
+  // Database policies do not allow anonymous access to runner records.
   // Load leaderboard (ghost runs) for city - with demo data fallback
   useEffect(() => {
+    if (!authUser) {
+      setPlayers(generateCityPlayers);
+      setLoadingGhosts(false);
+      return;
+    }
     let isActive = true;
     const city = cityName || 'Berlin';
     (async () => {
@@ -924,6 +940,7 @@ export default function MapScreen() {
               distanceMeters: 100,
               location: { lat, lng },
               colorHex: colorForUsernameToHex(username),
+              source: 'server-unverified',
             } as Player;
           });
         } else {
@@ -940,7 +957,7 @@ export default function MapScreen() {
     return () => {
       isActive = false;
     };
-  }, [generateCityPlayers, cityName]);
+  }, [generateCityPlayers, cityName, authUser?.id]);
 
   // Fetch approximate IP-based location when precise location is unavailable
   useEffect(() => {
@@ -1071,8 +1088,14 @@ export default function MapScreen() {
     }));
   }, [userCoords ? Math.floor(userCoords.lat * 10000) : 0, userCoords ? Math.floor(userCoords.lng * 10000) : 0]);
 
+  // Guests see clearly labeled sample challenges, not private Supabase rows.
   // Load nearby open duels - with demo data fallback
   useEffect(() => {
+    if (!authUser) {
+      setOpenRuns(generateDemoRuns);
+      setLoadingDuels(false);
+      return;
+    }
     if (!userCoords) {
       // Ensure loading state is not stuck when location is unavailable
       setLoadingDuels(false);
@@ -1099,23 +1122,19 @@ export default function MapScreen() {
           mapped = data
             .filter((d: any) => d.status === 'open')
             .map((d: any) => {
-              let lat = center.lat;
-              let lng = center.lng;
-              if (d.location && (d.location as any).coordinates) {
-                const coords = (d.location as any).coordinates as [number, number];
-                lng = coords[0];
-                lat = coords[1];
-              }
+              const location = parseGeographyPoint(d.location);
+              if (!location) return null;
               return {
                 id: d.id,
                 hostUserId: d.host_user_id,
                 hostUsername: hostById.get(d.host_user_id)?.username || 'host',
                 distanceMeters: d.target_distance_m || (d.max_distance_km ?? 0) * 1000 || 100,
-                location: { lat, lng },
+                location,
                 createdAt: d.created_at,
                 targetDistanceM: d.target_distance_m || undefined,
               } as OpenRun;
-            });
+            })
+            .filter((run): run is OpenRun => run !== null);
         } else {
           // Use stable demo runs
           mapped = generateDemoRuns;
@@ -1130,10 +1149,35 @@ export default function MapScreen() {
     return () => {
       isActive = false;
     };
-  }, [generateDemoRuns, userCoords]);
+  }, [generateDemoRuns, userCoords, authUser?.id]);
 
+  // Fetch only this authenticated host's open, unjoined lobbies. Keep the
+  // cancellation action independent from the 5-km map search and Leaflet popup.
+  useEffect(() => {
+    if (!authUser) {
+      setHostedOpenDuels([]);
+      setHostedDuelsLoadError(false);
+      setCancelConfirmation(null);
+      return;
+    }
+    let active = true;
+    void listHostedOpenDuels(supabase, authUser.id)
+      .then(runs => {
+        if (!active) return;
+        setHostedOpenDuels(runs);
+        setHostedDuelsLoadError(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setHostedDuelsLoadError(true);
+      });
+    return () => { active = false; };
+  }, [authUser?.id]);
+
+  // No Realtime subscription while exploring as an unauthenticated guest.
   // Realtime updates for duels
   useEffect(() => {
+    if (!authUser) return;
     const channel = supabase
       .channel('duels-realtime')
       .on(
@@ -1163,20 +1207,15 @@ export default function MapScreen() {
               return copy.filter((r) => r.id !== row.id);
             }
             // INSERT or UPDATE open
-            let lat = center.lat;
-            let lng = center.lng;
-            if (row.location && (row.location as any).coordinates) {
-              const coords = (row.location as any).coordinates as [number, number];
-              lng = coords[0];
-              lat = coords[1];
-            }
+            const location = parseGeographyPoint(row.location);
+            if (!location) return copy;
             const existingIdx = copy.findIndex((r) => r.id === row.id);
             const updated: OpenRun = {
               id: row.id,
               hostUserId: row.host_user_id,
               hostUsername: 'host',
               distanceMeters: row.target_distance_m || (row.max_distance_km ?? 0) * 1000 || 100,
-              location: { lat, lng },
+              location,
               createdAt: row.created_at,
               targetDistanceM: row.target_distance_m || undefined,
             };
@@ -1204,74 +1243,110 @@ export default function MapScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  // Host a run: create local open run marker at user location
-  const handleHostRun = async (distanceMeters: number) => {
-    if (!userCoords || !currentUser) return;
-    const geojson = { type: 'Point', coordinates: [userCoords.lng, userCoords.lat] } as any;
-    // In demo mode, create local run without database
-    if (!authUser) {
-      // Demo mode: create local run
-      const demoRun: OpenRun = {
-        id: 'demo-run-' + Date.now(),
-        hostUserId: currentUser.id,
-        hostUsername: currentUser.username,
-        distanceMeters: distanceMeters,
-        location: userCoords,
-        createdAt: new Date().toISOString(),
-        targetDistanceM: distanceMeters,
-      };
-      setOpenRuns(prev => [demoRun, ...prev]);
-      return;
-    }
-    
-    // Persist to DB; rely on realtime to show it
-    await createDuel(supabase as any, {
-      hostUserId: authUser.id,
-      location: geojson,
-      distanceKm: Math.max(1, Math.round(distanceMeters / 100) / 10),
-      targetDistanceM: distanceMeters,
-    });
-    // Optimistically refresh nearby duels to surface the marker immediately
-    try {
-      const { data, error } = await getNearbyDuels(supabase, { userLocation: userCoords, radiusKm: 5 });
-      if (!error && data) {
-        const hostIds = Array.from(new Set(data.map((d: any) => d.host_user_id).filter(Boolean)));
-        const { data: hostUsers } = await supabase
-          .from('users')
-          .select('id, username')
-          .in('id', hostIds);
-        const hostById = new Map<string, any>((hostUsers || []).map((u: any) => [u.id, u]));
-        const mapped: OpenRun[] = data
-          .filter((d: any) => d.status === 'open')
-          .map((d: any) => {
-            let lat = center.lat;
-            let lng = center.lng;
-            if (d.location && (d.location as any).coordinates) {
-              const coords = (d.location as any).coordinates as [number, number];
-              lng = coords[0];
-              lat = coords[1];
-            }
-            return {
-              id: d.id,
-              hostUserId: d.host_user_id,
-              hostUsername: hostById.get(d.host_user_id)?.username || 'host',
-              distanceMeters: d.target_distance_m || (d.max_distance_km ?? 0) * 1000 || 100,
-              location: { lat, lng },
-              createdAt: d.created_at,
-              targetDistanceM: d.target_distance_m || undefined,
-            } as OpenRun;
-          });
-        setOpenRuns(mapped);
-      }
-    } catch (_e) {}
+  // Guest restriction applies to every entry point, including handlers.
+  // There is no local guest race creation or guest race countdown.
+  const requireRaceAccount = (): boolean => {
+    if (authUser) return true;
+    navigate('/login?next=%2Fmap');
+    return false;
   };
 
-  // Join a run - works in demo mode
-  const handleJoinRun = async (run: OpenRun) => {
-    if (!currentUser) return;
-    
-    // In demo mode, start race immediately
+  const openHostRun = () => {
+    if (!requireRaceAccount()) return;
+    setRaceNotice(null);
+    if (!userCoords) {
+      setRaceNotice(locationError === 'denied' ? 'Safari meldet, dass die Ortung blockiert ist. Prüfe iPhone-Einstellungen → Datenschutz & Sicherheit → Ortungsdienste → Safari-Websites und versuche es erneut.' : 'Der GPS-Standort ist noch nicht verfügbar. Runnit sucht erneut; warte kurz und versuche dann, ein Rennen zu veranstalten.');
+      requestOnce();
+      return;
+    }
+    setHostOpen(true);
+  };
+
+  // A new duel is a lobby: it waits for a challenger before the countdown.
+  // Only close the creation dialog after Supabase confirms the inserted row.
+  const handleHostRun = async (distanceMeters: number) => {
+    if (!requireRaceAccount()) return;
     if (!authUser) {
+      throw new Error('Anmeldung erforderlich.');
+    }
+    if (!userCoords || !currentUser) {
+      throw new Error('Standort noch nicht verfügbar.');
+    }
+
+    const { data, error } = await createDuel(supabase, {
+      hostUserId: authUser.id,
+      location: userCoords,
+      distanceKm: 1,
+      targetDistanceM: distanceMeters,
+    });
+    if (error) throw error;
+    if (!data?.id || data.status !== 'open') {
+      throw new Error('Renn-Erstellung wurde nicht bestätigt.');
+    }
+
+    // Display the confirmed creation without depending on realtime delivery.
+    const created: OpenRun = {
+      id: data.id,
+      hostUserId: authUser.id,
+      hostUsername: currentUser.username,
+      distanceMeters,
+      location: userCoords,
+      createdAt: data.created_at,
+      targetDistanceM: distanceMeters,
+    };
+    setOpenRuns(previous => [created, ...previous.filter(run => run.id !== created.id)]);
+    setHostedOpenDuels(previous => [
+      { id: created.id, hostUserId: authUser.id, distanceMeters,
+        createdAt: created.createdAt ?? null },
+      ...previous.filter(run => run.id !== created.id),
+    ]);
+    setHostedDuelsLoadError(false);
+    setRaceNotice(`Dein ${distanceMeters}-m-Rennen wurde erstellt. Warte auf einen zweiten Läufer; dann startet der Countdown.`);
+  };
+
+  const handleCancelHostedRun = (run: HostedOpenDuel) => {
+    if (!authUser || run.hostUserId !== authUser.id || run.id.startsWith('demo-run-')) return;
+    // No window.confirm: embedded iOS Safari/PWA and Leaflet popups can dismiss
+    // the native prompt before the user sees what happened.
+    setCancelError(null);
+    setCancelConfirmation(run);
+  };
+
+  const confirmCancelHostedRun = async () => {
+    const run = cancelConfirmation;
+    if (!authUser || !run || run.hostUserId !== authUser.id || cancellingRunId) return;
+    setCancellingRunId(run.id);
+    setCancelError(null);
+    setRaceNotice(null);
+    try {
+      const result = await cancelHostedOpenDuel(supabase, run.id, authUser.id);
+      const message = cancelHostedDuelMessage(result);
+      if (result.status === 'cancelled') {
+        setHostedOpenDuels(previous => previous.filter(item => item.id !== run.id));
+        setOpenRuns(previous => previous.filter(item => item.id !== run.id));
+        setCancelConfirmation(null);
+        setRaceNotice(message);
+      } else {
+        // Do not remove a row unless the server actually returned cancellation.
+        setCancelError(message);
+        setRaceNotice(message);
+        // Refresh own lobby statuses after a possible concurrent challenger join.
+        void listHostedOpenDuels(supabase, authUser.id)
+          .then(runs => { setHostedOpenDuels(runs); setHostedDuelsLoadError(false); })
+          .catch(() => setHostedDuelsLoadError(true));
+      }
+    } finally {
+      setCancellingRunId(null);
+    }
+  };
+
+  // Joining and starting races are exclusively for signed-in accounts.
+  const handleJoinRun = async (run: OpenRun) => {
+    if (!requireRaceAccount()) return;
+    if (!currentUser) return;
+
+    // Signed-in runners may try explicitly labeled, non-scored sample races.
+    if (run.id.startsWith('demo-run-')) {
       const startsAt = Date.now() + 3000; // 3 seconds countdown
       setMatchOverlay({ duelId: run.id, startsAt, targetDistanceM: run.targetDistanceM || run.distanceMeters });
       setRace({ status: 'countdown', duelId: run.id, startsAt, targetDistanceM: run.targetDistanceM || run.distanceMeters });
@@ -1327,7 +1402,7 @@ export default function MapScreen() {
   }
 
   return (
-    <div className="relative h-screen w-screen bg-bg">
+    <div className="runnit-map relative h-[100dvh] w-full overflow-hidden bg-[#090b13] text-white">
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={initialZoom}
@@ -1337,8 +1412,13 @@ export default function MapScreen() {
         preferCanvas
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          key={tileRetryCount}
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          eventHandlers={{
+            tileerror: () => setMapTilesUnavailable(true),
+            tileload: () => setMapTilesUnavailable(false),
+          }}
         />
 
         <RecenterOnUser position={userCoords} trigger={recenterTick} />
@@ -1351,7 +1431,9 @@ export default function MapScreen() {
           />
         ) : null}
 
-        {players.map((p) => (
+        {/* Privacy: server-backed ghost results have no runner coordinates.
+            Show them in the leaderboard only, never place them at a fake city-centre point. */}
+        {players.filter((p) => p.source !== 'server-unverified').map((p) => (
           <MapBadgeMarker
             key={p.id}
             position={[p.location.lat, p.location.lng]}
@@ -1372,18 +1454,87 @@ export default function MapScreen() {
                   <div className="font-semibold">@{r.hostUsername}</div>
                   <div className="text-white/70">{r.distanceMeters}m</div>
                 </div>
-                <button
-                  onClick={() => handleJoinRun(r)}
-                  className="w-full rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400"
-                >
-                  {t('buttons.joinRun')}
-                </button>
+                {r.id.startsWith('demo-run-') && (
+                  <p className="text-xs font-semibold text-amber-300">
+                    Demo-Rennen · fiktiver Gegner
+                  </p>
+                )}
+                {authUser?.id === r.hostUserId ? (
+                  <div className="space-y-2">
+                    <p className="rounded-xl bg-emerald-300/15 px-3 py-2 text-xs font-semibold text-emerald-100">Dein Rennen · Wartet auf Mitläufer</p>
+                    <button type="button" disabled={cancellingRunId === r.id}
+                      onClick={() => handleCancelHostedRun({ id: r.id, hostUserId: r.hostUserId ?? '', distanceMeters: r.distanceMeters, createdAt: r.createdAt ?? null })}
+                      className="w-full rounded-xl border border-rose-400/50 bg-rose-500/15 px-4 py-3 text-sm font-bold text-rose-100 disabled:opacity-50">
+                      {cancellingRunId === r.id ? 'Wird abgesagt …' : 'Rennen absagen'}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleJoinRun(r)}
+                    className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                  >
+                    {t('buttons.joinRun')}
+                  </button>
+                )}
               </div>
             </Popup>
           </MapBadgeMarker>
         ))}
       </MapContainer>
 
+      {authUser && (hostedOpenDuels.length > 0 || hostedDuelsLoadError) && (
+        <section aria-label="Meine offenen Rennen"
+          className="pointer-events-auto absolute inset-x-4 top-28 z-[960] mx-auto max-h-[35dvh] max-w-sm space-y-3 overflow-y-auto rounded-[22px] border border-emerald-300/30 bg-[#0a1424]/95 p-4 text-white shadow-[0_16px_50px_rgba(0,0,0,.48)] backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-black text-emerald-200">Meine offenen Rennen</p>
+            <span className="text-xs tabular-nums text-white/60">{hostedOpenDuels.length} offen</span>
+          </div>
+          {hostedDuelsLoadError && <p role="alert" className="text-xs leading-5 text-amber-200">
+            Offene Rennen konnten nicht aktualisiert werden. Bitte Verbindung prüfen oder Karte neu öffnen.
+          </p>}
+          {hostedOpenDuels.map(run => (
+            <div key={run.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.06] p-3">
+              <div>
+                <p className="text-sm font-extrabold">{run.distanceMeters} m Sprint</p>
+                <p className="mt-1 text-[11px] text-white/55">Wartet auf zweiten Läufer</p>
+              </div>
+              <button type="button" disabled={cancellingRunId === run.id}
+                onClick={() => handleCancelHostedRun(run)}
+                className="min-h-11 shrink-0 rounded-xl border border-rose-300/45 bg-rose-500/20 px-4 text-xs font-extrabold text-rose-100 disabled:opacity-40">
+                Rennen absagen
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {(players.some((player) => player.source === 'demo') ||
+        openRuns.some((run) => run.id.startsWith('demo-run-'))) && (
+        <div className="pointer-events-none absolute left-1/2 top-16 z-[900] w-max max-w-[90vw] -translate-x-1/2 rounded-xl border border-amber-300/40 bg-[#17130d]/90 px-3 py-2 text-center text-xs font-semibold text-amber-100 shadow-lg backdrop-blur">
+          Demo-Modus: einige Spieler oder Rennen sind frei erfunden
+        </div>
+      )}
+
+      {mapTilesUnavailable && (
+        <div role="alert" className="pointer-events-auto absolute inset-x-4 top-24 z-[950] mx-auto max-w-sm rounded-2xl border border-rose-300/40 bg-[#1a1321]/95 p-4 text-sm text-white shadow-xl backdrop-blur">
+          <p className="font-bold">Die Karte kann gerade nicht geladen werden.</p>
+          <p className="mt-2 text-xs leading-5 text-white/70">
+            Prüfe deine Internetverbindung. Der Kartendienst konnte keine Kartenkacheln liefern.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button type="button" onClick={() => { setMapTilesUnavailable(false); setTileRetryCount((count) => count + 1); }}
+              className="rounded-lg bg-white/15 px-3 py-2 text-xs font-bold text-white">Erneut versuchen</button>
+            <a href="/" className="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold text-white">Zur Startseite</a>
+          </div>
+        </div>
+      )}
+      {!userCoords && !ipCoords && !locationError && !insecureContext && !unsupported && !locating && (
+        <div className="pointer-events-auto absolute inset-x-4 bottom-44 z-[950] mx-auto max-w-sm rounded-xl border border-white/20 bg-[#111827]/90 px-4 py-3 text-center text-xs leading-5 text-white/80 shadow-lg backdrop-blur">
+          <p className="font-semibold text-white">Noch kein Standort ermittelt</p>
+          <p className="mt-1">Du siehst die Weltübersicht. Für Herausforderungen in deiner Nähe kannst du deinen Standort aktivieren.</p>
+          <button type="button" onClick={() => { requestOnce(); setRecenterTick(x => x + 1); }} className="mt-2 rounded-lg bg-violet-500 px-3 py-2 font-bold text-white">Standort erneut suchen</button>
+        </div>
+      )}
       {/* Loading and Empty states */}
       {(loadingGhosts || loadingDuels) && (
         <div className="pointer-events-none absolute left-1/2 top-4 z-[900] -translate-x-1/2 rounded-full bg-white/10 px-4 py-2 text-sm text-white ring-1 ring-white/15 backdrop-blur">
@@ -1397,18 +1548,24 @@ export default function MapScreen() {
         </div>
       )}
 
-      {/* MapHUD */}
-      {cityName && <MapHUD city={cityName} />}
+      {/* Branded header stays independent of the map tile loading state. */}
+      {cityName ? <MapHUD city={cityName} /> : (
+        <div className="pointer-events-none absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-[940] flex items-center gap-2.5 rounded-2xl border border-violet-300/25 bg-[#101322]/90 px-3.5 py-2.5 text-white shadow-[0_12px_35px_rgba(0,0,0,.4)] backdrop-blur-xl">
+          <Footprints className="h-5 w-5 text-violet-200" aria-hidden="true" />
+          <span className="text-sm font-black tracking-[0.08em]">RUNNIT<span className="text-emerald-300">.</span></span>
+          <span className="text-[10px] font-bold text-white/45">MAP BETA</span>
+        </div>
+      )}
 
       {/* Locate me control */}
       <div className="pointer-events-auto absolute right-4 top-4 z-[950]">
         <button
           onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
-          className="rounded-full bg-white/10 p-2 text-white ring-1 ring-white/15 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-          aria-label="Locate me"
-          title="Locate me"
+          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-300/25 bg-[#101322]/90 text-violet-100 shadow-[0_12px_35px_rgba(0,0,0,.4)] backdrop-blur-xl transition hover:bg-violet-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          aria-label="Meinen Standort anzeigen"
+          title="Standort suchen"
         >
-          📍
+          <LocateFixed className="h-6 w-6" aria-hidden="true" />
         </button>
       </div>
 
@@ -1416,7 +1573,7 @@ export default function MapScreen() {
       {insecureContext && (
         <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-amber-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
           <div className="flex items-center gap-3">
-            <span>Location requires a secure context (HTTPS or localhost). Open the app via HTTPS, then retry.</span>
+            <span>Die Standortsuche benötigt eine sichere HTTPS-Verbindung. Bitte öffne Runnit über HTTPS und versuche es erneut.</span>
             <button
               onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
               className="rounded-md bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
@@ -1429,33 +1586,54 @@ export default function MapScreen() {
       {unsupported && !insecureContext && (
         <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-rose-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
           <div className="flex items-center gap-3">
-            <span>Your browser does not support geolocation.</span>
+            <span>Dieser Browser unterstützt keine Standortermittlung.</span>
           </div>
         </div>
       )}
-      {!insecureContext && permissionDenied && (
-        <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-rose-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
-          <div className="flex items-center gap-3">
-            <span>Location permission denied. Enable it in your browser settings, then retry.</span>
-            <button
-              onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
-              className="rounded-md bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
-            >
-              Retry
-            </button>
-          </div>
+      {!insecureContext && !unsupported && !userCoords && locationError && (
+        <div role="alert" className="pointer-events-auto absolute inset-x-4 top-28 z-[950] mx-auto max-w-sm rounded-2xl border border-rose-300/40 bg-[#201321]/95 p-4 text-sm text-white shadow-xl backdrop-blur">
+          <p className="font-extrabold">
+            {locationError === 'denied' ? 'Standortzugriff vom Gerät verweigert (GPS 1)' :
+              locationError === 'timeout' ? 'Standortsuche hat zu lange gedauert (GPS 3)' :
+              'Standort aktuell nicht verfügbar (GPS 2)'}
+          </p>
+          <p className="mt-2 text-xs leading-5 text-white/85">
+            {locationError === 'denied'
+              ? 'Selbst wenn Safari für diese Website „Erlauben“ zeigt: Prüfe auf dem iPhone unter Einstellungen → Datenschutz & Sicherheit → Ortungsdienste → Safari-Websites, ob der Zugriff beim Verwenden erlaubt und „Genauer Standort“ aktiviert ist.'
+              : locationError === 'timeout'
+                ? 'Safari hat innerhalb von 20 Sekunden keine GPS-Position erhalten. Prüfe WLAN/Mobilfunk und versuche es möglichst draußen erneut.'
+                : 'Die Ortungsdienste konnten keine Position liefern. Prüfe die Ortungsdienste des iPhones, deine Verbindung und versuche es erneut.'}
+          </p>
+          <button type="button" disabled={locating}
+            onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
+            className="mt-3 min-h-11 rounded-xl bg-violet-500 px-4 py-2 text-xs font-extrabold text-white disabled:opacity-60">
+            {locating ? 'Standort wird gesucht …' : 'Standort erneut prüfen'}
+          </button>
         </div>
       )}
 
       {/* Match countdown overlay */}
       {matchOverlay && (
         <MatchCountdownOverlay
+          wakeStatus={wakeStatus}
           startsAt={matchOverlay.startsAt}
           onReady={async () => {
+            if (!authUser) {
+              setMatchOverlay(null);
+              setRace({ status: 'idle' });
+              navigate('/login?next=%2Fmap');
+              return;
+            }
+            if (matchOverlay.duelId.startsWith('demo-run-')) return;
             try { await readyForDuel(supabase as any, matchOverlay.duelId); } catch (_e) {}
           }}
           onDone={() => {
             setMatchOverlay(null);
+            if (!authUser) {
+              setRace({ status: 'idle' });
+              navigate('/login?next=%2Fmap');
+              return;
+            }
             if (race.status === 'countdown') {
               setRace({ status: 'running', duelId: race.duelId, startedAt: Date.now(), targetDistanceM: race.targetDistanceM });
             }
@@ -1463,22 +1641,25 @@ export default function MapScreen() {
         />
       )}
 
-      {race.status === 'running' && (
+      {race.status === 'running' && authUser && (
         <RaceOverlay
+          wakeStatus={wakeStatus}
           startedAt={race.startedAt}
           targetDistanceM={race.targetDistanceM}
           onFinish={async (endedAt, metrics) => {
             const timeMs = endedAt - race.startedAt;
             // try submit result; ignore failure for now
-            try {
-              await submitDuelResult(supabase as any, race.duelId, timeMs, metrics);
-            } catch (_e) {}
+            if (authUser && !race.duelId.startsWith('demo-run-')) {
+              try {
+                await submitDuelResult(supabase as any, race.duelId, timeMs, metrics);
+              } catch (_e) {}
+            }
             setRace({ status: 'finished', duelId: race.duelId, startedAt: race.startedAt, endedAt, targetDistanceM: race.targetDistanceM });
           }}
         />
       )}
 
-      {race.status === 'finished' && (
+      {race.status === 'finished' && authUser && (
         <RaceFinishedOverlay
           startedAt={race.startedAt}
           endedAt={race.endedAt}
@@ -1487,6 +1668,7 @@ export default function MapScreen() {
           currentUser={currentUser}
           cityName={cityName}
           onAddToLeaderboard={(time) => {
+            if (!authUser) return;
             setUserTimes(prev => [...prev, time]);
             // Add user to city leaderboard if they have a good time
             if (currentUser && time < 15) { // Only add if time is reasonable
@@ -1498,6 +1680,7 @@ export default function MapScreen() {
                 distanceMeters: race.targetDistanceM,
                 location: userCoords || { lat: 0, lng: 0 },
                 colorHex: colorForUsernameToHex(currentUser.username),
+                source: 'local-unverified',
               };
               setPlayers(prev => {
                 const filtered = prev.filter(p => p.id !== currentUser.id);
@@ -1514,12 +1697,29 @@ export default function MapScreen() {
         />
       )}
 
-      {/* Floating leaderboard button */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-24 z-[950] flex justify-center p-4">
-        <button 
+      {raceNotice && (
+        <div role="status" className="pointer-events-auto absolute inset-x-4 bottom-56 z-[951] mx-auto max-w-sm rounded-2xl border border-amber-300/25 bg-[#191827]/95 px-4 py-3 text-xs leading-5 text-amber-100 shadow-lg">
+          {raceNotice}
+        </div>
+      )}
+
+      {/* Standalone art preview works without GPS, opponents, or account writes. */}
+      <button type="button" onClick={() => navigate('/sprint-lab')}
+        className="pointer-events-auto absolute inset-x-4 bottom-40 z-[951] mx-auto flex min-h-12 max-w-sm items-center justify-center gap-2 rounded-xl border border-cyan-300/35 bg-[#0b2037]/95 px-4 text-sm font-extrabold text-cyan-100 shadow-[0_8px_30px_rgba(0,0,0,.4)] backdrop-blur">
+        Renn-Grafik testen · Demo ohne zweiten Läufer
+      </button>
+
+      {/* Guests may explore the map; creating or joining runs opens login. */}
+      <div className="pointer-events-none absolute inset-x-4 bottom-24 z-[950] flex justify-center gap-2.5">
+        <button type="button" onClick={openHostRun}
+          className="pointer-events-auto flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-emerald-300/20 bg-gradient-to-r from-emerald-400 to-cyan-400 px-3 py-3 text-center text-xs font-extrabold text-[#07151c] shadow-[0_12px_35px_rgba(16,185,129,.25)] transition hover:brightness-110 sm:text-sm">
+          {authUser ? 'Rennen veranstalten' : 'Rennen starten · Anmelden'}
+        </button>
+        <button type="button"
           onClick={() => setGhostOpen(true)}
-          className="pointer-events-auto rounded-2xl bg-primary text-white px-5 py-3 font-semibold shadow-soft hover:bg-primary-600 transition-colors"
+          className="pointer-events-auto flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-violet-300/25 bg-gradient-to-r from-violet-500 to-indigo-600 px-3 py-3 text-xs font-extrabold text-white shadow-[0_15px_45px_rgba(99,102,241,.36)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:text-sm"
         >
+          <Trophy className="h-5 w-5" aria-hidden="true" />
           {t('buttons.ghostRun')}
         </button>
       </div>
@@ -1532,19 +1732,45 @@ export default function MapScreen() {
       >
         <LeaderboardSheet 
           city={cityName || 'Your City'} 
-          entries={players.slice(0, 10).map(p => ({
+          entries={players.map(p => ({
             rank: p.rank,
             name: p.username,
             time: `${p.bestTimeSeconds.toFixed(2)}s`,
-            distance: `${p.distanceMeters}m`
+            distance: `${p.distanceMeters}m`,
+            source: p.source
           }))} 
         />
       </BottomSheet>
 
+      {cancelConfirmation && (
+        <div className="fixed inset-0 z-[1450] flex items-center justify-center bg-[#050816]/85 p-5 text-white backdrop-blur-md">
+          <section role="dialog" aria-modal="true" aria-labelledby="cancel-hosted-title"
+            className="w-full max-w-sm space-y-5 rounded-[28px] border border-rose-300/30 bg-gradient-to-br from-[#2a1936] to-[#101929] p-6 shadow-[0_24px_85px_rgba(0,0,0,.65)]">
+            <h2 id="cancel-hosted-title" className="text-xl font-black">Rennen wirklich absagen?</h2>
+            <p className="text-sm leading-6 text-white/70">
+              Dein {cancelConfirmation.distanceMeters}-m-Rennen wird nur dann abgesagt,
+              wenn noch niemand beigetreten ist. Danach verschwindet es aus den offenen Rennen.
+            </p>
+            {cancelError && <p role="alert" className="rounded-xl border border-rose-300/30 bg-rose-400/10 p-3 text-xs leading-5 text-rose-100">{cancelError}</p>}
+            <button type="button" disabled={Boolean(cancellingRunId)}
+              onClick={() => { void confirmCancelHostedRun(); }}
+              className="min-h-14 w-full rounded-xl bg-rose-500 px-4 font-black text-white disabled:opacity-40">
+              {cancellingRunId ? 'Absage wird bestätigt …' : 'Ja, Rennen absagen'}
+            </button>
+            <button type="button" disabled={Boolean(cancellingRunId)}
+              onClick={() => { setCancelConfirmation(null); setCancelError(null); }}
+              className="min-h-12 w-full rounded-xl border border-white/20 bg-white/5 px-4 font-bold text-white/80 disabled:opacity-40">
+              Nein, Rennen behalten
+            </button>
+          </section>
+        </div>
+      )}
+
       <HostRunDialog
-        open={hostOpen}
+        open={hostOpen && Boolean(authUser)}
         onClose={() => setHostOpen(false)}
         onHost={handleHostRun}
+        onDemo={() => { setHostOpen(false); navigate('/sprint-lab'); }}
         defaultDistance={50}
       />
 
@@ -1571,7 +1797,7 @@ export default function MapScreen() {
   );
 }
 
-function MatchCountdownOverlay({ startsAt, onReady, onDone }: { startsAt: number; onReady: () => void; onDone: () => void }) {
+function MatchCountdownOverlay({ startsAt, wakeStatus, onReady, onDone }: { startsAt: number; wakeStatus: ScreenWakeLockStatus | 'idle'; onReady: () => void; onDone: () => void }) {
   const [remainingMs, setRemainingMs] = useState(Math.max(0, startsAt - Date.now()));
   const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
@@ -1616,15 +1842,18 @@ function MatchCountdownOverlay({ startsAt, onReady, onDone }: { startsAt: number
   }, [startsAt, onDone]);
   const seconds = Math.ceil(remainingMs / 1000);
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
-      <div className="flex h-32 w-32 items-center justify-center rounded-full bg-white/10 text-5xl font-black text-white ring-2 ring-white/30">
+    <div className="fixed inset-0 z-[1250] flex flex-col items-center justify-center bg-[#070913]/90 px-5 text-white backdrop-blur-xl">
+      <p className="mb-8 text-xs font-black uppercase tracking-[0.32em] text-emerald-300">RUNNIT · READY</p>
+      <div className="flex h-44 w-44 items-center justify-center rounded-[48px] border border-violet-300/40 bg-gradient-to-br from-violet-500/35 to-cyan-500/10 text-7xl font-black tabular-nums shadow-[0_0_90px_rgba(139,92,246,.24)]">
         {seconds}
       </div>
+      <p className="mt-8 text-sm font-semibold text-white/60">Mach dich bereit.</p>
+      {wakeStatus !== 'idle' && <p role="status" className={wakeStatus === 'held' ? 'mt-3 max-w-sm text-center text-xs text-emerald-200' : 'mt-3 max-w-sm text-center text-xs text-amber-200'}>{screenWakeLockMessage(wakeStatus)}</p>}
     </div>
   );
 }
 
-function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: number; targetDistanceM: number; onFinish: (endedAt: number, metrics?: DuelMetrics) => void }) {
+function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { startedAt: number; targetDistanceM: number; wakeStatus: ScreenWakeLockStatus | 'idle'; onFinish: (endedAt: number, metrics?: DuelMetrics) => void }) {
   const [elapsedMs, setElapsedMs] = useState(Math.max(0, Date.now() - startedAt));
   const [acceptedDistanceM, setAcceptedDistanceM] = useState(0);
   const [displayDistanceM, setDisplayDistanceM] = useState(0);
@@ -1633,7 +1862,8 @@ function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: numb
   const [accumAccuracyM, setAccumAccuracyM] = useState(0);
   const [samplesUsed, setSamplesUsed] = useState(0);
   const lastSampleRef = useRef<{ t: number; lat: number; lng: number; v: number } | null>(null);
-  const stepStateRef = useRef<{ lastAcc: number; lastPeakAt: number | null; steps: number } | null>({ lastAcc: 0, lastPeakAt: null, steps: 0 });
+  const liveStepCounter = useRef(new LiveStepPeakCounter());
+  const [liveStepCount, setLiveStepCount] = useState(0);
   const overTargetStreakRef = useRef(0);
   const finishedRef = useRef(false);
   const watchIdRef = useRef<number | null>(null);
@@ -1701,7 +1931,7 @@ function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: numb
               osc.start();
               osc.stop(ctx.currentTime + 0.22);
             } catch {}
-            const steps = stepStateRef.current?.steps ?? 0;
+            const steps = liveStepCounter.current.count;
             const stepLen = steps > 0 ? nextDist / steps : undefined;
             onFinish(Date.now(), {
               stepsCount: steps,
@@ -1733,46 +1963,47 @@ function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: numb
     };
   }, []);
 
-  // DeviceMotion-based step detection (peak detect on resultant acceleration)
+  // Shared foreground peak detector; no extrapolation across iOS sensor suspensions.
   useEffect(() => {
-    const handler = (e: DeviceMotionEvent) => {
-      const ax = e.accelerationIncludingGravity?.x ?? 0;
-      const ay = e.accelerationIncludingGravity?.y ?? 0;
-      const az = e.accelerationIncludingGravity?.z ?? 0;
-      const g = Math.sqrt(ax * ax + ay * ay + az * az);
-      const state = stepStateRef.current!;
-      const t = Date.now();
-      const threshold = 11; // approx >1.1g, tune empirically
-      const refractoryMs = 300; // min time between steps ~200-400ms
-      if (g > threshold && state.lastAcc <= threshold) {
-        if (!state.lastPeakAt || t - state.lastPeakAt > refractoryMs) {
-          state.steps += 1;
-          state.lastPeakAt = t;
-        }
-      }
-      state.lastAcc = g;
+    const handler = (event: DeviceMotionEvent) => {
+      if (finishedRef.current) return;
+      const a = event.acceleration;
+      if (!a || a.x === null || a.y === null || a.z === null) return;
+      const magnitude = Math.hypot(a.x, a.y, a.z);
+      const updated = liveStepCounter.current.push({
+        timestampMs: performance.now(),
+        accelerationMagnitudeMps2: magnitude,
+      });
+      if (updated !== null) setLiveStepCount(updated);
     };
-    try {
-      window.addEventListener('devicemotion', handler, { passive: true } as any);
-    } catch {}
-    return () => {
-      try { window.removeEventListener('devicemotion', handler as any); } catch {}
-    };
+    window.addEventListener('devicemotion', handler, { passive: true });
+    return () => window.removeEventListener('devicemotion', handler);
   }, []);
 
   // Auto-finish moved into GPS sampler for accuracy-stable detection
   const seconds = (elapsedMs / 1000).toFixed(2);
   return (
-    <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-center gap-6 bg-black/60">
-      <div className="rounded-lg bg-white/10 px-6 py-3 text-4xl font-extrabold text-white ring-2 ring-white/20">
-        {seconds}s
+    <div className="fixed inset-0 z-[1250] flex flex-col items-center justify-center gap-6 bg-[#070913]/90 px-5 text-white backdrop-blur-xl">
+      <p className="text-xs font-black uppercase tracking-[0.3em] text-emerald-300">RUNNIT · LIVE RACE</p>
+      {wakeStatus !== 'idle' && <p role="status" className={wakeStatus === 'held' ? 'max-w-sm text-center text-xs text-emerald-200' : 'max-w-sm text-center text-xs text-amber-200'}>{screenWakeLockMessage(wakeStatus)}</p>}
+      <div className="w-full max-w-sm rounded-[32px] border border-violet-300/25 bg-gradient-to-br from-violet-500/25 to-cyan-500/10 p-8 text-center shadow-[0_0_60px_rgba(139,92,246,.13)]">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/50">Laufzeit</p>
+        <p className="mt-3 text-6xl font-black tracking-[-0.07em] tabular-nums text-white">{seconds}<span className="ml-1 text-2xl text-emerald-300">s</span></p>
+        <p className="mt-5 text-sm font-semibold tabular-nums text-white/65">{displayDistanceM.toFixed(1)} / {targetDistanceM} m</p>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+          <div className="h-full rounded-full bg-gradient-to-r from-violet-400 via-cyan-300 to-emerald-300" style={{ width: `${Math.max(0, Math.min(100, displayDistanceM / targetDistanceM * 100))}%` }} />
+        </div>
+        <div role="status" aria-live="polite" aria-atomic="true" className="mt-5 border-t border-white/15 pt-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-cyan-200">Live-Schrittspitzen · experimentell</p>
+          <p className="mt-1 text-4xl font-black tabular-nums text-white">{liveStepCount}</p>
+        </div>
       </div>
-      <div className="rounded-lg bg-white/10 px-6 py-2 text-sm font-semibold text-white ring-1 ring-white/15">
-        {displayDistanceM.toFixed(1)} m · max {maxSpeed.toFixed(2)} m/s · a_max {maxAccel.toFixed(2)} m/s²
+      <div className="rounded-2xl border border-white/10 bg-white/[0.05] px-5 py-3 text-center text-xs font-semibold tabular-nums text-white/55">
+        GPS Max. {maxSpeed.toFixed(2)} m/s · Beschleunigung {maxAccel.toFixed(2)} m/s²
       </div>
       <button
         onClick={() => {
-          const steps = stepStateRef.current?.steps ?? 0;
+          const steps = liveStepCounter.current.count;
           const stepLen = steps > 0 ? acceptedDistanceM / steps : undefined;
           onFinish(Date.now(), {
             stepsCount: steps,
@@ -1782,9 +2013,9 @@ function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: numb
             distanceM: acceptedDistanceM,
           });
         }}
-        className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400"
+        className="min-h-14 w-full max-w-sm rounded-2xl border border-rose-300/30 bg-rose-500/20 px-6 py-4 text-sm font-extrabold text-white transition hover:bg-rose-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
       >
-        Finish
+        Lauf beenden
       </button>
     </div>
   );
@@ -1812,29 +2043,30 @@ function RaceFinishedOverlay({
   const seconds = ((endedAt - startedAt) / 1000).toFixed(2);
   const timeInSeconds = (endedAt - startedAt) / 1000;
   
-  // Auto-add to leaderboard when race finishes
+  // Avoid repeatedly inserting a locally displayed result on parent re-renders.
+  const recordedLocalResultRef = useRef(false);
   useEffect(() => {
-    if (currentUser && onAddToLeaderboard) {
-      onAddToLeaderboard(timeInSeconds);
-    }
+    if (recordedLocalResultRef.current || !currentUser || !onAddToLeaderboard) return;
+    recordedLocalResultRef.current = true;
+    onAddToLeaderboard(timeInSeconds);
   }, [currentUser, onAddToLeaderboard, timeInSeconds]);
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
-      <div className="w-full max-w-md rounded-xl bg-[#0b0b0d] p-5 text-white ring-1 ring-white/10">
-        <div className="mb-3 text-center text-lg font-semibold">🏁 Rennen beendet!</div>
-        <div className="mb-1 text-center text-3xl font-extrabold text-green-400">{seconds}s</div>
-        <div className="mb-4 text-center text-xs text-white/70">Ziel: {targetDistanceM}m erreicht</div>
+    <div className="fixed inset-0 z-[1250] flex items-center justify-center bg-[#050611]/90 px-4 text-white backdrop-blur-xl">
+      <div className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-[30px] border border-violet-300/20 bg-gradient-to-br from-[#1b1a32] to-[#101322] p-6 shadow-[0_20px_70px_rgba(0,0,0,.5)]">
+        <div className="mb-3 text-center text-[11px] font-extrabold uppercase tracking-[0.25em] text-emerald-300">RUNNIT · FINISH</div>
+        <h2 className="text-center text-xl font-extrabold">🏁 Rennen beendet!</h2>
+        <div className="mb-2 mt-4 text-center text-5xl font-black tracking-tight tabular-nums text-emerald-300">{seconds}<span className="ml-1 text-xl">s</span></div>
+        <div className="mb-4 text-center text-xs text-white/70">Zieldistanz: {targetDistanceM}m · Ergebnis nicht verifiziert</div>
         
-        {/* Celebration message */}
-        <div className="mb-4 rounded-lg bg-green-600/20 border border-green-500/30 p-3 text-center">
-          <div className="text-sm font-medium text-green-300">
-            🎉 Zeit hinzugefügt zu:
+        {/* Local display does not establish eligibility for any official ranking. */}
+        <div className="mb-4 rounded-lg border border-amber-300/30 bg-amber-400/10 p-3 text-center">
+          <div className="text-sm font-semibold text-amber-200">
+            Laufzeit noch nicht verifiziert
           </div>
-          <div className="mt-1 text-xs text-green-200">
-            • 🏙️ {cityName || 'Stadt'} Leaderboard<br/>
-            • 🇩🇪 Deutschland Leaderboard<br/>
-            • 🌍 Internationales Leaderboard
+          <div className="mt-1 text-xs leading-5 text-amber-100">
+            Das Ergebnis kann als lokale, ungeprüfte Zeit angezeigt werden.
+            Eine offizielle Stadt-, Deutschland- oder Weltplatzierung ist nicht bestätigt.
           </div>
         </div>
 
@@ -1846,13 +2078,13 @@ function RaceFinishedOverlay({
               // Show leaderboards after race
               onClose();
             }}
-            className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(99,102,241,.20)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             📊 Leaderboards anzeigen
           </button>
           <button
             onClick={onClose}
-            className="w-full rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+            className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             Schließen
           </button>
