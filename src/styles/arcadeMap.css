@@ -70,3 +70,47 @@
 .runnit-map-arcade .runnit-arcade-alert {top:calc(140px + env(safe-area-inset-top,0px))}
 .runnit-map-arcade .runnit-arcade-gps-prompt {bottom:auto;top:calc(178px + env(safe-area-inset-top,0px))}
 .runnit-map-arcade .runnit-arcade-race-notice {bottom:auto;top:calc(190px + env(safe-area-inset-top,0px))}
+
+/* iPhone visual acceptance: map preview is the sole event detail surface.
+   The old Leaflet popup and oversized independent demo tiles were removed. */
+.runnit-map-arcade .runnit-arcade-demo-chip{
+  pointer-events:none;position:absolute;z-index:940;
+  top:calc(161px + env(safe-area-inset-top,0px));
+  left:12px;max-width:calc(100% - 85px);
+  border:1px solid rgba(255,208,76,.8);border-radius:9px 3px;
+  background:rgba(23,17,28,.9);color:#ffdc7b;
+  box-shadow:0 0 10px rgba(237,161,30,.2);
+  padding:5px 9px;font-size:10px;line-height:1.1;font-weight:950;
+  font-style:italic;letter-spacing:.04em;
+}
+.runnit-arcade-map-lab-link{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  margin:0 0 12px;min-height:44px;padding:8px 10px;
+  border:1px solid #5dc9eb;border-radius:10px 3px;
+  background:rgba(20,33,76,.85);color:#cef7ff;
+  font-size:11px;font-weight:850;
+}
+.runnit-arcade-map-lab-link svg{height:14px;width:14px}
+.runnit-map-arcade .runnit-arcade-controls button{
+  min-height:44px;padding-block:9px;
+}
+.runnit-map-arcade .runnit-arcade-status{
+  top:calc(207px + env(safe-area-inset-top,0px));
+  left:10px;right:auto;width:auto;max-width:calc(100% - 20px);
+  transform:none;font-size:11px;
+}
+.runnit-map-arcade .runnit-arcade-alert{
+  top:calc(208px + env(safe-area-inset-top,0px));
+  max-height:36dvh;overflow-y:auto;
+}
+.runnit-map-arcade .runnit-arcade-hosted{
+  top:calc(211px + env(safe-area-inset-top,0px));
+  max-height:26dvh;
+}
+.runnit-map-arcade .runnit-arcade-gps-prompt{
+  top:calc(212px + env(safe-area-inset-top,0px));
+}
+@media(max-width:360px){
+ .runnit-map-arcade .runnit-arcade-demo-chip{font-size:9px;padding:5px 6px;left:7px;max-width:calc(100% - 73px)}
+ .runnit-arcade-map-race-info p{font-size:8px}
+}

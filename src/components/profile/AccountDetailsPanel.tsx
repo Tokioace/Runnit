@@ -121,7 +121,7 @@ export default function AccountDetailsPanel({ user, updateDisplayName, changePas
           <label htmlFor="edit-display-name" className="block text-xs font-semibold text-white/75">Neuer Anzeigename</label>
           <input id="edit-display-name" type="text" required minLength={3} maxLength={24} autoComplete="nickname"
             value={draftName} disabled={pending} onChange={event => setDraftName(event.target.value)}
-            className="min-h-12 w-full rounded-xl border border-white/20 bg-[#101322] px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-violet-400" />
+            className="min-h-12 w-full rounded-xl border border-white/20 bg-[#101322] px-4 py-3 text-base text-white outline-none focus:ring-2 focus:ring-violet-400" />
           <p className="text-[11px] leading-5 text-white/50">3–24 Zeichen. Der Name ist nicht eindeutig und keine verifizierte Identität.</p>
           <div className="grid grid-cols-2 gap-2">
             <button type="button" disabled={pending} onClick={() => { setEditing(false); setDraftName(user.displayName); setError(null); }}
@@ -145,11 +145,11 @@ export default function AccountDetailsPanel({ user, updateDisplayName, changePas
             <label htmlFor="new-account-password" className="block text-xs font-semibold text-white/75">Neues Passwort</label>
             <input id="new-account-password" type="password" autoComplete="new-password" required minLength={8}
               value={newPassword} disabled={passwordPending} onChange={event => setNewPassword(event.target.value)}
-              className="min-h-12 w-full rounded-xl border border-white/20 bg-[#101322] px-4 py-3 text-sm text-white" />
+              className="min-h-12 w-full rounded-xl border border-white/20 bg-[#101322] px-4 py-3 text-base text-white" />
             <label htmlFor="confirm-account-password" className="block text-xs font-semibold text-white/75">Passwort wiederholen</label>
             <input id="confirm-account-password" type="password" autoComplete="new-password" required minLength={8}
               value={confirmPassword} disabled={passwordPending} onChange={event => setConfirmPassword(event.target.value)}
-              className="min-h-12 w-full rounded-xl border border-white/20 bg-[#101322] px-4 py-3 text-sm text-white" />
+              className="min-h-12 w-full rounded-xl border border-white/20 bg-[#101322] px-4 py-3 text-base text-white" />
             <div className="grid grid-cols-2 gap-2">
               <button type="button" disabled={passwordPending} onClick={() => { setPasswordEditing(false); setNewPassword(''); setConfirmPassword(''); setPasswordError(null); }}
                 className="min-h-12 rounded-xl border border-white/15 bg-white/5 px-3 text-sm font-bold">Abbrechen</button>

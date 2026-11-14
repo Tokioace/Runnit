@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet';
 import { LocateFixed, Trophy } from 'lucide-react';
 import type { LatLngExpression } from 'leaflet';
 import L from 'leaflet';
@@ -61,7 +61,7 @@ type CurrentUser = {
 // German translations for Runnit
 type TranslationDict = Record<string, string>;
 const de: TranslationDict = {
-  'buttons.ghostRun': '👻 Leaderboards',
+  'buttons.ghostRun': 'Rangliste',
   'buttons.hostRun': 'Rennen erstellen',
   'buttons.cancel': 'Abbrechen',
   'buttons.joinRun': 'Rennen beitreten',
@@ -1462,44 +1462,14 @@ export default function MapScreen() {
           />
         ))}
 
+        {/* One selected run in the arcade preview; no duplicate Leaflet popup. */}
         {openRuns.map((r) => (
           <MapBadgeMarker
             key={r.id}
             position={[r.location.lat, r.location.lng]}
             iconOptions={getOpenRunIconOptions(Boolean(authUser && r.hostUserId && authUser.id === r.hostUserId))}
             onClick={() => setSelectedRunId(r.id)}
-          >
-            <Popup>
-              <div className="min-w-[200px] space-y-2 text-[13px] text-white">
-                <div className="flex items-center justify-between">
-                  <div className="font-semibold">@{r.hostUsername}</div>
-                  <div className="text-white/70">{r.distanceMeters}m</div>
-                </div>
-                {r.id.startsWith('demo-run-') && (
-                  <p className="text-xs font-semibold text-amber-300">
-                    Demo-Rennen · fiktiver Gegner
-                  </p>
-                )}
-                {authUser?.id === r.hostUserId ? (
-                  <div className="space-y-2">
-                    <p className="rounded-xl bg-emerald-300/15 px-3 py-2 text-xs font-semibold text-emerald-100">Dein Rennen · Wartet auf Mitläufer</p>
-                    <button type="button" disabled={cancellingRunId === r.id}
-                      onClick={() => handleCancelHostedRun({ id: r.id, hostUserId: r.hostUserId ?? '', distanceMeters: r.distanceMeters, createdAt: r.createdAt ?? null })}
-                      className="w-full rounded-xl border border-rose-400/50 bg-rose-500/15 px-4 py-3 text-sm font-bold text-rose-100 disabled:opacity-50">
-                      {cancellingRunId === r.id ? 'Wird abgesagt …' : 'Rennen absagen'}
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => handleJoinRun(r)}
-                    className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                  >
-                    {t('buttons.joinRun')}
-                  </button>
-                )}
-              </div>
-            </Popup>
-          </MapBadgeMarker>
+          />
         ))}
       </MapContainer>
 
@@ -1529,10 +1499,11 @@ export default function MapScreen() {
         </section>
       )}
 
-      {(players.some((player) => player.source === 'demo') ||
+      {arcadeMapView === 'map' && (players.some((player) => player.source === 'demo') ||
         openRuns.some((run) => run.id.startsWith('demo-run-'))) && (
-        <div className="runnit-arcade-demo-notice pointer-events-none absolute left-1/2 top-16 z-[900] w-max max-w-[90vw] -translate-x-1/2 rounded-xl border border-amber-300/40 bg-[#17130d]/90 px-3 py-2 text-center text-xs font-semibold text-amber-100 shadow-lg backdrop-blur">
-          Demo-Modus: einige Spieler oder Rennen sind frei erfunden
+        <div className="runnit-arcade-demo-chip" role="status"
+          title="Demo-Modus: einige Spieler oder Rennen sind frei erfunden">
+          DEMO · BEISPIELRENNEN
         </div>
       )}
 
@@ -1742,12 +1713,6 @@ export default function MapScreen() {
           {raceNotice}
         </div>
       )}
-
-      {/* Standalone art preview works without GPS, opponents, or account writes. */}
-      <button type="button" onClick={() => navigate('/sprint-lab')}
-        className="runnit-map-demo-link pointer-events-auto absolute inset-x-4 bottom-40 z-[951] mx-auto flex min-h-12 max-w-sm items-center justify-center gap-2 rounded-xl border border-cyan-300/35 bg-[#0b2037]/95 px-4 text-sm font-extrabold text-cyan-100 shadow-[0_8px_30px_rgba(0,0,0,.4)] backdrop-blur">
-        Renn-Grafik testen · Demo ohne zweiten Läufer
-      </button>
 
       {/* Guests may explore the map; creating or joining runs opens login. */}
       <div className="runnit-arcade-controls pointer-events-none absolute inset-x-4 bottom-24 z-[950] flex min-w-0 justify-center gap-2.5">

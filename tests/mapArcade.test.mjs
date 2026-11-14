@@ -16,7 +16,9 @@ test('map styling preserves live Leaflet tiles, radar and secure original race h
   assert.match(map, /requireRaceAccount/);
   assert.match(map, /openRuns\.map/);
   assert.match(map, /<BottomNav/);
-  assert.match(map, /<Popup>/);
+  assert.doesNotMatch(map, /<Popup>/);
+  assert.match(map, /onClick=\{\(\) => setSelectedRunId\(r\.id\)\}/);
+  assert.match(map, /runnit-arcade-demo-chip/);
   assert.match(map, /Demo-Modus: einige Spieler oder Rennen sind frei erfunden/);
 });
 test('map and list share one source and show explicit provenance', () => {
@@ -44,4 +46,18 @@ test('arcade map design respects attribution, safe areas and real controls', () 
   assert.match(css, /runnit-arcade-map-preview/);
   assert.match(css, /runnit-arcade-map-switch/);
   assert.doesNotMatch(css, /display:\s*none[^}]*leaflet-control-attribution/);
+});
+
+test('mobile map has one event detail card, compact provenance and no separate floating simulation CTA', () => {
+  const map = read('src/screens/MapScreen.tsx');
+  const chrome = read('src/components/map/ArcadeMapChrome.tsx');
+  const styles = read('src/styles/arcadeMap.css');
+  assert.doesNotMatch(map, /<Popup>|<Popup\b/);
+  assert.doesNotMatch(map, /runnit-map-demo-link/);
+  assert.match(map, /runnit-arcade-demo-chip/);
+  assert.match(map, /DEMO · BEISPIELRENNEN/);
+  assert.match(chrome, /to="\/sprint-lab"/);
+  assert.match(chrome, /Renn-Grafik testen · Nur Simulation/);
+  assert.match(styles, /\.runnit-map-arcade \.runnit-arcade-controls button/);
+  assert.match(styles, /\.runnit-map-arcade \.runnit-arcade-demo-chip/);
 });

@@ -34,7 +34,9 @@ test('guest race host button and join button request account login before other 
   assert.match(map, /const handleHostRun = async \(distanceMeters: number\) => \{\s*if \(!requireRaceAccount\(\)\) return;/);
   assert.match(map, /const handleJoinRun = async \(run: OpenRun\) => \{\s*if \(!requireRaceAccount\(\)\) return;/);
   assert.match(map, /onClick=\{openHostRun\}/);
-  assert.match(map, /onClick=\{\(\) => handleJoinRun\(r\)\}/);
+  assert.match(map, /onJoin=\{\(id\) => \{/);
+  assert.match(map, /if \(run\) \{ void handleJoinRun\(run\); \}/);
+  assert.doesNotMatch(map, /<Popup>/);
   assert.doesNotMatch(map, /In demo mode, create local run/);
   assert.doesNotMatch(map, /In demo mode, start race immediately/);
 });

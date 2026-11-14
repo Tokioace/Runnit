@@ -32,3 +32,7 @@ Hintergrundtönung, Radar-Glow, Neonrahmen, Speedlines, Race-Karten-Thumbnail un
 
 ## Weitere Umsetzung
 Der Host-Dialog sowie die Live-Race- und Victory-Screens werden nach der Karte in eigenen Schritten angepasst. Ghost-Run im Hosting wird erst als aktiv wählbarer Modus gezeigt, wenn der echte technische Ablauf vorhanden ist.
+
+
+## iPhone-Abnahme nach drei Nutzer-Screenshots (15.11.2026)
+Im vorherigen Preview überdeckten große Demo-Notiz, separate Renn-Grafik-Test-Kachel, Location-Button, Leaflet-Popup und die neue Duellkarte einander. Der Map-Screen verwendet ab jetzt nur noch **eine** Duell-Vorschau: Markertaps setzen die ausgewählte ID; es gibt kein zusätzliches Leaflet-Popup. Der Demo-Status erscheint als schmale gelbe Plakette links im Kartenbereich; die eigenständige Grafik-Simulation liegt nur hinter der LISTE-Umschaltung. Die untere Aktionsleiste ist kompakter und behält mindestens 44px Touch-Flächen. GPS-, Karten-, Rennlogik und Auth-Schranken bleiben unverändert. Reale iPhone-Sichtprüfung nach diesem Commit erforderlich.

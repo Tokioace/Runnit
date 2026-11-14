@@ -83,6 +83,7 @@ export default function ArcadeMapChrome({
       {view === 'list' ? (
         <section aria-label="Rennen als Liste" className="runnit-arcade-map-list">
           <div className="runnit-arcade-map-list-heading"><Flag aria-hidden="true" /> OFFENE HERAUSFORDERUNGEN <small>{entries.length} angezeigt</small></div>
+          <Link to="/sprint-lab" className="runnit-arcade-map-lab-link">Renn-Grafik testen · Nur Simulation <ChevronRight aria-hidden="true" /></Link>
           {loading && <p className="runnit-arcade-map-list-hint" role="status">Rennen werden geladen …</p>}
           {!loading && entries.length === 0 && (
             <div className="runnit-arcade-map-empty">
