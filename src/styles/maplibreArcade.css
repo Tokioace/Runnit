@@ -1,0 +1,31 @@
+/* Runnit vector-first arcade map. No global raster filter or CSS tilt fakery. */
+.runnit-map-arcade .runnit-gl-canvas{position:absolute;inset:0;width:100%;height:100%;background:#10253c;z-index:1}
+.runnit-map-arcade .maplibregl-map{font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif}
+.runnit-map-arcade .maplibregl-control-container{position:relative;z-index:620}
+.runnit-map-arcade .maplibregl-ctrl-bottom-right{bottom:calc(80px + env(safe-area-inset-bottom,0px));right:5px}
+.runnit-map-arcade .maplibregl-ctrl-bottom-left{bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+.runnit-map-arcade .maplibregl-ctrl-attrib{color:#cce7fa!important;background:rgba(4,14,32,.88)!important;border:1px solid rgba(77,200,239,.36);border-radius:5px;padding:2px 5px}
+.runnit-map-arcade .maplibregl-ctrl-attrib a{color:#d7e9ff!important}
+.runnit-map-arcade .maplibregl-ctrl-attrib-button{background-color:rgba(9,20,49,.85)}
+.runnit-map-arcade .maplibregl-marker{z-index:20}
+.runnit-map-arcade .runnit-gl-marker{position:relative;display:grid;place-items:center;cursor:pointer;border:2px solid var(--runnit-pin);background:linear-gradient(145deg,#1b2d6a,#221246 85%);color:#fffbff;box-shadow:inset 0 1px #c5f6ff,0 0 10px var(--runnit-pin);width:37px;height:37px;border-radius:9px 4px 9px 4px;font-size:20px;text-shadow:0 0 6px white;transform:translateY(-7px)}
+.runnit-map-arcade .runnit-gl-marker::after{content:"";position:absolute;left:12px;top:31px;border-style:solid;border-width:10px 5px 0 5px;border-color:var(--runnit-pin) transparent transparent transparent}
+.runnit-map-arcade .runnit-gl-marker.is-demo{box-shadow:inset 0 1px #e5e4ff,0 0 0 2px rgba(255,109,254,.36),0 0 15px var(--runnit-pin)}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-gps{border:4px solid #d5faff;border-radius:50%;width:29px;height:29px;background:#2a82fb;box-shadow:0 0 0 8px rgba(21,200,255,.28),0 0 20px rgba(4,242,255,.9);transform:none;cursor:default}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-gps::after{display:none}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run:not(.is-demo){background:linear-gradient(145deg,#16323d,#547115)}
+.runnit-map-arcade .runnit-gl-tilt-button{pointer-events:auto;position:absolute;right:15px;top:calc(14.3rem + env(safe-area-inset-top,0px));z-index:950;min-width:46px;height:42px;border:1px solid #9beeff;border-radius:13px 4px;background:linear-gradient(145deg,#1e67a2,#132448);color:#fff;box-shadow:inset 0 1px #fff,0 0 13px rgba(40,218,255,.5);font-size:14px;font-weight:1000;font-style:italic}
+.runnit-map-arcade .runnit-gl-tilt-button:focus-visible,.runnit-map-arcade .runnit-gl-run-cta:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup{z-index:590}
+.runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup .maplibregl-popup-content{padding:7px;border:2px solid #65f3ff;border-bottom-color:#ff46e8;border-radius:16px 4px 16px 4px;background:linear-gradient(145deg,#1a3b70,#111b48 60%,#19133b);box-shadow:0 0 18px rgba(39,222,255,.62),0 9px 27px rgba(0,0,0,.7)}
+.runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup .maplibregl-popup-tip{border-top-color:#171944;border-bottom-color:#171944}
+.runnit-map-arcade .maplibregl-popup-close-button{font-size:21px;top:5px;right:6px;color:#fff;z-index:1;width:30px;height:30px}
+.runnit-gl-run-details{color:#fff;min-width:205px;max-width:240px;padding:4px;line-height:1.4;font-size:12px}
+.runnit-gl-run-title{display:block;font-size:21px;font-weight:1000;font-style:italic;letter-spacing:-.05em;margin-bottom:7px;text-shadow:0 0 6px #1dc9ff}
+.runnit-gl-run-details p{margin:3px 0!important;color:#e1f7ff}
+.runnit-gl-run-details .runnit-gl-demo-status{color:#ffe185;font-size:10px;font-weight:950;letter-spacing:.02em}
+.runnit-gl-run-details .runnit-gl-own-status{color:#b7f9ff;font-size:10px;font-weight:950}
+.runnit-gl-run-cta{display:block;width:100%;min-height:44px;margin-top:9px;border:1px solid #edff90;border-radius:9px 3px;background:linear-gradient(135deg,#efff7a,#cbff10 55%,#79ba12);color:#071c2b;font-size:14px;font-weight:1000;font-style:italic;box-shadow:0 0 10px rgba(190,255,0,.67)}
+.runnit-gl-run-cta.is-cancel{background:linear-gradient(135deg,#ff96cc,#e43c89);border-color:#ffa8df;color:#301329}
+@media(max-width:360px){.runnit-map-arcade .runnit-gl-tilt-button{right:8px;top:calc(14.7rem + env(safe-area-inset-top,0px))}.runnit-gl-run-details{min-width:180px}}
+@media(prefers-reduced-motion:reduce){.runnit-map-arcade .maplibregl-marker,.runnit-map-arcade .runnit-gl-marker{animation:none!important;transition:none!important}}
