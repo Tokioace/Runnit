@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Activity, ArrowRight, BarChart3, ChevronRight, Crown, Flag, Flame, Footprints, Globe2, MapPin, Settings, ShieldCheck, Swords, Timer, Trophy, UserRound, Zap } from 'lucide-react';
 import BottomNav from '../components/ui/BottomNav';
-import { useSupabaseUser } from '../hooks/useSupabaseUser';
 
 // Layout order and art direction are taken from the approved 864x1536 design.
 // XP, ranks, steps and races are NOT fabricated while these services are absent.
@@ -17,9 +16,10 @@ const activity = [
   { label: 'KALORIEN', Icon: Flame, unit: 'kcal' },
 ] as const;
 
-export default function DashboardScreen() {
-  const { user, loading } = useSupabaseUser();
-  const nickname = loading ? 'WIRD GELADEN' : user?.displayName || 'GAST';
+type DashboardProps = { displayName?: string | null };
+
+export default function DashboardScreen({ displayName }: DashboardProps) {
+  const nickname = displayName || 'GAST';
   return (
     <main className="runnit-game-home relative min-h-[100dvh] w-full max-w-full overflow-x-clip text-white">
       <div className="runnit-game-content relative z-10 mx-auto w-full max-w-[680px] px-3 pb-[calc(8rem+env(safe-area-inset-bottom,0px))] pt-[max(1rem,env(safe-area-inset-top))] sm:px-5">

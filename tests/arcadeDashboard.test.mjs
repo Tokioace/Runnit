@@ -9,7 +9,8 @@ test('arcade dashboard sections follow the approved master order', () => {
   let last = -1;
   for (const section of sections) { const found = src.indexOf(section); assert.ok(found > last, section); last = found; }
   assert.match(src, /DEIN LAUF\./);
-  assert.match(src, /useSupabaseUser/);
+  assert.match(src, /displayName/);
+  assert.doesNotMatch(src, /from [\'"][^\'"]*supabase/i);
   assert.doesNotMatch(src, /watchPosition|navigator\.geolocation|submitDuelResult/);
 });
 test('arcade dashboard uses no fictional verified activity or ranking values', () => {

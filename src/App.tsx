@@ -121,7 +121,7 @@ export default function App() {
     <div className="dark">
       <Routes>
         <Route path="/" element={<HomeScreen isSignedIn={Boolean(auth.user)} guestAccess={guestAccess} onStart={enterApp} onContinueAsGuest={enterGuestMode} />} />
-        <Route path="/home" element={<DashboardScreen />} />
+        <Route path="/home" element={<DashboardScreen displayName={auth.user?.displayName} />} />
         <Route path="/map" element={<MapScreen />} />
         <Route path="/leaderboard" element={<LeaderboardScreen />} />
         <Route path="/profile" element={<ProfileScreen />} />

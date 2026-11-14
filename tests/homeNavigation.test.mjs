@@ -8,7 +8,7 @@ const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf
 test('launch splash and original app dashboard have separate routes', () => {
   const app = read('src/App.tsx');
   assert.ok(app.includes('<Route path="/" element={<HomeScreen'));
-  assert.match(app, /<Route path="\/home" element=\{<DashboardScreen \/>\}/);
+  assert.ok(app.includes('<Route path="/home" element={<DashboardScreen displayName={auth.user?.displayName} />} />'));
   assert.match(app, /<Route path="\/map" element=\{<MapScreen \/>\}/);
   assert.match(app, /navigate\('\/home'\)/);
 });
