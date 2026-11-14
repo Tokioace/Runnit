@@ -8,7 +8,7 @@ const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf
 test('launch splash and original app dashboard have separate routes', () => {
   const app = read('src/App.tsx');
   assert.ok(app.includes('<Route path="/" element={<HomeScreen'));
-  assert.match(app, /<Route path="\/home" element=\{<DashboardScreen \/>\}/);
+  assert.ok(app.includes('<Route path="/home" element={<DashboardScreen displayName={auth.user?.displayName} />} />'));
   assert.match(app, /<Route path="\/map" element=\{<MapScreen \/>\}/);
   assert.match(app, /navigate\('\/home'\)/);
 });
@@ -47,4 +47,13 @@ test('map has a neutral initial center and explicit tile failure handling', () =
   assert.match(map, /setTileRetryCount/);
   assert.match(map, /mapTilesUnavailable/);
   assert.match(map, /Noch kein Standort ermittelt/);
+});
+
+
+test('Home and Stats are independent full screens', () => {
+  const app = read('src/App.tsx');
+  const nav = read('src/components/ui/BottomNav.tsx');
+  assert.ok(app.includes('<Route path="/home" element={<DashboardScreen displayName={auth.user?.displayName} />} />'));
+  assert.ok(app.includes('<Route path="/stats" element={<StatsScreen />} />'));
+  assert.match(nav, /href: '\/stats', label: 'Stats'/);
 });

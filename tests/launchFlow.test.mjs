@@ -62,7 +62,7 @@ test('STARTEN enters the original dashboard, never the map; guests can explore t
   const nav = read('src/components/ui/BottomNav.tsx');
   assert.match(app, /if \(auth\.user\) \{\s*navigate\('\/home'\)/);
   assert.match(app, /setGuestAccess\(true\);\s*navigate\('\/home'\)/);
-  assert.match(app, /<Route path="\/home" element=\{<DashboardScreen \/>\}/);
+  assert.ok(app.includes('<Route path="/home" element={<DashboardScreen displayName={auth.user?.displayName} />} />'));
   assert.match(dashboard, /DEIN LAUF\./);
   assert.match(nav, /href: '\/home', label: 'Start'/);
   assert.doesNotMatch(app, /const enterApp = \(\) => \{[\s\S]*?navigate\('\/map'\)/);

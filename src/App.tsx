@@ -4,6 +4,7 @@ import { Footprints, LoaderCircle } from 'lucide-react';
 import MapScreen from './screens/MapScreen';
 import HomeScreen from './screens/HomeScreen';
 import DashboardScreen from './screens/DashboardScreen';
+import StatsScreen from './screens/StatsScreen';
 import LeaderboardScreen from './screens/LeaderboardScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import GpsLabScreen from './screens/GpsLabScreen';
@@ -17,7 +18,7 @@ import { AUTH_CALLBACK_PATH } from './lib/authRedirect';
 import { useSupabaseUser } from './hooks/useSupabaseUser';
 
 const GUEST_SESSION_KEY = 'runnit:guest-mode';
-const APP_PATHS = new Set(['/', '/home', '/map', '/leaderboard', '/profile', '/gps-lab', '/gps-field-test', '/calibration', '/fusion-lab', '/sprint-lab']);
+const APP_PATHS = new Set(['/', '/home', '/stats', '/map', '/leaderboard', '/profile', '/gps-lab', '/gps-field-test', '/calibration', '/fusion-lab', '/sprint-lab']);
 
 /**
  * Guest mode is a local UI preference, NOT a Supabase authentication identity.
@@ -121,7 +122,8 @@ export default function App() {
     <div className="dark">
       <Routes>
         <Route path="/" element={<HomeScreen isSignedIn={Boolean(auth.user)} guestAccess={guestAccess} onStart={enterApp} onContinueAsGuest={enterGuestMode} />} />
-        <Route path="/home" element={<DashboardScreen />} />
+        <Route path="/home" element={<DashboardScreen displayName={auth.user?.displayName} />} />
+        <Route path="/stats" element={<StatsScreen />} />
         <Route path="/map" element={<MapScreen />} />
         <Route path="/leaderboard" element={<LeaderboardScreen />} />
         <Route path="/profile" element={<ProfileScreen />} />
