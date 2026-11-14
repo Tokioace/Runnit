@@ -11,8 +11,8 @@ const tabs = [
 export default function BottomNav() {
   const location = useLocation();
   return (
-    <nav aria-label="Hauptnavigation" className="fixed inset-x-0 bottom-0 z-[950] border-t border-white/10 bg-[#11131e]/95 shadow-[0_-10px_35px_rgba(0,0,0,.28)] backdrop-blur-md">
-      <ul className="mx-auto grid max-w-lg grid-cols-4 gap-1 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
+    <nav aria-label="Hauptnavigation" className="fixed inset-x-0 bottom-0 z-[950] w-full max-w-full overflow-hidden border-t border-white/10 bg-[#11131e]/95 shadow-[0_-10px_35px_rgba(0,0,0,.28)] backdrop-blur-md">
+      <ul className="mx-auto grid w-full max-w-lg grid-cols-4 gap-1 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
         {tabs.map(({ href, label, icon: Icon }) => {
           const active = location.pathname === href;
           return (
@@ -25,7 +25,7 @@ export default function BottomNav() {
                 }`}
               >
                 <Icon className={`h-5 w-5 ${active ? 'text-violet-300' : 'text-white/60'}`} aria-hidden="true" />
-                <span className="whitespace-nowrap">{label}</span>
+                <span className="block max-w-full truncate">{label}</span>
               </Link>
             </li>
           );

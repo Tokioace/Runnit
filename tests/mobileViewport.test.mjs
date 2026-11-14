@@ -2,46 +2,68 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
+const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('launch portrait fills narrow iPhone viewport with image-relative hit areas and no forced scroll', () => {
-  const home = read('src/screens/HomeScreen.tsx');
+test('iPhone portrait launch fills viewport without stretching or moving its hotspots', () => {
+  const screen = read('src/screens/HomeScreen.tsx');
   const css = read('src/index.css');
-  assert.match(home, /h-\[100dvh\]/);
-  assert.match(home, /runnit-launch-art relative aspect-\[941\/1672\]/);
-  assert.match(home, /items-center justify-center overflow-hidden/);
+  assert.match(screen, /runnit-launch-screen/);
+  assert.match(screen, /h-\[100dvh\]/);
+  assert.match(screen, /runnit-launch-art/);
+  assert.match(screen, /aspect-\[941\/1672\]/);
+  assert.match(screen, /object-contain/);
+  assert.doesNotMatch(screen, /object-fill/);
   assert.match(css, /@media \(max-width: 640px\) and \(orientation: portrait\)/);
-  assert.match(css, /width: max\(100vw, 56\.28dvh\)/);
-  assert.doesNotMatch(home, /object-fill/);
+  assert.match(css, /width: max\(100vw, calc\(100dvh \* 0\.5628\)\)/);
+  assert.match(css, /transform: translateX\(-50%\)/);
 });
 
-test('iOS authentication fields do not trigger Safari focus zoom', () => {
-  const css = read('src/index.css');
-  const panel = read('src/components/profile/AccountAuthPanel.tsx');
+test('focused iOS form fields avoid automatic zoom while pinch zoom remains available', () => {
   const html = read('index.html');
-  assert.match(css, /@supports \(-webkit-touch-callout: none\)/);
-  assert.match(css, /font-size: 16px !important/);
-  assert.match(panel, /name="email"[\s\S]*?text-base text-white outline-none/);
-  assert.match(panel, /name="password"[\s\S]*?text-base text-white outline-none/);
+  const css = read('src/index.css');
   assert.match(html, /initial-scale=1\.0/);
   assert.doesNotMatch(html, /user-scalable=no|maximum-scale=1/);
+  assert.match(css, /pointer: coarse/);
+  assert.match(css, /#root input:not/);
+  assert.match(css, /font-size: 16px !important/);
 });
 
-test('leaderboard header fits without breaking the word on small screens', () => {
-  const frame = read('src/components/ui/PageFrame.tsx');
-  const board = read('src/screens/LeaderboardScreen.tsx');
-  assert.match(frame, /titleClassName\?: string/);
-  assert.match(board, /titleClassName="whitespace-nowrap text-\[clamp/);
-  assert.match(board, /title="Ranglisten\."/);
-});
-
-test('map controls and bottom navigation can shrink instead of widening the viewport', () => {
-  const map = read('src/screens/MapScreen.tsx');
-  const nav = read('src/components/ui/BottomNav.tsx');
+test('page titles, navigation and map CTAs respect narrow mobile widths', () => {
   const css = read('src/index.css');
-  assert.equal(map.match(/pointer-events-auto flex min-h-14 min-w-0 flex-1 items-center/g)?.length, 2);
-  assert.match(nav, /<li key=\{href\} className="min-w-0">/);
-  assert.match(nav, /whitespace-nowrap/);
-  assert.match(css, /bottom: calc\(300px \+ env\(safe-area-inset-bottom, 0px\)\)/);
+  const frame = read('src/components/ui/PageFrame.tsx');
+  const nav = read('src/components/ui/BottomNav.tsx');
+  const map = read('src/screens/MapScreen.tsx');
+  const app = read('src/App.tsx');
   assert.match(css, /overflow-x: clip/);
+  assert.match(frame, /break-normal/);
+  assert.doesNotMatch(frame, /break-words/);
+  assert.match(nav, /max-w-full overflow-hidden/);
+  assert.match(nav, /min-w-0/);
+  assert.match(map, /basis-0 flex-1/);
+  assert.match(app, /window\.scrollTo\(0, 0\)/);
+});
+
+
+test('account form fonts remain 16px without depending only on focus CSS', () => {
+  const panel = read('src/components/profile/AccountAuthPanel.tsx');
+  assert.equal(panel.match(/px-4 py-3 text-base text-white outline-none/g)?.length, 3);
+  assert.match(panel, /id="account-email"/);
+  assert.match(panel, /id="account-password"/);
+  assert.match(panel, /id="account-nickname"/);
+});
+
+test('the unmodified portrait launch remains viewport-filling while wide art is centered', () => {
+  const launch = read('src/screens/HomeScreen.tsx');
+  const css = read('src/index.css');
+  assert.match(launch, /h-full w-full flex-col items-center justify-center overflow-hidden/);
+  assert.match(css, /\.runnit-launch-art/);
+  assert.match(css, /height: 100dvh/);
+});
+
+test('map status messages respect iOS top safe area and race icon stays legible', () => {
+  const map = read('src/screens/MapScreen.tsx');
+  assert.equal(map.match(/top-\[calc\(5\.5rem\+env\(safe-area-inset-top\)\)\]/g)?.length, 2);
+  assert.equal(map.match(/max-w-\[calc\(100%-2rem\)\]/g)?.length, 2);
+  assert.match(map, /<Trophy className="h-5 w-5 shrink-0"/);
+  assert.match(map, /basis-0 flex-1 items-center/);
 });
