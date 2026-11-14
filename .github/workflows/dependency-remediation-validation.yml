@@ -1,0 +1,58 @@
+name: Dependency remediation validation (temporary)
+
+on:
+  pull_request:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  candidates:
+    name: Test audited dependency updates (${{ matrix.fix_mode }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        fix_mode: [safe, force]
+    steps:
+      - name: Check out candidate source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Configure Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Build audited package-lock candidate
+        shell: bash
+        run: |
+          set -o pipefail
+          if [[ "${{ matrix.fix_mode }}" == "safe" ]]; then
+            npm audit fix --package-lock-only --ignore-scripts || true
+          else
+            npm audit fix --force --package-lock-only --ignore-scripts || true
+          fi
+          git diff --stat -- package.json package-lock.json
+      - name: Install and verify candidate
+        shell: bash
+        run: |
+          npm ci
+          npx tsc --noEmit
+          npm run test:gps
+          npm run build
+          npm audit --audit-level=high
+      - name: Export candidate manifest and lock to public CI log
+        if: always()
+        shell: bash
+        run: |
+          echo "RUNNIT_PACKAGE_JSON_START_${{ matrix.fix_mode }}"
+          base64 -w0 package.json
+          echo
+          echo "RUNNIT_PACKAGE_JSON_END_${{ matrix.fix_mode }}"
+          echo "RUNNIT_LOCK_START_${{ matrix.fix_mode }}"
+          base64 -w0 package-lock.json
+          echo
+          echo "RUNNIT_LOCK_END_${{ matrix.fix_mode }}"
