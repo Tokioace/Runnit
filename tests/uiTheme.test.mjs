@@ -47,9 +47,9 @@ test('revised map keeps keyless OSM vector tiles, map state and real GPS control
   assert.match(map, /submitDuelResult/);
   assert.match(map, /<BottomSheet/);
   assert.match(map, /<BottomNav/);
-  const css = read('src/index.css');
-  assert.match(css, /\.runnit-map \.leaflet-tile-pane/);
-  assert.match(css, /\.leaflet-control-attribution/);
+  const css = read('src/styles/maplibreArcade.css');
+  assert.match(css, /\.maplibregl-ctrl-attrib/);
+  assert.match(css, /safe-area-inset-bottom/);
 });
 
 test('restyling preserves demo provenance and does not invent real rankings', () => {
