@@ -18,14 +18,14 @@ type Props = {
  */
 export default function PageFrame({ kicker, title, description, icon, children, aside }: Props) {
   return (
-    <main className="runnit-street relative min-h-[100dvh] overflow-hidden pb-[calc(8rem+env(safe-area-inset-bottom,0px))] text-white">
+    <main className="runnit-street relative min-h-[100dvh] w-full max-w-full overflow-x-clip pb-[calc(8rem+env(safe-area-inset-bottom,0px))] text-white">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
         <div className="absolute -right-28 -top-20 h-72 w-72 rotate-[-30deg] rounded-full bg-fuchsia-500/15 blur-[70px]" />
         <div className="absolute -left-36 top-80 h-64 w-64 rounded-full bg-cyan-400/10 blur-[70px]" />
         <div className="absolute right-[-10%] top-[11rem] h-[2px] w-[55%] -rotate-[23deg] bg-gradient-to-r from-transparent via-cyan-300/65 to-transparent shadow-[0_0_22px_#38edfc]" />
         <div className="absolute right-[-10%] top-[12.4rem] h-[1px] w-[55%] -rotate-[23deg] bg-fuchsia-400/35" />
       </div>
-      <div className="relative mx-auto max-w-xl space-y-7 px-4 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6 sm:pt-10">
+      <div className="relative mx-auto w-full max-w-xl min-w-0 space-y-7 px-4 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6 sm:pt-10">
         <header className="relative">
           <div className="flex items-center justify-between gap-3">
             <Link to="/home" aria-label="Zur App-Startseite" className="flex min-h-11 items-center gap-2.5 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
@@ -47,7 +47,7 @@ export default function PageFrame({ kicker, title, description, icon, children, 
               {icon && <span className="flex h-12 w-12 shrink-0 -skew-x-6 items-center justify-center rounded-lg border border-cyan-300/40 bg-cyan-300/10 text-cyan-100 shadow-[0_0_22px_rgba(37,230,255,.12)]"><span className="skew-x-6">{icon}</span></span>}
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-black uppercase tracking-[.22em] text-cyan-200">{kicker}</p>
-                <h1 className="runnit-display runnit-display--shine mt-2 break-words text-[clamp(2.1rem,8.5vw,3.3rem)]">{title}</h1>
+                <h1 className="runnit-display runnit-display--shine mt-2 break-normal text-[clamp(1.5rem,6vw,3rem)]">{title}</h1>
               </div>
             </div>
             <p className="relative mt-4 max-w-md border-l-[3px] border-fuchsia-400 pl-3 text-sm leading-6 text-slate-100/80">{description}</p>

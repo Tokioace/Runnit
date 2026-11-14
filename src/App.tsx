@@ -44,6 +44,11 @@ export default function App() {
   const [guestAccess, setGuestAccess] = useState(wasGuestModeChosen);
   const previousSignedInId = useRef<string | null>(null);
 
+  // On navigation, do not retain the previous screen's scroll position.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   const enterGuestMode = () => {
     // This is only a browsing preference. It never creates an Auth user.
     try { window.sessionStorage.setItem(GUEST_SESSION_KEY, '1'); } catch { /* Safari can restrict storage. */ }
