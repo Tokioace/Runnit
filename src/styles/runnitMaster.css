@@ -291,3 +291,122 @@
 @media(prefers-reduced-motion:reduce){
   .runnit-dash-master .runnit-game-start * {transition:none}
 }
+
+
+/* RUNNIT ARCADE FIDELITY PASS 04
+   Art direction: the original full-size master, not a generic neon theme.
+   All records are real DOM and remain replaceable when verified data exists. */
+.runnit-dash-master::after {
+  content:"";position:absolute;pointer-events:none;inset:auto 0 0;height:360px;opacity:.45;
+  background:
+    radial-gradient(ellipse 35% 55% at 95% 68%,rgba(12,239,255,.32),transparent 80%),
+    repeating-linear-gradient(161deg,transparent 0 32px,rgba(39,231,255,.2) 34px 36px,transparent 38px 75px),
+    linear-gradient(180deg,transparent,#151452 75%,#060c29);
+  mask-image:linear-gradient(180deg,transparent,#000 45%);
+}
+.runnit-dash-master .runnit-game-activity {
+  border-radius:14px 4px 14px 4px;
+  box-shadow:inset 0 2px rgba(255,255,255,.75),0 3px rgba(20,179,249,.5),0 0 16px rgba(8,223,255,.48);
+}
+.runnit-dash-master .runnit-game-activity h1 {
+  color:#fcffff;
+  text-shadow:0 1px #16276b,0 0 16px #67d9ff;
+}
+.runnit-dash-master .runnit-game-activity h1 span{
+  color:#c8ff00;letter-spacing:-.31em;margin-left:6px;
+  filter:drop-shadow(0 0 5px #b3ff10);
+}
+.runnit-dash-master .runnit-game-duel{
+  background:
+    linear-gradient(90deg,#050e2f 0%,rgba(6,17,51,.95) 30%,rgba(6,17,51,.4) 52%,rgba(24,8,69,.02) 76%),
+    url('/runnit-duel-art.svg') 80% 52% / cover no-repeat;
+  border-color:#3bf6ff;
+  border-bottom:2px solid #ff39ec;
+}
+.runnit-duel-speedlines{display:block;flex:none;width:22%;height:100%;pointer-events:none;background:repeating-linear-gradient(155deg,transparent 0 13px,rgba(37,231,255,.18) 14px 17px,transparent 18px 31px);mask-image:linear-gradient(90deg,transparent,#000)}
+/* In the reference these are three close-fitting illustrated cards on each
+   side. Deliberately empty rows keep the composition without inventing times. */
+.runnit-dash-master .runnit-game-lower .runnit-game-panel{
+  background:
+    linear-gradient(148deg,rgba(24,225,255,.15),transparent 33%),
+    linear-gradient(165deg,#16284e,#071a3d 88%);
+}
+.runnit-arcade-rows{position:relative;min-width:0;min-height:116px;margin-top:6px}
+.runnit-arcade-empty-state {display:grid;gap:4px}
+.runnit-arcade-empty-caption{
+  display:block;min-height:13px;
+  color:#b9ddf8;text-align:center;letter-spacing:-.025em;
+  font-style:italic;font-size:clamp(7px,1.85vw,9px);font-weight:900;
+}
+.runnit-arcade-record{
+  display:flex;align-items:center;min-width:0;gap:4px;min-height:31px;
+  padding:3px 5px;
+  border:1px solid rgba(82,223,255,.72);
+  border-radius:6px 1px 7px 1px;
+  background:linear-gradient(140deg,rgba(60,163,245,.22),rgba(8,16,44,.92) 55%);
+  box-shadow:inset 0 1px rgba(255,255,255,.38),0 0 7px rgba(32,207,252,.24);
+}
+.runnit-arcade-record-thumb{
+  display:grid;place-items:center;flex:none;width:30px;height:23px;
+  border:1px solid #366eb6;border-radius:3px 2px;
+  background:linear-gradient(145deg,#294f85,#091837);
+}
+.runnit-arcade-record-thumb svg{height:16px;width:16px;color:#d6fbff}
+.runnit-arcade-record-copy{display:flex;flex-direction:column;justify-content:center;min-width:0;flex:1;gap:3px;overflow:hidden}
+.runnit-arcade-record-copy strong{
+  display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+  font-size:clamp(8px,2vw,10px);line-height:1.1;font-weight:1000;font-style:italic;
+}
+.runnit-arcade-record-copy small{color:#c7e6ff;font-size:clamp(7px,1.7vw,9px);line-height:1}
+.runnit-arcade-record-right{
+  flex:none;color:#abecff;font-size:clamp(8px,1.8vw,10px);font-weight:900;font-style:italic;
+}
+.runnit-arcade-ghost{opacity:.72}
+.runnit-arcade-ghost .runnit-arcade-record-thumb{background:repeating-linear-gradient(145deg,#193866 0 5px,#102b50 6px 11px)}
+.runnit-arcade-ghost .runnit-arcade-record-copy i{
+  display:block;height:5px;width:85%;border-radius:5px;
+  background:linear-gradient(90deg,rgba(109,215,255,.47),rgba(31,67,126,.14));
+}
+.runnit-arcade-ghost .runnit-arcade-record-copy i+ i{width:60%;height:4px}
+.runnit-arcade-rank-number{
+  display:grid;place-items:center;flex:none;width:22px;height:24px;
+  color:#d6e5ff;font-size:13px;font-weight:1000;font-style:italic;
+  border:1px solid rgba(188,225,255,.55);border-radius:5px 1px;
+  background:linear-gradient(135deg,#526b93,#14274c);
+}
+.runnit-arcade-ranking .runnit-arcade-record:nth-child(2) {border-color:#59ecff;box-shadow:inset 0 1px #ecfbff,0 0 8px rgba(36,236,255,.36)}
+.runnit-arcade-ranking .runnit-arcade-record:nth-child(3) {border-color:#a4b2f6}
+.runnit-dash-master .runnit-game-small-action{font-size:clamp(8px,2vw,11px);white-space:nowrap}
+.runnit-dash-master .runnit-game-start{
+  isolation:isolate;overflow:visible;
+  border:3px solid #f8ffff;
+  box-shadow:inset 0 3px #ffffff,inset 0 -5px rgba(46,16,110,.58),0 0 0 3px #ad24ff,0 0 22px #00e9ff,0 8px 17px #010a30;
+}
+.runnit-dash-master .runnit-game-start::before{
+  content:"";position:absolute;inset:5px;z-index:-1;pointer-events:none;
+  border:1px solid rgba(232,255,255,.8);
+  clip-path:polygon(13px 0,calc(100% - 13px) 0,100% 15px,calc(100% - 13px) 100%,13px 100%,0 calc(100% - 15px));
+  background:linear-gradient(125deg,rgba(255,255,255,.85),transparent 24%,rgba(0,224,252,.05) 70%,rgba(254,52,239,.4));
+}
+.runnit-dash-master .runnit-game-start::after{
+  content:"";position:absolute;inset:auto 6% -9px 6%;height:8px;z-index:-2;pointer-events:none;
+  border-radius:50%;background:linear-gradient(90deg,#14f4ff,#ff21dc);filter:blur(6px);opacity:.85;
+}
+/* Slotted panel density follows the 3-result illustrated card rows. */
+@media(max-width:540px) and (orientation:portrait){
+  .runnit-dash-master .runnit-game-lower .runnit-game-panel{padding:5px}
+  .runnit-arcade-rows{min-height:113px;margin-top:4px}
+  .runnit-arcade-record{min-height:29px;padding:2px 3px}
+  .runnit-arcade-record-thumb{width:24px;height:21px}
+  .runnit-arcade-rank-number{width:20px;height:21px;font-size:11px}
+  .runnit-arcade-empty-caption{font-size:clamp(6px,1.65vw,8px);min-height:12px}
+  .runnit-dash-master .runnit-game-small-action{margin-top:4px}
+  .runnit-dash-master .runnit-game-start{margin-top:12px}
+}
+@media(max-width:360px) and (orientation:portrait){
+  .runnit-arcade-record{gap:2px}
+  .runnit-arcade-record-thumb{width:19px}
+  .runnit-arcade-record-right{font-size:7px}
+  .runnit-arcade-rank-number{width:17px;font-size:9px}
+  .runnit-dash-master .runnit-game-small-action{font-size:7px}
+}
