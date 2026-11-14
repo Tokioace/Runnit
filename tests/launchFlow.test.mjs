@@ -14,7 +14,11 @@ test('approved RUNNIT portrait asset is stored as an optimized local AVIF', () =
   assert.match(screen, /width=\{941\}/);
   assert.match(screen, /height=\{1672\}/);
   assert.match(screen, /h-\[100dvh\]/);
-  assert.match(screen, /object-fill/);
+  assert.ok(screen.includes("aspect-[941/1672]"));
+  assert.match(screen, /object-contain/);
+  assert.ok(screen.includes("maxWidth: 'min(600px, 56.28dvh)'"));
+  assert.match(screen, /scale-110 object-cover object-center opacity-35 blur-/);
+  assert.doesNotMatch(screen, /object-fill/);
 });
 
 test('STARTEN and three frameless account hit regions align to artwork percentages', () => {
@@ -36,8 +40,13 @@ test('signed-in visitors see no sign-in, register or guest hit regions', () => {
   const screen = read('src/screens/HomeScreen.tsx');
   const app = read('src/App.tsx');
   assert.match(screen, /\{isSignedIn \? \(/);
-  assert.match(screen, /Du bist angemeldet/);
-  assert.match(screen, /pointer-events-none absolute inset-x-0 bottom-0/);
+  assert.ok(screen.includes('aria-label="Angemeldet"'));
+  assert.ok(screen.includes("h-[7.4%]"));
+  assert.match(screen, /Schnellzugriff für angemeldete Nutzer/);
+  assert.ok(screen.includes('to="/profile"'));
+  assert.ok(screen.includes('to="/leaderboard"'));
+  assert.match(screen, /ANGEMELDET/);
+  assert.ok(!screen.includes("h-[8.5%]"));
   assert.match(screen, /<nav aria-label="Kontoaktionen"/);
   assert.match(app, /isSignedIn=\{Boolean\(auth\.user\)\}/);
   assert.match(app, /previousSignedInId\.current && !auth\.user/);
