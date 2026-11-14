@@ -29,8 +29,8 @@ test('mobile sheet appears above the map buttons and has an accessible close con
 
 test('revised map keeps keyless OSM tiles, map state and real GPS controls', () => {
   const map = read('src/screens/MapScreen.tsx');
-  assert.match(map, /tile\.openstreetmap\.org/);
-  assert.doesNotMatch(map, /basemaps\.cartocdn\.com/);
+  assert.ok(map.includes('tile.openstreetmap.org'), 'OSM tile host must remain present');
+  assert.ok(!map.includes('basemaps.cartocdn.com'), 'legacy tile host must remain absent');
   assert.match(map, /watchPosition/);
   assert.match(map, /<RaceOverlay/);
   assert.match(map, /submitDuelResult/);
