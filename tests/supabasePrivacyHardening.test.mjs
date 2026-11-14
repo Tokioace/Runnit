@@ -53,8 +53,8 @@ test('internal auth trigger cannot be called as an ordinary authenticated RPC', 
 
 test('the map never shows a fabricated pin for privacy-protected server ghost records', () => {
   const map = readFileSync(new URL('../src/screens/MapScreen.tsx', import.meta.url), 'utf8');
-  assert.match(map, /players\\.filter\\(\\(player\\) => player\\.source !== 'server-unverified'\\)\\.map/);
+  assert.match(map, /players\.filter\(\(player\) => player\.source !== 'server-unverified'\)\.map/);
   const renderer = readFileSync(new URL('../src/components/map/ArcadeMapLibreView.tsx', import.meta.url), 'utf8');
-  assert.match(renderer, /person\\.source === 'server-unverified'/);
+  assert.match(renderer, /person\.source === 'server-unverified'/);
   assert.match(map, /entries=\{players\.map\(p => \(\{/);
 });
