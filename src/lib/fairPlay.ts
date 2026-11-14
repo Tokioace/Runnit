@@ -158,9 +158,15 @@ export function assessFairPlay(
   const overlap = first && last
     ? imu.filter(m => m.timestampMs >= first.timestampMs && m.timestampMs <= last.timestampMs)
     : [];
-  const coverage = durationMs > 0
-    ? Math.min(1, (overlap.length >= 2 ? overlap[overlap.length - 1].timestampMs - overlap[0].timestampMs : 0) / durationMs)
-    : 0;
+  // Span alone hides long iOS sensor pauses (e.g. locked screen).
+  // Count only observed intervals up to 250 ms; never credit a dropout
+  // as continuous motion evidence. This is a quality estimate, not a pedometer.
+  let observedMotionMs = 0;
+  for (let i = 1; i < overlap.length; i++) {
+    const deltaMs = overlap[i].timestampMs - overlap[i - 1].timestampMs;
+    if (deltaMs > 0) observedMotionMs += Math.min(deltaMs, 250);
+  }
+  const coverage = durationMs > 0 ? Math.min(1, observedMotionMs / durationMs) : 0;
 
   if (reliableGps.length < 3 || durationMs < 1000) reasons.push('insufficient-gps');
   if (accuracy === null || accuracy > 15) reasons.push('poor-gps-accuracy');

@@ -52,6 +52,25 @@ describe('FairPlay experimental evidence', () => {
     assert.ok(report.reasons.includes('gps-position-jump'));
     assert.ok(report.gpsDistanceM !== null && report.gpsDistanceM > 4 && report.gpsDistanceM < 12);
   });
+  it('does not count a long locked-screen IMU gap as sensor coverage', () => {
+    const positions = gps(30, 1.45);
+    const continuous = walkingImu(600);
+    const withGap = continuous.filter(s => s.timestampMs <= 5000 || s.timestampMs >= 25000);
+    const normal = assessFairPlay(positions, continuous);
+    const interrupted = assessFairPlay(positions, withGap);
+    assert.ok(normal.motionCoverage > 0.95);
+    assert.ok(interrupted.motionCoverage < 0.4);
+    assert.equal(interrupted.verdict, 'uncertain');
+    assert.ok(interrupted.reasons.includes('insufficient-motion-coverage'));
+    assert.ok(!interrupted.reasons.includes('implausible-average-speed'));
+  });
+  it('does not inflate coverage when IMU timestamps repeat', () => {
+    const samples = walkingImu(600);
+    const repeated = samples.flatMap(s => [s, { ...s }]);
+    const report = assessFairPlay(gps(30, 1.45), repeated);
+    assert.ok(report.motionCoverage <= 1);
+    assert.ok(report.motionCoverage > 0.95);
+  });
   it('does not accuse when IMU is unavailable', () => {
     const report = assessFairPlay(gps(8), []);
     assert.equal(report.verdict, 'uncertain');
