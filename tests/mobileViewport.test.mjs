@@ -39,7 +39,9 @@ test('page titles, navigation and map CTAs respect narrow mobile widths', () => 
   assert.doesNotMatch(frame, /break-words/);
   assert.match(nav, /max-w-full overflow-hidden/);
   assert.match(nav, /min-w-0/);
-  assert.match(map, /basis-0 flex-1/);
+  assert.match(map, /<ArcadeMapChrome/);
+  assert.doesNotMatch(map, /runnit-arcade-controls/);
+  assert.match(read('src/components/map/ArcadeMapChrome.tsx'), /runnit-arcade-map-switch/);
   assert.match(app, /window\.scrollTo\(0, 0\)/);
 });
 
@@ -60,10 +62,14 @@ test('the unmodified portrait launch remains viewport-filling while wide art is 
   assert.match(css, /height: 100dvh/);
 });
 
-test('map status messages respect iOS top safe area and race icon stays legible', () => {
+test('map status messages respect iOS safe area and removed CTAs remain available in LISTE', () => {
   const map = read('src/screens/MapScreen.tsx');
   assert.equal(map.match(/top-\[calc\(5\.5rem\+env\(safe-area-inset-top\)\)\]/g)?.length, 2);
   assert.equal(map.match(/max-w-\[calc\(100%-2rem\)\]/g)?.length, 2);
-  assert.match(map, /<Trophy className="h-5 w-5 shrink-0"/);
-  assert.match(map, /basis-0 flex-1 items-center/);
+  const list = read('src/components/map/ArcadeMapChrome.tsx');
+  const styles = read('src/styles/arcadeMap.css');
+  assert.match(list, /RENNEN VERANSTALTEN/);
+  assert.match(list, /BEITRETEN/);
+  assert.match(styles, /safe-area-inset-bottom/);
+  assert.doesNotMatch(map, /runnit-arcade-controls/);
 });
