@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { getTileLayerUrls } from './helpers/mapTileUrls.mjs';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
@@ -35,8 +36,7 @@ test('mobile sheet appears above the map buttons and has an accessible close con
 
 test('revised map keeps keyless OSM tiles, map state and real GPS controls', () => {
   const map = read('src/screens/MapScreen.tsx');
-  assert.match(map, /tile\.openstreetmap\.org/);
-  assert.doesNotMatch(map, /basemaps\.cartocdn\.com/);
+  assert.deepEqual(getTileLayerUrls(map), ['https://tile.openstreetmap.org/{z}/{x}/{y}.png']);
   assert.match(map, /watchPosition/);
   assert.match(map, /<RaceOverlay/);
   assert.match(map, /submitDuelResult/);
