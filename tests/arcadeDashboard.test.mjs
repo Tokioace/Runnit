@@ -89,3 +89,25 @@ test('real iPhone screenshot follow-up keeps full dock names and fixes artwork d
   assert.match(css, /\.runnit-stats-gauge \{/);
   assert.match(css, /#46638d 0deg 360deg/);
 });
+
+
+test('master reference layout is compact without flattened UI and preserves safe controls', () => {
+  const main = read('src/main.tsx');
+  const css = read('src/styles/runnitMaster.css');
+  const home = read('src/screens/DashboardScreen.tsx');
+  const nav = read('src/components/ui/BottomNav.tsx');
+  assert.match(main, /import '\.\/styles\/runnitMaster\.css'/);
+  assert.match(home, /runnit-dash-master/);
+  assert.match(css, /max-width:540px/);
+  assert.match(css, /min-height: 126px/); // compact hero
+  assert.match(css, /min-height:64px/); // live player HUD
+  assert.match(css, /min-height:54px/); // real mode links
+  assert.match(css, /min-height:69px/); // stat instruments
+  assert.match(css, /min-height:72px/); // original art-backed duel
+  assert.match(css, /min-height:60px/); // real start CTA
+  assert.match(css, /min-height:55px/); // five-label dock
+  assert.match(nav, /display: 'RANGLISTE'/);
+  assert.doesNotMatch(home, /<canvas|<map name=/);
+  assert.match(home, /runnit-game-start group/);
+  assert.match(home, /XP NOCH NICHT VERFÜGBAR/);
+});

@@ -21,9 +21,9 @@ type DashboardProps = { displayName?: string | null };
 export default function DashboardScreen({ displayName }: DashboardProps) {
   const nickname = displayName || 'GAST';
   return (
-    <main className="runnit-game-home relative min-h-[100dvh] w-full max-w-full overflow-x-clip text-white">
+    <main className="runnit-game-home runnit-dash-master relative min-h-[100dvh] w-full max-w-full overflow-x-clip text-white">
       <div className="runnit-game-content relative z-10 mx-auto w-full max-w-[680px] px-3 pb-[calc(8rem+env(safe-area-inset-bottom,0px))] pt-[max(1rem,env(safe-area-inset-top))] sm:px-5">
-        <header className="runnit-game-hero" aria-label="RUNNIT Arcade"><div className="runnit-hero-portrait" aria-hidden="true" />
+        <header className="runnit-game-hero" aria-label="RUNNIT Arcade"><div className="runnit-hero-portrait" aria-hidden="true" /><div className="runnit-hero-glow" aria-hidden="true" />
           <div className="relative z-10 flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="runnit-game-logo"><img src="/runnit-metal-logo.svg" alt="" width={840} height={174}/><span className="sr-only">RUNNIT</span></div>
@@ -31,7 +31,7 @@ export default function DashboardScreen({ displayName }: DashboardProps) {
             </div>
             <Link className="runnit-game-settings" to="/profile" aria-label="Profil und Einstellungen"><Settings aria-hidden="true" /></Link>
           </div>
-          <p className="relative z-10 mt-6 text-[9px] font-black italic tracking-widest text-cyan-200">DEIN LAUF. DEINE STADT. DEINE CHALLENGE.</p>
+          <p className="sr-only">DEIN LAUF. DEINE STADT. DEINE CHALLENGE.</p>
           <div className="runnit-game-ranks relative z-10 mt-3 grid grid-cols-3 gap-2" aria-label="Noch keine offiziellen Platzierungen">
             <span><MapPin aria-hidden="true" /> STADT <b>—</b></span>
             <span><Flag aria-hidden="true" /> LAND <b>—</b></span>
@@ -46,8 +46,8 @@ export default function DashboardScreen({ displayName }: DashboardProps) {
               <strong className="truncate text-[clamp(1.1rem,5.5vw,1.8rem)] font-black italic">{nickname}</strong>
               <Link to="/profile" aria-label="Profil bearbeiten" className="text-cyan-200"><ChevronRight aria-hidden="true" /></Link>
             </div>
-            <div className="flex items-end justify-between gap-2 text-[10px] font-black italic"><span className="text-cyan-200">LEVEL —</span><span className="text-white/65">XP NOCH NICHT VERFÜGBAR</span></div>
-            <div className="runnit-game-xp" role="img" aria-label="XP-System noch nicht verfügbar" />
+            <div className="flex items-end justify-between gap-2 text-[10px] font-black italic"><span className="text-cyan-200">LEVEL —</span><span className="runnit-hud-xp-placeholder text-white/65">XP NOCH NICHT VERFÜGBAR</span></div>
+            <div className="runnit-game-xp" role="img" aria-label="XP-System noch nicht verfügbar" /><span className="sr-only">Spielerlevel und XP werden später mit echten Daten aktualisiert.</span>
           </div>
           <span className="runnit-game-emblem" aria-hidden="true">R✦</span>
         </section>
@@ -88,7 +88,7 @@ export default function DashboardScreen({ displayName }: DashboardProps) {
           <span className="runnit-duel-speed" aria-hidden="true">»</span>
         </Link>
 
-        <div className="runnit-game-lower mt-4 grid grid-cols-2 gap-2.5">
+        <div className="runnit-game-lower mt-4 grid grid-cols-2 gap-2.5" aria-label="Letzte Rennen und Ranglistenplatzierungen">
           <section className="runnit-game-panel" aria-labelledby="recent-races-title">
             <h2 id="recent-races-title"><Timer className="h-4 w-4" aria-hidden="true" /> LETZTE RENNEN</h2>
             <div className="runnit-game-empty"><Flag aria-hidden="true" /><span>NOCH KEINE<br /><small>verifizierten Rennen</small></span></div>
@@ -102,8 +102,8 @@ export default function DashboardScreen({ displayName }: DashboardProps) {
         </div>
 
         <Link to="/map" className="runnit-game-start group"><img src="/runnit-runner-mark.svg" alt="" width={50} height={50}/><span>RENNEN STARTEN</span><ArrowRight aria-hidden="true" className="transition-transform group-hover:translate-x-1" /></Link>
-        <p className="mt-7 flex items-start gap-2 text-[10px] leading-5 text-cyan-100/65"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" aria-hidden="true" />XP, Rangplätze und Wochenwerte sind noch nicht mit verlässlichen Datenquellen verbunden. Die Anzeige enthält keine erfundenen Ergebnisse.</p>
-        <Link to="/gps-lab" className="mt-3 flex min-h-10 items-center justify-center gap-1 text-xs font-black tracking-widest text-cyan-300 underline underline-offset-4">GPS-TESTLABOR <ChevronRight className="h-4 w-4" /></Link>
+        <p className="runnit-dashboard-data-note sr-only">XP, Rangplätze und Wochenwerte sind noch nicht mit verlässlichen Datenquellen verbunden. Die Anzeige enthält keine erfundenen Ergebnisse.</p>
+        <Link to="/gps-lab" className="runnit-dashboard-lab-link mt-3 flex min-h-10 items-center justify-center gap-1 text-xs font-black tracking-widest text-cyan-300 underline underline-offset-4">GPS-TESTLABOR <ChevronRight className="h-4 w-4" /></Link>
       </div>
       <BottomNav />
     </main>
