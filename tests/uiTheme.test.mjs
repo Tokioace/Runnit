@@ -6,10 +6,16 @@ const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf
 
 test('main secondary pages share the same visual shell without modifying the approved home page', () => {
   const frame = read('src/components/ui/PageFrame.tsx');
-  assert.match(frame, /bg-\[#090b13\]/);
-  assert.match(frame, /from-violet-500/);
-  assert.match(frame, /text-emerald-300/);
+  assert.match(frame, /runnit-street/);
+  assert.match(frame, /runnit-display--shine/);
+  assert.match(frame, /runnit-speedline/);
+  assert.match(frame, /runnit-metal/);
+  assert.match(frame, /safe-area-inset-top/);
   assert.match(frame, /<BottomNav/);
+  const css = read('src/index.css');
+  for (const visualToken of ['--runnit-cyan', '--runnit-magenta', '--runnit-violet', '.runnit-panel', '.runnit-arcade-button']) {
+    assert.ok(css.includes(visualToken), visualToken);
+  }
   for (const file of ['LeaderboardScreen.tsx', 'ProfileScreen.tsx', 'GpsLabScreen.tsx']) {
     const page = read('src/screens/' + file);
     assert.match(page, /import PageFrame from/);
