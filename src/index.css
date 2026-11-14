@@ -590,3 +590,87 @@ html, body, #root {
  .runnit-game-home:not(.runnit-stats-screen) .runnit-stat-glyph{width:16px;height:16px}
  .runnit-game-home:not(.runnit-stats-screen) .runnit-game-stat-value{font-size:1.2rem}
 }
+
+
+/* iPhone screenshot acceptance follow-up: the UI must not show clipped labels,
+   false progress or the old launch artwork's words behind new headers. */
+/* Source photo crop must start below the old splash's lettering. It remains
+   decorative; the run data and tap regions are independent React elements. */
+.runnit-hero-portrait {
+  background-size: auto 390%;
+  background-position: 63% 29%;
+  mask-image: linear-gradient(90deg,#000 58%,transparent 100%);
+}
+.runnit-game-avatar {
+  background-position: center, 57% 16%;
+}
+/* Five genuine tabs remain visible at 320–430 CSS px; never abbreviate the
+   accessible, visually required RANGLISTE title with ellipsis. */
+.runnit-game-dock .runnit-dock-item {
+  min-width: 0;
+  gap: 3px;
+  padding-inline: 0;
+}
+.runnit-dock-caption {
+  font-size: clamp(7px,2.05vw,10px);
+  letter-spacing: -.045em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+@media (max-width: 380px) {
+  .runnit-game-dock ul { padding-left: 4px; padding-right: 4px; }
+  .runnit-dock-caption { font-size: 7.5px; letter-spacing: -.05em; }
+}
+.runnit-game-stat .text-lime-300 {
+  display: block;
+  white-space: nowrap;
+  font-size: clamp(7px,1.8vw,9px);
+  letter-spacing: -.025em;
+}
+.runnit-game-stat-value { letter-spacing: -.04em; }
+/* Stats has its own intentional illustration: the whole launch splash was
+   reintroducing the old logo/tagline behind the newly styled stats header. */
+.runnit-stats-screen::before {
+  height: min(75vw,420px);
+  background:
+    linear-gradient(180deg,rgba(3,10,36,.13),rgba(8,15,44,.72) 64%,#07102e 100%),
+    url('/runnit-arcade-city.svg') center 18% / cover no-repeat;
+  opacity: .95;
+}
+.runnit-stats-hero {
+  min-height: 190px;
+}
+.runnit-stats-hero h1 {
+  font-size: clamp(1.9rem,8.6vw,3.8rem);
+  letter-spacing: -.045em;
+  white-space: nowrap;
+}
+.runnit-stats-hero h1 span {
+  display: inline-block;
+  margin-left: .16em;
+}
+.runnit-stats-overview .runnit-stats-heading {
+  font-size: clamp(.84rem,3.65vw,1.4rem);
+  letter-spacing: -.065em;
+  white-space: nowrap;
+}
+.runnit-stats-overview .runnit-stats-heading span {
+  display: inline-block;
+  margin-left: .14em;
+  letter-spacing: -.12em;
+}
+.runnit-stats-period { font-size: clamp(8px,2vw,10px); }
+/* A colored wedge is a progress indicator; with no connected data, draw a
+   neutral unfilled track instead of suggesting a measured percentage. */
+.runnit-stats-gauge {
+  background: conic-gradient(#46638d 0deg 360deg);
+  box-shadow: inset 0 1px 2px rgba(240,250,255,.65),0 0 12px var(--glow);
+}
+@media(max-width:380px) {
+  .runnit-stats-hero { min-height: 175px; }
+  .runnit-stats-hero .mt-9 { margin-top: 24px; }
+  .runnit-stats-overview .runnit-stats-heading { font-size: .83rem; }
+  .runnit-stats-period { font-size: 8px; }
+}

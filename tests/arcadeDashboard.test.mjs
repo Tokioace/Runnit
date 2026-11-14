@@ -16,7 +16,7 @@ test('arcade dashboard sections follow the approved master order', () => {
 test('arcade dashboard uses no fictional verified activity or ranking values', () => {
   const src = read('src/screens/DashboardScreen.tsx');
   for (const v of ['76.420','38.420','TurboKai','Stergios_R','4.890','260.320']) assert.ok(!src.includes(v), v);
-  assert.match(src, /NICHT VERBUNDEN/);
+  assert.match(src, /KEINE DATEN/);
   assert.match(src, /XP NOCH NICHT VERFÜGBAR/);
   assert.match(src, /NOCH KEINE/);
 });
@@ -71,4 +71,21 @@ test('art pass uses separate illustration layers instead of embedding fake score
   assert.match(home, /runnit-stat-glyph/);
   assert.match(css, /20dvh/);
   assert.doesNotMatch(read('public/runnit-duel-art.svg'), /76\.420|38\.420|TurboKai/);
+});
+
+
+test('real iPhone screenshot follow-up keeps full dock names and fixes artwork duplication', () => {
+  const nav = read('src/components/ui/BottomNav.tsx');
+  const home = read('src/screens/DashboardScreen.tsx');
+  const css = read('src/index.css');
+  assert.match(nav, /runnit-dock-caption/);
+  assert.doesNotMatch(nav, /className="block max-w-full truncate"/);
+  assert.match(nav, /display: 'RANGLISTE'/);
+  assert.match(home, /KEINE DATEN/);
+  assert.match(css, /background-position: 63% 29%/);
+  assert.match(css, /\.runnit-stats-screen::before/);
+  assert.match(css, /url\('\/runnit-arcade-city\.svg'\)/);
+  assert.match(css, /\.runnit-stats-hero h1 span/);
+  assert.match(css, /\.runnit-stats-gauge \{/);
+  assert.match(css, /#46638d 0deg 360deg/);
 });
