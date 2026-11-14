@@ -210,7 +210,7 @@ export default function ArcadeMapLibreView({
       bearing: BEARING_DEGREES,
       maxPitch: 65,
       antialias: true,
-      attributionControl: true,
+      attributionControl: { compact: false },
       cooperativeGestures: false,
     });
     mapRef.current = map;
