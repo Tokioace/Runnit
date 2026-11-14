@@ -2,7 +2,17 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Gauge, MapPinned, Radio, ShieldAlert, Timer, Waves, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PageFrame from '../components/ui/PageFrame';
-import { assessFairPlay, findMotionGaps, type MotionSample, type PositionSample } from '../lib/fairPlay';
+import { assessFairPlay, type MotionSample, type PositionSample } from '../lib/fairPlay';
+import { estimatePatternSteps } from '../lib/walkingPattern';
+import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
+import { createWalkingImuExport } from '../lib/walkingImuExport';
+import { detectWalkingPhase } from '../lib/walkingPhase';
+import { findImuGaps, splitTraceAtGaps, summarizeImuGaps } from '../lib/imuGapDiagnostics';
+import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
+import { screenWakeLockMessage } from '../lib/screenWakeLock';
+import { useSupabaseUser } from '../hooks/useSupabaseUser';
+import { selectWalkingFusionEvidence } from '../lib/walkingFusionEvidence';
+import { reconcileWalkingDistance } from '../lib/walkingDistanceFusion';
 import { runGpsSimulation, syntheticPoint, type GpsSample } from '../lib/sprintGps';
 
 type Scenario = '50m' | '75m' | '100m' | 'still' | 'spike' | 'poor';
@@ -36,21 +46,42 @@ function buildScenario(scenario: Scenario): { samples: GpsSample[]; target: numb
 
 type MotionEventWithPermission = typeof DeviceMotionEvent & { requestPermission?: () => Promise<'granted' | 'denied'> };
 function WalkingLab() {
+  const { user } = useSupabaseUser();
+  const [straightRouteConfirmed, setStraightRouteConfirmed] = useState(false);
   const [active, setActive] = useState(false);
+  const wakeStatus = useScreenWakeLock(active);
+  const [backgroundInterrupted, setBackgroundInterrupted] = useState(false);
+  useEffect(() => {
+    if (!active) return;
+    const markHidden = () => {
+      if (document.visibilityState === 'hidden') setBackgroundInterrupted(true);
+    };
+    document.addEventListener('visibilitychange', markHidden);
+    return () => document.removeEventListener('visibilitychange', markHidden);
+  }, [active]);
   const [pocketLock, setPocketLock] = useState(false);
   const [holdingStop, setHoldingStop] = useState(false);
   const [status, setStatus] = useState('Bereit – Sensorzugriff erst nach Start');
   const [elapsed, setElapsed] = useState(0);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownEnd = useRef(0);
+  const recording = useRef(false);
   const [count, setCount] = useState({ gps: 0, imu: 0 });
+  const [liveStepCount, setLiveStepCount] = useState(0);
+  const [rawStepCount, setRawStepCount] = useState(0);
   const [report, setReport] = useState<ReturnType<typeof assessFairPlay> | null>(null);
+  const [patternReport, setPatternReport] = useState<ReturnType<typeof estimatePatternSteps> | null>(null);
   const [referenceSteps, setReferenceSteps] = useState('');
   const [motionTrace, setMotionTrace] = useState<MotionSample[]>([]);
-  const [motionGaps, setMotionGaps] = useState<readonly { startMs: number; endMs: number }[]>([]);
-  const [lastMotionAt, setLastMotionAt] = useState<number | null>(null);
+  const [motionGaps, setMotionGaps] = useState<{ startMs: number; endMs: number }[]>([]);
   const [traceWindowStartSec, setTraceWindowStartSec] = useState(0);
   const [showAxes, setShowAxes] = useState(false);
   const gps = useRef<PositionSample[]>([]);
   const imu = useRef<MotionSample[]>([]);
+  const lastMotionSampleAt = useRef<number | null>(null);
+  const livePeakCounter = useRef(new LiveStepPeakCounter(67));
+  const rawPeakCounter = useRef(new LiveStepPeakCounter());
   const watch = useRef<number | null>(null);
   const start = useRef(0);
   const ticker = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -73,6 +104,10 @@ function WalkingLab() {
     cancelStopHold();
     setPocketLock(false);
     running.current = false;
+    recording.current = false;
+    setCountdown(null);
+    if (countdownTimer.current !== null) clearInterval(countdownTimer.current);
+    countdownTimer.current = null;
     pending.current = false;
     if (watch.current !== null) navigator.geolocation.clearWatch(watch.current);
     watch.current = null;
@@ -81,12 +116,16 @@ function WalkingLab() {
     if (ticker.current !== null) clearInterval(ticker.current);
     ticker.current = null;
     setActive(false);
+    setCount({ gps: gps.current.length, imu: imu.current.length });
+    setLiveStepCount(livePeakCounter.current.count);
+    setRawStepCount(rawPeakCounter.current.count);
     setReport(assessFairPlay(gps.current, imu.current));
+    setPatternReport(estimatePatternSteps(imu.current));
     // Snapshot a bounded, downsampled diagnostic trace locally for inspection.
     const source = imu.current;
     const stride = Math.max(1, Math.ceil(source.length / 1500));
     setMotionTrace(source.filter((_, index) => index % stride === 0));
-    setMotionGaps(findMotionGaps(source));
+    setMotionGaps(findImuGaps(source));
     setStatus('Geh-Test beendet · Bericht nur auf diesem Bildschirm, nicht gespeichert');
   };
   useEffect(() => {
@@ -99,6 +138,7 @@ function WalkingLab() {
     if (watch.current !== null) navigator.geolocation.clearWatch(watch.current);
     if (motionHandler.current) window.removeEventListener('devicemotion', motionHandler.current);
     if (ticker.current !== null) clearInterval(ticker.current);
+    if (countdownTimer.current !== null) clearInterval(countdownTimer.current);
     };
   }, []);
   const begin = async () => {
@@ -119,28 +159,50 @@ function WalkingLab() {
     } catch { motionAllowed = false; }
     if (!mounted.current || !pending.current) return;
     pending.current = false;
-    gps.current = []; imu.current = []; setCount({ gps: 0, imu: 0 });
-    setReport(null); setMotionTrace([]); setMotionGaps([]); setLastMotionAt(null); setTraceWindowStartSec(0); setShowAxes(false); setReferenceSteps(''); setElapsed(0); setPocketLock(false); start.current = performance.now();
-    running.current = true; setActive(true);
-    setStatus(motionAllowed ? 'GPS und Bewegungssensor aktiv · Bildschirm eingeschaltet lassen' : 'Nur GPS · Bewegungssensor nicht verfügbar oder verweigert');
+    gps.current = []; imu.current = []; lastMotionSampleAt.current = null; livePeakCounter.current.reset(); rawPeakCounter.current.reset(); setLiveStepCount(0); setRawStepCount(0); setCount({ gps: 0, imu: 0 });
+    setStraightRouteConfirmed(false); setReport(null); setPatternReport(null); setMotionTrace([]); setMotionGaps([]); setTraceWindowStartSec(0); setShowAxes(false); setReferenceSteps(''); setElapsed(0); setPocketLock(false); setBackgroundInterrupted(false); start.current = performance.now();
+    running.current = true; recording.current = false; setActive(true);
+    countdownEnd.current = performance.now() + 10000;
+    setCountdown(10);
+    setStatus('10 Sekunden Vorbereitung · Handy in die Hosentasche stecken, danach 100 Schritte gehen');
+    countdownTimer.current = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((countdownEnd.current - performance.now()) / 1000));
+      setCountdown(remaining);
+      if (remaining === 0) {
+        if (countdownTimer.current !== null) clearInterval(countdownTimer.current);
+        countdownTimer.current = null;
+        if (!running.current) return;
+        gps.current = []; imu.current = []; livePeakCounter.current.reset(); rawPeakCounter.current.reset(); setLiveStepCount(0); setRawStepCount(0); setCount({ gps: 0, imu: 0 });
+        start.current = performance.now();
+        recording.current = true;
+        setCountdown(null);
+        setElapsed(0);
+        setStatus(motionAllowed ? 'Messung läuft · 100 Schritte gehen, dann stehen bleiben' : 'Messung läuft · Bewegungssensor nicht verfügbar');
+      }
+    }, 100);
     if (motionAllowed) {
       const onMotion = (event: DeviceMotionEvent) => {
-        if (!running.current) return;
+        if (!running.current || !recording.current) return;
         const a = event.acceleration;
         if (!a || a.x === null || a.y === null || a.z === null) return;
         const magnitude = Math.hypot(a.x, a.y, a.z);
         if (!Number.isFinite(magnitude)) return;
-        setLastMotionAt(performance.now());
-        imu.current.push({ timestampMs: performance.now(), accelerationMagnitudeMps2: magnitude, accelerationX: a.x, accelerationY: a.y, accelerationZ: a.z });
+        const sample: MotionSample = { timestampMs: performance.now(), accelerationMagnitudeMps2: magnitude, accelerationX: a.x, accelerationY: a.y, accelerationZ: a.z };
+        imu.current.push(sample);
+        rawPeakCounter.current.push(sample);
+        lastMotionSampleAt.current = performance.now();
+        const nextStepCount = livePeakCounter.current.push(sample);
+        if (nextStepCount !== null) setLiveStepCount(nextStepCount);
         if (imu.current.length > 60000) imu.current.shift();
-        setCount(v => ({ ...v, imu: imu.current.length }));
+        // Rendering the historical FairPlay report at 60 Hz would be costly.
+        if (imu.current.length % 12 === 0) setCount(v => ({ ...v, imu: imu.current.length }));
       };
       motionHandler.current = onMotion;
       window.addEventListener('devicemotion', onMotion);
     }
     try {
     watch.current = navigator.geolocation.watchPosition(p => {
-      if (!running.current) return;
+      if (!running.current || !recording.current) return;
       // Geolocation timestamps are epoch milliseconds, convert to performance clock.
       const timestampMs = p.timestamp - performance.timeOrigin;
       if (!Number.isFinite(timestampMs) || timestampMs < start.current - 5000) return;
@@ -159,9 +221,39 @@ function WalkingLab() {
       setStatus('GPS konnte nicht gestartet werden · Berechtigung/Browser prüfen');
       return;
     }
-    ticker.current = setInterval(() => setElapsed(Math.round((performance.now() - start.current) / 1000)), 1000);
+    ticker.current = setInterval(() => { if (recording.current) setElapsed(Math.round((performance.now() - start.current) / 1000)); }, 1000);
   };
-  const live = active ? assessFairPlay(gps.current, imu.current) : report;
+  const exportImu = () => {
+    if (running.current || !report || !imu.current.length) return;
+    const payload = createWalkingImuExport(imu.current, referenceSteps, {
+      smoothedMs: livePeakCounter.current.timestampsMs,
+      rawMs: rawPeakCounter.current.timestampsMs,
+    });
+    const url = URL.createObjectURL(new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'runnit-imu-gehtest.json';
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
+  const live = active && recording.current ? assessFairPlay(gps.current, imu.current) : report;
+  const walkingPhase = !active && report ? detectWalkingPhase(imu.current) : null;
+  // Reuse captured raw readings and confirmed live-peak timestamps; do not
+  // change their algorithms or modify the racing / FairPlay decision path.
+  const fusionEvidence = !active && report ? selectWalkingFusionEvidence({
+    motion: imu.current, gps: gps.current,
+    peakTimesMs: livePeakCounter.current.timestampsMs,
+    walkingPhase, backgroundInterrupted,
+  }) : null;
+  const fusion = fusionEvidence?.usable ? reconcileWalkingDistance({
+    walkingStrideM: user?.walkingCalibration?.walkingStrideM ?? null,
+    stepCount: fusionEvidence.alignedSteps,
+    startGps: fusionEvidence.startGps,
+    currentGps: fusionEvidence.endGps,
+    nowMs: Math.max(fusionEvidence.phaseEndMs ?? 0, fusionEvidence.endGps?.timestampMs ?? 0),
+    sensorContinuous: fusionEvidence.sensorContinuous,
+    straightRoute: straightRouteConfirmed,
+  }) : null;
   const quality = !live ? 'Noch keine Messung' : live.reasons.includes('gps-position-jump') ? 'GPS-Sprung erkannt · Messung unsicher, kein Betrugsnachweis' : live.reasons.includes('insufficient-gps') || live.reasons.includes('poor-gps-accuracy') ? 'GPS-Daten fehlen oder sind ungenau' : live.reasons.includes('insufficient-motion-coverage') ? 'Bewegungssensordaten fehlen oder sind lückenhaft' : live.reasons.includes('walking-cadence-needs-calibration') ? 'Schrittfrequenz für normales Gehen ungewöhnlich hoch · Handbewegungen möglich, bitte in Hosentasche vergleichen' : 'Keine auffälligen Messfehler erkannt (unkalibriert)';
   return (
     <section aria-label="Echter Geh-Einzellauf – experimentell" className="space-y-4 rounded-[28px] border border-cyan-300/30 bg-gradient-to-br from-indigo-800/40 to-[#101827] p-5">
@@ -169,6 +261,9 @@ function WalkingLab() {
       <h2 className="text-2xl font-black">Geh-Einzellauf</h2>
       <p className="text-sm text-white/70">Normal gehen, nicht sprinten. Kein Duell, keine 50-m-Zeit, keine Rangliste. GPS und Bewegungssensor werden nur im Arbeitsspeicher ausgewertet und beim Verlassen verworfen. Kein Mikrofon.</p>
       <p role="status" className="text-sm text-amber-200">{status}</p>
+      {active && wakeStatus !== 'idle' && <p role="status" className={wakeStatus === 'held' ? 'text-xs font-semibold text-emerald-200' : 'text-xs font-semibold text-amber-200'}>{screenWakeLockMessage(wakeStatus)}</p>}
+      {backgroundInterrupted && <p role="alert" className="text-xs font-semibold text-amber-200">Der Test war im Hintergrund. In dieser Zeit können Sensordaten fehlen; das Ergebnis ist nicht lückenlos verifiziert.</p>}
+      {active && countdown !== null && <p role="timer" className="rounded-xl bg-cyan-300/15 p-4 text-center text-3xl font-black text-cyan-100">Start in {countdown} s</p>}
       {!active ? (
         <button type="button" onClick={() => { void begin(); }} className="min-h-14 w-full rounded-xl bg-cyan-300 px-5 font-black text-slate-950">
           Geh-Test starten · Sensorzugriff erlauben
@@ -196,14 +291,120 @@ function WalkingLab() {
         <div><strong className="block text-xl">{count.gps}</strong>GPS-Fixes</div>
         <div><strong className="block text-xl">{count.imu}</strong>IMU-Samples</div>
       </div>
-      {active && count.imu > 0 && lastMotionAt !== null && elapsed > 0 && performance.now() - lastMotionAt > 1500 && <p className="text-sm text-amber-200">Bewegungssensor liefert derzeit keine neuen Werte. Bildschirm aktiv halten; iOS kann die Aufzeichnung pausieren.</p>}
-      {live && <div aria-live="polite" className="space-y-2 rounded-xl bg-white/5 p-4 text-sm">
+      {active && countdown === null && count.imu > 0 && lastMotionSampleAt.current !== null && performance.now() - lastMotionSampleAt.current > 1500 && (
+        <p role="alert" className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm font-semibold text-amber-100">
+          Bewegungssensor liefert seit mehr als 1,5 Sekunden keine neuen Werte. iOS kann die Messung unterbrechen; fehlende Schritte nicht als Betrug werten.
+        </p>
+      )}
+      <div aria-live="polite" aria-atomic="true" role="status" className="rounded-2xl border border-cyan-300/40 bg-cyan-300/10 p-5 text-center">
+        <p className="text-xs font-black uppercase tracking-widest text-cyan-200">LIVE · erkannte Schrittspitzen</p>
+        <strong className="mt-2 block text-6xl font-black tabular-nums text-white">{liveStepCount}</strong>
+        <p className="mt-2 text-xs text-white/65">Leicht geglättete Beschleunigungsspitzen werden fortlaufend erkannt (ca. 70 ms Glättungsfenster, geringe Verzögerung). Experimentell, noch keine verifizierte Schrittzahl.</p>
+      </div>
+      {live && <div className="space-y-2 rounded-xl bg-white/5 p-4 text-sm">
         <p className="font-bold">Lokaler {active ? 'Zwischenstand' : 'Geh-Testbericht'}: {live.verdict === 'plausible' ? 'Plausibel (experimentell)' : 'Unsicher / nicht ausreichend belegt'}</p>
         <p>GPS-Strecke (Schätzung): {live.gpsDistanceM?.toFixed(1) ?? '—'} m · Tempo: {live.gpsSpeedMps?.toFixed(2) ?? '—'} m/s</p>
         <p>GPS-Mediangenauigkeit: {live.gpsAccuracyMedianM?.toFixed(1) ?? '—'} m · Bewegungssensor-Abdeckung: {Math.round(live.motionCoverage * 100)}%</p>
-        <p>Erkannte Schritte: {live.detectedSteps} · Kadenz: {live.cadenceSpm?.toFixed(0) ?? '—'} Schritte/min</p>
+        <p>Bisherige FairPlay-Schätzung: {live.detectedSteps} Schritte · Kadenz: {live.cadenceSpm?.toFixed(0) ?? '—'} Schritte/min</p>
         <p>Messqualität: {quality}</p>
         <p>Hinweise: {live.reasons.length ? live.reasons.join(', ') : 'Keine automatischen Auffälligkeiten'}</p>
+      </div>}
+      {!active && report && walkingPhase && <div className="rounded-xl border border-cyan-300/30 bg-cyan-300/10 p-4 text-sm space-y-2">
+        <h3 className="font-black text-cyan-100">Automatisch geschätzte Gehphase</h3>
+        {walkingPhase ? <p>Bewegungsbeginn ca. {(walkingPhase.startMs / 1000).toFixed(1)} s · Bewegungsende ca. {(walkingPhase.endMs / 1000).toFixed(1)} s nach Messbeginn</p> : <p>Keine ausreichend zusammenhängende Gehphase erkennbar.</p>}
+        <p className="text-xs text-white/70">Nur diagnostische Schätzung aus der Bewegung; keine bestätigten einzelnen Schritte. Handy-Herausnehmen kann die Grenzen verfälschen.</p>
+      </div>}
+      {!active && report && (
+        <section aria-label="Echte experimentelle GPS-IMU-Distanzanalyse"
+          className="space-y-4 rounded-[26px] border border-cyan-300/25 bg-gradient-to-br from-[#231b4a] via-[#14223c] to-[#0e3036] p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-300">GPS × IMU · REAL DATA LAB</p>
+            <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[10px] font-black text-amber-100">
+              LOKAL · NICHT GEWERTET
+            </span>
+          </div>
+          <h3 className="text-xl font-black text-white">Deine echte Gehstrecke im Vergleich</h3>
+          <p className="text-xs leading-6 text-white/65">
+            Erst nach dem Test: Runnit gleicht die bereits erfassten GPS-Punkte mit den zeitlich passenden
+            Live-Schrittspitzen ab. Keine zusätzlichen Sensorrechte, kein Standort-Upload.
+          </p>
+          {user?.walkingCalibration ? (
+            <p className="text-xs font-semibold text-cyan-100">
+              Persönliche Gehschrittlänge: {(user.walkingCalibration.walkingStrideM * 100).toFixed(1)} cm
+              {' '}· Körpergröße: {user.walkingCalibration.heightCm} cm
+            </p>
+          ) : (
+            <div className="space-y-2 rounded-xl border border-amber-300/20 bg-amber-300/10 p-3">
+              <p className="text-xs text-amber-100">Keine gültige persönliche Gehkalibrierung gespeichert.
+                Ein GPS-Wert ist deshalb keine gemeinsame GPS-/IMU-Distanz.</p>
+              <Link to="/calibration" className="inline-flex min-h-11 items-center text-sm font-black text-cyan-200 underline underline-offset-4">
+                Schrittlänge kalibrieren
+              </Link>
+            </div>
+          )}
+          {fusionEvidence && <p className="text-xs leading-5 text-white/65" role="status">{fusionEvidence.reason}</p>}
+          {fusionEvidence && fusionEvidence.phaseStartMs !== null &&
+            <p className="text-xs text-white/60">
+              Zugeordnete Gehphase: {fusionEvidence.durationSeconds?.toFixed(1)} s ·
+              {' '}{fusionEvidence.alignedSteps} Live-Schritte im Zeitfenster
+              {fusionEvidence.startGps && fusionEvidence.endGps ? ' · GPS-Endpunkte vorhanden' : ' · GPS-Endpunkte unvollständig'}
+            </p>}
+          {fusionEvidence?.usable && (
+            <>
+              <label className="flex items-start gap-3 rounded-xl border border-white/15 bg-white/[0.045] p-3 text-xs leading-6 text-white/75">
+                <input type="checkbox" checked={straightRouteConfirmed}
+                  onChange={event => setStraightRouteConfirmed(event.target.checked)}
+                  className="mt-1 h-4 w-4 shrink-0 accent-cyan-300" />
+                <span>Ich bin im erkannten Gehabschnitt annähernd geradeaus gelaufen. Nur dann ist die GPS-Luftlinie ein sinnvoller Vergleich zur Schrittdistanz.</span>
+              </label>
+              {fusion && (
+                <div className="space-y-4">
+                  <div className="rounded-[22px] border border-emerald-300/20 bg-[#090f20]/55 p-5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.19em] text-cyan-200">Geschätzte Gehstrecke · {fusion.mode}</p>
+                    <p className="mt-2 text-5xl font-black tabular-nums tracking-[-0.06em] text-white">
+                      {fusion.estimatedDistanceM === null ? '—' : fusion.estimatedDistanceM.toFixed(1)}
+                      <span className="ml-2 text-xl text-emerald-300">m</span>
+                    </p>
+                    <p className="mt-2 text-xs leading-5 text-white/70">{fusion.reason}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.07] p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-cyan-200">IMU-SCHRITTDISTANZ</p>
+                      <p className="mt-2 text-2xl font-black tabular-nums">{fusion.stepDistanceM?.toFixed(1) ?? '—'} m</p>
+                    </div>
+                    <div className="rounded-2xl border border-violet-300/15 bg-violet-300/[0.07] p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-violet-200">GPS-LUFTLINIE</p>
+                      <p className="mt-2 text-2xl font-black tabular-nums">{fusion.gpsDisplacementM?.toFixed(1) ?? '—'} m</p>
+                    </div>
+                  </div>
+                  {fusion.disagreementM !== null && <p className="text-xs text-amber-100">
+                    Unterschied GPS ↔ Schritte: {fusion.disagreementM.toFixed(1)} m.
+                    Die GPS-Genauigkeitsangaben sind keine garantierte Fehlergrenze.
+                  </p>}
+                </div>
+              )}
+            </>
+          )}
+          {fusionEvidence && !fusionEvidence.usable && (
+            <p className="rounded-xl border border-amber-300/25 bg-amber-300/10 p-3 text-xs leading-6 text-amber-100">
+              Keine gemeinsame Distanz ausgegeben. Schlechte Synchronisierung oder Sensorlücken werden nicht überbrückt.
+            </p>
+          )}
+          <p className="text-xs leading-6 text-white/50">
+            Nur geradliniges Gehen, keine Sprintmessung. GPS und GPS-kalibrierte Schrittlänge
+            sind statistisch nicht unabhängig. Keine Verifizierung, Rangliste oder
+            automatische Speicherung; beim Verlassen gehen Rohdaten verloren.
+          </p>
+        </section>
+      )}
+      {!active && report && patternReport && <div className="space-y-2 rounded-xl border border-violet-300/30 bg-violet-300/10 p-4 text-sm">
+        <h3 className="font-black text-violet-100">Experimenteller A/B-Vergleich · nur Geh-Test</h3>
+        <p>Live-Spitzenzähler (geglättet): <strong>{liveStepCount}</strong> Schritte</p>
+        <p>Bisheriger Live-Spitzenzähler (ungeglättet): <strong>{rawStepCount}</strong> Schritte</p>
+        <p>Bisherige FairPlay-Erkennung: <strong>{report.detectedSteps}</strong> Schritte</p>
+        <p>Gefiltertes Bewegungsmuster: <strong>{patternReport.count}</strong> Schritte · Kadenz: {patternReport.cadenceSpm?.toFixed(0) ?? '—'} /min</p>
+        {Number.isSafeInteger(Number(referenceSteps)) && Number(referenceSteps) > 0 && Number(referenceSteps) <= 100000 && <p>Abweichung zur manuellen Referenz: live {((liveStepCount - Number(referenceSteps)) / Number(referenceSteps) * 100).toFixed(1)} % · roh {((rawStepCount - Number(referenceSteps)) / Number(referenceSteps) * 100).toFixed(1)} % · bisher {((report.detectedSteps - Number(referenceSteps)) / Number(referenceSteps) * 100).toFixed(1)} % · gefiltert {((patternReport.count - Number(referenceSteps)) / Number(referenceSteps) * 100).toFixed(1)} %</p>}
+        <p className="text-xs text-amber-200">Alle drei Verfahren sind unkalibrierte Schätzungen. Der neue Live-Zähler verändert weder FairPlay-Urteil noch Ranglisten.</p>
       </div>}
       {!active && report && motionTrace.length > 2 && (() => {
         const width = 600;
@@ -222,16 +423,11 @@ function WalkingLab() {
         const axisMax = Math.max(max, ...visible.flatMap(sample => [Math.abs(sample.accelerationX ?? 0), Math.abs(sample.accelerationY ?? 0), Math.abs(sample.accelerationZ ?? 0)]));
         const xAt = (timestampMs: number) => ((timestampMs - origin) / 1000 - from) / windowSec * width;
         const yAt = (magnitude: number) => height - Math.min(max, magnitude) / max * height;
-        const gapRegions = motionGaps.filter(gap => xAt(gap.endMs) >= 0 && xAt(gap.startMs) <= width);
-        const segments: MotionSample[][] = [];
-        for (const sample of visible) {
-          if (!segments.length || sample.timestampMs - segments[segments.length - 1][segments[segments.length - 1].length - 1].timestampMs > 250)
-            segments.push([]);
-          segments[segments.length - 1].push(sample);
-        }
+        const visibleGaps = motionGaps.filter(g => xAt(g.endMs) >= 0 && xAt(g.startMs) <= width);
+        const segments = splitTraceAtGaps(visible, motionGaps);
         const accepted = report.acceptedStepTimesMs.filter(t => xAt(t) >= 0 && xAt(t) <= width);
         const candidates = report.candidatePeaks.filter(p => xAt(p.timestampMs) >= 0 && xAt(p.timestampMs) <= width);
-        const axisPoints = (axis: 'accelerationX' | 'accelerationY' | 'accelerationZ') => visible.filter(sample => sample[axis] !== undefined).map(sample => String(xAt(sample.timestampMs)) + ',' + String(height / 2 - (sample[axis] ?? 0) / axisMax * height / 2)).join(' ');
+        const axisPoints = (segment: MotionSample[], axis: 'accelerationX' | 'accelerationY' | 'accelerationZ') => segment.filter(sample => sample[axis] !== undefined).map(sample => String(xAt(sample.timestampMs)) + ',' + String(height / 2 - (sample[axis] ?? 0) / axisMax * height / 2)).join(' ');
         return (
           <div className="space-y-3 rounded-xl border border-cyan-300/30 bg-white/5 p-4">
             <h3 className="font-black text-cyan-100">Schritt-Diagnose · Zeit und erkannte Spitzen</h3>
@@ -252,11 +448,13 @@ function WalkingLab() {
                   </g>
                 ))}
                 <line x1="0" y1={yAt(2)} x2={width} y2={yAt(2)} stroke="#fbbf24" strokeDasharray="6 6" opacity="0.7" />
-                {gapRegions.map((gap, index) => <rect key={index} x={Math.max(0, xAt(gap.startMs))} y="0" width={Math.max(0, Math.min(width, xAt(gap.endMs)) - Math.max(0, xAt(gap.startMs)))} height={height} fill="#f59e0b" opacity="0.15" />)}
-                {segments.map((segment, index) => <polyline key={index} points={segment.map(sample => `${xAt(sample.timestampMs).toFixed(1)},${yAt(sample.accelerationMagnitudeMps2).toFixed(1)}`).join(" ")} fill="none" stroke="#67e8f9" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />)}
-                {showAxes && (['accelerationX', 'accelerationY', 'accelerationZ'] as const).map((axis, index) => (
-                  <polyline key={axis} points={axisPoints(axis)} fill="none" stroke={['#fb7185', '#86efac', '#c4b5fd'][index]} strokeWidth="1" opacity="0.8" />
-                ))}
+                {visibleGaps.map((gap, index) => <rect key={index} x={Math.max(0, xAt(gap.startMs))} y="0" width={Math.max(0, Math.min(width, xAt(gap.endMs)) - Math.max(0, xAt(gap.startMs)))} height={height} fill="#f59e0b" opacity="0.15" />)}
+                {segments.map((segment, index) => <polyline key={index} points={segment.map(sample => `${xAt(sample.timestampMs).toFixed(1)},${yAt(sample.accelerationMagnitudeMps2).toFixed(1)}`).join(' ')} fill="none" stroke="#67e8f9" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />)}
+                {showAxes && (['accelerationX', 'accelerationY', 'accelerationZ'] as const).flatMap((axis, index) =>
+                  segments.map((segment, segmentIndex) => (
+                    <polyline key={axis + '-' + segmentIndex} points={axisPoints(segment, axis)} fill="none" stroke={['#fb7185', '#86efac', '#c4b5fd'][index]} strokeWidth="1" opacity="0.8" />
+                  ))
+                )}
                 {candidates.filter(candidate => candidate.reason !== 'accepted').map((candidate, index) => (
                   <circle key={index} cx={xAt(candidate.timestampMs)} cy={height - 5} r="2.5" fill="#fb923c">
                     <title>{candidate.reason}</title>
@@ -269,7 +467,7 @@ function WalkingLab() {
                 })}
               </svg>
             </div>
-            <p className="text-xs text-amber-200">Sensorlücken &gt; 250 ms: {motionGaps.length} insgesamt, {gapRegions.length} im Ausschnitt (gelb hinterlegt). Verbindungen über Lücken werden nicht gezeichnet.</p>
+            <p className="text-xs text-amber-200">Echte IMU-Sensorlücken über 250 ms: {motionGaps.length} insgesamt, {visibleGaps.length} im Ausschnitt (gelb). Längste Unterbrechung: {(summarizeImuGaps(motionGaps).longestGapMs / 1000).toFixed(2)} s; gesamte Lückenzeit: {(summarizeImuGaps(motionGaps).totalGapMs / 1000).toFixed(2)} s. Diagramm-Ausdünnung wird nicht als Sensorlücke gezählt.</p>
             <p className="text-xs text-white/60">Orange Punkte unten: {candidates.filter(p => p.reason !== 'accepted').length} verworfene Kandidaten. Die Achsen sind gerätebezogen.</p>
             <p className="text-xs text-white/60">Zeitauflösung: Achse 2 s, Schieberegler 0,1 s · Im Ausschnitt {accepted.length} gezählte Schritte · Gesamter Test: {report.detectedSteps}. Diagramm zeigt eine reduzierte Signalstichprobe, Marker stammen aus der vollständigen Schritterkennung. Nur im Browser-Arbeitsspeicher.</p>
           </div>
@@ -287,9 +485,9 @@ function WalkingLab() {
             className="min-h-12 w-full rounded-lg border border-white/30 bg-slate-900 px-3 text-white" />
           {Number.isSafeInteger(Number(referenceSteps)) && Number(referenceSteps) > 0 && Number(referenceSteps) <= 100000 ? (
             <p className="text-sm" role="status">
-              Runnit: {report.detectedSteps} · Referenz: {Number(referenceSteps)} · Abweichung:
-              {' '}{((report.detectedSteps - Number(referenceSteps)) / Number(referenceSteps) * 100).toFixed(1)} %
-              {' '}({report.detectedSteps - Number(referenceSteps) >= 0 ? '+' : ''}{report.detectedSteps - Number(referenceSteps)} Schritte)
+              Live: {liveStepCount} · FairPlay: {report.detectedSteps} · Referenz: {Number(referenceSteps)} · Abweichung:
+              {' '}{((liveStepCount - Number(referenceSteps)) / Number(referenceSteps) * 100).toFixed(1)} %
+              {' '}({liveStepCount - Number(referenceSteps) >= 0 ? '+' : ''}{liveStepCount - Number(referenceSteps)} Schritte)
             </p>
           ) : (
             <p className="text-xs text-white/60">Nach dem Test eine positive ganze Schrittzahl eingeben. Vergleich nur lokal; keine Speicherung.</p>
@@ -297,7 +495,12 @@ function WalkingLab() {
           <p className="text-xs text-amber-200">Experimenteller Vergleich, keine automatische Sensorkalibrierung oder Bestätigung der Genauigkeit.</p>
         </div>
       )}
-      <p className="text-xs text-white/55">Bildschirmsperre, Energiesparen und iOS können Sensorupdates stoppen. Schrittzählung und GPS-Distanz sind unkalibrierte Schätzungen. Fehlende Schritte sind kein Betrugsnachweis.</p>
+      {!active && report && imu.current.length > 0 && <div className="space-y-2 rounded-xl border border-violet-300/30 bg-violet-300/10 p-4">
+        <h3 className="font-black text-violet-100">IMU-Messreihe lokal exportieren</h3>
+        <p className="text-xs text-white/70">JSON mit relativen Millisekunden, Beschleunigung X/Y/Z und Betrag; keine GPS-Koordinaten, keine Standort-Zeitstempel, kein Upload. Die Datei kann trotzdem sensible Bewegungsmuster enthalten. Nur bewusst und freiwillig teilen.</p>
+        <button type="button" onClick={exportImu} className="min-h-12 w-full rounded-xl border border-violet-300/50 bg-violet-300/20 px-4 font-bold text-violet-100">IMU-Daten als JSON herunterladen</button>
+      </div>}
+      <p className="text-xs text-white/55">Der 10-Sekunden-Countdown beginnt nach der Sensorfreigabe. Erst danach werden Messwerte gesammelt. Bildschirmsperre, Energiesparen und iOS können Sensorupdates stoppen. Schrittzählung und GPS-Distanz sind unkalibrierte Schätzungen. Fehlende Schritte sind kein Betrugsnachweis.</p>
     </section>
   );
 }
@@ -317,14 +520,14 @@ export default function GpsLabScreen() {
     <PageFrame
       kicker="RUNNIT ENGINEERING"
       title="GPS-Testlabor."
-      description="Prüfe, wie unsere Sprintlogik auf Geschwindigkeit, Rauschen und Messfehler reagiert – ganz ohne echte Standortdaten."
+      description="Vergleiche echte, ausdrücklich gestartete Geh-Sensormessungen lokal und teste darunter künstliche Sprint-GPS-Szenarien."
       icon={<Timer className="h-7 w-7" aria-hidden="true" />}
     >
       <div role="note" className="flex gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/[0.075] p-4">
         <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" aria-hidden="true" />
         <div className="text-xs leading-6 text-amber-100/85">
-          <strong className="block text-sm text-amber-100">Simulation · kein echter Lauf</strong>
-          Alle Koordinaten und Zeiten sind künstlich. Diese Ergebnisse sind nicht für Duelle oder Ranglisten zulässig.
+          <strong className="block text-sm text-amber-100">Zwei klar getrennte Testbereiche</strong>
+          Oben misst der Geh-Test auf Wunsch echte GPS-/IMU-Signale nur lokal. Die Sprint-Szenarien darunter verwenden ausschließlich künstliche Daten. Nichts davon zählt für Duelle oder Ranglisten.
         </div>
       </div>
 

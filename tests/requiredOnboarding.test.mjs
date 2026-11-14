@@ -49,15 +49,17 @@ test('unknown callback errors are not rendered as server-provided HTML or string
   assert.doesNotMatch(page, /error_description\b|dangerouslySetInnerHTML/);
 });
 
-test('explicit guest choice unlocks browsing but /login always exposes onboarding', () => {
+test('start is public and account forms are shown only after explicit login navigation', () => {
   const app = read('src/App.tsx');
-  assert.match(app, /!auth\.user && \(!guestAccess \|\| location\.pathname === '\/login'\)/);
-  assert.match(app, /sessionStorage\.setItem\(GUEST_SESSION_KEY, '1'\)/);
-  assert.match(app, /location\.pathname === '\/login'/);
+  const home = read('src/screens/HomeScreen.tsx');
+  assert.ok(app.includes("!auth.user && accountPage"));
+  assert.ok(app.includes("sessionStorage.setItem(GUEST_SESSION_KEY, '1')"));
   assert.match(app, /<WelcomeAuthScreen/);
-  const routes = app.indexOf('<Routes>');
-  assert.ok(routes > app.indexOf('!auth.user &&'));
-  for (const name of ['HomeScreen', 'MapScreen', 'LeaderboardScreen', 'ProfileScreen', 'GpsLabScreen']) {
-    assert.match(app, new RegExp('<Route[^>]*<' + name + ' \\/>'));
+  assert.ok(app.includes("<Route path=\"/\" element={<HomeScreen"));
+  assert.match(home, /onContinueAsGuest/);
+  assert.ok(home.includes("to=\"/register\""));
+  assert.ok(home.includes("to=\"/login\""));
+  for (const name of ['MapScreen', 'LeaderboardScreen', 'ProfileScreen', 'GpsLabScreen']) {
+    assert.ok(app.includes('element={<' + name + ' />}'), name);
   }
 });
