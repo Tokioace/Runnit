@@ -76,7 +76,7 @@ test('map is free of three removed cards; buttons remain reachable via the list 
   assert.match(chrome, /onJoin\(entry\.id\)/);
   assert.match(chrome, /onCancel\(entry\.id\)/);
   assert.match(map, /onHost=\{openHostRun\}/);
-  assert.match(map, /setArcadeMapView\('list'\)/);
+  assert.match(map, /onClick=\{\(\) => setSelectedRunId\(r\.id\)\}/);
   assert.match(dock, /Rangliste|RANGLISTE|leaderboard/);
 });
 
