@@ -8,6 +8,7 @@ import './index.css'
 import 'leaflet/dist/leaflet.css'
 // Reference-ratio dashboard styles intentionally load after shared Tailwind/Leaflet.
 import './styles/runnitMaster.css'
+import './styles/arcadeMap.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

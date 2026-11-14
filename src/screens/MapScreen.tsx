@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { Footprints, LocateFixed, Trophy } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import { LocateFixed, Trophy } from 'lucide-react';
 import type { LatLngExpression } from 'leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -18,7 +18,7 @@ import BottomNav from '../components/ui/BottomNav';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { LeaderboardSheet } from '../components/leaderboard/Sheet';
 import { leaderboardSourceLabel, type LeaderboardSource } from '../lib/leaderboardProvenance';
-import { MapHUD } from '../components/map/MapHUD';
+import ArcadeMapChrome, { type ArcadeMapEntry, type ArcadeMapView } from '../components/map/ArcadeMapChrome';
 import { parseGeographyPoint } from '../lib/duelLocation';
 import { cancelHostedOpenDuel, cancelHostedDuelMessage, listHostedOpenDuels, type HostedOpenDuel } from '../db/cancelHostedDuel';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
@@ -847,6 +847,8 @@ export default function MapScreen() {
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
+  const [arcadeMapView, setArcadeMapView] = useState<ArcadeMapView>('map');
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   // Own live lobby is visible even when its map popup is closed or GPS changes.
   const [hostedOpenDuels, setHostedOpenDuels] = useState<HostedOpenDuel[]>([]);
   const [hostedDuelsLoadError, setHostedDuelsLoadError] = useState(false);
@@ -1391,18 +1393,27 @@ export default function MapScreen() {
 
   function getOpenRunIconOptions(isOwn: boolean): BadgeIconOptions {
     return {
-      backgroundHex: '#b91c1c',
-      ringHex: isOwn ? '#2563eb' : '#111827',
-      contentHtml: '🏁',
-      sizePx: 28,
+      backgroundHex: isOwn ? '#4c7109' : '#6127ac',
+      ringHex: isOwn ? '#caff09' : '#fa41e3',
+      contentHtml: '🏃',
+      sizePx: 34,
       showPing: true,
-      pingColorHex: '#ef4444',
+      pingColorHex: isOwn ? '#caff09' : '#e92ce8',
       extraClassNames: 'openrun-badge',
     };
   }
 
+  const arcadeRuns: ArcadeMapEntry[] = openRuns.map((run) => ({
+    id: run.id,
+    hostUsername: run.hostUsername,
+    distanceMeters: run.distanceMeters,
+    distanceAwayMeters: userCoords ? haversineM(userCoords.lat, userCoords.lng, run.location.lat, run.location.lng) : null,
+    isOwn: Boolean(authUser && run.hostUserId === authUser.id),
+    isDemo: run.id.startsWith('demo-run-'),
+  }));
+
   return (
-    <div className="runnit-map relative h-[100dvh] w-full max-w-full overflow-hidden bg-[#090b13] text-white">
+    <div className="runnit-map runnit-map-arcade relative h-[100dvh] w-full max-w-full overflow-hidden bg-[#090b13] text-white">
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={initialZoom}
@@ -1423,6 +1434,15 @@ export default function MapScreen() {
 
         <RecenterOnUser position={userCoords} trigger={recenterTick} />
         <RecenterOnIp position={ipCoords} />
+        {/* Georeferenced scan ring only for a genuine browser GPS fix, never IP. */}
+        {userCoords && (
+          <Circle
+            center={[userCoords.lat, userCoords.lng]}
+            radius={500}
+            interactive={false}
+            pathOptions={{ color: '#18edff', fillColor: '#17defc', fillOpacity: 0.055, opacity: 0.92, weight: 2, dashArray: '7 6', className: 'runnit-arcade-map-radar' }}
+          />
+        )}
 
         {userCoords ? (
           <MapBadgeMarker
@@ -1447,6 +1467,7 @@ export default function MapScreen() {
             key={r.id}
             position={[r.location.lat, r.location.lng]}
             iconOptions={getOpenRunIconOptions(Boolean(authUser && r.hostUserId && authUser.id === r.hostUserId))}
+            onClick={() => setSelectedRunId(r.id)}
           >
             <Popup>
               <div className="min-w-[200px] space-y-2 text-[13px] text-white">
@@ -1484,7 +1505,7 @@ export default function MapScreen() {
 
       {authUser && (hostedOpenDuels.length > 0 || hostedDuelsLoadError) && (
         <section aria-label="Meine offenen Rennen"
-          className="pointer-events-auto absolute inset-x-4 top-28 z-[960] mx-auto max-h-[35dvh] max-w-sm space-y-3 overflow-y-auto rounded-[22px] border border-emerald-300/30 bg-[#0a1424]/95 p-4 text-white shadow-[0_16px_50px_rgba(0,0,0,.48)] backdrop-blur-xl">
+          className="runnit-arcade-hosted pointer-events-auto absolute inset-x-4 top-28 z-[960] mx-auto max-h-[35dvh] max-w-sm space-y-3 overflow-y-auto rounded-[22px] border border-emerald-300/30 bg-[#0a1424]/95 p-4 text-white shadow-[0_16px_50px_rgba(0,0,0,.48)] backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-black text-emerald-200">Meine offenen Rennen</p>
             <span className="text-xs tabular-nums text-white/60">{hostedOpenDuels.length} offen</span>
@@ -1510,13 +1531,13 @@ export default function MapScreen() {
 
       {(players.some((player) => player.source === 'demo') ||
         openRuns.some((run) => run.id.startsWith('demo-run-'))) && (
-        <div className="pointer-events-none absolute left-1/2 top-16 z-[900] w-max max-w-[90vw] -translate-x-1/2 rounded-xl border border-amber-300/40 bg-[#17130d]/90 px-3 py-2 text-center text-xs font-semibold text-amber-100 shadow-lg backdrop-blur">
+        <div className="runnit-arcade-demo-notice pointer-events-none absolute left-1/2 top-16 z-[900] w-max max-w-[90vw] -translate-x-1/2 rounded-xl border border-amber-300/40 bg-[#17130d]/90 px-3 py-2 text-center text-xs font-semibold text-amber-100 shadow-lg backdrop-blur">
           Demo-Modus: einige Spieler oder Rennen sind frei erfunden
         </div>
       )}
 
       {mapTilesUnavailable && (
-        <div role="alert" className="pointer-events-auto absolute inset-x-4 top-24 z-[950] mx-auto max-w-sm rounded-2xl border border-rose-300/40 bg-[#1a1321]/95 p-4 text-sm text-white shadow-xl backdrop-blur">
+        <div role="alert" className="runnit-arcade-alert pointer-events-auto absolute inset-x-4 top-24 z-[950] mx-auto max-w-sm rounded-2xl border border-rose-300/40 bg-[#1a1321]/95 p-4 text-sm text-white shadow-xl backdrop-blur">
           <p className="font-bold">Die Karte kann gerade nicht geladen werden.</p>
           <p className="mt-2 text-xs leading-5 text-white/70">
             Prüfe deine Internetverbindung. Der Kartendienst konnte keine Kartenkacheln liefern.
@@ -1529,7 +1550,7 @@ export default function MapScreen() {
         </div>
       )}
       {!userCoords && !ipCoords && !locationError && !insecureContext && !unsupported && !locating && (
-        <div className="pointer-events-auto absolute inset-x-4 bottom-44 z-[950] mx-auto max-w-sm rounded-xl border border-white/20 bg-[#111827]/90 px-4 py-3 text-center text-xs leading-5 text-white/80 shadow-lg backdrop-blur">
+        <div className="runnit-arcade-gps-prompt pointer-events-auto absolute inset-x-4 bottom-44 z-[950] mx-auto max-w-sm rounded-xl border border-white/20 bg-[#111827]/90 px-4 py-3 text-center text-xs leading-5 text-white/80 shadow-lg backdrop-blur">
           <p className="font-semibold text-white">Noch kein Standort ermittelt</p>
           <p className="mt-1">Du siehst die Weltübersicht. Für Herausforderungen in deiner Nähe kannst du deinen Standort aktivieren.</p>
           <button type="button" onClick={() => { requestOnce(); setRecenterTick(x => x + 1); }} className="mt-2 rounded-lg bg-violet-500 px-3 py-2 font-bold text-white">Standort erneut suchen</button>
@@ -1537,31 +1558,50 @@ export default function MapScreen() {
       )}
       {/* Loading and Empty states */}
       {(loadingGhosts || loadingDuels) && (
-        <div className="pointer-events-none absolute inset-x-4 top-[calc(5.5rem+env(safe-area-inset-top))] z-[900] mx-auto w-fit max-w-[calc(100%-2rem)] rounded-full bg-white/10 px-4 py-2 text-sm text-white ring-1 ring-white/15 backdrop-blur">
+        <div className="runnit-arcade-status pointer-events-none absolute inset-x-4 top-[calc(5.5rem+env(safe-area-inset-top))] z-[900] mx-auto w-fit max-w-[calc(100%-2rem)] rounded-full bg-white/10 px-4 py-2 text-sm text-white ring-1 ring-white/15 backdrop-blur">
           <span className="mr-2 inline-block h-3 w-3 animate-ping rounded-full bg-white/70"></span>
           Loading…
         </div>
       )}
       {!loadingGhosts && !loadingDuels && players.length === 0 && openRuns.length === 0 && (
-        <div className="pointer-events-none absolute inset-x-4 top-[calc(5.5rem+env(safe-area-inset-top))] z-[900] mx-auto w-fit max-w-[calc(100%-2rem)] rounded-lg bg-white/5 px-3 py-2 text-xs text-white/80 ring-1 ring-white/10">
+        <div className="runnit-arcade-status pointer-events-none absolute inset-x-4 top-[calc(5.5rem+env(safe-area-inset-top))] z-[900] mx-auto w-fit max-w-[calc(100%-2rem)] rounded-lg bg-white/5 px-3 py-2 text-xs text-white/80 ring-1 ring-white/10">
           No nearby activity yet
         </div>
       )}
 
-      {/* Branded header stays independent of the map tile loading state. */}
-      {cityName ? <MapHUD city={cityName} /> : (
-        <div className="pointer-events-none absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-[940] flex items-center gap-2.5 rounded-2xl border border-violet-300/25 bg-[#101322]/90 px-3.5 py-2.5 text-white shadow-[0_12px_35px_rgba(0,0,0,.4)] backdrop-blur-xl">
-          <Footprints className="h-5 w-5 text-violet-200" aria-hidden="true" />
-          <span className="text-sm font-black tracking-[0.08em]">RUNNIT<span className="text-emerald-300">.</span></span>
-          <span className="text-[10px] font-bold text-white/45">MAP BETA</span>
-        </div>
-      )}
+      {/* Arcade UI uses the exact same openRuns data as Leaflet markers and popups. */}
+      <ArcadeMapChrome
+        view={arcadeMapView}
+        onViewChange={setArcadeMapView}
+        cityName={cityName}
+        hasGps={Boolean(userCoords)}
+        entries={arcadeRuns}
+        selectedId={selectedRunId}
+        onSelect={setSelectedRunId}
+        onJoin={(id) => {
+          const run = openRuns.find((item) => item.id === id);
+          if (run) { void handleJoinRun(run); }
+        }}
+        onCancel={(id) => {
+          const run = openRuns.find((item) => item.id === id);
+          if (run && authUser?.id === run.hostUserId) {
+            handleCancelHostedRun({
+              id: run.id,
+              hostUserId: run.hostUserId ?? '',
+              distanceMeters: run.distanceMeters,
+              createdAt: run.createdAt ?? null,
+            });
+          }
+        }}
+        onHost={openHostRun}
+        loading={loadingDuels}
+      />
 
       {/* Locate me control */}
-      <div className="pointer-events-auto absolute right-4 top-4 z-[950]">
+      <div className="pointer-events-auto absolute right-4 top-[calc(9.4rem+env(safe-area-inset-top))] z-[950]">
         <button
           onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
-          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-300/25 bg-[#101322]/90 text-violet-100 shadow-[0_12px_35px_rgba(0,0,0,.4)] backdrop-blur-xl transition hover:bg-violet-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/70 bg-[#10254f]/90 text-cyan-100 shadow-[0_12px_35px_rgba(0,0,0,.4)] backdrop-blur-xl transition hover:bg-violet-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           aria-label="Meinen Standort anzeigen"
           title="Standort suchen"
         >
@@ -1591,7 +1631,7 @@ export default function MapScreen() {
         </div>
       )}
       {!insecureContext && !unsupported && !userCoords && locationError && (
-        <div role="alert" className="pointer-events-auto absolute inset-x-4 top-28 z-[950] mx-auto max-w-sm rounded-2xl border border-rose-300/40 bg-[#201321]/95 p-4 text-sm text-white shadow-xl backdrop-blur">
+        <div role="alert" className="runnit-arcade-alert pointer-events-auto absolute inset-x-4 top-28 z-[950] mx-auto max-w-sm rounded-2xl border border-rose-300/40 bg-[#201321]/95 p-4 text-sm text-white shadow-xl backdrop-blur">
           <p className="font-extrabold">
             {locationError === 'denied' ? 'Standortzugriff vom Gerät verweigert (GPS 1)' :
               locationError === 'timeout' ? 'Standortsuche hat zu lange gedauert (GPS 3)' :
@@ -1698,19 +1738,19 @@ export default function MapScreen() {
       )}
 
       {raceNotice && (
-        <div role="status" className="pointer-events-auto absolute inset-x-4 bottom-56 z-[951] mx-auto max-w-sm rounded-2xl border border-amber-300/25 bg-[#191827]/95 px-4 py-3 text-xs leading-5 text-amber-100 shadow-lg">
+        <div role="status" className="runnit-arcade-race-notice pointer-events-auto absolute inset-x-4 bottom-56 z-[951] mx-auto max-w-sm rounded-2xl border border-amber-300/25 bg-[#191827]/95 px-4 py-3 text-xs leading-5 text-amber-100 shadow-lg">
           {raceNotice}
         </div>
       )}
 
       {/* Standalone art preview works without GPS, opponents, or account writes. */}
       <button type="button" onClick={() => navigate('/sprint-lab')}
-        className="pointer-events-auto absolute inset-x-4 bottom-40 z-[951] mx-auto flex min-h-12 max-w-sm items-center justify-center gap-2 rounded-xl border border-cyan-300/35 bg-[#0b2037]/95 px-4 text-sm font-extrabold text-cyan-100 shadow-[0_8px_30px_rgba(0,0,0,.4)] backdrop-blur">
+        className="runnit-map-demo-link pointer-events-auto absolute inset-x-4 bottom-40 z-[951] mx-auto flex min-h-12 max-w-sm items-center justify-center gap-2 rounded-xl border border-cyan-300/35 bg-[#0b2037]/95 px-4 text-sm font-extrabold text-cyan-100 shadow-[0_8px_30px_rgba(0,0,0,.4)] backdrop-blur">
         Renn-Grafik testen · Demo ohne zweiten Läufer
       </button>
 
       {/* Guests may explore the map; creating or joining runs opens login. */}
-      <div className="pointer-events-none absolute inset-x-4 bottom-24 z-[950] flex min-w-0 justify-center gap-2.5">
+      <div className="runnit-arcade-controls pointer-events-none absolute inset-x-4 bottom-24 z-[950] flex min-w-0 justify-center gap-2.5">
         <button type="button" onClick={openHostRun}
           className="pointer-events-auto flex min-h-14 min-w-0 basis-0 flex-1 items-center justify-center gap-2 rounded-2xl border border-emerald-300/20 bg-gradient-to-r from-emerald-400 to-cyan-400 px-3 py-3 text-center text-xs font-extrabold text-[#07151c] shadow-[0_12px_35px_rgba(16,185,129,.25)] transition hover:brightness-110 sm:text-sm">
           {authUser ? 'Rennen veranstalten' : 'Rennen starten · Anmelden'}
