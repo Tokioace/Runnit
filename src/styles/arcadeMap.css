@@ -50,7 +50,7 @@
 .runnit-map-arcade .runnit-arcade-status,.runnit-map-arcade .runnit-arcade-demo-notice{top:calc(136px + env(safe-area-inset-top,0px))}
 .runnit-map-arcade .runnit-arcade-hosted{top:calc(155px + env(safe-area-inset-top,0px))}
 .runnit-map-arcade button:focus-visible,.runnit-arcade-map-header a:focus-visible,.runnit-arcade-map-race button:focus-visible{outline:3px solid #fff;outline-offset:3px}
-@media(max-width:360px){.runnit-arcade-map-heading-copy h1{font-size:14px}.runnit-arcade-map-heading-copy>span{font-size:7px}.runnit-arcade-map-title-mark{width:20px;font-size:22px}.runnit-arcade-map-preview{inset-inline:6px}.runnit-arcade-map-race{gap:5px;padding:7px 6px}.runnit-arcade-map-race-thumb{width:42px;height:57px}.runnit-arcade-map-action{min-width:82px;font-size:9px;padding:5px 3px}.runnit-arcade-map-race-info p{font-size:9px}.runnit-map-arcade .runnit-arcade-controls{inset-inline:6px}}
+@media(max-width:360px){.runnit-arcade-map-heading-copy h1{font-size:14px}.runnit-arcade-map-heading-copy>span{font-size:7px}.runnit-arcade-map-title-mark{width:20px;font-size:22px}.runnit-arcade-map-race{gap:5px;padding:7px 6px}.runnit-arcade-map-race-thumb{width:42px;height:57px}.runnit-arcade-map-action{min-width:82px;font-size:9px;padding:5px 3px}.runnit-arcade-map-race-info p{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.runnit-map-arcade .leaflet-marker-icon.openrun-badge span{animation:none!important}}
 
 .runnit-map-arcade .runnit-arcade-alert {top:calc(140px + env(safe-area-inset-top,0px))}
@@ -77,8 +77,6 @@
   font-size:11px;font-weight:850;
 }
 .runnit-arcade-map-lab-link svg{height:14px;width:14px}
-  min-height:44px;padding-block:9px;
-}
 .runnit-map-arcade .runnit-arcade-status{
   top:calc(207px + env(safe-area-inset-top,0px));
   left:10px;right:auto;width:auto;max-width:calc(100% - 20px);

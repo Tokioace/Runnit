@@ -77,7 +77,7 @@ export default function ArcadeMapChrome({
         </div>
       </header>
 
-      {view === 'list' ? (
+      {view === 'list' && (
         <section aria-label="Rennen als Liste" className="runnit-arcade-map-list">
           <div className="runnit-arcade-map-list-heading"><Flag aria-hidden="true" /> OFFENE HERAUSFORDERUNGEN <small>{entries.length} angezeigt</small></div>
           <button type="button" className="runnit-arcade-map-host-action" onClick={onHost}>RENNEN VERANSTALTEN <ChevronRight aria-hidden="true" /></button>
