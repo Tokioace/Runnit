@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   prepare-lock:
@@ -19,6 +19,17 @@ jobs:
           node-version: '22'
       - name: Generate reviewed dependency lockfile
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit lockfile for feature branch only
+        env:
+          BRANCH_NAME: feature/maplibre-3d-arcade-20261115
+        run: |
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "chore(map): lock MapLibre 3D dependencies"
+            git push origin "HEAD:$BRANCH_NAME"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: maplibre-lockfile
