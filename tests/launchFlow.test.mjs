@@ -16,7 +16,11 @@ test('approved RUNNIT portrait asset is stored as an optimized local AVIF', () =
   assert.match(screen, /h-\[100dvh\]/);
   assert.ok(screen.includes("aspect-[941/1672]"));
   assert.match(screen, /object-contain/);
-  assert.ok(screen.includes("maxWidth: 'min(600px, 56.28dvh)'"));
+  assert.match(screen, /runnit-launch-art/);
+  const css = read('src/index.css');
+  assert.match(css, /\.runnit-launch-art/);
+  assert.match(css, /width:\s*max\(100vw,\s*56\.28dvh\)/);
+  assert.match(css, /orientation:\s*portrait/);
   assert.match(screen, /scale-110 object-cover object-center opacity-35 blur-/);
   assert.doesNotMatch(screen, /object-fill/);
 });

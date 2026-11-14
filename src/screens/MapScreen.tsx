@@ -1537,13 +1537,13 @@ export default function MapScreen() {
       )}
       {/* Loading and Empty states */}
       {(loadingGhosts || loadingDuels) && (
-        <div className="pointer-events-none absolute left-1/2 top-4 z-[900] -translate-x-1/2 rounded-full bg-white/10 px-4 py-2 text-sm text-white ring-1 ring-white/15 backdrop-blur">
+        <div className="pointer-events-none absolute inset-x-4 top-[calc(5.5rem+env(safe-area-inset-top))] z-[900] mx-auto w-fit max-w-[calc(100%-2rem)] rounded-full bg-white/10 px-4 py-2 text-center text-sm text-white ring-1 ring-white/15 backdrop-blur">
           <span className="mr-2 inline-block h-3 w-3 animate-ping rounded-full bg-white/70"></span>
           Loading…
         </div>
       )}
       {!loadingGhosts && !loadingDuels && players.length === 0 && openRuns.length === 0 && (
-        <div className="pointer-events-none absolute left-1/2 top-4 z-[900] -translate-x-1/2 rounded-lg bg-white/5 px-3 py-2 text-xs text-white/80 ring-1 ring-white/10">
+        <div className="pointer-events-none absolute inset-x-4 top-[calc(5.5rem+env(safe-area-inset-top))] z-[900] mx-auto w-fit max-w-[calc(100%-2rem)] rounded-lg bg-white/5 px-3 py-2 text-center text-xs text-white/80 ring-1 ring-white/10">
           No nearby activity yet
         </div>
       )}
@@ -1712,14 +1712,14 @@ export default function MapScreen() {
       {/* Guests may explore the map; creating or joining runs opens login. */}
       <div className="pointer-events-none absolute inset-x-4 bottom-24 z-[950] flex justify-center gap-2.5">
         <button type="button" onClick={openHostRun}
-          className="pointer-events-auto flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-emerald-300/20 bg-gradient-to-r from-emerald-400 to-cyan-400 px-3 py-3 text-center text-xs font-extrabold text-[#07151c] shadow-[0_12px_35px_rgba(16,185,129,.25)] transition hover:brightness-110 sm:text-sm">
+          className="pointer-events-auto flex min-h-14 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl border border-emerald-300/20 bg-gradient-to-r from-emerald-400 to-cyan-400 px-3 py-3 text-center text-xs font-extrabold text-[#07151c] shadow-[0_12px_35px_rgba(16,185,129,.25)] transition hover:brightness-110 sm:text-sm">
           {authUser ? 'Rennen veranstalten' : 'Rennen starten · Anmelden'}
         </button>
         <button type="button"
           onClick={() => setGhostOpen(true)}
-          className="pointer-events-auto flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-violet-300/25 bg-gradient-to-r from-violet-500 to-indigo-600 px-3 py-3 text-xs font-extrabold text-white shadow-[0_15px_45px_rgba(99,102,241,.36)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:text-sm"
+          className="pointer-events-auto flex min-h-14 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl border border-violet-300/25 bg-gradient-to-r from-violet-500 to-indigo-600 px-3 py-3 text-xs font-extrabold text-white shadow-[0_15px_45px_rgba(99,102,241,.36)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:text-sm"
         >
-          <Trophy className="h-5 w-5" aria-hidden="true" />
+          <Trophy className="h-5 w-5 shrink-0" aria-hidden="true" />
           {t('buttons.ghostRun')}
         </button>
       </div>

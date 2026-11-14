@@ -16,16 +16,16 @@ export default function BottomNav() {
         {tabs.map(({ href, label, icon: Icon }) => {
           const active = location.pathname === href;
           return (
-            <li key={href}>
+            <li key={href} className="min-w-0">
               <Link
                 to={href}
                 aria-current={active ? 'page' : undefined}
-                className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1.5 py-2 text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+                className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1.5 py-2 text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
                   active ? 'bg-violet-500/20 text-white' : 'text-white/55 hover:bg-white/5 hover:text-white'
                 }`}
               >
                 <Icon className={`h-5 w-5 ${active ? 'text-violet-300' : 'text-white/60'}`} aria-hidden="true" />
-                <span>{label}</span>
+                <span className="whitespace-nowrap">{label}</span>
               </Link>
             </li>
           );

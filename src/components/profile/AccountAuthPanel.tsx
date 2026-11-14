@@ -111,7 +111,7 @@ export default function AccountAuthPanel({ signIn, signUp, initialMode = 'signin
             <input id="account-nickname" name="nickname" required type="text" autoComplete="nickname"
               minLength={3} maxLength={24} value={displayName} disabled={pending}
               onChange={event => setDisplayName(event.target.value)} placeholder="z. B. SprintRunner"
-              className="min-h-12 w-full rounded-xl border border-white/15 bg-[#101322] px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-violet-300/50 focus:ring-2 focus:ring-violet-400/30" />
+              className="min-h-12 w-full rounded-xl border border-white/15 bg-[#101322] px-4 py-3 text-base text-white outline-none placeholder:text-white/35 focus:border-violet-300/50 focus:ring-2 focus:ring-violet-400/30" />
             <p className="mt-1.5 text-[11px] text-white/45">3–24 Zeichen; später im Profil änderbar. Kein Identitätsnachweis.</p>
           </div>
         )}
@@ -119,7 +119,7 @@ export default function AccountAuthPanel({ signIn, signUp, initialMode = 'signin
           <label htmlFor="account-email" className="mb-2 block text-xs font-semibold text-white/75">E-Mail-Adresse</label>
           <input id="account-email" name="email" required type="email" autoComplete="email"
             value={email} disabled={pending} onChange={event => setEmail(event.target.value)}
-            placeholder="name@beispiel.de" className="min-h-12 w-full rounded-xl border border-white/15 bg-[#101322] px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-violet-300/50 focus:ring-2 focus:ring-violet-400/30" />
+            placeholder="name@beispiel.de" className="min-h-12 w-full rounded-xl border border-white/15 bg-[#101322] px-4 py-3 text-base text-white outline-none placeholder:text-white/35 focus:border-violet-300/50 focus:ring-2 focus:ring-violet-400/30" />
         </div>
         <div>
           <label htmlFor="account-password" className="mb-2 block text-xs font-semibold text-white/75">Passwort</label>
@@ -127,7 +127,7 @@ export default function AccountAuthPanel({ signIn, signUp, initialMode = 'signin
             minLength={mode === 'signup' ? 8 : undefined}
             value={password} disabled={pending} onChange={event => setPassword(event.target.value)}
             placeholder={mode === 'signup' ? 'Mindestens 8 Zeichen' : 'Dein Passwort'}
-            className="min-h-12 w-full rounded-xl border border-white/15 bg-[#101322] px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-violet-300/50 focus:ring-2 focus:ring-violet-400/30" />
+            className="min-h-12 w-full rounded-xl border border-white/15 bg-[#101322] px-4 py-3 text-base text-white outline-none placeholder:text-white/35 focus:border-violet-300/50 focus:ring-2 focus:ring-violet-400/30" />
         </div>
         {error && <p role="alert" className="rounded-xl border border-rose-300/25 bg-rose-400/10 p-3 text-xs leading-6 text-rose-100">{error}</p>}
         {info && <p role="status" className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-xs leading-6 text-emerald-100">{info}</p>}

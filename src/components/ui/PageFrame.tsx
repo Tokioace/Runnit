@@ -6,6 +6,7 @@ import BottomNav from './BottomNav';
 type Props = {
   kicker: string;
   title: string;
+  titleClassName?: string;
   description: string;
   icon?: ReactNode;
   children: ReactNode;
@@ -16,7 +17,7 @@ type Props = {
  * Shared app frame — the polished, sport-game sequel to the RUNNIT launch
  * illustration. Decorative only: does not read location, session or race data.
  */
-export default function PageFrame({ kicker, title, description, icon, children, aside }: Props) {
+export default function PageFrame({ kicker, title, titleClassName, description, icon, children, aside }: Props) {
   return (
     <main className="runnit-street relative min-h-[100dvh] overflow-hidden pb-[calc(8rem+env(safe-area-inset-bottom,0px))] text-white">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
@@ -47,7 +48,7 @@ export default function PageFrame({ kicker, title, description, icon, children, 
               {icon && <span className="flex h-12 w-12 shrink-0 -skew-x-6 items-center justify-center rounded-lg border border-cyan-300/40 bg-cyan-300/10 text-cyan-100 shadow-[0_0_22px_rgba(37,230,255,.12)]"><span className="skew-x-6">{icon}</span></span>}
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-black uppercase tracking-[.22em] text-cyan-200">{kicker}</p>
-                <h1 className="runnit-display runnit-display--shine mt-2 break-words text-[clamp(2.1rem,8.5vw,3.3rem)]">{title}</h1>
+                <h1 className={`runnit-display runnit-display--shine mt-2 ${titleClassName ?? 'break-words text-[clamp(2.1rem,8.5vw,3.3rem)]'}`}>{title}</h1>
               </div>
             </div>
             <p className="relative mt-4 max-w-md border-l-[3px] border-fuchsia-400 pl-3 text-sm leading-6 text-slate-100/80">{description}</p>
