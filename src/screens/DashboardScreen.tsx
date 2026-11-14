@@ -23,10 +23,10 @@ export default function DashboardScreen({ displayName }: DashboardProps) {
   return (
     <main className="runnit-game-home relative min-h-[100dvh] w-full max-w-full overflow-x-clip text-white">
       <div className="runnit-game-content relative z-10 mx-auto w-full max-w-[680px] px-3 pb-[calc(8rem+env(safe-area-inset-bottom,0px))] pt-[max(1rem,env(safe-area-inset-top))] sm:px-5">
-        <header className="runnit-game-hero" aria-label="RUNNIT Arcade">
+        <header className="runnit-game-hero" aria-label="RUNNIT Arcade"><div className="runnit-hero-portrait" aria-hidden="true" />
           <div className="relative z-10 flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="runnit-game-logo">RUNNIT<span aria-hidden="true">▦</span></div>
+              <div className="runnit-game-logo"><img src="/runnit-metal-logo.svg" alt="" width={840} height={174}/><span className="sr-only">RUNNIT</span></div>
               <p className="runnit-game-motto">CHALLENGE. <em>RACE.</em> <strong>BEAT.</strong></p>
             </div>
             <Link className="runnit-game-settings" to="/profile" aria-label="Profil und Einstellungen"><Settings aria-hidden="true" /></Link>
@@ -69,10 +69,12 @@ export default function DashboardScreen({ displayName }: DashboardProps) {
           <div className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-3">
             {activity.map(({ label, Icon, unit }) => (
               <div className="runnit-game-stat" key={label}>
-                <Icon className="h-6 w-6 sm:h-8 sm:w-8" aria-hidden="true" />
-                <p className="text-[clamp(9px,2.5vw,14px)] font-black italic">{label}</p>
-                <p className="runnit-game-stat-value">— <small>{unit}</small></p>
-                <p className="text-[9px] font-bold text-lime-300">NICHT VERBUNDEN</p>
+                <Icon className="runnit-stat-glyph h-6 w-6 sm:h-8 sm:w-8" aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="text-[clamp(9px,2.5vw,14px)] font-black italic">{label}</p>
+                  <p className="runnit-game-stat-value">— <small>{unit}</small></p>
+                  <p className="text-[9px] font-bold text-lime-300">NICHT VERBUNDEN</p>
+                </div>
               </div>
             ))}
           </div>
@@ -83,7 +85,7 @@ export default function DashboardScreen({ displayName }: DashboardProps) {
             <h2>1v1 <span>DUELL</span> <b aria-hidden="true">»</b></h2>
             <p>FORDERE JETZT JEMANDEN<br />IN DEINER NÄHE HERAUS!</p>
           </div>
-          <Swords className="h-14 w-14 shrink-0 text-cyan-200" aria-hidden="true" />
+          <span className="runnit-duel-speed" aria-hidden="true">»</span>
         </Link>
 
         <div className="runnit-game-lower mt-4 grid grid-cols-2 gap-2.5">
@@ -99,7 +101,7 @@ export default function DashboardScreen({ displayName }: DashboardProps) {
           </section>
         </div>
 
-        <Link to="/map" className="runnit-game-start group"><Zap aria-hidden="true" /><span>RENNEN STARTEN</span><ArrowRight aria-hidden="true" className="transition-transform group-hover:translate-x-1" /></Link>
+        <Link to="/map" className="runnit-game-start group"><img src="/runnit-runner-mark.svg" alt="" width={50} height={50}/><span>RENNEN STARTEN</span><ArrowRight aria-hidden="true" className="transition-transform group-hover:translate-x-1" /></Link>
         <p className="mt-7 flex items-start gap-2 text-[10px] leading-5 text-cyan-100/65"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" aria-hidden="true" />XP, Rangplätze und Wochenwerte sind noch nicht mit verlässlichen Datenquellen verbunden. Die Anzeige enthält keine erfundenen Ergebnisse.</p>
         <Link to="/gps-lab" className="mt-3 flex min-h-10 items-center justify-center gap-1 text-xs font-black tracking-widest text-cyan-300 underline underline-offset-4">GPS-TESTLABOR <ChevronRight className="h-4 w-4" /></Link>
       </div>

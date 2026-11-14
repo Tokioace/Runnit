@@ -54,3 +54,21 @@ test('Stats is a separate accessible route and does not reuse Home', () => {
   assert.match(stats, /<BottomNav/);
   assert.doesNotMatch(stats, /watchPosition|navigator\.geolocation|submitDuelResult/);
 });
+
+
+test('art pass uses separate illustration layers instead of embedding fake scores', () => {
+  const home = read('src/screens/DashboardScreen.tsx');
+  const css = read('src/index.css');
+  for (const asset of ['runnit-metal-logo.svg','runnit-runner-mark.svg']) {
+    assert.ok(home.includes(asset));
+    assert.match(read('public/' + asset), /<svg/);
+  }
+  for (const asset of ['runnit-arcade-city.svg','runnit-duel-art.svg']) {
+    assert.ok(css.includes(asset));
+    assert.match(read('public/' + asset), /viewBox/);
+  }
+  assert.match(home, /runnit-hero-portrait/);
+  assert.match(home, /runnit-stat-glyph/);
+  assert.match(css, /20dvh/);
+  assert.doesNotMatch(read('public/runnit-duel-art.svg'), /76\.420|38\.420|TurboKai/);
+});

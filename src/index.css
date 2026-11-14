@@ -525,3 +525,68 @@ html, body, #root {
 .runnit-stats-action{display:flex;align-items:center;gap:9px;min-height:54px;padding:10px 13px;border:1px solid #56eaff;border-radius:11px 4px;color:white;background:linear-gradient(110deg,#11305d,#081b3a 60%,#45266b);box-shadow:inset 0 1px rgba(255,255,255,.45),0 0 11px rgba(47,220,255,.24);font-size:clamp(10px,2.9vw,14px);font-weight:1000;font-style:italic}
 .runnit-stats-action span{min-width:0;flex:1}
 .runnit-stats-action:focus-visible,.runnit-stats-back:focus-visible{outline:3px solid #fff;outline-offset:3px}
+
+
+/* Master image art-pass 02: independent editable art layers, no fake metrics. */
+.runnit-game-home:not(.runnit-stats-screen)::before{
+ height:min(85vw,520px);
+ background:linear-gradient(180deg,rgba(8,5,34,.05),rgba(8,10,39,.02) 43%,#07102e 100%),url('/runnit-arcade-city.svg') center top / cover no-repeat;
+ opacity:1;
+}
+.runnit-game-hero{isolation:isolate}
+.runnit-hero-portrait{
+ position:absolute;z-index:1;left:-12px;top:45px;width:41%;height:calc(100% - 35px);pointer-events:none;opacity:.94;
+ background:url('/runnit-launch-portrait.avif') 47% 17% / auto 540% no-repeat;
+ mask-image:linear-gradient(90deg,#000 65%,transparent 99%);
+}
+.runnit-game-logo{width:min(76vw,550px);height:auto;line-height:0;transform:none;text-shadow:none;filter:drop-shadow(0 0 8px #f127dd)}
+.runnit-game-logo:after{display:none}
+.runnit-game-logo img{display:block;width:100%;height:auto;max-height:100px}
+.runnit-game-ranks{margin-left:26%}
+.runnit-game-hud,.runnit-game-panel,.runnit-game-duel{
+ clip-path:polygon(0 13px,14px 0,calc(100% - 15px) 0,100% 14px,100% calc(100% - 12px),calc(100% - 14px) 100%,12px 100%,0 calc(100% - 10px));
+}
+.runnit-game-hud:after,.runnit-game-panel:after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.4;background:repeating-linear-gradient(148deg,transparent 0 11px,rgba(118,232,255,.08) 12px 13px,transparent 14px 27px)}
+.runnit-game-hud>*,.runnit-game-panel>*{position:relative;z-index:1}
+.runnit-game-mode{clip-path:polygon(13px 0,calc(100% - 10px) 0,100% 12px,calc(100% - 12px) 100%,9px 100%,0 calc(100% - 11px))}
+.runnit-game-mode:not(.is-lime){background:repeating-linear-gradient(125deg,rgba(255,255,255,.075) 0 2px,transparent 3px 19px),linear-gradient(140deg,#2866a4,#0a2052 58%,#0b1035)}
+.runnit-game-stat{flex-direction:row;justify-content:flex-start;align-items:center;gap:5px;text-align:left;clip-path:polygon(12px 0,calc(100% - 10px) 0,100% 10px,calc(100% - 9px) 100%,10px 100%,0 calc(100% - 10px))}
+.runnit-stat-glyph{flex-shrink:0;filter:drop-shadow(0 0 6px rgba(50,243,255,.6))}
+.runnit-game-stat-value{font-size:clamp(1.3rem,5.5vw,2.6rem);white-space:nowrap}
+.runnit-game-duel{background:linear-gradient(90deg,rgba(2,7,35,.96) 0%,rgba(5,11,36,.82) 35%,rgba(20,16,70,.04) 66%),url('/runnit-duel-art.svg') center / cover no-repeat}
+.runnit-duel-speed{font-size:clamp(2rem,10vw,4.3rem);font-weight:1000;color:#2bfcff;text-shadow:0 0 12px #01dfff;transform:skew(-9deg)}
+.runnit-game-start{clip-path:polygon(16px 0,calc(100% - 18px) 0,100% 20px,calc(100% - 18px) 100%,16px 100%,0 calc(100% - 18px))}
+.runnit-game-start img{display:block;flex-shrink:0;width:clamp(30px,7vw,50px);height:auto;filter:drop-shadow(0 0 5px rgba(255,255,255,.9))}
+.runnit-game-dock{border:1px solid rgba(246,83,255,.73);border-bottom:0;box-shadow:inset 0 2px 0 rgba(215,246,255,.6),0 0 18px rgba(216,23,255,.38)}
+@media(max-width:480px){
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-hero{min-height:clamp(142px,20dvh,178px);padding-top:4px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-logo{width:min(77vw,350px)}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-logo img{max-height:69px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-motto{margin-top:0;margin-left:24%;font-size:clamp(10px,2.8vw,13px)}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-hero>p{margin-top:8px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-ranks{margin-top:7px;gap:5px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-ranks span{min-height:43px;font-size:clamp(8px,2vw,10px)}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-hud{min-height:74px;padding:7px 9px;margin-top:1px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-avatar{width:52px;height:52px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-modes{margin-top:12px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-mode{min-height:64px;gap:4px;padding:5px 1px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-mode svg{width:23px;height:23px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-activity{margin-top:12px;padding:9px 7px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-activity .mt-3{margin-top:9px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-stat{min-height:79px;padding:6px 4px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-stat-glyph{width:19px;height:19px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-stat .text-lime-300{font-size:8px;letter-spacing:-.03em}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-duel{min-height:88px;margin-top:12px;padding:9px 12px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-duel h2{font-size:clamp(1.65rem,6.4vw,2.2rem)}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-duel p{margin-top:7px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-lower{margin-top:12px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-empty{min-height:62px;margin-top:6px;padding:5px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-small-action{min-height:44px;margin-top:5px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-start{min-height:69px;margin-top:20px;padding:8px}
+}
+@media(max-width:360px){
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-ranks{margin-left:21%}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-stat{gap:2px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-stat-glyph{width:16px;height:16px}
+ .runnit-game-home:not(.runnit-stats-screen) .runnit-game-stat-value{font-size:1.2rem}
+}
