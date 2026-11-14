@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
   Activity, ArrowRight, Award, ChevronRight, Crown, Flame, Flag, Footprints,
-  Ghost, LockKeyhole, MapPin, Medal, Ruler, Settings, ShieldCheck, Timer,
+  Ghost, MapPin, Medal, Ruler, Settings, ShieldCheck, Timer,
   Trophy, UserRound, Zap,
 } from 'lucide-react';
 import BottomNav from '../components/ui/BottomNav';
@@ -113,7 +113,7 @@ export default function ProfileScreen() {
             <AccountDetailsPanel user={user} updateDisplayName={updateDisplayName} changePassword={changePassword} signOut={signOut} />
           ) : (
             <div aria-label="Gastprofil" className="runnit-profile-panel space-y-3 p-5">
-              <p className="text-sm font-bold text-cyan-100">Du erkundest RUNNIT als Gast.</p>
+              <p className="text-sm font-bold text-cyan-100">Du erkundest Runnit als Gast.</p>
               <p className="text-xs leading-5 text-white/70">Karte, Rangliste und Testlabor kannst du ohne Konto erkunden. Für Rennen musst du dich anmelden.</p>
               {loadError && <p role="status" className="text-xs text-amber-200">Dein Kontostatus konnte nicht geladen werden. Der Gastmodus bleibt verfügbar.</p>}
               <Link to="/login?next=%2Fprofile" className="runnit-profile-action runnit-profile-action-lime">ANMELDEN / REGISTRIEREN <ArrowRight className="h-5 w-5" aria-hidden="true" /></Link>
@@ -143,7 +143,7 @@ export default function ProfileScreen() {
 
         <div className="runnit-profile-trust flex gap-2">
           <ShieldCheck className="h-5 w-5 shrink-0 text-cyan-200" aria-hidden="true" />
-          <p>Ein RUNNIT-Konto ist kein Identitäts- oder Leistungsnachweis. Verifizierte Rennleistungen werden erst nach zuverlässiger Prüfung berücksichtigt.</p>
+          <p>Es gibt noch keine geprüften Laufdaten. Ein RUNNIT-Konto ist kein Identitäts- oder Leistungsnachweis. Verifizierte Rennleistungen werden erst nach zuverlässiger Prüfung berücksichtigt.</p>
         </div>
       </div>
       <BottomNav />
