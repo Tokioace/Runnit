@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { CheckCircle2, Trophy, UserRound } from 'lucide-react';
 
 type Props = {
   isSignedIn: boolean;
@@ -14,14 +15,30 @@ type Props = {
  * elements. Four transparent semantic controls sit on the exact percentages of
  * the image's STARTEN / ANMELDEN / REGISTRIEREN / ALS GAST lettering.
  *
- * The illustration fills the viewport including the iOS safe-area; matching
- * percentage positioning ensures the touch regions scale with the artwork.
+ * The art retains its ORIGINAL 941:1672 aspect ratio. The illustration and
+ * the transparent hit regions share one ratio-locked element, so neither the
+ * picture nor the touch targets stretch on tall iPhones, tablets or desktops.
+ * An ambient blurred backdrop fills spare viewport space without cropping art.
  */
 export default function HomeScreen({ isSignedIn, guestAccess, onStart, onContinueAsGuest }: Props) {
   return (
     <main className="relative isolate min-h-[100dvh] w-full overflow-hidden bg-[#070c20] text-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,#2c1157_0%,#050b21_75%)]" aria-hidden="true" />
-      <div className="relative mx-auto h-[100dvh] w-full max-w-[600px] overflow-hidden bg-[#070c20]">
+      {/* Fill any unused space on very tall / wide screens with atmospheric
+          color, rather than distorting or cutting off the actual artwork. */}
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+        <img
+          src="/runnit-launch-portrait.avif"
+          alt=""
+          className="h-full w-full scale-110 object-cover object-center opacity-35 blur-[30px]"
+          draggable={false}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#070c20]/30 via-[#080c24]/55 to-[#070c20]/95" />
+      </div>
+      <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full flex-col items-center justify-start">
+        <div
+          className="relative aspect-[941/1672] w-full shrink-0 overflow-hidden bg-[#070c20]"
+          style={{ maxWidth: 'min(600px, 56.28dvh)' }}
+        >
         <img
           src="/runnit-launch-portrait.avif"
           alt=""
@@ -29,7 +46,7 @@ export default function HomeScreen({ isSignedIn, guestAccess, onStart, onContinu
           height={1672}
           decoding="async"
           fetchPriority="high"
-          className="pointer-events-none absolute inset-0 h-full w-full select-none object-fill"
+          className="pointer-events-none absolute inset-0 h-full w-full select-none object-contain"
           draggable={false}
           aria-hidden="true"
         />
@@ -51,9 +68,29 @@ export default function HomeScreen({ isSignedIn, guestAccess, onStart, onContinu
         </button>
 
         {isSignedIn ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[8.5%] bg-gradient-to-b from-[#08152e] via-[#061029] to-[#04091d]" aria-label="Du bist angemeldet">
-            <span className="sr-only">Du bist angemeldet. Anmelden und Registrieren sind nicht erforderlich.</span>
-          </div>
+          <nav
+            aria-label="Schnellzugriff für angemeldete Nutzer"
+            className="absolute inset-x-0 bottom-0 z-10 grid h-[7.4%] grid-cols-3 items-center gap-1 border-t border-cyan-300/20 bg-gradient-to-b from-[#101334] via-[#090f2b] to-[#070b20] px-[3%] shadow-[0_-5px_22px_rgba(5,9,36,0.8)]"
+          >
+            <Link
+              to="/profile"
+              className="flex h-full min-w-0 items-center justify-center gap-1 rounded-md text-[clamp(9px,2.5vw,12px)] font-extrabold italic text-cyan-100 underline decoration-cyan-400/60 underline-offset-[6px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-100"
+            >
+              <UserRound aria-hidden="true" className="h-4 w-4 shrink-0 text-cyan-300" />
+              PROFIL
+            </Link>
+            <Link
+              to="/leaderboard"
+              className="flex h-full min-w-0 items-center justify-center gap-1 rounded-md text-[clamp(9px,2.5vw,12px)] font-extrabold italic text-fuchsia-100 underline decoration-fuchsia-400/60 underline-offset-[6px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-fuchsia-100"
+            >
+              <Trophy aria-hidden="true" className="h-4 w-4 shrink-0 text-fuchsia-300" />
+              RANGLISTE
+            </Link>
+            <span className="flex min-w-0 items-center justify-center gap-1 text-[clamp(9px,2.5vw,12px)] font-bold text-emerald-200" aria-label="Angemeldet">
+              <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0" />
+              ANGEMELDET
+            </span>
+          </nav>
         ) : (
           <nav aria-label="Kontoaktionen" className="pointer-events-none absolute inset-0">
             <Link
@@ -80,6 +117,7 @@ export default function HomeScreen({ isSignedIn, guestAccess, onStart, onContinu
             </button>
           </nav>
         )}
+        </div>
       </div>
     </main>
   );

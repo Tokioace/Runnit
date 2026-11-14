@@ -1,15 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { getTileLayerUrls } from './helpers/mapTileUrls.mjs';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
 test('main secondary pages share the same visual shell without modifying the approved home page', () => {
   const frame = read('src/components/ui/PageFrame.tsx');
-  assert.match(frame, /bg-\[#090b13\]/);
-  assert.match(frame, /from-violet-500/);
-  assert.match(frame, /text-emerald-300/);
+  assert.match(frame, /runnit-street/);
+  assert.match(frame, /runnit-display--shine/);
+  assert.match(frame, /runnit-speedline/);
+  assert.match(frame, /runnit-metal/);
+  assert.match(frame, /safe-area-inset-top/);
   assert.match(frame, /<BottomNav/);
+  const css = read('src/index.css');
+  for (const visualToken of ['--runnit-cyan', '--runnit-magenta', '--runnit-violet', '.runnit-panel', '.runnit-arcade-button']) {
+    assert.ok(css.includes(visualToken), visualToken);
+  }
   for (const file of ['LeaderboardScreen.tsx', 'ProfileScreen.tsx', 'GpsLabScreen.tsx']) {
     const page = read('src/screens/' + file);
     assert.match(page, /import PageFrame from/);
@@ -29,8 +36,7 @@ test('mobile sheet appears above the map buttons and has an accessible close con
 
 test('revised map keeps keyless OSM tiles, map state and real GPS controls', () => {
   const map = read('src/screens/MapScreen.tsx');
-  assert.ok(map.includes('tile.openstreetmap.org'), 'OSM tile host must remain present');
-  assert.ok(!map.includes('basemaps.cartocdn.com'), 'legacy tile host must remain absent');
+  assert.deepEqual(getTileLayerUrls(map), ['https://tile.openstreetmap.org/{z}/{x}/{y}.png']);
   assert.match(map, /watchPosition/);
   assert.match(map, /<RaceOverlay/);
   assert.match(map, /submitDuelResult/);

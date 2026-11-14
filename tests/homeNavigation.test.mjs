@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { getTileLayerUrls } from './helpers/mapTileUrls.mjs';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
@@ -41,8 +42,8 @@ test('map has a neutral initial center and explicit tile failure handling', () =
   const map = read('src/screens/MapScreen.tsx');
   assert.match(map, /lat: 22, lng: 0/);
   assert.match(map, /tileerror:/);
-  assert.ok(map.includes('tile.openstreetmap.org'), 'OSM tile host must remain present');
-  assert.doesNotMatch(map, /basemaps\.cartocdn\.com|setTileProvider|tileProvider/);
+  assert.deepEqual(getTileLayerUrls(map), ['https://tile.openstreetmap.org/{z}/{x}/{y}.png']);
+  assert.doesNotMatch(map, /setTileProvider|tileProvider/);
   assert.match(map, /setTileRetryCount/);
   assert.match(map, /mapTilesUnavailable/);
   assert.match(map, /Noch kein Standort ermittelt/);
