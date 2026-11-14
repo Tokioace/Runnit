@@ -410,3 +410,164 @@
   .runnit-arcade-rank-number{width:17px;font-size:9px}
   .runnit-dash-master .runnit-game-small-action{font-size:7px}
 }
+
+
+/* RUNNIT Arcade Profile master – same palette and section hierarchy as the
+   user-approved 2000s street-game mock. Account forms and data remain DOM. */
+.runnit-profile-master {
+  --profile-cyan:#38efff;--profile-lime:#cbff08;
+  background:#070b2c;
+  background-image:radial-gradient(ellipse 70% 32% at 100% 6%,rgba(243,24,206,.2),transparent 70%),
+    linear-gradient(170deg,#11103d,#080f32 40%,#050b29 85%,#130931);
+}
+.runnit-profile-master::before {
+  height:min(95vw,550px);
+  background:linear-gradient(180deg,rgba(1,6,29,.02),rgba(4,10,37,.32) 70%,#080e2d 100%),
+    url('/runnit-arcade-city.svg') 55% top/cover no-repeat;
+}
+.runnit-profile-content{max-width:540px;position:relative}
+.runnit-profile-hero{position:relative;isolation:isolate;min-height:clamp(210px,55vw,300px);overflow:hidden}
+.runnit-profile-hero-head{position:relative;z-index:3}
+.runnit-profile-logo{width:min(59vw,270px);height:auto;max-height:67px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(225,32,248,.5))}
+.runnit-profile-back,.runnit-profile-settings{
+ display:grid;place-items:center;flex:none;width:43px;height:43px;color:white;
+ border:1px solid #73eaff;border-radius:13px 4px;
+ background:linear-gradient(135deg,#315494,#0b1337 80%);
+ box-shadow:inset 0 1px #e7ffff,0 0 13px rgba(13,239,255,.44);
+}
+.runnit-profile-hero-character{
+ pointer-events:none;position:absolute;left:-3%;top:31px;width:55%;height:calc(100% - 30px);z-index:1;
+ background:url('/runnit-launch-portrait.avif') 47% 17% / auto 460% no-repeat;
+ mask-image:linear-gradient(90deg,#000 62%,rgba(0,0,0,.75) 78%,transparent 99%);
+ filter:drop-shadow(0 0 12px rgba(22,216,255,.48));
+}
+.runnit-profile-player{
+ position:absolute;z-index:2;top:35%;right:1%;width:60%;min-width:0;
+ padding:8px 12px 11px;
+ background:linear-gradient(90deg,rgba(7,14,42,.64),rgba(16,19,63,.82));
+ border:1px solid rgba(58,234,255,.8);border-radius:14px 5px 14px 5px;
+ box-shadow:inset 0 1px rgba(244,255,255,.6),0 0 13px rgba(29,231,255,.43);
+}
+.runnit-profile-crown{position:absolute;right:9px;top:-32px;color:#c8ff0d;font-size:34px;text-shadow:0 0 9px #b8ff00}
+.runnit-profile-player-name{
+ max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+ font-style:italic;font-weight:1000;letter-spacing:-.05em;font-size:clamp(1.35rem,6vw,2.2rem);
+ text-shadow:0 1px #070e25,0 0 8px rgba(83,241,255,.7);
+}
+.runnit-profile-level{color:#60faff;font-size:clamp(11px,3.2vw,16px);font-weight:1000;font-style:italic}
+.runnit-profile-xp{height:12px;margin-top:5px;border:1px solid #79e2ff;border-radius:4px;background:linear-gradient(#101a42,#07132e);box-shadow:inset 0 1px 5px #070d2a}
+.runnit-profile-xp span{display:block;width:0%;height:100%;background:linear-gradient(90deg,#25ecff,#d4ffff)}
+.runnit-profile-xp-label{margin-top:3px;text-align:right;font-weight:900;font-style:italic;color:#c6ddf0;font-size:clamp(8px,2.1vw,10px)}
+.runnit-profile-tabs{margin-top:-4px;position:relative;z-index:3}
+.runnit-profile-tab{
+ display:flex;justify-content:center;align-items:center;gap:6px;min-width:0;min-height:57px;
+ padding:6px 5px;color:#fff;text-decoration:none;transform:skew(-6deg);
+ border:1px solid #50dcff;border-radius:14px 4px 12px 4px;
+ background:linear-gradient(130deg,#225f99,#0f234a 58%,#11133c);
+ box-shadow:inset 0 2px #f5ffff,0 2px #2355ba,0 0 13px rgba(34,224,255,.52);
+}
+.runnit-profile-tab svg,.runnit-profile-tab span{transform:skew(6deg)}
+.runnit-profile-tab svg{flex:none;height:23px;width:23px}
+.runnit-profile-tab span{font-size:clamp(10px,3.15vw,14px);font-style:italic;font-weight:1000}
+.runnit-profile-tab-active{
+ border:2px solid #ddff02;
+ background:linear-gradient(135deg,#abec00,#5f9700 36%,#17250b);
+ box-shadow:inset 0 2px #f8ffba,0 3px #8fd600,0 0 16px rgba(191,255,0,.69);
+}
+.runnit-profile-result-grid{margin-top:12px}
+.runnit-profile-result{
+ min-width:0;min-height:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 4px;
+ text-align:center;clip-path:polygon(12px 0,calc(100% - 10px) 0,100% 11px,calc(100% - 10px) 100%,10px 100%,0 calc(100% - 9px));
+ border:1px solid #49e8ff;border-radius:14px 4px;
+ background:linear-gradient(145deg,#2871ae,#0c2a5d 46%,#091334);
+ box-shadow:inset 0 2px rgba(255,255,255,.86),0 3px #0bc7f1,0 0 13px rgba(34,236,255,.5);
+}
+.runnit-profile-result svg{width:21px;height:21px;color:#fff}
+.runnit-profile-result>strong{font-size:clamp(1.3rem,5.2vw,2.1rem);font-weight:1000;font-style:italic;line-height:1}
+.runnit-profile-result h2{font-size:clamp(9px,2.7vw,13px);line-height:1.1;font-weight:1000;font-style:italic}
+.runnit-profile-result p{font-size:clamp(7px,1.9vw,10px);line-height:1.2;color:#c7dcf4}
+.runnit-profile-panel{
+ position:relative;isolation:isolate;min-width:0;overflow:hidden;padding:13px 11px 15px;
+ border:1px solid #5aeaff;border-radius:16px 4px 16px 4px;
+ background:repeating-linear-gradient(145deg,rgba(81,165,230,.06) 0 2px,transparent 2px 24px),
+   linear-gradient(150deg,#1a3466,#071a3c 65%,#0b1334);
+ box-shadow:inset 0 2px rgba(249,255,255,.66),0 0 14px rgba(7,228,255,.4),0 7px 19px rgba(0,2,19,.45);
+}
+.runnit-profile-section-head{display:flex;align-items:center;justify-content:space-between;gap:5px;min-height:27px}
+.runnit-profile-section-head h2,.runnit-profile-extra-title{
+ display:flex;align-items:center;gap:4px;min-width:0;
+ font-size:clamp(1.05rem,4.45vw,1.65rem);font-style:italic;font-weight:1000;
+ line-height:1.15;letter-spacing:-.055em;text-shadow:0 0 9px rgba(48,214,255,.4)
+}
+.runnit-profile-section-head h2 span{color:#c6ff0b;letter-spacing:-.25em}
+.runnit-profile-section-link,.runnit-profile-section-label{
+ display:flex;align-items:center;gap:1px;flex:none;color:#e7fcff;
+ font-size:clamp(8px,2.1vw,11px);font-style:italic;font-weight:1000;
+}
+.runnit-profile-section-link svg{height:14px;width:14px}
+.runnit-profile-goal-grid{margin-top:14px}
+.runnit-profile-goal{min-width:0;display:flex;align-items:center;flex-direction:column;gap:3px;text-align:center}
+.runnit-profile-goal-ring{
+ --goal-color:#31efff;display:flex;flex-direction:column;align-items:center;justify-content:center;
+ width:min(100%,116px);aspect-ratio:1;border-radius:50%;border:10px solid #476691;
+ background:linear-gradient(155deg,#1c2e5c,#06132e);
+ box-shadow:inset 0 1px 9px #060c22,0 0 11px var(--goal-shadow,rgba(21,216,246,.3));
+}
+.runnit-profile-ring-cyan{--goal-color:#38f6ff;--goal-shadow:rgba(26,225,255,.3)}
+.runnit-profile-ring-lime{--goal-color:#bdff00;--goal-shadow:rgba(172,255,0,.25)}
+.runnit-profile-ring-pink{--goal-color:#f73be5;--goal-shadow:rgba(247,59,229,.24)}
+.runnit-profile-goal-ring strong{font-size:clamp(1.4rem,5vw,2rem);font-style:italic;font-weight:1000}
+.runnit-profile-goal-ring small{font-size:9px;color:#d3e8f5}
+.runnit-profile-goal>strong{margin-top:4px;font-size:clamp(9px,2.45vw,12px);font-weight:1000;font-style:italic}
+.runnit-profile-goal>span{font-size:clamp(7px,1.8vw,10px);color:#b9d5e7}
+.runnit-profile-empty-note{margin-top:12px;font-size:10px;line-height:1.5;color:#b3cce5}
+.runnit-profile-badges{margin-top:13px}
+.runnit-profile-badge{min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center;gap:5px}
+.runnit-profile-badge-hex{
+ display:grid;place-items:center;position:relative;width:min(100%,71px);aspect-ratio:1;
+ clip-path:polygon(50% 0,93% 24%,93% 75%,50% 100%,7% 75%,7% 24%);
+ border:0;background:linear-gradient(145deg,#76f7ff,#153c85 36%,#07112e 62%,#2a6ab8);
+ box-shadow:inset 0 0 14px #000;
+}
+.runnit-profile-badge-hex::before{content:"";position:absolute;inset:5px;clip-path:inherit;background:linear-gradient(145deg,#1b407b,#080d2f)}
+.runnit-profile-badge-hex svg{position:relative;z-index:1;width:43%;height:43%;filter:drop-shadow(0 0 7px #7ce6ff)}
+.runnit-profile-badge-gold{background:linear-gradient(145deg,#ffea91,#be7a0f,#fff1a5)}
+.runnit-profile-badge-lime{background:linear-gradient(145deg,#e0ff48,#437c14,#bcff22)}
+.runnit-profile-badge-violet{background:linear-gradient(145deg,#ecc5ff,#5529a7,#e6c8ff)}
+.runnit-profile-badge-blue{background:linear-gradient(145deg,#a1d7ff,#2262bb,#a5eaff)}
+.runnit-profile-badge strong{font-size:clamp(7px,1.85vw,10px);line-height:1.1;font-style:italic;font-weight:1000;overflow-wrap:anywhere}
+.runnit-profile-badge small{font-size:clamp(6px,1.6vw,8px);line-height:1.2;color:#b5c9d9}
+.runnit-profile-extra-title{margin-bottom:10px;font-size:clamp(1rem,4.1vw,1.5rem)}
+.runnit-profile-account-section{scroll-margin-top:20px}
+.runnit-profile-account-section>section{
+ border-color:rgba(72,219,255,.55);
+ background:linear-gradient(135deg,#182c60,#0a1436 72%);
+ border-radius:15px 4px;
+ box-shadow:0 0 15px rgba(21,231,255,.26);
+}
+.runnit-profile-action{
+ display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;
+ margin-top:13px;padding:10px 12px;color:white;text-align:center;
+ border:1px solid #50eeff;border-radius:11px 4px;
+ background:linear-gradient(120deg,#235b91,#10264c 55%,#42206a);
+ box-shadow:inset 0 1px #ddf7ff,0 0 12px rgba(15,218,255,.35);
+ font-size:clamp(10px,2.7vw,13px);font-weight:1000;font-style:italic;
+}
+.runnit-profile-action-lime{border-color:#d7ff00;color:#091c22;background:linear-gradient(145deg,#deff20,#9de003)}
+.runnit-profile-lab-links .runnit-profile-action{justify-content:flex-start;margin-top:0}
+.runnit-profile-lab-links .runnit-profile-action svg:last-child{margin-left:auto}
+.runnit-profile-trust{padding:12px;color:#b9d5e6;font-size:10px;line-height:1.5}
+.runnit-profile-master a:focus-visible,.runnit-profile-master button:focus-visible{
+ outline:3px solid white;outline-offset:3px;
+}
+#profil,#ziele,#erfolge{scroll-margin-top:15px}
+@media(max-width:380px){
+ .runnit-profile-hero{min-height:200px}
+ .runnit-profile-hero-character{width:52%}
+ .runnit-profile-player{width:62%;right:0;padding:6px 7px}
+ .runnit-profile-result{min-height:86px}
+ .runnit-profile-goal-ring{border-width:7px}
+ .runnit-profile-tab{gap:3px;min-height:53px}
+ .runnit-profile-tab svg{width:19px;height:19px}
+ .runnit-profile-badges{gap:3px}
+}
