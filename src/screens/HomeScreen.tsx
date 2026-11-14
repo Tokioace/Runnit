@@ -15,14 +15,14 @@ type Props = {
  * elements. Four transparent semantic controls sit on the exact percentages of
  * the image's STARTEN / ANMELDEN / REGISTRIEREN / ALS GAST lettering.
  *
- * The art retains its ORIGINAL 941:1672 aspect ratio. The illustration and
- * the transparent hit regions share one ratio-locked element, so neither the
- * picture nor the touch targets stretch on tall iPhones, tablets or desktops.
- * An ambient blurred backdrop fills spare viewport space without cropping art.
+ * The art retains its ORIGINAL 941:1672 aspect ratio and all touch targets
+ * share the same image coordinates. On narrow portrait phones it fills the
+ * entire visual viewport without stretching (small side crops are expected).
+ * Other viewports retain a contained image with an atmospheric backdrop.
  */
 export default function HomeScreen({ isSignedIn, guestAccess, onStart, onContinueAsGuest }: Props) {
   return (
-    <main className="relative isolate min-h-[100dvh] w-full overflow-hidden bg-[#070c20] text-white">
+    <main className="relative isolate h-[100dvh] w-full overflow-hidden bg-[#070c20] text-white">
       {/* Fill any unused space on very tall / wide screens with atmospheric
           color, rather than distorting or cutting off the actual artwork. */}
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
@@ -34,10 +34,9 @@ export default function HomeScreen({ isSignedIn, guestAccess, onStart, onContinu
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#070c20]/30 via-[#080c24]/55 to-[#070c20]/95" />
       </div>
-      <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full flex-col items-center justify-start">
+      <div className="relative z-10 mx-auto flex h-full w-full items-center justify-center overflow-hidden">
         <div
-          className="relative aspect-[941/1672] w-full shrink-0 overflow-hidden bg-[#070c20]"
-          style={{ maxWidth: 'min(600px, 56.28dvh)' }}
+          className="runnit-launch-art relative aspect-[941/1672] w-full shrink-0 overflow-hidden bg-[#070c20]"
         >
         <img
           src="/runnit-launch-portrait.avif"

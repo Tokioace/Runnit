@@ -40,6 +40,34 @@
 
 html, body, #root {
   height: 100%;
+  max-width: 100%;
+}
+
+/* Wide children must never change the iPhone's page-level layout viewport. */
+html, body {
+  overflow-x: clip;
+}
+
+/* iOS Safari zooms in on 14px sign-in fields and may retain that zoom
+   after authentication redirects to the map. Keep inputs at least 16px. */
+@supports (-webkit-touch-callout: none) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Image and transparent touch targets share the exact same ratio. Portrait
+   phones crop only the lateral edges to fill the screen without stretching. */
+.runnit-launch-art {
+  max-width: min(600px, 56.28dvh);
+}
+@media (max-width: 640px) and (orientation: portrait) {
+  .runnit-launch-art {
+    width: max(100vw, 56.28dvh);
+    max-width: none;
+  }
 }
 
 body {
@@ -62,10 +90,10 @@ body {
 
 
 
-/* Keep OpenStreetMap licence attribution above the iPhone's fixed bottom nav.
-   Never hide third-party map attribution behind application chrome. */
+/* Keep OpenStreetMap attribution above the fixed navigation and race/demo
+   actions. Never hide or obscure legal map attribution. */
 .runnit-map .leaflet-bottom.leaflet-right {
-  bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(300px + env(safe-area-inset-bottom, 0px));
 }
 
 .runnit-map .leaflet-control-attribution {

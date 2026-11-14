@@ -26,6 +26,7 @@ export default function LeaderboardScreen() {
     <PageFrame
       kicker="CHASE YOUR BEST"
       title="Ranglisten."
+      titleClassName="whitespace-nowrap text-[clamp(1.45rem,6.3vw,2.8rem)]"
       description="Deine Konkurrenz im Blick. Echte Leistungen zählen erst, wenn die Messung zuverlässig überprüft ist."
       icon={<Trophy className="h-7 w-7" aria-hidden="true" />}
     >
