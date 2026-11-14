@@ -17,11 +17,15 @@ test('main secondary pages share the same visual shell without modifying the app
   for (const visualToken of ['--runnit-cyan', '--runnit-magenta', '--runnit-violet', '.runnit-panel', '.runnit-arcade-button']) {
     assert.ok(css.includes(visualToken), visualToken);
   }
-  for (const file of ['LeaderboardScreen.tsx', 'ProfileScreen.tsx', 'GpsLabScreen.tsx']) {
+  for (const file of ['LeaderboardScreen.tsx', 'GpsLabScreen.tsx']) {
     const page = read('src/screens/' + file);
     assert.match(page, /import PageFrame from/);
     assert.match(page, /<PageFrame/);
   }
+  // Profile now has its own reference-based Arcade shell, like Home/Stats.
+  const profile = read('src/screens/ProfileScreen.tsx');
+  assert.match(profile, /runnit-profile-master/);
+  assert.match(profile, /<BottomNav/);
   const home = read('src/screens/HomeScreen.tsx');
   assert.match(home, /RUNNIT – Challenge/);
 });

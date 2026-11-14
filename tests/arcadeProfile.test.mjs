@@ -1,0 +1,80 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
+
+test('arcade Profile has independent real navigation and reference-based sections', () => {
+  const profile = read('src/screens/ProfileScreen.tsx');
+  const css = read('src/styles/runnitMaster.css');
+  const parts = ['runnit-profile-hero', 'runnit-profile-tabs', 'id="profil"', 'id="ziele"', 'id="erfolge"', 'id="konto"', 'Individuelle Gehschrittlänge', 'Entwicklungslabore', '<BottomNav'];
+  let last = -1;
+  for (const marker of parts) {
+    const index = profile.indexOf(marker);
+    assert.ok(index > last, 'missing/out of order ' + marker);
+    last = index;
+  }
+  assert.match(profile, /runnit-profile-logo/);
+  assert.match(profile, /href="#konto"/);
+  assert.match(profile, /href="#ziele"/);
+  assert.match(profile, /href="#erfolge"/);
+  assert.match(css, /\.runnit-profile-hero-character/);
+  assert.match(css, /\.runnit-profile-badge-hex/);
+});
+
+test('profile never claims achievements, ranking, XP or race records without verification', () => {
+  const profile = read('src/screens/ProfileScreen.tsx');
+  assert.match(profile, /LV\. —/);
+  assert.match(profile, /XP NOCH NICHT VERFÜGBAR/);
+  assert.match(profile, /NOCH GESPERRT/);
+  assert.match(profile, /KEINE DATEN/);
+  assert.doesNotMatch(profile, /Stergios_R|76\.420|38\.420|127|TurboKai/);
+  assert.doesNotMatch(profile, /watchPosition|requestPermission|submitDuelResult/);
+});
+
+test('existing profile security, calibration and user flows remain connected', () => {
+  const profile = read('src/screens/ProfileScreen.tsx');
+  const details = read('src/components/profile/AccountDetailsPanel.tsx');
+  assert.match(profile, /useSupabaseUser\(\)/);
+  assert.match(profile, /<AccountDetailsPanel/);
+  assert.match(profile, /updateDisplayName=\{updateDisplayName\}/);
+  assert.match(profile, /changePassword=\{changePassword\}/);
+  assert.match(profile, /signOut=\{signOut\}/);
+  assert.match(profile, /user\.walkingCalibration\.walkingStrideM/);
+  assert.match(profile, /to="\/calibration"/);
+  assert.match(profile, /to="\/fusion-lab"/);
+  assert.match(profile, /to="\/sprint-lab"/);
+  assert.match(profile, /to="\/login\?next=%2Fprofile"/);
+  assert.match(details, /signOut\(\)/);
+});
+
+
+test('arcade profile tabs keep selected-neon state in sync with their targets', () => {
+  const profile = read('src/screens/ProfileScreen.tsx');
+  assert.match(profile, /selectedTab/);
+  assert.match(profile, /setSelectedTab\('profil'\)/);
+  assert.match(profile, /setSelectedTab\('ziele'\)/);
+  assert.match(profile, /setSelectedTab\('erfolge'\)/);
+  assert.match(profile, /aria-current=\{selectedTab ===/);
+});
+
+test('editable account inputs prevent Safari focus zoom', () => {
+  const detail = read('src/components/profile/AccountDetailsPanel.tsx');
+  assert.equal(detail.match(/px-4 py-3 text-base text-white/g)?.length, 3);
+  assert.match(detail, /id="edit-display-name"/);
+  assert.match(detail, /id="new-account-password"/);
+  assert.match(detail, /id="confirm-account-password"/);
+});
+
+
+test('profile iPhone review uses dedicated art and legible arcade headings', () => {
+  const profile = read('src/screens/ProfileScreen.tsx');
+  const css = read('src/styles/runnitMaster.css');
+  assert.match(profile, /<Crown className="runnit-profile-crown"/);
+  assert.doesNotMatch(profile, /runnit-profile-crown" aria-hidden="true">♛/);
+  assert.match(css, /runnit-profile-master \.runnit-profile-hero-character/);
+  assert.match(css, /background-image: url\('\/runnit-launch-hero\.webp'\)/);
+  assert.match(css, /runnit-profile-master \.runnit-profile-section-head > h2/);
+  assert.match(css, /runnit-profile-master \.runnit-profile-badge:last-child strong/);
+  assert.match(css, /white-space: nowrap/);
+});
