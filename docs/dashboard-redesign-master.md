@@ -28,3 +28,7 @@ Die zuletzt übermittelte 864 × 1536 JPEG-Illustration ist der Soll-Zustand fü
 3. Keine erfundenen Statistiken oder Platzierungen.
 4. TypeScript, Tests, Build, Audit, CodeQL und Vercel auf exaktem Head grün.
 5. iOS-Geräte-Vergleich mit Referenz und gezielte visuelle Iteration, bevor die fertige 1:1-Optik behauptet wird.
+
+## Navigation-Ergänzung: separater Stats-Screen
+
+Die erste Dashboard-Version nutzte `/home#aktivitaet` als Stats-Anker. Das war lediglich ein anderer Scrollpunkt derselben Home-Seite. Der Nutzer hat das als nicht eigenständig erkannt. Die Korrektur führt `/stats` als echte Route ein, mit separatem Arcade-Statistikschirm, Wochenringen, Bestwert-Kacheln und Testlabor-Verknüpfungen. Die Datenanzeige bleibt ausdrücklich ehrlich: keine erfundenen Messwerte oder Rankings. `/home` behält seine Aktivitätsvorschau und ist weiterhin der eigenständige Hauptscreen.

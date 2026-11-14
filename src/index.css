@@ -488,3 +488,40 @@ html, body, #root {
 .runnit-dock-item{border:1px solid transparent;white-space:nowrap;text-shadow:0 1px 4px #071025}
 .runnit-dock-active{border-color:rgba(46,241,255,.66);background:linear-gradient(145deg,rgba(0,213,255,.22),rgba(7,12,38,.35));box-shadow:inset 0 1px 0 rgba(238,255,255,.45),0 0 13px rgba(36,218,255,.5)}
 .runnit-dock-active svg{color:#28edff;filter:drop-shadow(0 0 5px #00f5ff)}
+
+/* Distinct Stats screen, sharing the neon arcade HUD vocabulary with Home. */
+.runnit-stats-screen::before {
+  height: min(66vw, 420px);
+  background: linear-gradient(180deg, rgba(7,11,42,.2),rgba(6,12,38,.72) 58%,#07102e 100%),
+    url('/runnit-launch-portrait.avif') 55% 23% / cover no-repeat;
+}
+.runnit-stats-hero{position:relative;min-height:235px;padding:0 4px 4px}
+.runnit-stats-back{display:grid;place-items:center;flex:none;width:44px;height:44px;border:1px solid #64efff;border-radius:14px 5px;color:#e7ffff;background:linear-gradient(145deg,#173e79,#090c2d);box-shadow:0 0 12px rgba(36,226,255,.5)}
+.runnit-stats-brand{color:white;font-size:clamp(1.8rem,8vw,3rem);font-style:italic;font-weight:1000;letter-spacing:-.1em;text-shadow:0 2px #8229d4,0 0 16px #19ebff;transform:skew(-7deg)}
+.runnit-stats-brand span{font-size:.42em;margin-left:2px}
+.runnit-stats-beta{font-size:9px;font-weight:1000;font-style:italic;white-space:nowrap;color:#cffcff;text-shadow:0 0 8px #14f1ff}
+.runnit-stats-kicker{font-size:10px;letter-spacing:.15em;font-weight:1000;color:#69f9ff;font-style:italic}
+.runnit-stats-hero h1{margin-top:6px;font-size:clamp(2rem,10vw,4.3rem);font-weight:1000;font-style:italic;line-height:1;letter-spacing:-.075em;color:#fff;text-shadow:0 2px #5018ab,0 0 20px #4a7fff}
+.runnit-stats-hero h1 span{color:#caff03}
+.runnit-stats-heading{font-size:clamp(1rem,4.5vw,1.7rem);font-weight:1000;font-style:italic;letter-spacing:-.045em;text-shadow:0 0 12px rgba(55,216,255,.55)}
+.runnit-stats-heading span{color:#caff03}
+.runnit-stats-period{font-size:9px;font-style:italic;font-weight:900;white-space:nowrap;color:#baf7ff}
+.runnit-stats-overview,.runnit-stats-records,.runnit-stats-tools{padding:15px 12px 17px}
+.runnit-stats-gauge-wrap{text-align:center;min-width:0}
+.runnit-stats-gauge{display:grid;place-items:center;aspect-ratio:1;max-width:155px;width:100%;margin:0 auto;border-radius:50%;background:conic-gradient(var(--ring) 0deg 22deg,rgba(47,75,122,.8) 22deg 360deg);box-shadow:0 0 14px var(--glow),inset 0 1px 2px white}
+.runnit-stats-cyan{--ring:#3af4ff;--glow:rgba(53,239,255,.32)}
+.runnit-stats-lime{--ring:#caff09;--glow:rgba(202,255,0,.25)}
+.runnit-stats-pink{--ring:#fe2de3;--glow:rgba(254,45,227,.29)}
+.runnit-stats-gauge-core{display:flex;align-items:center;justify-content:center;flex-direction:column;width:80%;height:80%;border-radius:50%;background:linear-gradient(140deg,#172854,#050b27);box-shadow:inset 0 0 12px #000b2d}
+.runnit-stats-gauge-core svg{width:18px;height:18px;color:white}
+.runnit-stats-gauge-core strong{font-size:clamp(1.45rem,5vw,2.6rem);font-style:italic;line-height:1}
+.runnit-stats-gauge-core span{font-size:clamp(7px,1.8vw,11px);font-weight:800;color:#bad6ed}
+.runnit-stats-gauge-wrap h3{margin-top:11px;font-size:clamp(9px,2.5vw,13px);font-style:italic;font-weight:1000}
+.runnit-stats-gauge-wrap p{margin-top:2px;font-size:clamp(7px,1.65vw,10px);font-weight:800;color:#a8c7dc}
+.runnit-stats-record{display:flex;align-items:center;gap:10px;min-height:98px;padding:12px 9px;border:1px solid rgba(75,226,255,.6);border-radius:12px 4px;background:linear-gradient(145deg,#224b85,#091735 85%);box-shadow:inset 0 1px rgba(244,255,255,.45),0 0 10px rgba(0,233,255,.2)}
+.runnit-stats-record h3{font-size:clamp(9px,2.1vw,13px);font-style:italic;font-weight:1000}
+.runnit-stats-record strong{font-size:clamp(1.6rem,5.6vw,2.2rem);font-weight:1000;line-height:1}
+.runnit-stats-record p{font-size:9px;color:#d3eeff}
+.runnit-stats-action{display:flex;align-items:center;gap:9px;min-height:54px;padding:10px 13px;border:1px solid #56eaff;border-radius:11px 4px;color:white;background:linear-gradient(110deg,#11305d,#081b3a 60%,#45266b);box-shadow:inset 0 1px rgba(255,255,255,.45),0 0 11px rgba(47,220,255,.24);font-size:clamp(10px,2.9vw,14px);font-weight:1000;font-style:italic}
+.runnit-stats-action span{min-width:0;flex:1}
+.runnit-stats-action:focus-visible,.runnit-stats-back:focus-visible{outline:3px solid #fff;outline-offset:3px}

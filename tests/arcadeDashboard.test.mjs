@@ -25,7 +25,7 @@ test('five arcade dock destinations remain real and accessible', () => {
   assert.match(src, /grid-cols-5/);
   assert.match(src, /href: '\/home', label: 'Start'/);
   assert.match(src, /href: '\/map', label: 'Karte'/);
-  assert.match(src, /href: '\/home#aktivitaet'/);
+  assert.match(src, /href: '\/stats', label: 'Stats'/);
   assert.match(src, /aria-current/);
   assert.match(src, /aria-label=\{label\}/);
   assert.match(src, /min-w-0/);
@@ -39,9 +39,18 @@ test('dashboard theme is separate from preserved launch artwork', () => {
   assert.match(read('src/screens/HomeScreen.tsx'), /runnit-launch-portrait\.avif/);
 });
 
-test('Stats dock hash scrolls to actual activity panel', () => {
-  const src = read('src/screens/DashboardScreen.tsx');
-  assert.match(src, /useLocation\(\)/);
-  assert.match(src, /location\.hash !== '#aktivitaet'/);
-  assert.match(src, /scrollIntoView/);
+test('Stats is a separate accessible route and does not reuse Home', () => {
+  const app = read('src/App.tsx');
+  const nav = read('src/components/ui/BottomNav.tsx');
+  const home = read('src/screens/DashboardScreen.tsx');
+  const stats = read('src/screens/StatsScreen.tsx');
+  assert.match(app, /<Route path="\/stats" element=\{<StatsScreen \/>\}/);
+  assert.match(app, /APP_PATHS.*'\/stats'/);
+  assert.match(nav, /href: '\/stats', label: 'Stats'/);
+  assert.match(home, /to: '\/stats'/);
+  assert.doesNotMatch(nav, /home#aktivitaet/);
+  assert.match(stats, /WOCHENFORTSCHRITT/);
+  assert.match(stats, /BESTWERTE/);
+  assert.match(stats, /<BottomNav/);
+  assert.doesNotMatch(stats, /watchPosition|navigator\.geolocation|submitDuelResult/);
 });
