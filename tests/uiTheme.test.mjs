@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { getTileLayerUrls } from './helpers/mapTileUrls.mjs';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
@@ -38,9 +37,11 @@ test('mobile sheet appears above the map buttons and has an accessible close con
   assert.match(sheet, /safe-area-inset-bottom/);
 });
 
-test('revised map keeps keyless OSM tiles, map state and real GPS controls', () => {
+test('revised map keeps keyless OSM vector tiles, map state and real GPS controls', () => {
   const map = read('src/screens/MapScreen.tsx');
-  assert.deepEqual(getTileLayerUrls(map), ['https://tile.openstreetmap.org/{z}/{x}/{y}.png']);
+  assert.match(map, /<ArcadeMapLibreView/);
+  const vector = read('src/components/map/ArcadeMapLibreView.tsx');
+  assert.match(vector, /https:\/\/tiles\.openfreemap\.org\/styles\/liberty/);
   assert.match(map, /watchPosition/);
   assert.match(map, /<RaceOverlay/);
   assert.match(map, /submitDuelResult/);

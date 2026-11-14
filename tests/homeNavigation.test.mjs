@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { getTileLayerUrls } from './helpers/mapTileUrls.mjs';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
@@ -41,8 +40,10 @@ test('bottom navigation Start leads to the old dashboard, Karte remains separate
 test('map has a neutral initial center and explicit tile failure handling', () => {
   const map = read('src/screens/MapScreen.tsx');
   assert.match(map, /lat: 22, lng: 0/);
-  assert.match(map, /tileerror:/);
-  assert.deepEqual(getTileLayerUrls(map), ['https://tile.openstreetmap.org/{z}/{x}/{y}.png']);
+  assert.match(map, /onTilesError/);
+  const vector = read('src/components/map/ArcadeMapLibreView.tsx');
+  assert.match(vector, /https:\/\/tiles\.openfreemap\.org\/styles\/liberty/);
+  assert.match(vector, /map\.setStyle\(STYLE_URL\)/);
   assert.doesNotMatch(map, /setTileProvider|tileProvider/);
   assert.match(map, /setTileRetryCount/);
   assert.match(map, /mapTilesUnavailable/);
