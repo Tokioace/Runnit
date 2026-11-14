@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import { LocateFixed } from 'lucide-react';
 import type { LatLngExpression } from 'leaflet';
 import L from 'leaflet';
@@ -18,7 +18,7 @@ import BottomNav from '../components/ui/BottomNav';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { LeaderboardSheet } from '../components/leaderboard/Sheet';
 import { leaderboardSourceLabel, type LeaderboardSource } from '../lib/leaderboardProvenance';
-import ArcadeMapChrome, { type ArcadeMapEntry, type ArcadeMapView } from '../components/map/ArcadeMapChrome';
+import ArcadeMapChrome, { ArcadeRunCard, type ArcadeMapEntry, type ArcadeMapView } from '../components/map/ArcadeMapChrome';
 import { parseGeographyPoint } from '../lib/duelLocation';
 import { cancelHostedOpenDuel, cancelHostedDuelMessage, listHostedOpenDuels, type HostedOpenDuel } from '../db/cancelHostedDuel';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
@@ -1403,6 +1403,24 @@ export default function MapScreen() {
     };
   }
 
+  // Both views use the exact same secure callbacks; the popup never bypasses
+  // authentication, server confirmation or the existing cancel dialog.
+  const joinArcadeRun = (id: string) => {
+    const run = openRuns.find((item) => item.id === id);
+    if (run) { void handleJoinRun(run); }
+  };
+  const cancelArcadeRun = (id: string) => {
+    const run = openRuns.find((item) => item.id === id);
+    if (run && authUser?.id === run.hostUserId) {
+      handleCancelHostedRun({
+        id: run.id,
+        hostUserId: run.hostUserId ?? '',
+        distanceMeters: run.distanceMeters,
+        createdAt: run.createdAt ?? null,
+      });
+    }
+  };
+
   const arcadeRuns: ArcadeMapEntry[] = openRuns.map((run) => ({
     id: run.id,
     hostUsername: run.hostUsername,
@@ -1462,17 +1480,32 @@ export default function MapScreen() {
           />
         ))}
 
-        {/* Tap a real run marker to open its entry in LISTE; no cards cover the map. */}
-        {openRuns.map((r) => (
+        {/* Marker details are an anchored Leaflet popup for ONE run. LISTE
+            separately displays ALL open runs. Neither is a permanent overlay. */}
+        {openRuns.map((r, index) => (
           <MapBadgeMarker
             key={r.id}
             position={[r.location.lat, r.location.lng]}
             iconOptions={getOpenRunIconOptions(Boolean(authUser && r.hostUserId && authUser.id === r.hostUserId))}
-            onClick={() => {
-              setSelectedRunId(r.id);
-              setArcadeMapView('list');
-            }}
-          />
+            onClick={() => setSelectedRunId(r.id)}
+          >
+            <Popup
+              className="runnit-arcade-marker-popup"
+              maxWidth={280}
+              minWidth={225}
+              autoPan
+              autoPanPaddingTopLeft={[12, 155]}
+              autoPanPaddingBottomRight={[12, 105]}
+              closeButton
+            >
+              <ArcadeRunCard
+                entry={arcadeRuns[index]}
+                variant="popup"
+                onJoin={joinArcadeRun}
+                onCancel={cancelArcadeRun}
+              />
+            </Popup>
+          </MapBadgeMarker>
         ))}
       </MapContainer>
 
@@ -1551,21 +1584,8 @@ export default function MapScreen() {
         hasGps={Boolean(userCoords)}
         entries={arcadeRuns}
         selectedId={selectedRunId}
-        onJoin={(id) => {
-          const run = openRuns.find((item) => item.id === id);
-          if (run) { void handleJoinRun(run); }
-        }}
-        onCancel={(id) => {
-          const run = openRuns.find((item) => item.id === id);
-          if (run && authUser?.id === run.hostUserId) {
-            handleCancelHostedRun({
-              id: run.id,
-              hostUserId: run.hostUserId ?? '',
-              distanceMeters: run.distanceMeters,
-              createdAt: run.createdAt ?? null,
-            });
-          }
-        }}
+        onJoin={joinArcadeRun}
+        onCancel={cancelArcadeRun}
         onHost={openHostRun}
         loading={loadingDuels}
       />

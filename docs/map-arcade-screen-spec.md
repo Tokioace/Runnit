@@ -41,3 +41,13 @@ Im vorherigen Preview überdeckten große Demo-Notiz, separate Renn-Grafik-Test-
 ## Nutzerentscheidung: drei Karten-Fenster entfernen (15.11.2026)
 
 Auf ausdrücklichen Wunsch wurden die permanenten **1v1-DUELL-Vorschau**, **RENNEN VERANSTALTEN** und **RANGLISTE**-Karten aus der Karte entfernt. KARTE zeigt die echte Map, Standort, Radar, Pins und BottomDock ohne die drei überdeckenden Panels. Das Antippen eines Rennmarkers öffnet jetzt **LISTE** und sortiert das gewählte Rennen nach oben; dort sind BEITRETEN und bei eigenen Rennen ABSAGEN erreichbar. **RENNEN VERANSTALTEN** steht als durchgehend verfügbarer Button oben in LISTE, auch wenn bereits Rennen existieren. RANGLISTE bleibt über die untere Navigation erreichbar. Die OSM-Attribution wurde knapp oberhalb der Navigation positioniert. Die eigentlichen Auth-, Join-, Host- und Cancel-Handler sowie die Rennengine bleiben unverändert. Dieser neue Zustand benötigt iPhone-Sichtabnahme vor Merge.
+
+
+## Nutzerkorrektur: spezifisches Renn-Popup ≠ Rennliste (15.11.2026)
+
+Auf Wunsch gibt es jetzt zwei **getrennte Interaktionswege**:
+
+- **KARTE:** Antippen eines Eventmarkers öffnet ein **kleines an genau diesem geografischen Punkt verankertes Leaflet-Popup** für das getippte Rennen. Das Popup zeigt nur dieses Rennen mit Host, Streckenlänge, aus echtem GPS berechnetem Abstand (falls vorhanden), Teilnehmerstatus, Demo-Kennzeichnung und sicherem **BEITRETEN** bzw. **ABSAGEN**. Automatisches Verschieben der Karte erhält Platz unter der Kopfzeile und über dem unteren Dock. Tippen auf eine andere Markierung tauscht das Popup; Schließen erfolgt durch Leaflet-X oder Karten-Tap. Kein Wechsel in LISTE.
+- **LISTE:** zeigt unabhängig alle offenen Rennen in der bekannten 5-km-Suche, mit Erstellung, Beitreten und Absagen. Die Liste bleibt ein separater, bewusst vom Popup unterschiedener Screen-Zustand.
+
+Beide Oberflächen verwenden dieselben aus `openRuns` abgeleiteten sicheren Daten und dieselben Auth-/Join-/Cancel-Handler, damit keine doppelte Logik entsteht. Die drei vorher ausdrücklich entfernten großen Dauerfenster bleiben entfernt. Die Popups sind **nur auf Marker-Tap** sichtbar und keine permanente Karte-in-der-Karte.

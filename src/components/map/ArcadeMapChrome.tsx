@@ -27,14 +27,15 @@ function distanceLabel(meters: number | null): string {
   if (meters >= 1000) return (meters / 1000).toFixed(1).replace('.', ',') + ' km entfernt';
   return Math.round(meters) + ' m entfernt';
 }
-function ArcadeRunCard({ entry, onJoin, onCancel, selected = false }: {
+export function ArcadeRunCard({ entry, onJoin, onCancel, selected = false, variant = 'list' }: {
   entry: ArcadeMapEntry;
   onJoin: (id: string) => void;
   onCancel: (id: string) => void;
   selected?: boolean;
+  variant?: 'list' | 'popup';
 }) {
   return (
-    <article className={'runnit-arcade-map-race is-list-card' + (selected ? ' is-selected' : '')} aria-label={'1v1-Duell, ' + entry.distanceMeters + ' Meter'}>
+    <article className={'runnit-arcade-map-race ' + (variant === 'popup' ? 'is-popup-card' : 'is-list-card') + (selected ? ' is-selected' : '')} aria-label={'1v1-Duell, ' + entry.distanceMeters + ' Meter'}>
       <div className="runnit-arcade-map-race-thumb" aria-hidden="true"><Swords /></div>
       <div className="runnit-arcade-map-race-info">
         <div className="runnit-arcade-map-race-title">1v1 <span>DUELL</span></div>

@@ -16,9 +16,9 @@ test('map styling preserves live Leaflet tiles, radar and secure original race h
   assert.match(map, /requireRaceAccount/);
   assert.match(map, /openRuns\.map/);
   assert.match(map, /<BottomNav/);
-  assert.doesNotMatch(map, /<Popup>/);
+  assert.match(map, /<Popup/);
   assert.match(map, /setSelectedRunId\(r\.id\)/);
-  assert.match(map, /setArcadeMapView\('list'\)/);
+  assert.match(map, /<ArcadeRunCard/);
   assert.match(map, /runnit-arcade-demo-chip/);
   assert.match(map, /Demo-Modus: einige Spieler oder Rennen sind frei erfunden/);
 });
@@ -55,7 +55,7 @@ test('mobile map has one event detail card, compact provenance and no separate f
   const map = read('src/screens/MapScreen.tsx');
   const chrome = read('src/components/map/ArcadeMapChrome.tsx');
   const styles = read('src/styles/arcadeMap.css');
-  assert.doesNotMatch(map, /<Popup>|<Popup\b/);
+  assert.match(map, /<Popup/);
   assert.doesNotMatch(map, /runnit-map-demo-link/);
   assert.match(map, /runnit-arcade-demo-chip/);
   assert.match(map, /DEMO · BEISPIELRENNEN/);
@@ -78,4 +78,27 @@ test('map is free of three removed cards; buttons remain reachable via the list 
   assert.match(map, /onHost=\{openHostRun\}/);
   assert.match(map, /setArcadeMapView\('list'\)/);
   assert.match(dock, /Rangliste|RANGLISTE|leaderboard/);
+});
+
+
+test('tapping a race marker opens its own anchored popup, not the list', () => {
+  const map = read('src/screens/MapScreen.tsx');
+  const chrome = read('src/components/map/ArcadeMapChrome.tsx');
+  const styles = read('src/styles/arcadeMap.css');
+  const markerBlock = map.split('/* Marker details are an anchored Leaflet popup')[1]?.split('</MapContainer>')[0] || '';
+  assert.match(markerBlock, /openRuns\.map\(\(r, index\) =>/);
+  assert.match(markerBlock, /onClick=\{\(\) => setSelectedRunId\(r\.id\)\}/);
+  assert.match(markerBlock, /<Popup/);
+  assert.match(markerBlock, /<ArcadeRunCard/);
+  assert.match(markerBlock, /entry=\{arcadeRuns\[index\]\}/);
+  assert.doesNotMatch(markerBlock, /setArcadeMapView\('list'\)/);
+  assert.match(markerBlock, /autoPanPaddingTopLeft/);
+  assert.match(markerBlock, /autoPanPaddingBottomRight/);
+  assert.match(chrome, /variant\?: 'list' \| 'popup'/);
+  assert.match(chrome, /entries\.length\} angezeigt/);
+  assert.match(chrome, /orderedEntries\.map/);
+  assert.match(styles, /\.leaflet-popup\.runnit-arcade-marker-popup/);
+  assert.doesNotMatch(chrome, /runnit-arcade-map-preview/);
+  assert.match(map, /onJoin=\{joinArcadeRun\}/);
+  assert.match(map, /onCancel=\{cancelArcadeRun\}/);
 });
