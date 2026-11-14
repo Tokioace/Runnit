@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Activity, ArrowRight, BarChart3, ChevronRight, Crown, Flag, Flame, Footprints, Globe2, MapPin, Settings, ShieldCheck, Swords, Timer, Trophy, UserRound, Zap } from 'lucide-react';
 import BottomNav from '../components/ui/BottomNav';
 
@@ -20,6 +21,13 @@ type DashboardProps = { displayName?: string | null };
 
 export default function DashboardScreen({ displayName }: DashboardProps) {
   const nickname = displayName || 'GAST';
+  const location = useLocation();
+
+  // The fifth dock tab is a real jump to the activity block, not a dead UI tile.
+  useEffect(() => {
+    if (location.hash !== '#aktivitaet') return;
+    document.getElementById('aktivitaet')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }, [location.hash]);
   return (
     <main className="runnit-game-home relative min-h-[100dvh] w-full max-w-full overflow-x-clip text-white">
       <div className="runnit-game-content relative z-10 mx-auto w-full max-w-[680px] px-3 pb-[calc(8rem+env(safe-area-inset-bottom,0px))] pt-[max(1rem,env(safe-area-inset-top))] sm:px-5">

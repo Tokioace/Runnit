@@ -38,3 +38,10 @@ test('dashboard theme is separate from preserved launch artwork', () => {
   assert.match(css, /overflow-x: clip/);
   assert.match(read('src/screens/HomeScreen.tsx'), /runnit-launch-portrait\.avif/);
 });
+
+test('Stats dock hash scrolls to actual activity panel', () => {
+  const src = read('src/screens/DashboardScreen.tsx');
+  assert.match(src, /useLocation\(\)/);
+  assert.match(src, /location\.hash !== '#aktivitaet'/);
+  assert.match(src, /scrollIntoView/);
+});
