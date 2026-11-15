@@ -88,7 +88,7 @@
    button alone is zoom-scaled, so tiny distant markers cannot drift or clamp
    at the edge of a tilted/rotated map. */
 .runnit-map-arcade .runnit-gl-marker-shell{
-  position:relative;width:42px;height:44px;pointer-events:none;
+  position:absolute;width:42px;height:44px;pointer-events:none;
 }
 .runnit-map-arcade .runnit-gl-marker-shell.is-runner{width:43px;height:43px}
 .runnit-map-arcade .runnit-gl-marker-shell.is-gps{width:29px;height:29px}
