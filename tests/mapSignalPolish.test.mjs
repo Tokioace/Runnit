@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { groupOverlappingRuns } from '../src/lib/mapRunGrouping.ts';
+import { buildCommunityCollections } from '../src/lib/mapCommunityLayers.ts';
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
 test('overlapping real races collapse, with own race anchoring a mixed badge', () => {
@@ -79,4 +80,18 @@ test('own open race uses smaller mobile popup without weakening cancellation che
   assert.match(screen,/runnit-cancel-panel/);
   assert.match(screen,/aria-modal="true" aria-labelledby="cancel-hosted-title"/);
   assert.match(arcadeCss,/runnit-cancel-confirm/);
+});
+
+
+test('community overview never inflates race count with unverified participant locations', () => {
+  const collection = buildCommunityCollections([
+    {id:'race-1',lat:48.94,lng:9.41,kind:'race',isOwn:true},
+    {id:'local-inferred',lat:48.95,lng:9.42,kind:'player'},
+    {id:'demo-runner',lat:48.96,lng:9.43,kind:'demo-player'},
+    {id:'demo-race',lat:48.97,lng:9.44,kind:'demo-race'},
+  ], {lat:48.98,lng:9.4});
+  assert.equal(collection.real.features.length, 1);
+  assert.equal(collection.demo.features.length, 2);
+  assert.equal(collection.gps.features.length, 1);
+  assert.deepEqual(collection.real.features[0].geometry.coordinates, [9.41,48.94]);
 });
