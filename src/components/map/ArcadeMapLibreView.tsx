@@ -19,6 +19,7 @@ const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 const BUILDING_TILES = 'https://tiles.openfreemap.org/planet';
 const RADAR_ID = 'runnit-gps-radar';
 const BUILDING_LAYER_ID = 'runnit-3d-buildings';
+const COUNTRY_GLOW_LAYER_ID = 'runnit-country-boundary-glow';
 const PITCH_DEGREES = 46;
 const BEARING_DEGREES = -13;
 
@@ -80,7 +81,59 @@ function styleArcadeMap(map: GLMap) {
   for (const layer of map.getStyle().layers ?? []) {
     const name = layer.id.toLowerCase();
     try {
-      if (layer.type === 'background') {
+      if (layer.type === 'raster' && name === 'natural_earth') {
+        // Default hillshading gives low-zoom land large grey patches. Preserve
+        // subtle relief while giving the network map its dark arcade contrast.
+        map.setPaintProperty(layer.id, 'raster-opacity',
+          ['interpolate', ['linear'], ['zoom'], 0, 0.22, 4, 0.12, 7, 0.02, 10, 0]);
+      } else if (layer.type === 'line' && name === 'boundary_2') {
+        // The OpenFreeMap Liberty country-border layer (admin_level=2).
+        map.setPaintProperty(layer.id, 'line-color', '#27e9ff');
+        map.setPaintProperty(layer.id, 'line-width',
+          ['interpolate', ['linear'], ['zoom'], 0, 1.1, 4, 1.7, 7, 1.9, 10, 1.3, 14, 0.85]);
+        map.setPaintProperty(layer.id, 'line-opacity',
+          ['interpolate', ['linear'], ['zoom'], 0, 0.75, 4, 0.95, 9, 0.88, 14, 0.38]);
+      } else if (layer.type === 'line' && name === 'boundary_3') {
+        // Internal states are much quieter so countries remain the hierarchy.
+        map.setPaintProperty(layer.id, 'line-color', '#3d8caa');
+        map.setPaintProperty(layer.id, 'line-opacity',
+          ['interpolate', ['linear'], ['zoom'], 4, 0.13, 9, 0.25, 13, 0.13]);
+        map.setPaintProperty(layer.id, 'line-width', 0.85);
+      } else if (layer.type === 'line' && name === 'boundary_disputed') {
+        // Preserve the style's dashed disputed-boundary semantics.
+        map.setPaintProperty(layer.id, 'line-color', '#3aa9c2');
+        map.setPaintProperty(layer.id, 'line-opacity', 0.55);
+      } else if (layer.type === 'line' && name === 'park_outline') {
+        // The bright mint/green perimeter seen around woodland park polygons
+        // is not a country border. Lower its intensity rather than highlighting it.
+        map.setPaintProperty(layer.id, 'line-color', '#285668');
+        map.setPaintProperty(layer.id, 'line-opacity',
+          ['interpolate', ['linear'], ['zoom'], 3, 0.03, 9, 0.14, 15, 0.32]);
+        map.setPaintProperty(layer.id, 'line-width', 0.75);
+      } else if (layer.type === 'fill' && name === 'park') {
+        map.setPaintProperty(layer.id, 'fill-color', '#153544');
+        map.setPaintProperty(layer.id, 'fill-outline-color', '#285665');
+        map.setPaintProperty(layer.id, 'fill-opacity',
+          ['interpolate', ['linear'], ['zoom'], 3, 0.18, 9, 0.33, 15, 0.62]);
+      } else if (layer.type === 'fill' && name.startsWith('landcover_')) {
+        const ice = name.includes('ice');
+        const sand = name.includes('sand');
+        const wetland = name.includes('wetland');
+        // Unify forest/grass/sand/wetland/ice silhouettes at far zoom.
+        // At street zoom retain subtle landscape differentiation.
+        if (wetland) map.setPaintProperty(layer.id, 'fill-pattern', null);
+        map.setPaintProperty(layer.id, 'fill-color',
+          ice ? '#517283' : sand ? '#30485a' : wetland ? '#17384b' : '#163746');
+        map.setPaintProperty(layer.id, 'fill-opacity',
+          ['interpolate', ['linear'], ['zoom'], 2, ice ? 0.27 : 0.16, 9, 0.3, 14, 0.58]);
+      } else if (layer.type === 'fill' && name.startsWith('landuse_')) {
+        // Residential/industrial and amenities used to remain pale grey;
+        // quiet them down without hiding streets or actual buildings.
+        const residential = name === 'landuse_residential';
+        map.setPaintProperty(layer.id, 'fill-color', residential ? '#183b50' : '#214355');
+        map.setPaintProperty(layer.id, 'fill-opacity',
+          ['interpolate', ['linear'], ['zoom'], 3, 0.13, 9, 0.26, 14, 0.58]);
+      } else if (layer.type === 'background') {
         map.setPaintProperty(layer.id, 'background-color',
           ['interpolate', ['linear'], ['zoom'], 2, '#071225', 7, '#0a1c34', 13, '#10243d']);
       } else if (layer.type === 'fill' && /building/.test(name)) {
@@ -106,6 +159,33 @@ function styleArcadeMap(map: GLMap) {
     } catch {
       // Optional style layers can have data-driven paint; never break base-map load.
     }
+  }
+  // Backlit cyan national borders reuse OpenFreeMap's actual boundary data,
+  // never hand-drawn approximations or fictional geometry. The verified
+  // Liberty style provides openmaptiles/boundary and boundary_2.
+  if (map.getSource('openmaptiles') && map.getLayer('boundary_2') &&
+      !map.getLayer(COUNTRY_GLOW_LAYER_ID)) {
+    map.addLayer({
+      id: COUNTRY_GLOW_LAYER_ID,
+      type: 'line',
+      source: 'openmaptiles',
+      'source-layer': 'boundary',
+      filter: ['all',
+        ['==', ['get', 'admin_level'], 2],
+        ['!=', ['get', 'maritime'], 1],
+        ['!=', ['get', 'disputed'], 1],
+        ['!', ['has', 'claimed_by']],
+      ],
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': '#17d5ff',
+        'line-width': ['interpolate', ['linear'], ['zoom'],
+          1, 3, 4, 6, 8, 5, 12, 2.5],
+        'line-opacity': ['interpolate', ['linear'], ['zoom'],
+          1, 0.22, 4, 0.32, 9, 0.23, 12, 0.08],
+        'line-blur': 2.8,
+      },
+    }, 'boundary_2');
   }
   if (!map.getSource('runnit-buildings-source')) {
     map.addSource('runnit-buildings-source', { type: 'vector', url: BUILDING_TILES });
