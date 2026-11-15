@@ -416,7 +416,6 @@ export default function ArcadeMapLibreView({
   const activeRunPopupRef = useRef<Popup | null>(null);
   const hostPopupRef = useRef<Popup | null>(null);
   const hostSelectionMarkerRef = useRef<Marker | null>(null);
-  const hostCreatingRef = useRef(false);
   const atmosphereRef = useRef<HTMLDivElement | null>(null);
   const ignoreMapClickUntilRef = useRef(0);
   const visiblePlayersRef = useRef<Array<{ marker: Marker; point: MapCoordinate }>>([]);
@@ -748,15 +747,6 @@ export default function ArcadeMapLibreView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
-  // Keep the geographic pulse alive while the user configures/saves a race.
-  // Only the confirmed creation or dialog cancellation clears the selection.
-  useEffect(() => {
-    if (hostDialogOpen || hostLocation || !hostCreatingRef.current) return;
-    hostCreatingRef.current = false;
-    hostSelectionMarkerRef.current?.remove();
-    hostSelectionMarkerRef.current = null;
-  }, [hostDialogOpen, hostLocation?.lat, hostLocation?.lng]);
-
   // Long-press is reserved for empty map canvas, not for a marker or a UI tab.
   // A drag or pinch cancels it; desktop right-click is an equivalent gesture.
   useEffect(() => {
@@ -772,18 +762,22 @@ export default function ArcadeMapLibreView({
       pressTimer = null;
       origin = null;
     };
+    // Preview pulse exists ONLY while the "RENNEN HIER" chooser is visible.
+    // Never retain it beneath a real event flag or the next setup dialog.
+    const clearHostSelection = () => {
+      hostSelectionMarkerRef.current?.remove();
+      hostSelectionMarkerRef.current = null;
+    };
     const closeHostPopup = () => {
       hostPopupRef.current?.remove();
       hostPopupRef.current = null;
+      clearHostSelection();
     };
     const openAt = (position: MapCoordinate) => {
       if (Date.now() - lastOpened < 900) return;
       lastOpened = Date.now();
       ignoreMapClickUntilRef.current = Date.now() + 900;
-      hostCreatingRef.current = false;
       closeHostPopup();
-      hostSelectionMarkerRef.current?.remove();
-      hostSelectionMarkerRef.current = null;
       const gps = latestGpsRef.current;
       if (!validMapPoint(gps)) {
         callbacks.current.onInvalidHostAt('Zum Platzieren eines Rennens benötigst du einen GPS-Standort.');
@@ -816,7 +810,8 @@ export default function ArcadeMapLibreView({
       create.textContent = 'WEITER ›';
       create.addEventListener('click', (event) => {
         event.stopPropagation();
-        hostCreatingRef.current = true;
+        // Leaving the point-picker removes its marker IMMEDIATELY;
+        // a confirmed duel replaces it with the normal event flag.
         closeHostPopup();
         callbacks.current.onHostAt(position);
       });
@@ -832,15 +827,14 @@ export default function ArcadeMapLibreView({
       popup.setPadding({ top: 175, right: 15, bottom: 145, left: 15 });
       popup.on('close', () => {
         if (hostPopupRef.current === popup) hostPopupRef.current = null;
-        setPopupVisible(Boolean(hostPopupRef.current || activeRunPopupRef.current));
-        if (!hostCreatingRef.current) {
-          hostSelectionMarkerRef.current?.remove();
-          hostSelectionMarkerRef.current = null;
-        }
+        setPopupVisible(Boolean(activeRunPopupRef.current));
+        clearHostSelection();
       });
       popup.addTo(map);
       hostPopupRef.current = popup;
-      setPopupVisible(true);
+      // The chooser lives on the map canvas, away from the 2D/3D rail.
+      // Only an actual race detail popup needs to obscure tilt controls.
+      setPopupVisible(false);
     };
 
     const pointFromPointer = (ev: PointerEvent) => {
@@ -1076,7 +1070,7 @@ export default function ArcadeMapLibreView({
           if (expiryInterval !== null) window.clearInterval(expiryInterval);
           document.removeEventListener('visibilitychange', onPageVisible);
           if (activeRunPopupRef.current === popup) activeRunPopupRef.current = null;
-          setPopupVisible(Boolean(activeRunPopupRef.current || hostPopupRef.current));
+          setPopupVisible(Boolean(activeRunPopupRef.current));
         });
         popup.addTo(map);
         activeRunPopupRef.current = popup;
