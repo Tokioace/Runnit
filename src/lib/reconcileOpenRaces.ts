@@ -1,7 +1,7 @@
 /** Merge a refreshed set of discovered open races without jumping the list.
  * A confirmed locally hosted open race is retained until the host leaves or
  * realtime reports cancellation/match. Never mutate a previous array. */
-export type IdentifiedRace = { id: string; hostUserId: string };
+export type IdentifiedRace = { id: string; hostUserId?: string };
 export function reconcileOpenRaces<T extends IdentifiedRace>(
   previous: readonly T[], discovered: readonly T[], ownHostId: string,
 ): T[] {
