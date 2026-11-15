@@ -227,3 +227,68 @@
   .runnit-map-arcade .runnit-gl-host-pulse::after,
   .runnit-map-arcade .runnit-gl-distance-atmosphere::after{animation:none}
 }
+
+
+/* A group badge represents ACTUAL adjacent race pins; the real locations
+   remain unchanged. Pink/lime return automatically as the pins separate. */
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-run-group,
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own.is-run-group{
+  display:grid;place-items:center;
+  width:40px;height:40px;border-radius:50%;
+  border:2px solid #6beaff;
+  background:linear-gradient(145deg,#29649a,#171a56)!important;
+  color:#f7fcff;text-shadow:0 0 8px #6aedff;
+  box-shadow:inset 0 1px #dbf8ff,0 0 0 3px rgba(44,218,255,.18),0 0 17px #3ddeff;
+}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-run-group::after{display:none}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-run-group .runnit-gl-marker-glyph{display:none}
+.runnit-map-arcade .runnit-gl-run-group-count{
+  display:grid;place-items:center;font:italic 1000 18px/1 system-ui,sans-serif;
+  min-width:24px;min-height:24px;color:#f3ffff;
+}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-gps{
+  width:23px;height:23px;border-width:3px;
+  box-shadow:0 0 0 4px #18cefa42,0 0 10px #30b8fa99;
+}
+
+/* Private own-race detail: strong CTA but not an oversized map billboard. */
+.runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup.is-own-popup{
+  max-width:min(242px,calc(100vw - 38px))!important;
+  width:min(242px,calc(100vw - 38px))!important;
+}
+.runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup.is-own-popup .maplibregl-popup-content{
+  padding:7px;border-radius:12px 3px 12px 3px;
+  box-shadow:0 0 11px #48dffb66,0 7px 22px #030917bc;
+}
+.runnit-map-arcade .runnit-gl-run-details.is-own-run{
+  width:100%;min-width:0;max-width:none;
+  padding:4px;line-height:1.25;font-size:11px;
+}
+.runnit-map-arcade .runnit-gl-run-details.is-own-run .runnit-gl-run-title{
+  font-size:17px;letter-spacing:-.045em;margin-bottom:5px;
+}
+.runnit-map-arcade .runnit-gl-run-details.is-own-run p{margin:3px 0!important;font-size:10px}
+.runnit-map-arcade .runnit-gl-run-details.is-own-run .runnit-gl-run-cta{
+  min-height:40px;margin-top:7px;font-size:12px;
+}
+@media(max-width:650px){
+  .runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup.is-own-popup{
+    width:min(242px,calc(100vw - 38px))!important;
+    bottom:calc(124px + env(safe-area-inset-bottom,0px))!important;
+  }
+}
+
+/* The country map is an atmosphere, not a claim of fake activity. All signal
+   rings are rendered from actual open-race coordinates; the global overlay is
+   purely decorative, light, and never intercepts gestures. */
+.runnit-map-arcade .runnit-gl-distance-atmosphere{
+  background:
+    radial-gradient(ellipse 105% 78% at 52% 54%,transparent 26%,rgba(2,8,28,.32) 78%,rgba(2,8,24,.60)),
+    repeating-linear-gradient(0deg,transparent 0 85px,rgba(80,226,254,.082) 86px,transparent 88px),
+    repeating-linear-gradient(90deg,transparent 0 104px,rgba(80,226,254,.07) 105px,transparent 107px),
+    linear-gradient(125deg,rgba(7,35,80,.16),transparent 50%,rgba(22,9,70,.18));
+}
+.runnit-map-arcade .runnit-gl-distance-atmosphere::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(160deg,transparent 40%,rgba(46,181,255,.075) 50%,transparent 60%);
+}
