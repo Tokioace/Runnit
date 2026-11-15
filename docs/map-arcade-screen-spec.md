@@ -51,3 +51,12 @@ Auf Wunsch gibt es jetzt zwei **getrennte Interaktionswege**:
 - **LISTE:** zeigt unabhängig alle offenen Rennen in der bekannten 5-km-Suche, mit Erstellung, Beitreten und Absagen. Die Liste bleibt ein separater, bewusst vom Popup unterschiedener Screen-Zustand.
 
 Beide Oberflächen verwenden dieselben aus `openRuns` abgeleiteten sicheren Daten und dieselben Auth-/Join-/Cancel-Handler, damit keine doppelte Logik entsteht. Die drei vorher ausdrücklich entfernten großen Dauerfenster bleiben entfernt. Die Popups sind **nur auf Marker-Tap** sichtbar und keine permanente Karte-in-der-Karte.
+
+
+## MapLibre Vector-3D Upgrade — 15.11.2026
+
+Eigenständige MapLibre GL v6-Engine statt Leaflet-Rastermap. OpenFreeMap Liberty liefert API-keyfreie OSM-Vektortiles. Die Stile werden in `ArcadeMapLibreView` überschrieben: Straßen hell graublau (Hauptstraße #b9d8e9, Nebenstraße #779bb9), Gebäude #3d5c77, Wasser #123852, dunkler Navy-Hintergrund. 3D `fill-extrusion` nur ab Zoom 14 aus echten OpenFreeMap-building-Tiles, geneigte Perspektive 46°, Drehung -13°. 3D/2D-Umschalter verschiebt Kamera, nicht GPS. OpenFreeMap/OpenMapTiles/OSM-Attribution bleibt sichtbar. MapLibre v6 Worker muss explizit mit Vite `?worker&url` gesetzt sein (ansonsten auf iOS oft leere Karte). Renderer besitzt keine Supabase-/Geolocation-Zugriffe; bestehender MapScreen liefert echte GPS-Daten, unveränderten 5-km-Radius, sichere Join/Cancel-Callbacks und eindeutig gekennzeichnete Demomarker. Echte Gebäudehöhen nur wo OSM vorhanden. Fehler führen weiterhin zur bestehenden Retry-Nachricht. iPhone WebGL/3D-Abnahme offen.
+
+
+### Bugfix: Marker-Popup bei verschobener Karte (15.11.2026)
+Wenn ein entfernter pinker Marker angeklickt wird, erzeugt MapLibre nun **genau ein Popup mit den GPS-Koordinaten dieses Events** (`[lng,lat]`), unabhängig vom aktuellen Standort des Zuschauers. Die alte gemeinsame Marker-/Popup-Neuerstellung auf **jedem GPS-Fix** wurde getrennt in drei React-Effekte für Benutzer-GPS-Punkt, Demoläufer und Renn-Events. Die Rennmarker-Identität berücksichtigt ausschließlich stabile Eventdaten, nicht laufend berechnete Entfernung. Das Popup bleibt beim Verschieben und Zoomen am Event. Ein Ereignis nahe einer von Tabs oder Dock verdeckten Kante wird vorsichtig **zum Ereignis** und nicht zum Nutzerzentrum nachgeführt. Es schließt per X oder Tippen auf die freie Karte; LISTE zeigt separat alle Rennen. Grüner/gelber Läufer -> unverändert Rangliste.

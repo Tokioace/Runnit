@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { getTileLayerUrls } from './helpers/mapTileUrls.mjs';
+import { getMapLibreStyleUrls } from './helpers/mapLibreStyleUrls.mjs';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
@@ -38,17 +38,19 @@ test('mobile sheet appears above the map buttons and has an accessible close con
   assert.match(sheet, /safe-area-inset-bottom/);
 });
 
-test('revised map keeps keyless OSM tiles, map state and real GPS controls', () => {
+test('revised map keeps keyless OSM vector tiles, map state and real GPS controls', () => {
   const map = read('src/screens/MapScreen.tsx');
-  assert.deepEqual(getTileLayerUrls(map), ['https://tile.openstreetmap.org/{z}/{x}/{y}.png']);
+  assert.match(map, /<ArcadeMapLibreView/);
+  const vector = read('src/components/map/ArcadeMapLibreView.tsx');
+  assert.equal(getMapLibreStyleUrls(vector).STYLE_URL, 'https://tiles.openfreemap.org/styles/liberty');
   assert.match(map, /watchPosition/);
   assert.match(map, /<RaceOverlay/);
   assert.match(map, /submitDuelResult/);
   assert.match(map, /<BottomSheet/);
   assert.match(map, /<BottomNav/);
-  const css = read('src/index.css');
-  assert.match(css, /\.runnit-map \.leaflet-tile-pane/);
-  assert.match(css, /\.leaflet-control-attribution/);
+  const css = read('src/styles/maplibreArcade.css');
+  assert.match(css, /\.maplibregl-ctrl-attrib/);
+  assert.match(css, /safe-area-inset-bottom/);
 });
 
 test('restyling preserves demo provenance and does not invent real rankings', () => {

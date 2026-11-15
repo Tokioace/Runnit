@@ -1,10 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import ArcadeMapLibreView from '../components/map/ArcadeMapLibreView';
 import { LocateFixed } from 'lucide-react';
-import type { LatLngExpression } from 'leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { supabase } from '../lib/supabaseClient';
 import { useSupabaseUser } from '../hooks/useSupabaseUser';
 import { createDuel } from '../db/createDuel';
@@ -18,7 +15,7 @@ import BottomNav from '../components/ui/BottomNav';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { LeaderboardSheet } from '../components/leaderboard/Sheet';
 import { leaderboardSourceLabel, type LeaderboardSource } from '../lib/leaderboardProvenance';
-import ArcadeMapChrome, { ArcadeRunCard, type ArcadeMapEntry, type ArcadeMapView } from '../components/map/ArcadeMapChrome';
+import ArcadeMapChrome, { type ArcadeMapEntry, type ArcadeMapView } from '../components/map/ArcadeMapChrome';
 import { parseGeographyPoint } from '../lib/duelLocation';
 import { cancelHostedOpenDuel, cancelHostedDuelMessage, listHostedOpenDuels, type HostedOpenDuel } from '../db/cancelHostedDuel';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
@@ -174,120 +171,6 @@ function useUserLocation() {
 // Utility: format seconds to 0.00s string
 function formatSecondsToTimeString(seconds: number): string {
   return `${seconds.toFixed(2)}s`;
-}
-
-// Utility: create badge-like DivIcon (no external assets)
-type BadgeIconOptions = {
-  backgroundHex: string;
-  ringHex?: string;
-  contentHtml?: string; // inner HTML (emoji/text)
-  sizePx?: number;
-  showPing?: boolean;
-  pingColorHex?: string;
-  extraClassNames?: string;
-};
-
-function createBadgeDivIcon(options: BadgeIconOptions): L.DivIcon {
-  const {
-    backgroundHex,
-    ringHex = '#111827',
-    contentHtml = '',
-    sizePx = 36,
-    showPing = false,
-    pingColorHex = backgroundHex,
-    extraClassNames = '',
-  } = options;
-
-  const diameter = sizePx;
-  const half = diameter / 2;
-
-  // Use minimal inline styles to avoid external CSS
-  const html = `
-    <div style="position: relative; width: ${diameter}px; height: ${diameter}px;">
-      ${
-        showPing
-          ? `<span style="position:absolute; inset:0; border-radius:9999px; background:${pingColorHex}; opacity:0.35; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>`
-          : ''
-      }
-      <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; border-radius:9999px; background:${backgroundHex}; box-shadow: 0 0 0 3px ${ringHex}; color:#fff; font-size:${Math.max(12, Math.floor(sizePx/2.75))}px; font-weight:700;">
-        ${contentHtml}
-      </div>
-    </div>
-  `;
-
-  // Attach keyframes for ping if not already present
-  if (typeof document !== 'undefined') {
-    const styleId = 'runnit-ping-keyframes';
-    if (!document.getElementById(styleId)) {
-      const style = document.createElement('style');
-      style.id = styleId;
-      style.innerHTML = `@keyframes ping { 0% { transform: scale(1); opacity: 0.6; } 75%, 100% { transform: scale(2.25); opacity: 0; } }`;
-      document.head.appendChild(style);
-    }
-  }
-
-  return L.divIcon({
-    html,
-    className: `runnit-badge ${extraClassNames}`,
-    iconSize: [diameter, diameter],
-    iconAnchor: [half, half],
-    popupAnchor: [0, -half],
-  });
-}
-
-// Marker utility component
-type MapBadgeMarkerProps = {
-  position: LatLngExpression;
-  iconOptions: BadgeIconOptions;
-  children?: React.ReactNode;
-};
-
-function MapBadgeMarker(props: MapBadgeMarkerProps & { onClick?: () => void }) {
-  const { position, iconOptions, children, onClick } = props;
-  const icon = useMemo(() => createBadgeDivIcon(iconOptions), [iconOptions]);
-  return (
-    <Marker
-      position={position}
-      icon={icon}
-      eventHandlers={onClick ? { click: onClick } : undefined}
-    >
-      {children}
-    </Marker>
-  );
-}
-
-// Recenter map when position changes initially
-function RecenterOnUser({ position, trigger }: { position: Coordinates | null; trigger?: number }) {
-  const map = useMap();
-  const hasCenteredRef = useRef(false);
-  const lastTriggerRef = useRef<number | undefined>(undefined);
-
-  useEffect(() => {
-    const triggerChanged = lastTriggerRef.current !== trigger;
-    if (position && (!hasCenteredRef.current || triggerChanged)) {
-      map.setView([position.lat, position.lng], Math.max(map.getZoom(), 16), {
-        animate: true,
-      });
-      hasCenteredRef.current = true;
-      lastTriggerRef.current = trigger;
-    }
-  }, [map, position, trigger]);
-
-  return null;
-}
-
-function RecenterOnIp({ position }: { position: Coordinates | null }) {
-  const map = useMap();
-  const hasCenteredRef = useRef(false);
-  useEffect(() => {
-    if (position && !hasCenteredRef.current) {
-      map.setView([position.lat, position.lng], Math.max(map.getZoom(), 13), {
-        animate: true,
-      });
-      hasCenteredRef.current = true;
-    }
-  }, [map, position]);
-  return null;
 }
 
 // Utility: convert hsl() to hex via canvas (ensures stable colorHex)
@@ -1067,11 +950,25 @@ export default function MapScreen() {
     };
   }, [userCoords, ipCoords]);
 
+  // Keep sample race locations stable while the user pans/zooms or GPS drifts.
+  // Regenerate only after a substantial actual move, never per ~10 m GPS fix.
+  const [demoOrigin, setDemoOrigin] = useState<Coordinates | null>(null);
+  useEffect(() => {
+    if (!userCoords) return;
+    setDemoOrigin(previous => {
+      if (!previous ||
+          haversineM(previous.lat, previous.lng, userCoords.lat, userCoords.lng) > 750) {
+        return { lat: userCoords.lat, lng: userCoords.lng };
+      }
+      return previous;
+    });
+  }, [userCoords?.lat, userCoords?.lng]);
+
   // Stable demo runs generator
   const generateDemoRuns = useMemo(() => {
-    if (!userCoords) return [];
-    
-    const seed = `demo-runs-${Math.floor(userCoords.lat * 10000)}-${Math.floor(userCoords.lng * 10000)}`;
+    if (!demoOrigin) return [];
+
+    const seed = `demo-runs-${Math.floor(demoOrigin.lat * 10000)}-${Math.floor(demoOrigin.lng * 10000)}`;
     const rng = seededRandom(seed);
     const demoHosts = ['ChallengeMaster', 'RaceKing', 'SprintQueen'];
     const distances = [50, 75, 100];
@@ -1082,13 +979,13 @@ export default function MapScreen() {
       hostUsername: demoHosts[i],
       distanceMeters: distances[i],
       location: {
-        lat: userCoords.lat + (rng() - 0.5) * 0.005, // ~250m radius
-        lng: userCoords.lng + (rng() - 0.5) * 0.005,
+        lat: demoOrigin.lat + (rng() - 0.5) * 0.005, // ~250m radius
+        lng: demoOrigin.lng + (rng() - 0.5) * 0.005,
       },
       createdAt: new Date(Date.now() - rng() * 300000).toISOString(), // Stable time in last 5 min
       targetDistanceM: distances[i],
     }));
-  }, [userCoords ? Math.floor(userCoords.lat * 10000) : 0, userCoords ? Math.floor(userCoords.lng * 10000) : 0]);
+  }, [demoOrigin?.lat, demoOrigin?.lng]);
 
   // Guests see clearly labeled sample challenges, not private Supabase rows.
   // Load nearby open duels - with demo data fallback
@@ -1366,43 +1263,6 @@ export default function MapScreen() {
     }
   };
 
-  // Icons
-  const userIconOptions: BadgeIconOptions = useMemo(
-    () => ({
-      backgroundHex: '#2563eb',
-      ringHex: '#0b0b0d',
-      contentHtml: '',
-      sizePx: 18,
-      showPing: true,
-      pingColorHex: '#3b82f6',
-      extraClassNames: 'user-badge',
-    }),
-    []
-  );
-
-  function getPlayerIconOptions(player: Player): BadgeIconOptions {
-    return {
-      backgroundHex: '#a16207', // amber-700
-      ringHex: '#fbbf24', // amber-400 ring for gold look
-      contentHtml: '👻',
-      sizePx: 28,
-      showPing: false,
-      extraClassNames: 'player-badge',
-    };
-  }
-
-  function getOpenRunIconOptions(isOwn: boolean): BadgeIconOptions {
-    return {
-      backgroundHex: isOwn ? '#4c7109' : '#6127ac',
-      ringHex: isOwn ? '#caff09' : '#fa41e3',
-      contentHtml: '🏃',
-      sizePx: 34,
-      showPing: true,
-      pingColorHex: isOwn ? '#caff09' : '#e92ce8',
-      extraClassNames: 'openrun-badge',
-    };
-  }
-
   // Both views use the exact same secure callbacks; the popup never bypasses
   // authentication, server confirmation or the existing cancel dialog.
   const joinArcadeRun = (id: string) => {
@@ -1432,82 +1292,31 @@ export default function MapScreen() {
 
   return (
     <div className="runnit-map runnit-map-arcade relative h-[100dvh] w-full max-w-full overflow-hidden bg-[#090b13] text-white">
-      <MapContainer
-        center={[center.lat, center.lng]}
-        zoom={initialZoom}
-        zoomControl={false}
-        className="h-full w-full"
-        style={{ height: '100%', width: '100%' }}
-        preferCanvas
-      >
-        <TileLayer
-          key={tileRetryCount}
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-          eventHandlers={{
-            tileerror: () => setMapTilesUnavailable(true),
-            tileload: () => setMapTilesUnavailable(false),
-          }}
-        />
-
-        <RecenterOnUser position={userCoords} trigger={recenterTick} />
-        <RecenterOnIp position={ipCoords} />
-        {/* Georeferenced scan ring only for a genuine browser GPS fix, never IP. */}
-        {userCoords && (
-          <Circle
-            center={[userCoords.lat, userCoords.lng]}
-            radius={500}
-            interactive={false}
-            pathOptions={{ color: '#18edff', fillColor: '#17defc', fillOpacity: 0.055, opacity: 0.92, weight: 2, dashArray: '7 6', className: 'runnit-arcade-map-radar' }}
-          />
-        )}
-
-        {userCoords ? (
-          <MapBadgeMarker
-            position={[userCoords.lat, userCoords.lng]}
-            iconOptions={userIconOptions}
-          />
-        ) : null}
-
-        {/* Privacy: server-backed ghost results have no runner coordinates.
-            Show them in the leaderboard only, never place them at a fake city-centre point. */}
-        {players.filter((p) => p.source !== 'server-unverified').map((p) => (
-          <MapBadgeMarker
-            key={p.id}
-            position={[p.location.lat, p.location.lng]}
-            iconOptions={getPlayerIconOptions(p)}
-            onClick={() => setGhostOpen(true)}
-          />
-        ))}
-
-        {/* Marker details are an anchored Leaflet popup for ONE run. LISTE
-            separately displays ALL open runs. Neither is a permanent overlay. */}
-        {openRuns.map((r, index) => (
-          <MapBadgeMarker
-            key={r.id}
-            position={[r.location.lat, r.location.lng]}
-            iconOptions={getOpenRunIconOptions(Boolean(authUser && r.hostUserId && authUser.id === r.hostUserId))}
-            onClick={() => setSelectedRunId(r.id)}
-          >
-            <Popup
-              className="runnit-arcade-marker-popup"
-              maxWidth={280}
-              minWidth={225}
-              autoPan
-              autoPanPaddingTopLeft={[12, 155]}
-              autoPanPaddingBottomRight={[12, 105]}
-              closeButton
-            >
-              <ArcadeRunCard
-                entry={arcadeRuns[index]}
-                variant="popup"
-                onJoin={joinArcadeRun}
-                onCancel={cancelArcadeRun}
-              />
-            </Popup>
-          </MapBadgeMarker>
-        ))}
-      </MapContainer>
+      <ArcadeMapLibreView
+        initialCenter={center}
+        initialZoom={initialZoom}
+        userCoords={userCoords}
+        ipCoords={ipCoords}
+        recenterTick={recenterTick}
+        retryTick={tileRetryCount}
+        view={arcadeMapView}
+        players={players.filter((player) => player.source !== 'server-unverified').map((player) => ({
+          id: player.id,
+          location: player.location,
+          colorHex: player.colorHex,
+          source: player.source,
+        }))}
+        runs={openRuns.map((run, index) => ({
+          ...arcadeRuns[index],
+          location: run.location,
+        }))}
+        onSelectRun={setSelectedRunId}
+        onJoinRun={joinArcadeRun}
+        onCancelRun={cancelArcadeRun}
+        onGhostClick={() => setGhostOpen(true)}
+        onTilesLoaded={() => setMapTilesUnavailable(false)}
+        onTilesError={() => setMapTilesUnavailable(true)}
+      />
 
       {authUser && (hostedOpenDuels.length > 0 || hostedDuelsLoadError) && (
         <section aria-label="Meine offenen Rennen"
@@ -1547,7 +1356,7 @@ export default function MapScreen() {
         <div role="alert" className="runnit-arcade-alert pointer-events-auto absolute inset-x-4 top-24 z-[950] mx-auto max-w-sm rounded-2xl border border-rose-300/40 bg-[#1a1321]/95 p-4 text-sm text-white shadow-xl backdrop-blur">
           <p className="font-bold">Die Karte kann gerade nicht geladen werden.</p>
           <p className="mt-2 text-xs leading-5 text-white/70">
-            Prüfe deine Internetverbindung. Der Kartendienst konnte keine Kartenkacheln liefern.
+            Prüfe deine Internetverbindung. Der Vektorkartendienst konnte gerade keine Kartendaten liefern.
           </p>
           <div className="mt-3 flex gap-2">
             <button type="button" onClick={() => { setMapTilesUnavailable(false); setTileRetryCount((count) => count + 1); }}

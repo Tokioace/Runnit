@@ -2,7 +2,7 @@
 .runnit-map-arcade{isolation:isolate;background:#080e2d}
 .runnit-map-arcade .leaflet-tile-pane{filter:invert(.9) hue-rotate(172deg) brightness(.63) contrast(1.36) saturate(.9)}
 .runnit-map-arcade .leaflet-container{background:#08132a}
-.runnit-map-arcade::after{content:"";pointer-events:none;position:absolute;inset:0;z-index:400;background:linear-gradient(180deg,rgba(9,10,38,.23),transparent 27%,rgba(5,11,35,.04) 58%,rgba(4,7,28,.42) 100%)}
+.runnit-map-arcade::after{content:"";pointer-events:none;position:absolute;inset:0;z-index:400;background:linear-gradient(180deg,rgba(9,10,38,.06),transparent 27%,transparent 58%,rgba(4,7,28,.10) 100%)}
 .runnit-map-arcade .leaflet-control-attribution{background:rgba(3,10,29,.93)!important;color:#d9f5ff!important;box-shadow:0 0 5px rgba(0,0,0,.5)}
 .runnit-map-arcade .leaflet-bottom.leaflet-right{bottom:calc(5.8rem + env(safe-area-inset-bottom,0px));z-index:650}
 .runnit-map-arcade .leaflet-popup-content-wrapper,.runnit-map-arcade .leaflet-popup-tip{background:#071331;border:1px solid #59ecff;box-shadow:0 0 21px rgba(40,235,255,.4);color:#f9ffff}
