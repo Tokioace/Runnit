@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { parseGeographyPoint, type GeoCoordinates } from '../lib/duelLocation.ts';
+import { isOpenEventAvailable } from '../lib/duelExpiry.ts';
 
 /** Only the authenticated owner's still-open, unjoined duels can be cancelled. */
 export type HostedOpenDuel = Readonly<{
@@ -7,6 +8,7 @@ export type HostedOpenDuel = Readonly<{
   hostUserId: string;
   distanceMeters: number;
   createdAt: string | null;
+  expiresAt?: string | null;
   /** Own race's DB-confirmed location, so its lime flag survives a reload. */
   location?: GeoCoordinates | null;
 }>;
@@ -24,7 +26,7 @@ function isUuid(value: string): boolean {
 export async function listHostedOpenDuels(client: DuelClient, hostUserId: string): Promise<HostedOpenDuel[]> {
   if (!isUuid(hostUserId)) return [];
   const { data, error } = await client.from('duels')
-    .select('id, host_user_id, target_distance_m, created_at, location')
+    .select('id, host_user_id, target_distance_m, created_at, expires_at, location')
     .eq('host_user_id', hostUserId)
     .eq('status', 'open')
     .is('challenger_user_id', null)
@@ -32,13 +34,15 @@ export async function listHostedOpenDuels(client: DuelClient, hostUserId: string
     .limit(20);
   if (error) throw error;
   return (data ?? [])
-    .filter(row => typeof row.id === 'string' && isUuid(row.id) && row.host_user_id === hostUserId)
+    .filter(row => typeof row.id === 'string' && isUuid(row.id) && row.host_user_id === hostUserId &&
+      (typeof row.expires_at !== 'string' || isOpenEventAvailable(row.expires_at)))
     .map(row => ({
       id: row.id,
       hostUserId: row.host_user_id,
       distanceMeters: Number.isFinite(row.target_distance_m) && row.target_distance_m > 0
         ? row.target_distance_m : 100,
       createdAt: typeof row.created_at === 'string' ? row.created_at : null,
+      expiresAt: typeof row.expires_at === 'string' ? row.expires_at : null,
       location: parseGeographyPoint(row.location),
     }));
 }
