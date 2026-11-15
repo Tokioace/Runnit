@@ -493,3 +493,40 @@
   .runnit-hotspot-test-console.is-expanded{width:calc(100% - 94px)}
   .runnit-hotspot-test-cities button{font-size:9px}
 }
+
+
+/* 2000s chrome/acrylic sheen for the compact demo control. Map icons are
+   pre-rasterized in src/lib/mapEnergyOrb.ts (no DOM elements per marker). */
+.runnit-hotspot-test-console{
+  border-color:#a483ff;
+  background:linear-gradient(155deg,rgba(31,37,99,.96),rgba(10,16,49,.97) 74%);
+  box-shadow:inset 0 1px rgba(241,251,255,.40),inset 0 -1px rgba(110,68,255,.4),
+    0 0 16px rgba(141,65,245,.28),0 13px 25px #020817aa;
+}
+.runnit-hotspot-test-expander{position:relative;isolation:isolate;overflow:hidden}
+.runnit-hotspot-test-expander::before{
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(ellipse at 83% 110%,rgba(202,68,253,.37),transparent 55%),
+    linear-gradient(120deg,transparent 56%,rgba(56,227,255,.13) 68%,transparent 84%);
+  background-size:100% 100%,180% 100%;
+  animation:runnit-hotspot-chip-shine 7s ease-in-out infinite alternate;
+}
+.runnit-hotspot-test-expander::after{
+  content:"";position:absolute;left:10px;right:50px;bottom:4px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(251,73,243,.75),rgba(52,216,255,.65),transparent);
+  pointer-events:none;
+}
+.runnit-hotspot-test-title{
+  font:italic 950 11px/1.1 system-ui,-apple-system,sans-serif;
+  text-shadow:0 1px 0 #061025,0 0 10px rgba(104,225,255,.35);
+}
+.runnit-hotspot-test-toggle-icon{
+  box-shadow:inset 0 1px rgba(235,250,255,.29),0 0 8px rgba(42,216,255,.31);
+}
+@keyframes runnit-hotspot-chip-shine{
+  0%{background-position:0 0,100% 0}
+  100%{background-position:0 0,0 0}
+}
+@media(prefers-reduced-motion:reduce){
+  .runnit-hotspot-test-expander::before{animation:none}
+}
