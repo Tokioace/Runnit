@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { ChevronLeft, Crown, Globe2, LockKeyhole, MapPinned, ShieldAlert, Trophy, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ArcadeAvatar, { type ArcadeAvatarVariant } from '../components/leaderboard/ArcadeAvatar';
@@ -66,6 +66,22 @@ function NoVerifiedResults({ scope }: { scope: 'region' | 'friends' }) {
 export default function LeaderboardScreen() {
   const [activeTab, setActiveTab] = useState<RankingTab>('global');
 
+  // Tablist keyboard access: Arrow keys, Home and End select/focus a new tab.
+  // This keeps Region/Freunde reachable even with roving tabIndex=-1.
+  const selectTabFromKeyboard = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const key = event.key;
+    let next = index;
+    if (key === 'ArrowRight') next = (index + 1) % tabs.length;
+    else if (key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+    else if (key === 'Home') next = 0;
+    else if (key === 'End') next = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    setActiveTab(tabs[next].id);
+    const buttons = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+    buttons?.[next]?.focus();
+  };
+
   return (
     <main className="runnit-ranking-screen" aria-label="Runnit Ranglisten">
       <div className="runnit-ranking-stage">
@@ -82,13 +98,14 @@ export default function LeaderboardScreen() {
         </header>
 
         <div className="runnit-ranking-tabs" role="tablist" aria-label="Ranglistenbereich">
-          {tabs.map(({ id, label, Icon }) => (
+          {tabs.map(({ id, label, Icon }, index) => (
             <button key={id} id={'ranking-tab-' + id} type="button" role="tab"
               className="runnit-ranking-tab"
               aria-selected={activeTab === id}
               aria-controls={'ranking-panel-' + id}
               tabIndex={activeTab === id ? 0 : -1}
-              onClick={() => setActiveTab(id)}>
+              onClick={() => setActiveTab(id)}
+              onKeyDown={(event) => selectTabFromKeyboard(event, index)}>
               <Icon aria-hidden="true" />{label}
             </button>
           ))}
