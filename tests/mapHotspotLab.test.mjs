@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { buildHotspotTestData, HOTSPOT_TEST_SCENARIOS } from '../src/lib/mapHotspotSignals.ts';
+import { energyOrbId, getEnergyOrbSpecs } from '../src/lib/mapEnergyOrb.ts';
 import { buildCommunityCollections } from '../src/lib/mapCommunityLayers.ts';
 
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
@@ -62,9 +63,11 @@ test('simulation has separate GeoJSON sources and color-coded player/match/race 
   assert.match(layer, /'open-race', 'runnit-test-open-heat'/);
   assert.match(layer, /'visible-runner', 'runnit-test-runner-heat'/);
   assert.match(layer, /'running-match', 'runnit-test-running-heat'/);
-  assert.match(layer, /'circle-stroke-color': \['case', \['has', 'point_count'\], '#73edff'/);
-  assert.match(layer, /'text-field': \['to-string', \['coalesce', \['get', 'total'\], \['get', 'count'\]\]\]/);
-  assert.match(layer, /'text-offset': \[0, 0\], 'text-anchor': 'center'/);
+  assert.match(layer, /installEnergyOrbSprites\(map, HOTSPOT_TEST_SCENARIOS\)/);
+  assert.match(layer, /'icon-image': \['case', \['has', 'point_count'\]/);
+  assert.match(layer, /'icon-pitch-alignment': 'viewport'/);
+  assert.doesNotMatch(layer, /id: HOTSPOT_TEST_LABELS, type: 'symbol'/);
+  assert.match(layer, /'icon-opacity': \['interpolate', \['linear'\], \['zoom'\]/);
   assert.match(layer, /id: 'runnit-test-detail-dots', type: 'circle', source: HOTSPOT_TEST_SOURCE/);
   assert.match(layer, /minzoom: 12\.2/);
   assert.match(layer, /12\.2, 0, 12\.8, \.8, 14, 1/);
@@ -109,7 +112,8 @@ test('global hotspot center aggregation sums actual scenario activity, not three
   assert.equal(scenarios.reduce((count, center) => count + center.properties.count, 0), 38);
   assert.match(map, /cluster: true, clusterMaxZoom: 10, clusterRadius: 72/);
   assert.match(map, /clusterProperties: \{ total: \['\+', \['get', 'count'\]\] \}/);
-  assert.match(map, /'circle-radius': \['interpolate', \['linear'\],\s*\['coalesce', \['get', 'total'\], \['get', 'count'\]\]/);
+  assert.match(map, /'icon-image': \['case', \['has', 'point_count'\]/);
+  assert.match(map, /'-mixed-', \['to-string', \['get', 'total'\]\]/);
   assert.match(map, /'circle-color': \['case', \['has', 'point_count'\], '#8761ff'/);
   assert.doesNotMatch(map, /'text-field': \['concat', \['to-string', \['get','count'\]\]/);
 });
@@ -140,7 +144,55 @@ test('Hotspot Lab starts collapsed and selecting a city hides the menu while kee
 test('test heat glows are visually quieter while the real challenge heat source is unchanged', () => {
   const map = read('src/lib/mapHotspotSignals.ts');
   assert.match(map, /'heatmap-radius': \['interpolate', \['linear'\], \['zoom'\], 0, 27, 4, 34, 7, 43, 11, 50/);
-  assert.match(map, /'heatmap-opacity': \['interpolate', \['linear'\], \['zoom'\], 0, \.48, 7, \.63, 11, \.60/);
+  assert.match(map, /'heatmap-opacity': \['interpolate', \['linear'\], \['zoom'\],\s*0, 0, 10\.7, 0, 11\.1, \.16, 11\.8, \.23, 12\.6, 0/);
+  assert.match(map, /'heatmap-color': simulationGradient\(glow, mid, bright\)/);
   assert.match(map, /'rgba\(167,63,29,\.12\)', 'rgba\(255,136,38,\.43\)', 'rgba\(255,211,82,\.72\)'/);
   assert.match(map, /'heatmap-opacity': \['interpolate', \['linear'\], \['zoom'\], 0, \.30, 5, \.42, 10, \.45/);
+});
+
+
+test('Y2K sprite catalog has deterministic 03, 10, 25 and all four possible mixed regional totals', () => {
+  const specs = getEnergyOrbSpecs(HOTSPOT_TEST_SCENARIOS);
+  assert.deepEqual(specs.map(({ tone, count }) => [tone, count]), [
+    ['open-race', 3], ['visible-runner', 10], ['running-match', 25],
+    ['mixed', 13], ['mixed', 28], ['mixed', 35], ['mixed', 38],
+  ]);
+  assert.equal(new Set(specs.map(({ id }) => id)).size, 7);
+  assert.equal(energyOrbId('open-race', 3), 'runnit-energy-orb-open-race-3');
+  assert.equal(energyOrbId('mixed', 38), 'runnit-energy-orb-mixed-38');
+  assert.deepEqual(getEnergyOrbSpecs(HOTSPOT_TEST_SCENARIOS), specs);
+});
+
+test('orb numerals, segmented chrome and mixed accent rings are baked into static two-times sprites', () => {
+  const orbs = read('src/lib/mapEnergyOrb.ts');
+  assert.match(orbs, /ENERGY_ORB_PIXEL_RATIO = 2/);
+  assert.match(orbs, /canvas\.getContext\('2d', \{ willReadFrequently: true \}\)/);
+  assert.match(orbs, /ctx\.transform\(1, 0, -\.15, 1, 0, 0\)/);
+  assert.match(orbs, /spec\.count < 10 \? \`0\$\{spec\.count\}\`/);
+  assert.match(orbs, /ctx\.strokeText\(text, 0, 0\)/);
+  assert.match(orbs, /ctx\.fillText\(text, 0, 0\)/);
+  assert.match(orbs, /'visible-runner' \|\| spec\.tone === 'mixed'/);
+  assert.match(orbs, /map\.addImage\(spec\.id, image, \{ pixelRatio: ENERGY_ORB_PIXEL_RATIO \}\)/);
+  assert.doesNotMatch(orbs, /fetch\(|createImageBitmap\(|supabase|window\.setInterval/);
+});
+
+test('zoom-consistent synthetic heat does not outshine grouped nodes at Europe/world zoom', () => {
+  const map = read('src/lib/mapHotspotSignals.ts');
+  const realPart = map.slice(map.indexOf('export function installRealHotspotHeat'), map.indexOf('function addSimulationHeat'));
+  const demoHeatPart = map.slice(map.indexOf('function addSimulationHeat'), map.indexOf('export function installHotspotTestLayers'));
+  assert.match(demoHeatPart, /'heatmap-color': simulationGradient\(glow, mid, bright\)/);
+  assert.doesNotMatch(demoHeatPart, /'heatmap-color': gradient\(glow, mid, bright\)/);
+  assert.match(demoHeatPart, /0, 0, 10\.7, 0, 11\.1, \.16, 11\.8, \.23, 12\.6, 0/);
+  assert.match(realPart, /'heatmap-color': gradient\('rgba\(105,26,137,\.13\)'/);
+});
+
+test('hotspot ring pulse follows user reduced-motion preference and stops while hidden', () => {
+  const renderer = read('src/components/map/ArcadeMapLibreView.tsx');
+  const css = read('src/styles/arcadeMap.css');
+  assert.match(renderer, /matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches/);
+  assert.match(renderer, /document\.hidden \|\| !map\.getLayer\(auraLayer\)/);
+  assert.match(renderer, /window\.setInterval\(pulse, 320\)/);
+  assert.match(renderer, /window\.clearInterval\(pulseInterval\)/);
+  assert.match(css, /@media\(prefers-reduced-motion:reduce\)/);
+  assert.match(css, /runnit-hotspot-chip-shine/);
 });
