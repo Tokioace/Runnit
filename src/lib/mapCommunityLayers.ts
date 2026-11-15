@@ -41,6 +41,7 @@ export function buildCommunityCollections(entries: readonly CommunityEntry[], gp
   const feature = (item: CommunityEntry) => ({
     type: 'Feature' as const,
     properties: {
+      own: item.isOwn ? 1 : 0,
       color: item.isOwn ? '#c9ff0b' :
         (item.kind === 'player' || item.kind === 'demo-player' ? '#a985ff' : '#f13edc'),
     },
@@ -88,7 +89,9 @@ export function installCommunityLayers(map: GLMap) {
       id: COMMUNITY_SINGLE_SIGNAL_RING, type: 'symbol', source: COMMUNITY_REAL_SOURCE,
       filter: ['!', ['has', 'point_count']],
       layout: {
-        'icon-image': ['concat', ENERGY_ORB_PREFIX, '-open-race-1'],
+        'icon-image': ['case', ['==', ['get', 'own'], 1],
+          ['concat', ENERGY_ORB_PREFIX, '-own-race-1'],
+          ['concat', ENERGY_ORB_PREFIX, '-open-race-1']],
         'icon-size': ['interpolate', ['linear'], ['zoom'],
           0, .58, 5, .68, 10, .83, 12.2, .82, 12.8, .60],
         'icon-anchor': 'center',
