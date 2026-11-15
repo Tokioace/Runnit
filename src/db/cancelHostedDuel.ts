@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { parseGeographyPoint, type GeoCoordinates } from '../lib/duelLocation';
+import { parseGeographyPoint, type GeoCoordinates } from '../lib/duelLocation.ts';
 
 /** Only the authenticated owner's still-open, unjoined duels can be cancelled. */
 export type HostedOpenDuel = Readonly<{
