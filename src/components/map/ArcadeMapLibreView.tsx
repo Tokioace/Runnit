@@ -17,8 +17,6 @@ setWorkerUrl(workerUrl);
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 const BUILDING_TILES = 'https://tiles.openfreemap.org/planet';
 const RADAR_ID = 'runnit-gps-radar';
-const DISTANT_DOT_SOURCE = 'runnit-distance-dots';
-const DISTANT_DOT_LAYER = 'runnit-distance-dot-circles';
 const BUILDING_LAYER_ID = 'runnit-3d-buildings';
 const PITCH_DEGREES = 46;
 const BEARING_DEGREES = -13;
