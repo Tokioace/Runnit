@@ -1,5 +1,5 @@
 import { useState, type KeyboardEvent } from 'react';
-import { ChevronLeft, Crown, Globe2, LockKeyhole, MapPinned, ShieldAlert, Trophy, Users } from 'lucide-react';
+import { ChevronLeft, Crown, MapPinned, ShieldAlert, Trophy, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ArcadeAvatar, { type ArcadeAvatarVariant } from '../components/leaderboard/ArcadeAvatar';
 import { leaderboardSourceLabel } from '../lib/leaderboardProvenance';
@@ -20,10 +20,10 @@ const showcase: ReadonlyArray<{
 ];
 
 type RankingTab = 'global' | 'region' | 'friends';
-const tabs: ReadonlyArray<{ id: RankingTab; label: string; Icon: typeof Globe2 }> = [
-  { id: 'global', label: 'GLOBAL', Icon: Globe2 },
-  { id: 'region', label: 'REGION', Icon: MapPinned },
-  { id: 'friends', label: 'FREUNDE', Icon: Users },
+const tabs: ReadonlyArray<{ id: RankingTab; label: string }> = [
+  { id: 'global', label: 'GLOBAL' },
+  { id: 'region', label: 'REGION' },
+  { id: 'friends', label: 'FREUNDE' },
 ];
 
 const points = new Intl.NumberFormat('de-DE');
@@ -92,14 +92,12 @@ export default function LeaderboardScreen() {
           </Link>
           <span className="runnit-ranking-trophy" aria-hidden="true"><Trophy /></span>
           <div className="runnit-ranking-header-copy">
-            <span className="runnit-ranking-eyebrow">RUNNIT / STREET CHALLENGE</span>
             <h1>RANGLISTE</h1>
           </div>
-          <span className="runnit-ranking-beta">BETA / 00</span>
         </header>
 
         <div className="runnit-ranking-tabs" role="tablist" aria-label="Ranglistenbereich">
-          {tabs.map(({ id, label, Icon }, index) => (
+          {tabs.map(({ id, label }, index) => (
             <button key={id} id={'ranking-tab-' + id} type="button" role="tab"
               className="runnit-ranking-tab"
               aria-selected={activeTab === id}
@@ -107,14 +105,9 @@ export default function LeaderboardScreen() {
               tabIndex={activeTab === id ? 0 : -1}
               onClick={() => setActiveTab(id)}
               onKeyDown={(event) => selectTabFromKeyboard(event, index)}>
-              <Icon aria-hidden="true" />{label}
+              {label}
             </button>
           ))}
-        </div>
-
-        <div className="runnit-ranking-demo-ribbon" role="note">
-          <ShieldAlert aria-hidden="true" />
-          <span><strong>DESIGNVORSCHAU / DEMO</strong> · Alle Namen, Level und Punkte unten sind fiktiv.</span>
         </div>
 
         <div role="tabpanel" id={'ranking-panel-' + activeTab}
@@ -130,15 +123,15 @@ export default function LeaderboardScreen() {
           )}
         </div>
 
-        <p className="runnit-ranking-disclaimer">
-          <LockKeyhole aria-hidden="true" />
-          Noch keine offiziellen Sprint-Ränge. Erst unabhängig geprüfte Rennergebnisse dürfen später als echte Platzierungen erscheinen.
-        </p>
-        <div className="runnit-ranking-city" aria-hidden="true">
-          <span className="runnit-ranking-city-caption">CHASE YOUR BEST /// RUNNIT</span>
+        <div className="runnit-ranking-city">
+          <p className="runnit-ranking-demo-ribbon" role="note">
+            <ShieldAlert aria-hidden="true" />
+            <span><strong>DESIGNVORSCHAU / DEMO</strong> · Alle Namen, Level und Punkte unten sind fiktiv. Noch keine offiziellen Sprint-Ränge.</span>
+          </p>
         </div>
+        <p className="sr-only">Erst unabhängig geprüfte Rennergebnisse dürfen später als echte Platzierungen erscheinen.</p>
       </div>
-      <BottomNav />
+      <BottomNav variant="ranking" />
     </main>
   );
 }
