@@ -322,3 +322,18 @@
 @media(prefers-reduced-motion:reduce){
   .runnit-map-arcade .runnit-gl-tilt-button{transition:none}
 }
+
+/* Safety fallback for browsers with a problematic :has() implementation:
+   MapLibre popup open/close state is tracked in React as well. The 3D switch
+   remains completely non-interactive until its popup has been dismissed. */
+.runnit-map-arcade .runnit-gl-tilt-button.is-obscured-by-popup {
+  opacity:0!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+
+/* Dynamic map titles are short by design, but preserve mobile layout at
+   fractional zoom/large-text configurations. */
+.runnit-arcade-map-heading-copy h1 {
+  text-wrap:balance;
+}

@@ -1,5 +1,6 @@
 import { ArrowLeft, ChevronRight, Flag, Footprints, List, Map as MapIcon, MapPin, Swords, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { mapHeadingForCamera, type MapCameraScope } from '../../lib/mapHeadingScope';
 
 export type ArcadeMapView = 'map' | 'list';
 export type ArcadeMapEntry = {
@@ -15,6 +16,7 @@ type Props = {
   onViewChange: (next: ArcadeMapView) => void;
   cityName: string | null;
   hasGps: boolean;
+  camera: MapCameraScope;
   entries: readonly ArcadeMapEntry[];
   selectedId: string | null;
   onJoin: (id: string) => void;
@@ -55,19 +57,20 @@ export function ArcadeRunCard({ entry, onJoin, onCancel, selected = false, varia
   );
 }
 export default function ArcadeMapChrome({
-  view, onViewChange, cityName, hasGps, entries, selectedId, onJoin, onCancel, loading, live = false,
+  view, onViewChange, cityName, hasGps, camera, entries, selectedId, onJoin, onCancel, loading, live = false,
 }: Props) {
   // Never reorder the list on an event tap: that moves the reader's scroll position.
   const orderedEntries = entries;
+  const heading = mapHeadingForCamera(camera, cityName, hasGps, view);
   return (
     <>
-      <header className="runnit-arcade-map-header" aria-label="Rennen in deiner Nähe">
+      <header className="runnit-arcade-map-header" aria-label={heading.title}>
         <div className="runnit-arcade-map-heading">
           <Link to="/home" aria-label="Zurück zur Startseite" className="runnit-arcade-map-back"><ArrowLeft aria-hidden="true" /></Link>
           <div className="runnit-arcade-map-heading-copy">
             <span>RUNNIT / STREET CHALLENGE</span>
-            <h1>RENNEN IN DEINER NÄHE</h1>
-            <p>{hasGps ? (cityName || 'GPS-Standort ermittelt') : 'Standort für genaue Entfernungen aktivieren'}</p>
+            <h1>{heading.title}</h1>
+            <p>{heading.subtitle}</p>
           </div>
           <span className="runnit-arcade-map-title-mark" aria-hidden="true">R</span>
         </div>

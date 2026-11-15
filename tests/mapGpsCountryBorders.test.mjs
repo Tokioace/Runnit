@@ -40,7 +40,7 @@ test('country borders use the verified Liberty country layer, with a soft cyan e
   assert.match(renderer, /id: COUNTRY_GLOW_LAYER_ID/);
   assert.match(renderer, /'source-layer': 'boundary'/);
   assert.match(renderer, /'admin_level'\], 2/);
-  assert.match(renderer, /map\.addLayer\(\{[\s\S]*?'line-blur': 2\.8,[\s\S]*?\}, 'boundary_2'\)/);
+  assert.match(renderer, /map\.addLayer\(\{[\s\S]*?'line-blur': 2\.4,[\s\S]*?\}, 'boundary_2'\)/);
   assert.match(renderer, /name === 'boundary_3'/);
   assert.match(renderer, /name === 'boundary_disputed'/);
 });

@@ -7,6 +7,7 @@ import type { ArcadeMapEntry, ArcadeMapView } from './ArcadeMapChrome';
 import { eventPopupLngLat } from '../../lib/mapPopupAnchor';
 import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters, validMapPoint } from '../../lib/mapHostPlacement';
 import { markerInViewport } from '../../lib/mapMarkerVisibility';
+import type { MapCameraScope } from '../../lib/mapHeadingScope';
 import { groupOverlappingRuns } from '../../lib/mapRunGrouping';
 import { markerPinOpacityAtZoom, markerScaleAtZoom, PIN_FADE_END_ZOOM } from '../../lib/mapMarkerZoom';
 import { COMMUNITY_CLUSTER_LAYER, COMMUNITY_RACE_DOT_LAYER, installCommunityLayers, syncCommunityLayers, type CommunityEntry } from '../../lib/mapCommunityLayers';
@@ -46,6 +47,7 @@ export type ArcadeMapLibreProps = {
   hostLocation: MapCoordinate | null;
   regionalRuns: readonly { id: string; location: MapCoordinate }[];
   onWideViewChange: (wide: boolean) => void;
+  onCameraChange: (camera: MapCameraScope) => void;
   onSelectRun: (id: string) => void;
   onJoinRun: (id: string) => void;
   onCancelRun: (id: string) => void;
@@ -85,14 +87,14 @@ function styleArcadeMap(map: GLMap) {
         // Default hillshading gives low-zoom land large grey patches. Preserve
         // subtle relief while giving the network map its dark arcade contrast.
         map.setPaintProperty(layer.id, 'raster-opacity',
-          ['interpolate', ['linear'], ['zoom'], 0, 0.22, 4, 0.12, 7, 0.02, 10, 0]);
+          ['interpolate', ['linear'], ['zoom'], 0, 0.09, 3, 0.065, 6, 0.02, 7, 0]);
       } else if (layer.type === 'line' && name === 'boundary_2') {
         // The OpenFreeMap Liberty country-border layer (admin_level=2).
         map.setPaintProperty(layer.id, 'line-color', '#27e9ff');
         map.setPaintProperty(layer.id, 'line-width',
-          ['interpolate', ['linear'], ['zoom'], 0, 1.1, 4, 1.7, 7, 1.9, 10, 1.3, 14, 0.85]);
+          ['interpolate', ['linear'], ['zoom'], 0, 0.65, 2, 0.9, 4, 1.25, 7, 1.65, 10, 1.15, 14, 0.7]);
         map.setPaintProperty(layer.id, 'line-opacity',
-          ['interpolate', ['linear'], ['zoom'], 0, 0.75, 4, 0.95, 9, 0.88, 14, 0.38]);
+          ['interpolate', ['linear'], ['zoom'], 0, 0.34, 2, 0.48, 4, 0.66, 7, 0.88, 10, 0.70, 14, 0.33]);
       } else if (layer.type === 'line' && name === 'boundary_3') {
         // Internal states are much quieter so countries remain the hierarchy.
         map.setPaintProperty(layer.id, 'line-color', '#3d8caa');
@@ -108,13 +110,13 @@ function styleArcadeMap(map: GLMap) {
         // is not a country border. Lower its intensity rather than highlighting it.
         map.setPaintProperty(layer.id, 'line-color', '#285668');
         map.setPaintProperty(layer.id, 'line-opacity',
-          ['interpolate', ['linear'], ['zoom'], 3, 0.03, 9, 0.14, 15, 0.32]);
+          ['interpolate', ['linear'], ['zoom'], 3, 0, 8, 0.045, 11, 0.12, 15, 0.29]);
         map.setPaintProperty(layer.id, 'line-width', 0.75);
       } else if (layer.type === 'fill' && name === 'park') {
         map.setPaintProperty(layer.id, 'fill-color', '#153544');
         map.setPaintProperty(layer.id, 'fill-outline-color', '#285665');
         map.setPaintProperty(layer.id, 'fill-opacity',
-          ['interpolate', ['linear'], ['zoom'], 3, 0.18, 9, 0.33, 15, 0.62]);
+          ['interpolate', ['linear'], ['zoom'], 3, 0.025, 7, 0.075, 10, 0.20, 15, 0.56]);
       } else if (layer.type === 'fill' && name.startsWith('landcover_')) {
         const ice = name.includes('ice');
         const sand = name.includes('sand');
@@ -123,16 +125,21 @@ function styleArcadeMap(map: GLMap) {
         // At street zoom retain subtle landscape differentiation.
         if (wetland) map.setPaintProperty(layer.id, 'fill-pattern', null);
         map.setPaintProperty(layer.id, 'fill-color',
-          ice ? '#517283' : sand ? '#30485a' : wetland ? '#17384b' : '#163746');
+          ['interpolate', ['linear'], ['zoom'],
+            2, ice ? '#254252' : '#0b2439',
+            9, ice ? '#354f62' : '#133449',
+            14, ice ? '#517283' : sand ? '#30485a' : wetland ? '#17384b' : '#163746']);
         map.setPaintProperty(layer.id, 'fill-opacity',
-          ['interpolate', ['linear'], ['zoom'], 2, ice ? 0.27 : 0.16, 9, 0.3, 14, 0.58]);
+          ['interpolate', ['linear'], ['zoom'], 2, ice ? 0.12 : 0.035, 7, 0.08, 10, 0.22, 14, 0.53]);
       } else if (layer.type === 'fill' && name.startsWith('landuse_')) {
         // Residential/industrial and amenities used to remain pale grey;
         // quiet them down without hiding streets or actual buildings.
         const residential = name === 'landuse_residential';
-        map.setPaintProperty(layer.id, 'fill-color', residential ? '#183b50' : '#214355');
+        map.setPaintProperty(layer.id, 'fill-color', ['interpolate', ['linear'], ['zoom'],
+            2, '#0c273d', 9, residential ? '#143348' : '#17394b',
+            14, residential ? '#183b50' : '#214355']);
         map.setPaintProperty(layer.id, 'fill-opacity',
-          ['interpolate', ['linear'], ['zoom'], 3, 0.13, 9, 0.26, 14, 0.58]);
+          ['interpolate', ['linear'], ['zoom'], 3, 0.025, 7, 0.075, 10, 0.20, 14, 0.56]);
       } else if (layer.type === 'background') {
         map.setPaintProperty(layer.id, 'background-color',
           ['interpolate', ['linear'], ['zoom'], 2, '#071225', 7, '#0a1c34', 13, '#10243d']);
@@ -144,7 +151,9 @@ function styleArcadeMap(map: GLMap) {
         map.setPaintProperty(layer.id, 'line-color', main
           ? ['interpolate', ['linear'], ['zoom'], 3, '#355676', 8, '#567f9f', 12, '#85b8d5', 16, '#b9d8e9']
           : ['interpolate', ['linear'], ['zoom'], 3, '#29435e', 8, '#416b86', 12, '#608caa', 16, '#779bb9']);
-        map.setPaintProperty(layer.id, 'line-opacity', main ? 1 : 0.94);
+        map.setPaintProperty(layer.id, 'line-opacity',
+          main ? ['interpolate', ['linear'], ['zoom'], 3, 0.20, 6, 0.38, 9, 0.68, 12, 0.94, 16, 1]
+            : ['interpolate', ['linear'], ['zoom'], 3, 0.06, 6, 0.12, 9, 0.35, 12, 0.82, 16, 0.96]);
       } else if (layer.type === 'fill' && /water/.test(name)) {
         map.setPaintProperty(layer.id, 'fill-color',
           ['interpolate', ['linear'], ['zoom'], 2, '#0a1d32', 8, '#0a2946', 13, '#123852']);
@@ -180,10 +189,10 @@ function styleArcadeMap(map: GLMap) {
       paint: {
         'line-color': '#17d5ff',
         'line-width': ['interpolate', ['linear'], ['zoom'],
-          1, 3, 4, 6, 8, 5, 12, 2.5],
+          1, 1.5, 3, 2.5, 5, 4, 8, 4.2, 12, 2],
         'line-opacity': ['interpolate', ['linear'], ['zoom'],
-          1, 0.22, 4, 0.32, 9, 0.23, 12, 0.08],
-        'line-blur': 2.8,
+          1, 0.055, 3, 0.095, 5, 0.17, 8, 0.20, 12, 0.035],
+        'line-blur': 2.4,
       },
     }, 'boundary_2');
   }
@@ -357,7 +366,7 @@ function detailElement(run: ArcadeVectorRun, onJoin: () => void, onCancel: () =>
 /** Owns only map rendering: no auth, Supabase, races or geolocation reads. */
 export default function ArcadeMapLibreView({
   initialCenter, initialZoom, userCoords, ipCoords, recenterTick, retryTick, view,
-  players, runs, hostDialogOpen, hostLocation, regionalRuns, onWideViewChange, onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt,
+  players, runs, hostDialogOpen, hostLocation, regionalRuns, onWideViewChange, onCameraChange, onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt,
   onTilesLoaded, onTilesError,
 }: ArcadeMapLibreProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -381,8 +390,9 @@ export default function ArcadeMapLibreView({
   liveRegionalRef.current = regionalRuns;
   const [ready, setReady] = useState(false);
   const [tilted, setTilted] = useState(true);
-  const callbacks = useRef({ onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange });
-  callbacks.current = { onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange };
+  const [popupVisible, setPopupVisible] = useState(false);
+  const callbacks = useRef({ onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange, onCameraChange });
+  callbacks.current = { onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange, onCameraChange };
   const firstGPS = useRef(false);
   const firstIP = useRef(false);
   const previousRecenter = useRef(recenterTick);
@@ -417,6 +427,8 @@ export default function ArcadeMapLibreView({
         syncDistantDots(map, livePlayersRef.current, liveRunsRef.current, latestGpsRef.current, liveRegionalRef.current);
         callbacks.current.onTilesLoaded();
         callbacks.current.onWideViewChange(map.getZoom() <= 11.2);
+        const camera = map.getCenter();
+        callbacks.current.onCameraChange({ zoom: map.getZoom(), lat: camera.lat, lng: camera.lng });
         setReady(true);
       } catch {
         callbacks.current.onTilesError();
@@ -427,6 +439,10 @@ export default function ArcadeMapLibreView({
       callbacks.current.onTilesError();
     };
     const onZoomEnd = () => callbacks.current.onWideViewChange(map.getZoom() <= 11.2);
+    const onCameraIdle = () => {
+      const center = map.getCenter();
+      callbacks.current.onCameraChange({ zoom: map.getZoom(), lat: center.lat, lng: center.lng });
+    };
     const onCommunityClusterClick = (event: import('maplibre-gl').MapLayerMouseEvent) => {
       const geometry = event.features?.[0]?.geometry;
       if (!geometry || geometry.type !== 'Point') return;
@@ -436,6 +452,7 @@ export default function ArcadeMapLibreView({
     map.on('style.load', onStyle);
     map.on('error', onFailure);
     map.on('zoomend', onZoomEnd);
+    map.on('moveend', onCameraIdle);
     const updateAtmosphere = () => {
       // A quiet thematic overlay only: nothing here represents a fake player.
       const zoom = map.getZoom();
@@ -450,6 +467,7 @@ export default function ArcadeMapLibreView({
       map.off('style.load', onStyle);
       map.off('error', onFailure);
       map.off('zoomend', onZoomEnd);
+      map.off('moveend', onCameraIdle);
       map.off('zoom', updateAtmosphere);
       map.off('click', COMMUNITY_CLUSTER_LAYER, onCommunityClusterClick);
       map.off('click', COMMUNITY_RACE_DOT_LAYER, onCommunityClusterClick);
@@ -714,6 +732,7 @@ export default function ArcadeMapLibreView({
       popup.setPadding({ top: 175, right: 15, bottom: 145, left: 15 });
       popup.on('close', () => {
         if (hostPopupRef.current === popup) hostPopupRef.current = null;
+        setPopupVisible(Boolean(hostPopupRef.current || activeRunPopupRef.current));
         if (!hostCreatingRef.current) {
           hostSelectionMarkerRef.current?.remove();
           hostSelectionMarkerRef.current = null;
@@ -721,6 +740,7 @@ export default function ArcadeMapLibreView({
       });
       popup.addTo(map);
       hostPopupRef.current = popup;
+      setPopupVisible(true);
     };
 
     const pointFromPointer = (ev: PointerEvent) => {
@@ -880,9 +900,11 @@ export default function ArcadeMapLibreView({
         popup.setPadding({ top: 190, right: 18, bottom: 155, left: 18 });
         popup.on('close', () => {
           if (activeRunPopupRef.current === popup) activeRunPopupRef.current = null;
+          setPopupVisible(Boolean(activeRunPopupRef.current || hostPopupRef.current));
         });
         popup.addTo(map);
         activeRunPopupRef.current = popup;
+        setPopupVisible(true);
         callbacks.current.onSelectRun(selectedRun.id);
 
         // Leave room ABOVE the event for the entire detail card and BELOW it
@@ -934,9 +956,11 @@ export default function ArcadeMapLibreView({
       <div ref={atmosphereRef} className={'runnit-gl-distance-atmosphere' + (view === 'list' ? ' is-hidden' : '')} aria-hidden="true" />
       {view === 'map' && <button
         type="button"
-        className="runnit-gl-tilt-button"
+        className={'runnit-gl-tilt-button' + (popupVisible ? ' is-obscured-by-popup' : '')}
         aria-label={tilted ? 'Zur flachen 2D-Karte wechseln' : 'Zur schrägen 3D-Karte wechseln'}
         aria-pressed={tilted}
+        aria-hidden={popupVisible}
+        disabled={popupVisible}
         onClick={() => {
           const next = !tilted;
           setTilted(next);
