@@ -17,6 +17,7 @@ export const COMMUNITY_CLUSTER_LAYER = 'runnit-community-clusters';
 const COMMUNITY_COUNT_LAYER = 'runnit-community-cluster-counts';
 export const COMMUNITY_RACE_DOT_LAYER = 'runnit-community-real-dots';
 const COMMUNITY_SINGLE_HALO_LAYER = 'runnit-community-single-glows';
+const COMMUNITY_SINGLE_SIGNAL_RING = 'runnit-community-single-signal-ring';
 const COMMUNITY_CLUSTER_HALO_LAYER = 'runnit-community-cluster-glows';
 const COMMUNITY_DEMO_LAYER = 'runnit-community-demo-dots';
 const COMMUNITY_GPS_LAYER = 'runnit-community-gps-dot';
@@ -66,10 +67,26 @@ export function installCommunityLayers(map: GLMap) {
       id: COMMUNITY_SINGLE_HALO_LAYER, type: 'circle', source: COMMUNITY_REAL_SOURCE,
       filter: ['!', ['has', 'point_count']],
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 11, 6, 15, 10, 17, 12.8, 8],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 26, 5, 34, 9, 40, 11, 33, 12.8, 8],
         'circle-color': ['get', 'color'],
         'circle-blur': 0.82,
-        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.38, 12.8, 0],
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.36, 11.5, 0.29, 12.8, 0],
+      },
+    });
+  }
+  if (!map.getLayer(COMMUNITY_SINGLE_SIGNAL_RING)) {
+    // Exactly one real open race still reads like an active signal, not a
+    // fabricated cluster. Ring always shares its genuine coordinates.
+    map.addLayer({
+      id: COMMUNITY_SINGLE_SIGNAL_RING, type: 'circle', source: COMMUNITY_REAL_SOURCE,
+      filter: ['!', ['has', 'point_count']],
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 9, 5, 12, 9, 14, 12.8, 8],
+        'circle-color': '#081e3f',
+        'circle-opacity': 0,
+        'circle-stroke-color': ['get', 'color'],
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 0, 1.1, 8, 1.8, 12.8, 0],
+        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.75, 12.8, 0],
       },
     });
   }
@@ -92,7 +109,7 @@ export function installCommunityLayers(map: GLMap) {
       id: COMMUNITY_CLUSTER_HALO_LAYER, type: 'circle', source: COMMUNITY_REAL_SOURCE,
       filter: ['has', 'point_count'],
       paint: {
-        'circle-radius': ['step', ['get', 'point_count'], 25, 5, 33, 20, 43],
+        'circle-radius': ['step', ['get', 'point_count'], 32, 5, 42, 20, 52],
         'circle-color': '#6d53fa',
         'circle-blur': 0.78,
         'circle-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.42, 12.8, 0],
