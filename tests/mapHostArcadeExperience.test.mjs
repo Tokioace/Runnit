@@ -11,7 +11,7 @@ test('host prompt is small, geographically anchored and never the fixed mobile r
   assert.match(renderer, /maxWidth: '188px'/);
   assert.match(renderer, /setLngLat\(\[position\.lng, position\.lat\]\)\.setDOMContent\(root\)/);
   assert.match(renderer, /title\.textContent = 'RENNEN HIER'/);
-  assert.match(renderer, /create\.textContent = 'ERSTELLEN ›'/);
+  assert.match(renderer, /create\.textContent = 'WEITER ›'/);
   assert.match(style, /\.maplibregl-popup\.runnit-gl-host-popup \{\s*position:absolute!important/);
   assert.match(style, /\.runnit-gl-host-details \{\s*width:164px!important/);
   const fixedSection = style.slice(style.indexOf('/* iPhone-safe race'));
