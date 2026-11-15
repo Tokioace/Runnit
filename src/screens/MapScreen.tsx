@@ -21,6 +21,7 @@ import { cancelHostedOpenDuel, cancelHostedDuelMessage, listHostedOpenDuels, typ
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage, type ScreenWakeLockStatus } from '../lib/screenWakeLock';
+import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters } from '../lib/mapHostPlacement';
 
 // Types
 type Coordinates = {
@@ -436,12 +437,14 @@ function HostRunDialog({
   onHost,
   onDemo,
   defaultDistance,
+  selectedLocationDistance,
 }: {
   open: boolean;
   onClose: () => void;
   onHost: (distanceMeters: number) => Promise<void>;
   onDemo: () => void;
   defaultDistance?: number;
+  selectedLocationDistance?: number;
 }) {
   const { t } = useI18n();
   const [distance, setDistance] = useState<number>(defaultDistance ?? 50);
@@ -468,6 +471,8 @@ function HostRunDialog({
       const message = error instanceof Error ? error.message.toLowerCase() : '';
       if (code === '42501' || message.includes('row-level security') || message.includes('permission denied')) {
         setHostError('Du hast derzeit keine Berechtigung, ein Rennen zu speichern. Bitte melde dich erneut an.');
+      } else if (message.includes('außerhalb') || message.includes('gps-standort')) {
+        setHostError(error instanceof Error ? error.message : 'Standort nicht mehr verfügbar.');
       } else if (message.includes('network') || message.includes('fetch') || message.includes('timeout')) {
         setHostError('Keine Verbindung zur Datenbank. Bitte prüfe deine Internetverbindung und versuche es erneut.');
       } else {
@@ -493,6 +498,11 @@ function HostRunDialog({
             ✕
           </button>
         </div>
+        {selectedLocationDistance !== undefined && (
+          <p className="mb-3 rounded-xl border border-lime-300/30 bg-lime-400/10 px-3 py-2 text-xs font-bold text-lime-100">
+            Ausgewählter Punkt: {Math.round(selectedLocationDistance)} m von deinem Standort. Das Rennen erscheint genau dort auf der Karte.
+          </p>
+        )}
         <label className="mb-2 block text-sm font-medium text-white/80">
           {t('host.distanceLabel')}
         </label>
@@ -723,6 +733,7 @@ export default function MapScreen() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [ghostOpen, setGhostOpen] = useState(false);
   const [hostOpen, setHostOpen] = useState(false);
+  const [hostLocation, setHostLocation] = useState<Coordinates | null>(null);
   const [raceNotice, setRaceNotice] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
@@ -1040,7 +1051,13 @@ export default function MapScreen() {
         }
         
         if (!isActive) return;
-        setOpenRuns(mapped);
+        // The personal pending race is always kept on the map even if the
+        // nearby discovery RPC temporarily falls back to sample data.
+        setOpenRuns(previous => {
+          const own = previous.filter(run => run.hostUserId === authUser.id && !run.id.startsWith('demo-run-'));
+          const ids = new Set(own.map(run => run.id));
+          return [...own, ...mapped.filter(run => !ids.has(run.id))];
+        });
       } finally {
         if (isActive) setLoadingDuels(false);
       }
@@ -1064,6 +1081,21 @@ export default function MapScreen() {
       .then(runs => {
         if (!active) return;
         setHostedOpenDuels(runs);
+        setOpenRuns(previous => {
+          const restored: OpenRun[] = runs
+            .filter(run => Boolean(run.location))
+            .map(run => ({
+              id: run.id,
+              hostUserId: authUser.id,
+              hostUsername: authUser.displayName,
+              distanceMeters: run.distanceMeters,
+              location: run.location!,
+              createdAt: run.createdAt ?? undefined,
+              targetDistanceM: run.distanceMeters,
+            }));
+          const others = previous.filter(run => run.hostUserId !== authUser.id);
+          return [...restored, ...others];
+        });
         setHostedDuelsLoadError(false);
       })
       .catch(() => {
@@ -1150,14 +1182,15 @@ export default function MapScreen() {
     return false;
   };
 
-  const openHostRun = () => {
+  const openHostRunAt = (point: Coordinates) => {
     if (!requireRaceAccount()) return;
     setRaceNotice(null);
-    if (!userCoords) {
-      setRaceNotice(locationError === 'denied' ? 'Safari meldet, dass die Ortung blockiert ist. Prüfe iPhone-Einstellungen → Datenschutz & Sicherheit → Ortungsdienste → Safari-Websites und versuche es erneut.' : 'Der GPS-Standort ist noch nicht verfügbar. Runnit sucht erneut; warte kurz und versuche dann, ein Rennen zu veranstalten.');
-      requestOnce();
+    if (!userCoords || !canHostAt(userCoords, point)) {
+      setRaceNotice(`Wähle einen Punkt innerhalb deines ${HOST_PLACEMENT_RADIUS_METERS}-m-Radars. Dein GPS-Standort muss verfügbar sein.`);
+      if (!userCoords) requestOnce();
       return;
     }
+    setHostLocation({ lat: point.lat, lng: point.lng });
     setHostOpen(true);
   };
 
@@ -1168,13 +1201,16 @@ export default function MapScreen() {
     if (!authUser) {
       throw new Error('Anmeldung erforderlich.');
     }
-    if (!userCoords || !currentUser) {
-      throw new Error('Standort noch nicht verfügbar.');
+    if (!userCoords || !hostLocation || !currentUser) {
+      throw new Error('GPS-Standort oder gewählter Kartenpunkt nicht verfügbar.');
+    }
+    if (!canHostAt(userCoords, hostLocation)) {
+      throw new Error('Der gewählte Punkt liegt jetzt außerhalb deines 500-m-Radars. Bitte wähle erneut einen Punkt.');
     }
 
     const { data, error } = await createDuel(supabase, {
       hostUserId: authUser.id,
-      location: userCoords,
+      location: hostLocation,
       distanceKm: 1,
       targetDistanceM: distanceMeters,
     });
@@ -1189,14 +1225,14 @@ export default function MapScreen() {
       hostUserId: authUser.id,
       hostUsername: currentUser.username,
       distanceMeters,
-      location: userCoords,
+      location: hostLocation,
       createdAt: data.created_at,
       targetDistanceM: distanceMeters,
     };
     setOpenRuns(previous => [created, ...previous.filter(run => run.id !== created.id)]);
     setHostedOpenDuels(previous => [
       { id: created.id, hostUserId: authUser.id, distanceMeters,
-        createdAt: created.createdAt ?? null },
+        createdAt: created.createdAt ?? null, location: created.location },
       ...previous.filter(run => run.id !== created.id),
     ]);
     setHostedDuelsLoadError(false);
@@ -1286,7 +1322,7 @@ export default function MapScreen() {
     hostUsername: run.hostUsername,
     distanceMeters: run.distanceMeters,
     distanceAwayMeters: userCoords ? haversineM(userCoords.lat, userCoords.lng, run.location.lat, run.location.lng) : null,
-    isOwn: Boolean(authUser && run.hostUserId === authUser.id),
+    isOwn: Boolean(authUser && (run.hostUserId === authUser.id || hostedOpenDuels.some(own => own.id === run.id))),
     isDemo: run.id.startsWith('demo-run-'),
   }));
 
@@ -1314,36 +1350,17 @@ export default function MapScreen() {
         onJoinRun={joinArcadeRun}
         onCancelRun={cancelArcadeRun}
         onGhostClick={() => setGhostOpen(true)}
+        onHostAt={openHostRunAt}
+        onInvalidHostAt={setRaceNotice}
         onTilesLoaded={() => setMapTilesUnavailable(false)}
         onTilesError={() => setMapTilesUnavailable(true)}
       />
 
-      {authUser && (hostedOpenDuels.length > 0 || hostedDuelsLoadError) && (
-        <section aria-label="Meine offenen Rennen"
-          className="runnit-arcade-hosted pointer-events-auto absolute inset-x-4 top-28 z-[960] mx-auto max-h-[35dvh] max-w-sm space-y-3 overflow-y-auto rounded-[22px] border border-emerald-300/30 bg-[#0a1424]/95 p-4 text-white shadow-[0_16px_50px_rgba(0,0,0,.48)] backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-black text-emerald-200">Meine offenen Rennen</p>
-            <span className="text-xs tabular-nums text-white/60">{hostedOpenDuels.length} offen</span>
-          </div>
-          {hostedDuelsLoadError && <p role="alert" className="text-xs leading-5 text-amber-200">
-            Offene Rennen konnten nicht aktualisiert werden. Bitte Verbindung prüfen oder Karte neu öffnen.
-          </p>}
-          {hostedOpenDuels.map(run => (
-            <div key={run.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.06] p-3">
-              <div>
-                <p className="text-sm font-extrabold">{run.distanceMeters} m Sprint</p>
-                <p className="mt-1 text-[11px] text-white/55">Wartet auf zweiten Läufer</p>
-              </div>
-              <button type="button" disabled={cancellingRunId === run.id}
-                onClick={() => handleCancelHostedRun(run)}
-                className="min-h-11 shrink-0 rounded-xl border border-rose-300/45 bg-rose-500/20 px-4 text-xs font-extrabold text-rose-100 disabled:opacity-40">
-                Rennen absagen
-              </button>
-            </div>
-          ))}
-        </section>
+      {arcadeMapView === 'list' && hostedDuelsLoadError && (
+        <p className="pointer-events-none absolute inset-x-4 bottom-36 z-[931] mx-auto max-w-sm rounded-lg border border-amber-300/30 bg-[#111827]/95 p-2 text-center text-xs text-amber-100">
+          Deine eigenen offenen Rennen konnten nicht aktualisiert werden. Bitte verbinde dich erneut.
+        </p>
       )}
-
       {arcadeMapView === 'map' && (players.some((player) => player.source === 'demo') ||
         openRuns.some((run) => run.id.startsWith('demo-run-'))) && (
         <div className="runnit-arcade-demo-chip" role="status"
@@ -1395,7 +1412,6 @@ export default function MapScreen() {
         selectedId={selectedRunId}
         onJoin={joinArcadeRun}
         onCancel={cancelArcadeRun}
-        onHost={openHostRun}
         loading={loadingDuels}
       />
 
@@ -1589,8 +1605,9 @@ export default function MapScreen() {
 
       <HostRunDialog
         open={hostOpen && Boolean(authUser)}
-        onClose={() => setHostOpen(false)}
+        onClose={() => { setHostOpen(false); setHostLocation(null); }}
         onHost={handleHostRun}
+        selectedLocationDistance={hostLocation && userCoords ? mapDistanceMeters(userCoords, hostLocation) : undefined}
         onDemo={() => { setHostOpen(false); navigate('/sprint-lab'); }}
         defaultDistance={50}
       />

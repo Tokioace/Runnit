@@ -30,11 +30,13 @@ test('guest race host button and join button request account login before other 
   assert.match(map, /const requireRaceAccount = \(\): boolean => \{/);
   assert.match(map, /if \(authUser\) return true;/);
   assert.match(map, /navigate\('\/login\?next=%2Fmap'\);/);
-  assert.match(map, /const openHostRun = \(\) => \{\s*if \(!requireRaceAccount\(\)\) return;/);
+  assert.match(map, /const openHostRunAt = \(point: Coordinates\) => \{\s*if \(!requireRaceAccount\(\)\) return;/);
   assert.match(map, /const handleHostRun = async \(distanceMeters: number\) => \{\s*if \(!requireRaceAccount\(\)\) return;/);
+  assert.match(map, /location: hostLocation/);
   assert.match(map, /const handleJoinRun = async \(run: OpenRun\) => \{\s*if \(!requireRaceAccount\(\)\) return;/);
-  assert.match(map, /onHost=\{openHostRun\}/);
-  assert.match(read('src/components/map/ArcadeMapChrome.tsx'), /onClick=\{onHost\}>RENNEN VERANSTALTEN/);
+  assert.match(map, /onHostAt=\{openHostRunAt\}/);
+  assert.match(read('src/components/map/ArcadeMapLibreView.tsx'), /callbacks\.current\.onHostAt\(position\)/);
+  assert.doesNotMatch(read('src/components/map/ArcadeMapChrome.tsx'), /onClick=\{onHost\}/);
   assert.match(map, /onJoin=\{joinArcadeRun\}/);
   assert.match(map, /if \(run\) \{ void handleJoinRun\(run\); \}/);
   const vector = read('src/components/map/ArcadeMapLibreView.tsx');

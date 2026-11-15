@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { parseGeographyPoint, type GeoCoordinates } from '../lib/duelLocation.ts';
 
 /** Only the authenticated owner's still-open, unjoined duels can be cancelled. */
 export type HostedOpenDuel = Readonly<{
@@ -6,6 +7,8 @@ export type HostedOpenDuel = Readonly<{
   hostUserId: string;
   distanceMeters: number;
   createdAt: string | null;
+  /** Own race's DB-confirmed location, so its lime flag survives a reload. */
+  location?: GeoCoordinates | null;
 }>;
 
 export type CancelHostedDuelResult =
@@ -21,7 +24,7 @@ function isUuid(value: string): boolean {
 export async function listHostedOpenDuels(client: DuelClient, hostUserId: string): Promise<HostedOpenDuel[]> {
   if (!isUuid(hostUserId)) return [];
   const { data, error } = await client.from('duels')
-    .select('id, host_user_id, target_distance_m, created_at')
+    .select('id, host_user_id, target_distance_m, created_at, location')
     .eq('host_user_id', hostUserId)
     .eq('status', 'open')
     .is('challenger_user_id', null)
@@ -36,6 +39,7 @@ export async function listHostedOpenDuels(client: DuelClient, hostUserId: string
       distanceMeters: Number.isFinite(row.target_distance_m) && row.target_distance_m > 0
         ? row.target_distance_m : 100,
       createdAt: typeof row.created_at === 'string' ? row.created_at : null,
+      location: parseGeographyPoint(row.location),
     }));
 }
 

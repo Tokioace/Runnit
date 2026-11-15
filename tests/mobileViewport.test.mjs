@@ -68,7 +68,8 @@ test('map status messages respect iOS safe area and removed CTAs remain availabl
   assert.equal(map.match(/max-w-\[calc\(100%-2rem\)\]/g)?.length, 2);
   const list = read('src/components/map/ArcadeMapChrome.tsx');
   const styles = read('src/styles/arcadeMap.css');
-  assert.match(list, /RENNEN VERANSTALTEN/);
+  assert.doesNotMatch(list, /onClick=\{onHost\}/);
+  assert.match(list, /Halte einen Punkt innerhalb deines 500-m-Radars/);
   assert.match(list, /BEITRETEN/);
   assert.match(styles, /safe-area-inset-bottom/);
   assert.doesNotMatch(map, /runnit-arcade-controls/);

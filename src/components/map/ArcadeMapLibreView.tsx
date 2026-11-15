@@ -5,6 +5,8 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { ArcadeMapEntry, ArcadeMapView } from './ArcadeMapChrome';
 import { eventPopupLngLat } from '../../lib/mapPopupAnchor';
+import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters, validMapPoint } from '../../lib/mapHostPlacement';
+import { markerInViewport } from '../../lib/mapMarkerVisibility';
 
 // Required by MapLibre v6 and Vite 8: ship the real same-origin WebGL worker.
 // Without ?worker&url, production may show a blank map without a build failure.
@@ -40,6 +42,8 @@ export type ArcadeMapLibreProps = {
   onJoinRun: (id: string) => void;
   onCancelRun: (id: string) => void;
   onGhostClick: () => void;
+  onHostAt: (position: MapCoordinate) => void;
+  onInvalidHostAt: (message: string) => void;
   onTilesLoaded: () => void;
   onTilesError: () => void;
 };
@@ -217,19 +221,25 @@ function detailElement(run: ArcadeVectorRun, onJoin: () => void, onCancel: () =>
 /** Owns only map rendering: no auth, Supabase, races or geolocation reads. */
 export default function ArcadeMapLibreView({
   initialCenter, initialZoom, userCoords, ipCoords, recenterTick, retryTick, view,
-  players, runs, onSelectRun, onJoinRun, onCancelRun, onGhostClick,
+  players, runs, onSelectRun, onJoinRun, onCancelRun, onGhostClick, onHostAt, onInvalidHostAt,
   onTilesLoaded, onTilesError,
 }: ArcadeMapLibreProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<GLMap | null>(null);
   const gpsMarkerRef = useRef<Marker | null>(null);
   const activeRunPopupRef = useRef<Popup | null>(null);
+  const hostPopupRef = useRef<Popup | null>(null);
+  const ignoreMapClickUntilRef = useRef(0);
+  const visiblePlayersRef = useRef<Array<{ marker: Marker; point: MapCoordinate }>>([]);
+  const visibleRunsRef = useRef<Array<{ marker: Marker; point: MapCoordinate }>>([]);
+  const latestGpsRef = useRef(userCoords);
+  latestGpsRef.current = userCoords;
   const liveRunsRef = useRef(runs);
   liveRunsRef.current = runs;
   const [ready, setReady] = useState(false);
   const [tilted, setTilted] = useState(true);
-  const callbacks = useRef({ onSelectRun, onJoinRun, onCancelRun, onGhostClick, onTilesLoaded, onTilesError });
-  callbacks.current = { onSelectRun, onJoinRun, onCancelRun, onGhostClick, onTilesLoaded, onTilesError };
+  const callbacks = useRef({ onSelectRun, onJoinRun, onCancelRun, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError });
+  callbacks.current = { onSelectRun, onJoinRun, onCancelRun, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError };
   const firstGPS = useRef(false);
   const firstIP = useRef(false);
   const previousRecenter = useRef(recenterTick);
@@ -277,6 +287,8 @@ export default function ArcadeMapLibreView({
       map.off('error', onFailure);
       activeRunPopupRef.current?.remove();
       activeRunPopupRef.current = null;
+      hostPopupRef.current?.remove();
+      hostPopupRef.current = null;
       gpsMarkerRef.current?.remove();
       gpsMarkerRef.current = null;
       map.remove();
@@ -329,11 +341,183 @@ export default function ArcadeMapLibreView({
     }
   }, [ready, userCoords?.lat, userCoords?.lng]);
 
+  // MapLibre HTML Markers can be rendered at a screen edge even when their
+  // geographic anchor is far outside a pitched/rotated visible map. Check both
+  // the actual geo bounds and screen projection on every camera move.
+  const refreshVisiblePins = () => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const rect = map.getContainer().getBoundingClientRect();
+    const header = document.querySelector('.runnit-arcade-map-switch')?.getBoundingClientRect();
+    const dock = document.querySelector('.runnit-game-dock')?.getBoundingClientRect();
+    const width = map.getContainer().clientWidth;
+    const height = map.getContainer().clientHeight;
+    const viewport = {
+      width,
+      height,
+      top: header ? Math.max(22, header.bottom - rect.top + 12) : 22,
+      bottom: dock ? Math.min(height - 22, dock.top - rect.top - 12) : height - 22,
+      left: 23,
+      right: 23,
+    };
+    const bounds = map.getBounds();
+    for (const item of [...visiblePlayersRef.current, ...visibleRunsRef.current]) {
+      const geo = item.point;
+      const geographicMatch = validMapPoint(geo) && bounds.contains([geo.lng, geo.lat]);
+      const screen = geographicMatch ? map.project([geo.lng, geo.lat]) : { x: NaN, y: NaN };
+      const visible = markerInViewport(geographicMatch, screen, viewport);
+      // An inline style wins over the decorative CSS display:grid rule.
+      item.marker.getElement().style.display = visible ? '' : 'none';
+    }
+  };
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const onCameraMove = () => refreshVisiblePins();
+    map.on('move', onCameraMove);
+    map.on('moveend', onCameraMove);
+    map.on('resize', onCameraMove);
+    window.addEventListener('resize', onCameraMove);
+    refreshVisiblePins();
+    return () => {
+      map.off('move', onCameraMove);
+      map.off('moveend', onCameraMove);
+      map.off('resize', onCameraMove);
+      window.removeEventListener('resize', onCameraMove);
+    };
+    // The single map instance stays mounted; marker refs are updated separately.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
+
+  // Long-press is reserved for empty map canvas, not for a marker or a UI tab.
+  // A drag or pinch cancels it; desktop right-click is an equivalent gesture.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const canvas = map.getCanvas();
+    let pressTimer: ReturnType<typeof setTimeout> | null = null;
+    let origin: { id: number; x: number; y: number } | null = null;
+    let lastOpened = 0;
+
+    const discard = () => {
+      if (pressTimer !== null) clearTimeout(pressTimer);
+      pressTimer = null;
+      origin = null;
+    };
+    const closeHostPopup = () => {
+      hostPopupRef.current?.remove();
+      hostPopupRef.current = null;
+    };
+    const openAt = (position: MapCoordinate) => {
+      if (Date.now() - lastOpened < 900) return;
+      lastOpened = Date.now();
+      ignoreMapClickUntilRef.current = Date.now() + 900;
+      const gps = latestGpsRef.current;
+      if (!validMapPoint(gps)) {
+        callbacks.current.onInvalidHostAt('Zum Platzieren eines Rennens benötigst du einen GPS-Standort.');
+        return;
+      }
+      if (!canHostAt(gps, position)) {
+        callbacks.current.onInvalidHostAt('Der Punkt liegt außerhalb deines 500-m-Radars. Wähle eine Stelle innerhalb des cyanfarbenen Kreises.');
+        return;
+      }
+      activeRunPopupRef.current?.remove();
+      activeRunPopupRef.current = null;
+      closeHostPopup();
+
+      const root = document.createElement('div');
+      root.className = 'runnit-gl-host-details';
+      const title = document.createElement('strong');
+      title.textContent = 'HIER RENNEN VERANSTALTEN';
+      root.appendChild(title);
+      const info = document.createElement('p');
+      info.textContent = Math.round(mapDistanceMeters(gps, position)) + ' m von deinem GPS-Standort · innerhalb des ' + HOST_PLACEMENT_RADIUS_METERS + '-m-Radars';
+      root.appendChild(info);
+      const create = document.createElement('button');
+      create.type = 'button';
+      create.className = 'runnit-gl-host-cta';
+      create.textContent = 'RENNEN HIER ERSTELLEN »';
+      create.addEventListener('click', (event) => {
+        event.stopPropagation();
+        closeHostPopup();
+        callbacks.current.onHostAt(position);
+      });
+      root.appendChild(create);
+      const popup = new Popup({
+        className: 'runnit-gl-host-popup',
+        closeButton: true,
+        closeOnClick: false,
+        closeOnMove: false,
+        maxWidth: '300px',
+        offset: 12,
+      }).setLngLat([position.lng, position.lat]).setDOMContent(root);
+      popup.setPadding({ top: 185, right: 16, bottom: 150, left: 16 });
+      popup.on('close', () => {
+        if (hostPopupRef.current === popup) hostPopupRef.current = null;
+      });
+      popup.addTo(map);
+      hostPopupRef.current = popup;
+    };
+
+    const pointFromPointer = (ev: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const lngLat = map.unproject([ev.clientX - rect.left, ev.clientY - rect.top]);
+      return { lat: lngLat.lat, lng: lngLat.lng };
+    };
+    const onPointerDown = (ev: PointerEvent) => {
+      if (!ev.isPrimary || ev.button !== 0 || ev.pointerType === 'mouse' && ev.buttons !== 1) return;
+      discard();
+      origin = { id: ev.pointerId, x: ev.clientX, y: ev.clientY };
+      const location = pointFromPointer(ev);
+      pressTimer = setTimeout(() => {
+        if (!origin || origin.id !== ev.pointerId) return;
+        pressTimer = null;
+        openAt(location);
+      }, 600);
+    };
+    const onPointerMove = (ev: PointerEvent) => {
+      if (!origin || origin.id !== ev.pointerId) return;
+      if (Math.hypot(ev.clientX - origin.x, ev.clientY - origin.y) > 12) discard();
+    };
+    const onPointerUp = (ev: PointerEvent) => {
+      if (origin && origin.id === ev.pointerId) discard();
+    };
+    const onRightClick = (ev: import('maplibre-gl').MapMouseEvent) => {
+      ev.originalEvent.preventDefault();
+      // Mobile uses the pointer timer; avoid a second popup when iOS emits
+      // a synthetic contextmenu on finger release after a long hold.
+      if (ev.originalEvent.button !== 2) return;
+      discard();
+      openAt({ lat: ev.lngLat.lat, lng: ev.lngLat.lng });
+    };
+
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+    map.on('dragstart', discard);
+    map.on('zoomstart', discard);
+    map.on('contextmenu', onRightClick);
+    return () => {
+      discard();
+      closeHostPopup();
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+      map.off('dragstart', discard);
+      map.off('zoomstart', discard);
+      map.off('contextmenu', onRightClick);
+    };
+  }, [ready]);
+
   // Green/yellow demo runners still open the leaderboard, never a race popup.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
     const markers: Marker[] = [];
+    const visibleMarkers: Array<{ marker: Marker; point: MapCoordinate }> = [];
     for (const person of players) {
       if (person.source === 'server-unverified' || !finiteCoords(person.location)) continue;
       const el = markerElement('runner', '#a985ff', person.source === 'demo');
@@ -341,10 +525,17 @@ export default function ArcadeMapLibreView({
         event.stopPropagation();
         callbacks.current.onGhostClick();
       });
-      markers.push(new Marker({ element: el, anchor: 'center' })
-        .setLngLat([person.location.lng, person.location.lat]).addTo(map));
+      const marker = new Marker({ element: el, anchor: 'center' })
+        .setLngLat([person.location.lng, person.location.lat]).addTo(map);
+      markers.push(marker);
+      visibleMarkers.push({ marker, point: person.location });
     }
-    return () => { for (const marker of markers) marker.remove(); };
+    visiblePlayersRef.current = visibleMarkers;
+    refreshVisiblePins();
+    return () => {
+      visiblePlayersRef.current = [];
+      for (const marker of markers) marker.remove();
+    };
     // playerMarkerKey is intentionally independent of live GPS and race entries.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, playerMarkerKey]);
@@ -355,20 +546,28 @@ export default function ArcadeMapLibreView({
     const map = mapRef.current;
     if (!map || !ready) return;
     const markers: Marker[] = [];
+    const visibleMarkers: Array<{ marker: Marker; point: MapCoordinate }> = [];
     const closePopup = () => {
       activeRunPopupRef.current?.remove();
       activeRunPopupRef.current = null;
     };
-    const onMapBackgroundClick = () => closePopup();
+    const onMapBackgroundClick = () => {
+      if (Date.now() < ignoreMapClickUntilRef.current) return;
+      closePopup();
+      hostPopupRef.current?.remove();
+      hostPopupRef.current = null;
+    };
     map.on('click', onMapBackgroundClick);
 
     for (const originalRun of runs) {
       if (!finiteCoords(originalRun.location)) continue;
       const el = markerElement('run', originalRun.isOwn ? '#c9ff0b' : '#f13edc', originalRun.isDemo);
+      if (originalRun.isOwn) el.classList.add('is-own');
       const marker = new Marker({ element: el, anchor: 'bottom' })
         .setLngLat(eventPopupLngLat(originalRun))
         .addTo(map);
       markers.push(marker);
+      visibleMarkers.push({ marker, point: originalRun.location });
 
       el.addEventListener('click', (event) => {
         // Prevent MapLibre's background-click handler from instantly closing it.
@@ -379,6 +578,8 @@ export default function ArcadeMapLibreView({
         if (!selectedRun || !finiteCoords(selectedRun.location)) return;
         const eventPosition = eventPopupLngLat(selectedRun);
         closePopup();
+        hostPopupRef.current?.remove();
+        hostPopupRef.current = null;
         const popup = new Popup({
           className: 'runnit-gl-race-popup',
           maxWidth: '290px',
@@ -409,7 +610,10 @@ export default function ArcadeMapLibreView({
         }
       });
     }
+    visibleRunsRef.current = visibleMarkers;
+    refreshVisiblePins();
     return () => {
+      visibleRunsRef.current = [];
       map.off('click', onMapBackgroundClick);
       closePopup();
       for (const marker of markers) marker.remove();
@@ -422,6 +626,8 @@ export default function ArcadeMapLibreView({
     if (view === 'list') {
       activeRunPopupRef.current?.remove();
       activeRunPopupRef.current = null;
+      hostPopupRef.current?.remove();
+      hostPopupRef.current = null;
     }
   }, [view]);
 
@@ -433,7 +639,7 @@ export default function ArcadeMapLibreView({
 
   return (
     <>
-      <div ref={canvasRef} className="runnit-gl-canvas" role="application" aria-label="Dreidimensionale Karte mit Rennen in deiner Nähe" />
+      <div ref={canvasRef} className="runnit-gl-canvas" role="application" aria-label="Dreidimensionale Karte mit Rennen in deiner Nähe. Zum Veranstalten Karte an einem Punkt im 500-Meter-Radar länger gedrückt halten." />
       <button
         type="button"
         className="runnit-gl-tilt-button"
