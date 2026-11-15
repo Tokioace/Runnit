@@ -81,7 +81,8 @@ function styleArcadeMap(map: GLMap) {
     const name = layer.id.toLowerCase();
     try {
       if (layer.type === 'background') {
-        map.setPaintProperty(layer.id, 'background-color', '#10243d');
+        map.setPaintProperty(layer.id, 'background-color',
+          ['interpolate', ['linear'], ['zoom'], 2, '#071225', 7, '#0a1c34', 13, '#10243d']);
       } else if (layer.type === 'fill' && /building/.test(name)) {
         map.setPaintProperty(layer.id, 'fill-color', '#3d5c77');
         map.setPaintProperty(layer.id, 'fill-opacity', 0.94);
@@ -92,9 +93,11 @@ function styleArcadeMap(map: GLMap) {
           : ['interpolate', ['linear'], ['zoom'], 3, '#29435e', 8, '#416b86', 12, '#608caa', 16, '#779bb9']);
         map.setPaintProperty(layer.id, 'line-opacity', main ? 1 : 0.94);
       } else if (layer.type === 'fill' && /water/.test(name)) {
-        map.setPaintProperty(layer.id, 'fill-color', '#123852');
+        map.setPaintProperty(layer.id, 'fill-color',
+          ['interpolate', ['linear'], ['zoom'], 2, '#0a1d32', 8, '#0a2946', 13, '#123852']);
       } else if (layer.type === 'fill' && /park|wood|forest|landcover|grass/.test(name)) {
-        map.setPaintProperty(layer.id, 'fill-color', '#193b49');
+        map.setPaintProperty(layer.id, 'fill-color',
+          ['interpolate', ['linear'], ['zoom'], 2, '#102b39', 8, '#113743', 13, '#193b49']);
       } else if (layer.type === 'symbol' && /label|place|road/.test(name)) {
         map.setPaintProperty(layer.id, 'text-color', '#bed6e9');
         map.setPaintProperty(layer.id, 'text-halo-color', '#081a30');
