@@ -62,8 +62,9 @@ test('3D/2D switch is horizontally beside locate and never obscures an active po
   const css = read('src/styles/maplibreArcade.css');
   const screen = read('src/screens/MapScreen.tsx');
   const view = read('src/components/map/ArcadeMapLibreView.tsx');
-  assert.match(css, /\.runnit-map-locate-slot\{\s*right:72px/);
-  assert.match(css, /top:calc\(9\.4rem \+ env\(safe-area-inset-top,0px\)\)/);
+  assert.match(css, /\.runnit-map-locate-slot\{\s*right:calc\(var\(--runnit-map-tools-right\) \+ 56px\)/);
+  assert.match(css, /--runnit-map-tools-top:calc\(7\.75rem \+ env\(safe-area-inset-top,0px\)\)/);
+  assert.match(css, /\.runnit-gl-tilt-button\{\s*right:var\(--runnit-map-tools-right\);\s*top:var\(--runnit-map-tools-top\)/);
   assert.match(css, /:has\(\.maplibregl-popup\.runnit-gl-race-popup\) \.runnit-gl-tilt-button/);
   assert.match(css, /:has\(\.maplibregl-popup\.runnit-gl-host-popup\) \.runnit-gl-tilt-button/);
   assert.match(css, /opacity:0;visibility:hidden;pointer-events:none/);
