@@ -1051,7 +1051,13 @@ export default function MapScreen() {
         }
         
         if (!isActive) return;
-        setOpenRuns(mapped);
+        // The personal pending race is always kept on the map even if the
+        // nearby discovery RPC temporarily falls back to sample data.
+        setOpenRuns(previous => {
+          const own = previous.filter(run => run.hostUserId === authUser.id && !run.id.startsWith('demo-run-'));
+          const ids = new Set(own.map(run => run.id));
+          return [...own, ...mapped.filter(run => !ids.has(run.id))];
+        });
       } finally {
         if (isActive) setLoadingDuels(false);
       }
@@ -1075,6 +1081,21 @@ export default function MapScreen() {
       .then(runs => {
         if (!active) return;
         setHostedOpenDuels(runs);
+        setOpenRuns(previous => {
+          const restored: OpenRun[] = runs
+            .filter(run => Boolean(run.location))
+            .map(run => ({
+              id: run.id,
+              hostUserId: authUser.id,
+              hostUsername: authUser.displayName,
+              distanceMeters: run.distanceMeters,
+              location: run.location!,
+              createdAt: run.createdAt ?? undefined,
+              targetDistanceM: run.distanceMeters,
+            }));
+          const others = previous.filter(run => run.hostUserId !== authUser.id);
+          return [...restored, ...others];
+        });
         setHostedDuelsLoadError(false);
       })
       .catch(() => {
@@ -1211,7 +1232,7 @@ export default function MapScreen() {
     setOpenRuns(previous => [created, ...previous.filter(run => run.id !== created.id)]);
     setHostedOpenDuels(previous => [
       { id: created.id, hostUserId: authUser.id, distanceMeters,
-        createdAt: created.createdAt ?? null },
+        createdAt: created.createdAt ?? null, location: created.location },
       ...previous.filter(run => run.id !== created.id),
     ]);
     setHostedDuelsLoadError(false);
@@ -1301,7 +1322,7 @@ export default function MapScreen() {
     hostUsername: run.hostUsername,
     distanceMeters: run.distanceMeters,
     distanceAwayMeters: userCoords ? haversineM(userCoords.lat, userCoords.lng, run.location.lat, run.location.lng) : null,
-    isOwn: Boolean(authUser && run.hostUserId === authUser.id),
+    isOwn: Boolean(authUser && (run.hostUserId === authUser.id || hostedOpenDuels.some(own => own.id === run.id))),
     isDemo: run.id.startsWith('demo-run-'),
   }));
 
@@ -1335,6 +1356,11 @@ export default function MapScreen() {
         onTilesError={() => setMapTilesUnavailable(true)}
       />
 
+      {arcadeMapView === 'list' && hostedDuelsLoadError && (
+        <p className="pointer-events-none absolute inset-x-4 bottom-36 z-[931] mx-auto max-w-sm rounded-lg border border-amber-300/30 bg-[#111827]/95 p-2 text-center text-xs text-amber-100">
+          Deine eigenen offenen Rennen konnten nicht aktualisiert werden. Bitte verbinde dich erneut.
+        </p>
+      )}
       {arcadeMapView === 'map' && (players.some((player) => player.source === 'demo') ||
         openRuns.some((run) => run.id.startsWith('demo-run-'))) && (
         <div className="runnit-arcade-demo-chip" role="status"

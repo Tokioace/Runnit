@@ -71,7 +71,7 @@ test('rejects invalid ids before a database call', async () => {
 test('own open-lobby query requires host ownership and no challenger', async () => {
   const calls = [];
   const rows = [
-    { id: duel, host_user_id: host, target_distance_m: 50, created_at: '2026-11-11T18:00:00Z' },
+    { id: duel, host_user_id: host, target_distance_m: 50, created_at: '2026-11-11T18:00:00Z', location: 'SRID=4326;POINT(9.43 48.94)' },
     { id: secondDuel, host_user_id: '00000000-0000-4000-8000-000000000000', target_distance_m: 75 },
   ];
   const q = {
@@ -83,9 +83,9 @@ test('own open-lobby query requires host ownership and no challenger', async () 
   };
   const client = { from(table) { calls.push(['from', table]); return q; } };
   const result = await listHostedOpenDuels(client, host);
-  assert.deepEqual(result, [{ id: duel, hostUserId: host, distanceMeters: 50, createdAt: '2026-11-11T18:00:00Z' }]);
+  assert.deepEqual(result, [{ id: duel, hostUserId: host, distanceMeters: 50, createdAt: '2026-11-11T18:00:00Z', location: { lat: 48.94, lng: 9.43 } }]);
   assert.deepEqual(calls, [
-    ['from', 'duels'], ['select', 'id, host_user_id, target_distance_m, created_at'],
+    ['from', 'duels'], ['select', 'id, host_user_id, target_distance_m, created_at, location'],
     ['eq', 'host_user_id', host], ['eq', 'status', 'open'], ['is', 'challenger_user_id', null],
     ['order', 'created_at', { ascending: false }], ['limit', 20],
   ]);
@@ -95,7 +95,9 @@ test('map offers visible hosted cancellation, explicit confirmation and accessib
   const map = readFileSync(new URL('../src/screens/MapScreen.tsx', import.meta.url), 'utf8');
   const arena = readFileSync(new URL('../src/screens/SprintArenaLabScreen.tsx', import.meta.url), 'utf8');
   const arcadeMap = readFileSync(new URL('../src/components/map/ArcadeMapChrome.tsx', import.meta.url), 'utf8');
-  assert.match(map, /Meine offenen Rennen/);
+  assert.doesNotMatch(map, /aria-label="Meine offenen Rennen"/);
+  assert.match(map, /setOpenRuns\(previous => \{/);
+  assert.match(map, /location: run\.location!/);
   assert.match(map, /listHostedOpenDuels\(supabase, authUser\.id\)/);
   assert.match(map, /cancelHostedOpenDuel\(supabase, run\.id, authUser\.id\)/);
   assert.match(map, /result\.status === 'cancelled'/);
