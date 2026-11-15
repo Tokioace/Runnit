@@ -856,6 +856,30 @@ export default function ArcadeMapLibreView({
     if (map && ready) syncHotspotTestLayers(map, hotspotDemoEnabled);
   }, [ready, hotspotDemoEnabled]);
 
+  // A slow, low-frequency breathing halo; sprites themselves are static
+  // GPU textures. Keep the animation offscreen/reduced-motion safe.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !hotspotDemoEnabled ||
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const auraLayer = 'runnit-test-hub-aura';
+    let frame = 0;
+    const pulse = () => {
+      if (document.hidden || !map.getLayer(auraLayer)) return;
+      frame = (frame + 1) % 16;
+      const alpha = .085 + .018 * Math.sin(frame * Math.PI / 8);
+      map.setPaintProperty(auraLayer, 'circle-opacity',
+        ['interpolate', ['linear'], ['zoom'], 0, alpha, 8, alpha + .025, 12.8, 0]);
+    };
+    const pulseInterval = window.setInterval(pulse, 320);
+    return () => {
+      window.clearInterval(pulseInterval);
+      if (map.getLayer(auraLayer))
+        map.setPaintProperty(auraLayer, 'circle-opacity',
+          ['interpolate', ['linear'], ['zoom'], 0, .07, 8, .11, 12.8, 0]);
+    };
+  }, [ready, hotspotDemoEnabled]);
+
   // Focus buttons fly between the three synthetic scenes. The user can pan
   // and pinch afterward; camera movements do not retrigger this effect.
   useEffect(() => {
