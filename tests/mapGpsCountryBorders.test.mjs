@@ -66,7 +66,10 @@ test('3D/2D switch is horizontally beside locate and never obscures an active po
   assert.match(css, /--runnit-map-tools-top:calc\(7\.75rem \+ env\(safe-area-inset-top,0px\)\)/);
   assert.match(css, /\.runnit-gl-tilt-button\{\s*right:var\(--runnit-map-tools-right\);\s*top:var\(--runnit-map-tools-top\)/);
   assert.match(css, /:has\(\.maplibregl-popup\.runnit-gl-race-popup\) \.runnit-gl-tilt-button/);
-  assert.match(css, /:has\(\.maplibregl-popup\.runnit-gl-host-popup\) \.runnit-gl-tilt-button/);
+  assert.doesNotMatch(css, /:has\(\.maplibregl-popup\.runnit-gl-host-popup\) \.runnit-gl-tilt-button/);
+  // While choosing "RENNEN HIER", 2D/3D remains visible and enabled.
+  assert.match(view, /hostPopupRef.current = popup;\s*\/\/ The chooser lives on the map canvas/);
+  assert.match(view, /setPopupVisible\(false\)/);
   assert.match(css, /opacity:0;visibility:hidden;pointer-events:none/);
   assert.match(screen, /runnit-map-locate-slot pointer-events-auto absolute/);
   assert.match(view, /aria-pressed=\{tilted\}/);
