@@ -67,10 +67,10 @@ export function installCommunityLayers(map: GLMap) {
       id: COMMUNITY_SINGLE_HALO_LAYER, type: 'circle', source: COMMUNITY_REAL_SOURCE,
       filter: ['!', ['has', 'point_count']],
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 26, 5, 34, 9, 40, 11, 33, 12.8, 8],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 21, 4, 29, 7, 43, 10, 36, 12.8, 8],
         'circle-color': ['get', 'color'],
         'circle-blur': 0.82,
-        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.36, 11.5, 0.29, 12.8, 0],
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 3, 0.29, 7, 0.5, 10, 0.42, 12.8, 0],
       },
     });
   }
@@ -81,12 +81,12 @@ export function installCommunityLayers(map: GLMap) {
       id: COMMUNITY_SINGLE_SIGNAL_RING, type: 'circle', source: COMMUNITY_REAL_SOURCE,
       filter: ['!', ['has', 'point_count']],
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 9, 5, 12, 9, 14, 12.8, 8],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 7, 5, 12, 8, 17, 12.8, 8],
         'circle-color': '#081e3f',
         'circle-opacity': 0,
         'circle-stroke-color': ['get', 'color'],
         'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 0, 1.1, 8, 1.8, 12.8, 0],
-        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.75, 12.8, 0],
+        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 0, 0.65, 8, 0.86, 12.8, 0],
       },
     });
   }
@@ -95,10 +95,10 @@ export function installCommunityLayers(map: GLMap) {
       id: COMMUNITY_RACE_DOT_LAYER, type: 'circle', source: COMMUNITY_REAL_SOURCE,
       filter: ['!', ['has', 'point_count']],
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 2.5, 5, 3.4, 9, 4.2, 12.8, 5.5],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 3.8, 5, 4.7, 9, 5.6, 12.8, 5.5],
         'circle-color': ['get', 'color'],
         'circle-stroke-color': '#122849',
-        'circle-stroke-width': 1.1,
+        'circle-stroke-width': 1.6,
         'circle-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0],
         'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0],
       },
@@ -109,7 +109,7 @@ export function installCommunityLayers(map: GLMap) {
       id: COMMUNITY_CLUSTER_HALO_LAYER, type: 'circle', source: COMMUNITY_REAL_SOURCE,
       filter: ['has', 'point_count'],
       paint: {
-        'circle-radius': ['step', ['get', 'point_count'], 32, 5, 42, 20, 52],
+        'circle-radius': ['step', ['get', 'point_count'], 37, 5, 48, 20, 57],
         'circle-color': '#6d53fa',
         'circle-blur': 0.78,
         'circle-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.42, 12.8, 0],
@@ -166,12 +166,14 @@ export function installCommunityLayers(map: GLMap) {
     map.addLayer({
       id: COMMUNITY_GPS_LAYER, type: 'circle', source: COMMUNITY_GPS_SOURCE,
       paint: {
-        'circle-radius': 4,
-        'circle-color': '#19e7ff',
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 11.5, 0, 12.2, 3.5, 12.8, 4],
+        'circle-color': '#2485ff',
         'circle-stroke-color': '#e1ffff',
         'circle-stroke-width': 1.3,
-        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0],
-        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0],
+        // At regional/country scales a GPS pixel is NOT an active challenge.
+        // Hide it there; the verified race signal remains visible and separate.
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 11.5, 0, 12.2, 0.78, 12.8, 0],
+        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 11.5, 0, 12.2, 0.9, 12.8, 0],
       },
     });
   }
