@@ -69,7 +69,7 @@ test('when viewing LISTE, map-only location and tilt controls are absent', () =>
   const renderer = read('src/components/map/ArcadeMapLibreView.tsx');
   const screen = read('src/screens/MapScreen.tsx');
   assert.match(renderer, /\{view === 'map' && <button/);
-  assert.match(screen, /arcadeMapView === 'map' && <div className="pointer-events-auto absolute right-4/);
+  assert.match(screen, /arcadeMapView === 'map' && <div className="runnit-map-locate-slot pointer-events-auto absolute/);
   assert.match(screen, /LIVE SIGNAL/);
   assert.match(screen, /regionalRuns\.length === 1 \? 'CHALLENGE' : 'CHALLENGES'/);
 });
