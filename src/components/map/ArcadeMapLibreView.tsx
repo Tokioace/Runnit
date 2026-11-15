@@ -11,6 +11,7 @@ import type { MapCameraScope } from '../../lib/mapHeadingScope';
 import { groupOverlappingRuns } from '../../lib/mapRunGrouping';
 import { markerPinOpacityAtZoom, markerScaleAtZoom, PIN_FADE_END_ZOOM } from '../../lib/mapMarkerZoom';
 import { COMMUNITY_CLUSTER_LAYER, COMMUNITY_RACE_DOT_LAYER, installCommunityLayers, syncCommunityLayers, type CommunityEntry } from '../../lib/mapCommunityLayers';
+import { HOTSPOT_TEST_CIRCLES, HOTSPOT_TEST_SCENARIOS, installHotspotTestLayers, syncHotspotTestLayers, type HotspotTestCity } from '../../lib/mapHotspotSignals';
 
 // Required by MapLibre v6 and Vite 8: ship the real same-origin WebGL worker.
 // Without ?worker&url, production may show a blank map without a build failure.
@@ -46,6 +47,8 @@ export type ArcadeMapLibreProps = {
   hostDialogOpen: boolean;
   hostLocation: MapCoordinate | null;
   regionalRuns: readonly { id: string; location: MapCoordinate }[];
+  hotspotDemoEnabled: boolean;
+  hotspotFocus: { city: HotspotTestCity; tick: number };
   onWideViewChange: (wide: boolean) => void;
   onCameraChange: (camera: MapCameraScope) => void;
   onSelectRun: (id: string) => void;
@@ -266,6 +269,7 @@ function styleArcadeMap(map: GLMap) {
   }
   // WebGL-clustered community layer, with demo and GPS kept separate.
   installCommunityLayers(map);
+  installHotspotTestLayers(map);
 }
 
 /** MapLibre geo clusters use the same race locations as the local HTML pins.
@@ -384,7 +388,7 @@ function detailElement(run: ArcadeVectorRun, onJoin: () => void, onCancel: () =>
 /** Owns only map rendering: no auth, Supabase, races or geolocation reads. */
 export default function ArcadeMapLibreView({
   initialCenter, initialZoom, userCoords, ipCoords, recenterTick, retryTick, view,
-  players, runs, hostDialogOpen, hostLocation, regionalRuns, onWideViewChange, onCameraChange, onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt,
+  players, runs, hostDialogOpen, hostLocation, regionalRuns, hotspotDemoEnabled, hotspotFocus, onWideViewChange, onCameraChange, onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt,
   onTilesLoaded, onTilesError,
 }: ArcadeMapLibreProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -406,6 +410,8 @@ export default function ArcadeMapLibreView({
   livePlayersRef.current = players;
   const liveRegionalRef = useRef(regionalRuns);
   liveRegionalRef.current = regionalRuns;
+  const hotspotEnabledRef = useRef(hotspotDemoEnabled);
+  hotspotEnabledRef.current = hotspotDemoEnabled;
   const [ready, setReady] = useState(false);
   const [tilted, setTilted] = useState(true);
   const [popupVisible, setPopupVisible] = useState(false);
@@ -443,6 +449,7 @@ export default function ArcadeMapLibreView({
       try {
         styleArcadeMap(map);
         syncDistantDots(map, livePlayersRef.current, liveRunsRef.current, latestGpsRef.current, liveRegionalRef.current);
+        syncHotspotTestLayers(map, hotspotEnabledRef.current);
         callbacks.current.onTilesLoaded();
         callbacks.current.onWideViewChange(map.getZoom() <= 11.2);
         const camera = map.getCenter();
@@ -481,6 +488,15 @@ export default function ArcadeMapLibreView({
     updateAtmosphere();
     map.on('click', COMMUNITY_CLUSTER_LAYER, onCommunityClusterClick);
     map.on('click', COMMUNITY_RACE_DOT_LAYER, onCommunityClusterClick);
+    const onTestHotspotClick = (event: import('maplibre-gl').MapLayerMouseEvent) => {
+      if (!hotspotEnabledRef.current) return;
+      const feature = event.features?.[0];
+      const geometry = feature?.geometry;
+      if (!geometry || geometry.type !== 'Point') return;
+      const coordinates = geometry.coordinates;
+      map.easeTo({ center: [coordinates[0], coordinates[1]], zoom: Math.min(11, Math.max(8.7, map.getZoom() + 2)), duration: 500 });
+    };
+    map.on('click', HOTSPOT_TEST_CIRCLES, onTestHotspotClick);
     return () => {
       map.off('style.load', onStyle);
       map.off('error', onFailure);
@@ -489,6 +505,7 @@ export default function ArcadeMapLibreView({
       map.off('zoom', updateAtmosphere);
       map.off('click', COMMUNITY_CLUSTER_LAYER, onCommunityClusterClick);
       map.off('click', COMMUNITY_RACE_DOT_LAYER, onCommunityClusterClick);
+      map.off('click', HOTSPOT_TEST_CIRCLES, onTestHotspotClick);
       activeRunPopupRef.current?.remove();
       activeRunPopupRef.current = null;
       hostPopupRef.current?.remove();
@@ -812,6 +829,28 @@ export default function ArcadeMapLibreView({
       map.off('contextmenu', onRightClick);
     };
   }, [ready]);
+
+  // Purely local, explicitly opted-in load simulation. It never writes a
+  // database record or contributes to the real community source.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && ready) syncHotspotTestLayers(map, hotspotDemoEnabled);
+  }, [ready, hotspotDemoEnabled]);
+
+  // Focus buttons fly between the three synthetic scenes. The user can pan
+  // and pinch afterward; camera movements do not retrigger this effect.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !hotspotDemoEnabled) return;
+    const seed = HOTSPOT_TEST_SCENARIOS.find(item => item.cityId === hotspotFocus.city);
+    map.easeTo({
+      center: seed ? [seed.lng, seed.lat] : [10.43, 48.58],
+      zoom: seed ? 9 : 6.5,
+      pitch: 0,
+      bearing: 0,
+      duration: 500,
+    });
+  }, [ready, hotspotDemoEnabled, hotspotFocus.tick]);
 
   // Data changes are reflected on the low-zoom WebGL layer without rebuilding
   // either the map or the detailed marker DOM nodes.
