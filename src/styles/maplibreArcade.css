@@ -343,25 +343,28 @@
 }
 
 
-/* When the runner is really near their own open race, show GPS as a tiny
-   cyan Y2K satellite on the green flag rather than hiding location entirely.
-   No coordinate is displaced: this is an indicator, not a moved map point.
-   The marker remains a normal full-size tappable event button. */
-.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own[data-gps-nearby="true"]::before {
-  content:"";position:absolute;z-index:4;
-  left:-8px;bottom:0;width:12px;height:12px;
-  border:2px solid #edffff;border-radius:50%;
-  background:radial-gradient(circle at 32% 28%,#b3fbff 0%,#3aafff 33%,#1164f2 85%);
-  box-shadow:0 0 0 2px rgba(34,221,255,.35),0 0 9px #26ddff;
+/* Y2K blue proximity satellite. A hollow cyan ring means the GPS fix lies
+   within 500 meters of this own race, without claiming precise co-location.
+   A bright filled blue lens is reserved for the strict 30 m GPS match.
+   Both are visually detached from the count and ignore touch events. */
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own[data-gps-in-radius="true"]::before{
+  content:"";position:absolute;z-index:5;
+  left:-10px;bottom:-2px;width:16px;height:16px;box-sizing:border-box;
+  border:3px solid #39e6ff;border-radius:50%;
+  background:radial-gradient(circle,#0a2347 38%,#103c73 100%);
+  box-shadow:inset 0 0 4px #35caff,0 0 0 3px rgba(34,221,255,.27),0 0 13px #20bfff;
   pointer-events:none;
 }
-/* Own race group markers can reuse the same GPS satellite without obscuring
-   the actual group count or its tap target. */
-.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own.is-run-group[data-gps-nearby="true"]::before {
-  left:-8px;bottom:0;
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own[data-gps-nearby="true"]::before{
+  border:2px solid #edffff;
+  background:radial-gradient(circle at 32% 28%,#b3fbff 0%,#3aafff 33%,#1164f2 85%);
+  box-shadow:0 0 0 3px rgba(34,221,255,.42),0 0 13px #26ddff;
+}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own.is-run-group[data-gps-in-radius="true"]::before{
+  left:-10px;bottom:-2px;
 }
 @media(prefers-reduced-motion:reduce){
-  .runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own[data-gps-nearby="true"]::before {
+  .runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own[data-gps-in-radius="true"]::before{
     transition:none;animation:none;
   }
 }
