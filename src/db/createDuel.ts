@@ -19,6 +19,6 @@ export async function createDuel(
     max_distance_km: integerDistanceKm,
     target_distance_m: Math.max(1, Math.round(targetDistanceM ?? distanceKm * 1000) || 100),
     status: 'open',
-  }).select('id, host_user_id, status, target_distance_m, created_at').single();
+  }).select('id, host_user_id, status, target_distance_m, created_at, expires_at').single();
 }
 
