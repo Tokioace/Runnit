@@ -32,17 +32,16 @@ test('GPS source stays independent of real/demos and is layered behind event orb
   assert.equal(collections.gps.features.length, 1);
 });
 
-test('GPS is combined only with a geographically near own event, never for mere pixel overlap', () => {
+test('GPS position stays independent of an event at close zoom', () => {
   assert.equal(projectedMarkersOverlap({ x: 150, y: 210 }, { x: 150, y: 210 }), true);
   assert.equal(projectedMarkersOverlap({ x: 150, y: 210 }, { x: 188, y: 210 }), false);
   const renderer = read('src/components/map/ArcadeMapLibreView.tsx');
-  assert.match(renderer, /const gpsBadge = nearestOwnGpsBadge\(gps,/);
-  assert.match(renderer, /button\.dataset\.gpsNearby = nearby \? 'true' : 'false'/);
-  assert.match(renderer, /button\.dataset\.gpsInRadius = inRadius \? 'true' : 'false'/);
-  assert.match(renderer, /if \(mergedIntoVisiblePin\)/);
-  assert.doesNotMatch(renderer, /projectedMarkersOverlap\(projectedGps, projectedRun\)/);
+  assert.match(renderer, /updateMarker\(gpsMarkerRef.current, gps\)/);
+  assert.doesNotMatch(renderer, /mergedIntoVisiblePin|dataset\.gpsNearby|dataset\.gpsInRadius/);
+  const source = read('src/lib/mapCommunityLayers.ts');
+  assert.match(source, /COMMUNITY_OWN_GPS_SATELLITE_DOT/);
+  assert.match(source, /'circle-opacity': \['interpolate', \['linear'\], \['zoom'\], 0, 1, 12\.2, 1, 12\.8, 0\]/);
 });
-
 
 test('2D/3D and recenter are horizontally aligned with full-size touch targets', () => {
   const screen = read('src/screens/MapScreen.tsx');
