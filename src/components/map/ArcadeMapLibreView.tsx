@@ -1027,10 +1027,23 @@ export default function ArcadeMapLibreView({
         }
         const selectedRun = liveRunsRef.current.find(run => run.id === originalRun.id);
         if (!selectedRun || !finiteCoords(selectedRun.location)) return;
+        // Do not briefly expose a join action on a race whose server deadline
+        // has already passed but whose status-change event is still in flight.
+        if (!selectedRun.isDemo && selectedRun.expiresAt &&
+            openEventMsLeft(selectedRun.expiresAt) === 0) {
+          callbacks.current.onRunExpired(selectedRun.id);
+          return;
+        }
         const eventPosition = eventPopupLngLat(selectedRun);
         closePopup();
         hostPopupRef.current?.remove();
         hostPopupRef.current = null;
+        const detail = detailElement(selectedRun,
+          () => callbacks.current.onJoinRun(selectedRun.id),
+          () => callbacks.current.onCancelRun(selectedRun.id));
+        const clock = detail.querySelector<HTMLTimeElement>('.runnit-gl-run-expiry time');
+        const expiryBox = detail.querySelector<HTMLElement>('.runnit-gl-run-expiry');
+        const action = detail.querySelector<HTMLButtonElement>('.runnit-gl-run-cta');
         const popup = new Popup({
           className: 'runnit-gl-race-popup' + (selectedRun.isOwn ? ' is-own-popup' : ''),
           maxWidth: selectedRun.isOwn ? '242px' : '290px',
@@ -1040,11 +1053,28 @@ export default function ArcadeMapLibreView({
           closeOnMove: false,
         })
           .setLngLat(eventPosition)
-          .setDOMContent(detailElement(selectedRun,
-            () => callbacks.current.onJoinRun(selectedRun.id),
-            () => callbacks.current.onCancelRun(selectedRun.id)));
+          .setDOMContent(detail);
+        let expiryInterval: number | null = null;
+        const updatePopupClock = () => {
+          if (!selectedRun.expiresAt) return;
+          const msLeft = openEventMsLeft(selectedRun.expiresAt);
+          if (clock) clock.textContent = openEventClockLabel(selectedRun.expiresAt);
+          expiryBox?.classList.toggle('is-urgent', msLeft > 0 && msLeft <= 300_000);
+          if (msLeft === 0) {
+            if (action) action.disabled = true;
+            popup.remove();
+            // The server cron expires the database row. Client cleanup only
+            // removes an already-expired open challenge from every map view.
+            callbacks.current.onRunExpired(selectedRun.id);
+          }
+        };
+        const onPageVisible = () => {
+          if (!document.hidden) updatePopupClock();
+        };
         popup.setPadding({ top: 190, right: 18, bottom: 155, left: 18 });
         popup.on('close', () => {
+          if (expiryInterval !== null) window.clearInterval(expiryInterval);
+          document.removeEventListener('visibilitychange', onPageVisible);
           if (activeRunPopupRef.current === popup) activeRunPopupRef.current = null;
           setPopupVisible(Boolean(activeRunPopupRef.current || hostPopupRef.current));
         });
@@ -1052,6 +1082,12 @@ export default function ArcadeMapLibreView({
         activeRunPopupRef.current = popup;
         setPopupVisible(true);
         callbacks.current.onSelectRun(selectedRun.id);
+        if (selectedRun.expiresAt && !selectedRun.isDemo) {
+          // Isolated 1Hz clock only while this popup is open; no map rerender.
+          expiryInterval = window.setInterval(updatePopupClock, 1000);
+          document.addEventListener('visibilitychange', onPageVisible);
+          updatePopupClock();
+        }
 
         // Leave room ABOVE the event for the entire detail card and BELOW it
         // for the bottom dock. Never pan towards the runner's GPS position.
