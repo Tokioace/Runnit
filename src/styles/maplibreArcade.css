@@ -119,8 +119,7 @@
    3D/pitched map. For narrow screens a bounded floating panel is more reliable
    than moving the entire camera around to fit a tooltip. */
 @media(max-width:650px){
-  .runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup,
-  .runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup {
+  .runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup {
     position:fixed!important;
     top:auto!important;right:auto!important;
     bottom:calc(105px + env(safe-area-inset-bottom,0px))!important;
@@ -135,8 +134,7 @@
     overflow-y:auto;overscroll-behavior:contain;
     box-sizing:border-box;
   }
-  .runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup .maplibregl-popup-tip,
-  .runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup .maplibregl-popup-tip {
+  .runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup .maplibregl-popup-tip {
     display:none;
   }
   .runnit-map-arcade .runnit-gl-run-details,
@@ -146,4 +144,86 @@
   }
   .runnit-map-arcade .runnit-gl-run-details {padding-right:7px;}
   .runnit-map-arcade .runnit-gl-host-details strong {padding-right:27px;}
+}
+
+
+/* HOST TARGET — tiny point-anchored arcade HUD, NOT the fixed race detail card. */
+.runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup {
+  position:absolute!important;
+  width:188px;max-width:min(188px,calc(100vw - 28px))!important;
+  z-index:960!important;pointer-events:auto;
+}
+.runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup .maplibregl-popup-content {
+  border:1px solid #d0ff54;border-bottom:2px solid #33e9ff;
+  border-radius:9px 2px 9px 2px;
+  padding:9px 9px 8px;
+  background:linear-gradient(130deg,#23447a,#101d46 62%,#10102c);
+  box-shadow:inset 0 1px #c7faff,0 0 13px #abff2766,0 10px 24px #030916cf;
+  overflow:visible;max-height:none;
+}
+.runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup .maplibregl-popup-tip{
+  display:block;border-top-color:#1e335a;border-bottom-color:#1e335a;
+}
+.runnit-map-arcade .runnit-gl-host-details {
+  width:164px!important;min-width:0;max-width:164px!important;
+  color:white;line-height:1.28;box-sizing:border-box;
+}
+.runnit-map-arcade .runnit-gl-host-details strong {
+  font:italic 900 13px/1.15 system-ui,-apple-system,sans-serif;
+  color:#d9ff5f;letter-spacing:-.025em;
+  display:block;padding-right:20px;text-shadow:0 0 9px #b6ff6399;
+}
+.runnit-map-arcade .runnit-gl-host-details p {
+  margin:6px 0 7px;color:#bbf2fa;font-size:9px;
+  font-weight:850;letter-spacing:.018em;white-space:nowrap;
+}
+.runnit-map-arcade .runnit-gl-host-cta {
+  width:100%;min-height:37px;padding:6px 8px;
+  border:1px solid #f2ffa3;border-radius:7px 2px 7px 2px;
+  background:linear-gradient(125deg,#efff80,#c7ff0e 60%,#75ad16);
+  color:#0d2333;font-size:12px;font-weight:1000;font-style:italic;
+  box-shadow:0 0 9px #baff4099;
+}
+.runnit-map-arcade .runnit-gl-host-pulse{
+  position:absolute;width:17px;height:17px;box-sizing:border-box;
+  pointer-events:none;border:2px solid #efffaf;border-radius:50%;
+  background:#caff14;box-shadow:0 0 8px 4px #c8ff38ad,0 0 22px #25e7ff;
+}
+.runnit-map-arcade .runnit-gl-host-pulse::before,
+.runnit-map-arcade .runnit-gl-host-pulse::after{
+  content:"";position:absolute;inset:-3px;border:2px solid #b5ff48;
+  border-radius:50%;pointer-events:none;
+  animation:runnit-host-target-wave 1.8s ease-out infinite;
+}
+.runnit-map-arcade .runnit-gl-host-pulse::after{
+  border-color:#4deaff;animation-delay:-.9s;
+}
+@keyframes runnit-host-target-wave{
+  0%{transform:scale(.6);opacity:.95}
+  100%{transform:scale(3.5);opacity:0}
+}
+
+/* WIDE VIEW ATMOSPHERE — subtle arcade world-space mood without fake hubs. */
+.runnit-map-arcade .runnit-gl-distance-atmosphere{
+  position:absolute;inset:0;z-index:2;pointer-events:none;
+  opacity:0;transition:opacity 180ms linear;overflow:hidden;
+  background:
+    radial-gradient(ellipse 82% 70% at 52% 52%,transparent 18%,rgba(2,9,26,.35) 92%,rgba(2,8,24,.45)),
+    repeating-linear-gradient(0deg,transparent 0 86px,rgba(56,223,255,.048) 87px,transparent 89px),
+    repeating-linear-gradient(90deg,transparent 0 106px,rgba(56,223,255,.042) 107px,transparent 109px),
+    linear-gradient(140deg,rgba(6,21,54,.08),transparent 45%,rgba(25,10,65,.12));
+}
+.runnit-map-arcade .runnit-gl-distance-atmosphere::after{
+  content:"";position:absolute;left:-10%;right:-10%;top:-24%;height:17%;
+  background:linear-gradient(to bottom,transparent,rgba(60,239,255,.095),transparent);
+  transform:translateY(0);animation:runnit-map-signal-sweep 16s linear infinite;
+}
+.runnit-map-arcade .runnit-gl-distance-atmosphere.is-hidden{display:none}
+@keyframes runnit-map-signal-sweep{
+  to{transform:translateY(850%)}
+}
+@media(prefers-reduced-motion:reduce){
+  .runnit-map-arcade .runnit-gl-host-pulse::before,
+  .runnit-map-arcade .runnit-gl-host-pulse::after,
+  .runnit-map-arcade .runnit-gl-distance-atmosphere::after{animation:none}
 }
