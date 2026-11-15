@@ -4,16 +4,22 @@
 ALTER TABLE public.duels ADD COLUMN IF NOT EXISTS expires_at timestamptz;
 ALTER TABLE public.duels ADD COLUMN IF NOT EXISTS matched_at timestamptz;
 
+-- Existing cancelled rows are IMMUTABLE under guard_duel_cancellation,
+-- so never backfill or touch their historical fields.
 UPDATE public.duels
 SET expires_at = coalesce(created_at, now()) + interval '60 minutes'
-WHERE expires_at IS NULL;
+WHERE expires_at IS NULL AND status IS DISTINCT FROM 'cancelled';
 UPDATE public.duels
 SET matched_at = coalesce(created_at, now())
 WHERE status = 'matched' AND matched_at IS NULL;
 
 ALTER TABLE public.duels
-  ALTER COLUMN expires_at SET DEFAULT (now() + interval '60 minutes'),
-  ALTER COLUMN expires_at SET NOT NULL;
+  ALTER COLUMN expires_at SET DEFAULT (now() + interval '60 minutes');
+-- Legacy cancelled rows may have null expires_at, while every open/matched
+-- record must be timestamped. The insert trigger sets non-null for all new rows.
+ALTER TABLE public.duels
+  ADD CONSTRAINT duels_active_expiry_required
+  CHECK (status NOT IN ('open', 'matched') OR expires_at IS NOT NULL);
 
 -- Existing forgotten lobbies must not block the new one-event rule.
 UPDATE public.duels
