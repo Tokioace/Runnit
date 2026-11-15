@@ -62,3 +62,23 @@
   background:linear-gradient(145deg,#162d3c,#305437);
 }
 .runnit-map-arcade .runnit-gl-marker.runnit-gl-run .runnit-gl-marker-glyph{width:27px;height:27px}
+
+
+/* Temporary, map-anchored host chooser; removed as soon as the hosting
+   dialog opens. This is never a persistent panel over the map or LISTE. */
+.runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup { z-index:600; }
+.runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup .maplibregl-popup-content {
+  padding:12px;border:2px solid #b5ff15;border-radius:15px 3px 15px 3px;
+  background:linear-gradient(155deg,#182c4f,#0b1231);
+  box-shadow:0 0 18px rgba(193,255,18,.45),0 10px 26px #000a;
+}
+.runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup .maplibregl-popup-tip { border-top-color:#142342; }
+.runnit-gl-host-details{width:min(240px,calc(100vw - 76px));color:#fff;line-height:1.45}
+.runnit-gl-host-details strong{display:block;padding-right:23px;font-weight:1000;font-style:italic;font-size:17px;color:#d5ff7c}
+.runnit-gl-host-details p{font-size:12px;color:#bbdef1;margin:8px 0 12px}
+.runnit-gl-host-cta{
+  width:100%;min-height:48px;padding:8px 10px;border:1px solid #deff8a;
+  border-radius:9px 3px;background:linear-gradient(125deg,#eaff86,#baff00,#78bb15);
+  color:#102122;font-size:13px;font-weight:1000;font-style:italic;
+}
+.runnit-map-arcade .maplibregl-canvas{-webkit-touch-callout:none;touch-action:none}

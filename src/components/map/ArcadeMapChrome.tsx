@@ -19,7 +19,6 @@ type Props = {
   selectedId: string | null;
   onJoin: (id: string) => void;
   onCancel: (id: string) => void;
-  onHost: () => void;
   loading: boolean;
 };
 function distanceLabel(meters: number | null): string {
@@ -55,7 +54,7 @@ export function ArcadeRunCard({ entry, onJoin, onCancel, selected = false, varia
   );
 }
 export default function ArcadeMapChrome({
-  view, onViewChange, cityName, hasGps, entries, selectedId, onJoin, onCancel, onHost, loading,
+  view, onViewChange, cityName, hasGps, entries, selectedId, onJoin, onCancel, loading,
 }: Props) {
   const orderedEntries = selectedId
     ? [...entries].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId))
@@ -81,7 +80,7 @@ export default function ArcadeMapChrome({
       {view === 'list' && (
         <section aria-label="Rennen als Liste" className="runnit-arcade-map-list">
           <div className="runnit-arcade-map-list-heading"><Flag aria-hidden="true" /> OFFENE HERAUSFORDERUNGEN <small>{entries.length} angezeigt</small></div>
-          <button type="button" className="runnit-arcade-map-host-action" onClick={onHost}>RENNEN VERANSTALTEN <ChevronRight aria-hidden="true" /></button>
+          <p className="runnit-arcade-map-list-hint">Neues Rennen? Halte einen Punkt innerhalb deines 500-m-Radars in der Karte gedrückt.</p>
           <Link to="/sprint-lab" className="runnit-arcade-map-lab-link">Renn-Grafik testen · Nur Simulation <ChevronRight aria-hidden="true" /></Link>
           {loading && <p className="runnit-arcade-map-list-hint" role="status">Rennen werden geladen …</p>}
           {!loading && entries.length === 0 && (
