@@ -18,7 +18,7 @@ test('MapLibre replaces only Leaflet rendering; secure race operations stay in M
   assert.match(map, /requireRaceAccount/);
   assert.match(map, /<BottomNav/);
   assert.match(map, /<ArcadeMapChrome/);
-  assert.match(map, /runnit-arcade-demo-chip/);
+  assert.doesNotMatch(map, /runnit-arcade-demo-chip|generateDemoRuns/);
 });
 
 test('new MapLibre vector renderer has usable iPhone worker, 3D buildings and bright roads', () => {
@@ -93,7 +93,7 @@ test('map has no permanent race cards and preserves demo distinction', () => {
   const chrome = read('src/components/map/ArcadeMapChrome.tsx');
   assert.doesNotMatch(map, /runnit-arcade-controls|runnit-arcade-map-preview/);
   assert.doesNotMatch(chrome, /runnit-arcade-map-preview|is-preview-card/);
-  assert.match(map, /DEMO · BEISPIELRENNEN/);
+  assert.doesNotMatch(map, /DEMO · BEISPIELRENNEN/);
   assert.match(chrome, /DEMO · FIKTIVER GEGNER/);
   assert.match(chrome, /to="\/sprint-lab"/);
   assert.match(read('src/styles/maplibreArcade.css'), /runnit-gl-run-details/);
@@ -134,15 +134,13 @@ test('race popup persists through GPS updates and map movement, while runner mar
 });
 
 
-test('simulated challenge markers stay stable across normal GPS drift while panning', () => {
+test('real challenges stay steady across GPS drift without generated fake map points', () => {
   const screen = read('src/screens/MapScreen.tsx');
-  assert.match(screen, /const \[demoOrigin, setDemoOrigin\] = useState/);
-  assert.match(screen, /haversineM\(previous\.lat, previous\.lng, userCoords\.lat, userCoords\.lng\) > 750/);
-  assert.match(screen, /const seed = \`demo-runs-\$\{Math\.floor\(demoOrigin\.lat \* 10000\)\}/);
-  assert.match(screen, /\}, \[demoOrigin\?\.lat, demoOrigin\?\.lng\]\)/);
-  assert.doesNotMatch(screen, /demo-runs-\$\{Math\.floor\(userCoords\.lat \* 10000\)\}/);
+  assert.doesNotMatch(screen, /demoOrigin|generateDemoRuns|generateCityPlayers/);
+  assert.match(screen, /setDiscoveryCoords\(previous => !previous \|\|/);
+  assert.match(screen, /haversineM\(previous\.lat, previous\.lng, userCoords\.lat, userCoords\.lng\) >= 100/);
+  assert.match(screen, /setOpenRuns\(\[\]\)/);
 });
-
 
 test('player markers are circular violet people; race markers are checkered flags independent of range', () => {
   const renderer = read('src/components/map/ArcadeMapLibreView.tsx');
