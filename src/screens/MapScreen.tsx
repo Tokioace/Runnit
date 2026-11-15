@@ -23,6 +23,7 @@ import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage, type ScreenWakeLockStatus } from '../lib/screenWakeLock';
 import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters } from '../lib/mapHostPlacement';
+import type { HotspotTestCity } from '../lib/mapHotspotSignals';
 
 // Types
 type Coordinates = {
@@ -737,6 +738,12 @@ export default function MapScreen() {
   const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
   const [regionalRuns, setRegionalRuns] = useState<Array<{ id: string; location: Coordinates }>>([]);
   const [wideMapView, setWideMapView] = useState(false);
+  // The synthetic load test is opt-in via ?hotspotDemo=1, off for all normal
+  // visitors. No synthetic race/player/match is persisted or queried.
+  const hotspotTestAvailable = typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('hotspotDemo') === '1';
+  const [hotspotDemoEnabled, setHotspotDemoEnabled] = useState(hotspotTestAvailable);
+  const [hotspotFocus, setHotspotFocus] = useState<{ city: HotspotTestCity; tick: number }>({ city: 'all', tick: 0 });
   const [mapCamera, setMapCamera] = useState({ zoom: initialZoom, lat: center.lat, lng: center.lng });
   const [arcadeMapView, setArcadeMapView] = useState<ArcadeMapView>('map');
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -1388,6 +1395,8 @@ export default function MapScreen() {
           source: player.source,
         }))}
         regionalRuns={regionalRuns}
+        hotspotDemoEnabled={hotspotDemoEnabled}
+        hotspotFocus={hotspotFocus}
         onWideViewChange={setWideMapView}
         onCameraChange={setMapCamera}
         hostDialogOpen={hostOpen}
@@ -1420,6 +1429,41 @@ export default function MapScreen() {
         </div>
       )}
 
+      {hotspotTestAvailable && arcadeMapView === 'map' && !hostOpen && (
+        <section className="runnit-hotspot-test-console" aria-label="Simulierter Community-Hotspot-Test">
+          <div className="runnit-hotspot-test-top">
+            <span className="runnit-hotspot-test-title">HOTSPOT LAB <span>· DEMO</span></span>
+            <button type="button" onClick={() => setHotspotDemoEnabled(value => !value)}
+              aria-pressed={hotspotDemoEnabled}>
+              {hotspotDemoEnabled ? 'AUS' : 'TESTEN'}
+            </button>
+          </div>
+          {hotspotDemoEnabled && (
+            <>
+              <p className="runnit-hotspot-test-disclaimer">SIMULATION · KEINE ECHTEN SPIELER ODER MATCHES</p>
+              <div className="runnit-hotspot-test-keys" aria-label="Simulierte Testaktivität">
+                <span><i className="is-open" /> 3 OFFENE</span>
+                <span><i className="is-runner" /> 10 RUNNER</span>
+                <span><i className="is-match" /> 25 MATCHES</span>
+              </div>
+              <div className="runnit-hotspot-test-cities">
+                {([
+                  ['all', 'ALLE'],
+                  ['backnang', 'BACKNANG'],
+                  ['stuttgart', 'STUTTGART'],
+                  ['munich', 'MÜNCHEN'],
+                ] as const).map(([city, label]) => (
+                  <button type="button" key={city} aria-pressed={hotspotFocus.city === city}
+                    onClick={() => setHotspotFocus(previous => ({ city, tick: previous.tick + 1 }))}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+      )}
+
       {mapTilesUnavailable && (
         <div role="alert" className="runnit-arcade-alert pointer-events-auto absolute inset-x-4 top-24 z-[950] mx-auto max-w-sm rounded-2xl border border-rose-300/40 bg-[#1a1321]/95 p-4 text-sm text-white shadow-xl backdrop-blur">
           <p className="font-bold">Die Karte kann gerade nicht geladen werden.</p>
@@ -1441,7 +1485,7 @@ export default function MapScreen() {
         </div>
       )}
       {/* Background updates are silent; a fixed LIVE chip never shifts content. */}
-      {arcadeMapView === 'map' && wideMapView && (
+      {arcadeMapView === 'map' && wideMapView && !hotspotDemoEnabled && (
         <div className="runnit-community-map-legend" aria-label="Übersicht über echte offene Rennen">
           <span className="runnit-community-map-signal" aria-hidden="true" />
           {!authUser ? 'NETWORK · LIVE-RENNEN NACH ANMELDUNG'
