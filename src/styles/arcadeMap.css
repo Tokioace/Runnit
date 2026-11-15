@@ -416,3 +416,54 @@
 @media(prefers-reduced-motion:reduce){
   .runnit-cancel-panel button{transition:none}
 }
+
+
+/* HOTSPOT LAB: explicit, opt-in preview only. Never label samples as LIVE. */
+.runnit-hotspot-test-console{
+  pointer-events:auto;position:absolute;z-index:960;
+  left:12px;bottom:calc(176px + env(safe-area-inset-bottom,0px));
+  width:min(330px,calc(100% - 98px));max-height:220px;overflow-y:auto;
+  padding:9px 10px 10px;color:#eefbff;
+  background:linear-gradient(145deg,rgba(28,48,95,.97),rgba(11,14,49,.96));
+  border:1px solid #8f7aff;border-left:3px solid #ffd15d;
+  border-radius:11px 3px 11px 3px;
+  box-shadow:inset 0 1px #c3eaff89,0 0 20px rgba(130,81,255,.35),0 12px 28px #020817aa;
+  overscroll-behavior:contain;
+}
+.runnit-hotspot-test-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.runnit-hotspot-test-title{font:italic 1000 12px/1.1 system-ui,-apple-system,sans-serif;letter-spacing:.06em;color:#edfbff}
+.runnit-hotspot-test-title span{color:#ffc963}
+.runnit-hotspot-test-top button{
+  flex:none;min-width:61px;min-height:32px;padding:4px 8px;
+  color:#081d33;background:linear-gradient(115deg,#edff9d,#b4f321);
+  border:1px solid #efffb8;border-radius:7px 2px 7px 2px;
+  font:italic 1000 11px/1 system-ui,sans-serif;
+}
+.runnit-hotspot-test-disclaimer{margin:9px 0 7px;font-size:9px;line-height:1.4;font-weight:850;color:#ffe19a;letter-spacing:.035em}
+.runnit-hotspot-test-keys{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.runnit-hotspot-test-keys span{
+  display:inline-flex;align-items:center;gap:4px;
+  color:#eff4ff;font-size:9px;font-weight:850;white-space:nowrap;
+}
+.runnit-hotspot-test-keys i{display:inline-block;width:7px;height:7px;flex:none;border-radius:50%}
+.runnit-hotspot-test-keys .is-open{background:#f33edb;box-shadow:0 0 6px #f33edb}
+.runnit-hotspot-test-keys .is-runner{background:#9d6cfb;box-shadow:0 0 6px #9d6cfb}
+.runnit-hotspot-test-keys .is-match{background:#ffb73d;box-shadow:0 0 6px #ffb73d}
+.runnit-hotspot-test-cities{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:3px;margin-top:9px;
+}
+.runnit-hotspot-test-cities button{
+  min-height:31px;padding:3px 2px;border:1px solid #4b80aa;
+  border-radius:6px 2px 6px 2px;background:#102750;
+  color:#bde9ff;font-size:8px;line-height:1.15;font-weight:950;
+}
+.runnit-hotspot-test-cities button[aria-pressed="true"]{
+  border-color:#c1ff5e;background:#344b48;color:#e8ffbc;
+  box-shadow:inset 0 0 7px #acff1f44;
+}
+.runnit-hotspot-test-console button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+@media(max-width:365px){
+  .runnit-hotspot-test-console{width:calc(100% - 91px);padding:8px}
+  .runnit-hotspot-test-cities button{font-size:7px}
+}
