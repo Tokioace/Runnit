@@ -1,4 +1,4 @@
-import type { GeoJSONSource, Map as GLMap } from 'maplibre-gl';
+import type { ExpressionSpecification, GeoJSONSource, Map as GLMap } from 'maplibre-gl';
 
 /**
  * Read-only visual load test. These coordinates and counts are INVENTED.
@@ -55,7 +55,7 @@ export function buildHotspotTestData(enabled: boolean) {
   };
 }
 
-const gradient = (glow: string, mid: string, bright: string) => [
+const gradient = (glow: string, mid: string, bright: string): ExpressionSpecification => [
   'interpolate', ['linear'], ['heatmap-density'],
   0, 'rgba(0,0,0,0)',
   .12, 'rgba(0,0,0,0)',
@@ -63,7 +63,7 @@ const gradient = (glow: string, mid: string, bright: string) => [
   .58, mid,
   .85, bright,
   1, '#fff8dc',
-] as const;
+];
 
 export function installRealHotspotHeat(map: GLMap, realSourceId: string, beforeLayerId: string) {
   if (map.getLayer(REAL_HEAT_LAYER)) return;
