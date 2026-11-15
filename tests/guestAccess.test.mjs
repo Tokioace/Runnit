@@ -60,7 +60,7 @@ test('guest browsing does not query protected personal leaderboard or duel data'
   assert.match(map, /if \(!authUser\) \{\s*setPlayers\(generateCityPlayers\);/);
   assert.match(map, /if \(!authUser\) \{\s*discoveryLoadedRef\.current = false;\s*setOpenRuns\(generateDemoRuns\);/);
   assert.match(map, /if \(!authUser\) \{ setRealtimeConnected\(false\); return; \}\s*setRealtimeConnected\(false\);\s*const channel = supabase/);
-  assert.match(map, /Demo-Modus: einige Spieler oder Rennen sind frei erfunden/);
+  assert.doesNotMatch(map, /DEMO · BEISPIELRENNEN|generateDemoRuns|generateCityPlayers/);
 });
 
 test('guest profile provides sign-in instead of invented private statistics', () => {
