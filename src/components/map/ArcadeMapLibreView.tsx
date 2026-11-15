@@ -10,7 +10,7 @@ import { markerInViewport } from '../../lib/mapMarkerVisibility';
 import type { MapCameraScope } from '../../lib/mapHeadingScope';
 import { groupOverlappingRuns } from '../../lib/mapRunGrouping';
 import { markerPinOpacityAtZoom, markerScaleAtZoom, PIN_FADE_END_ZOOM } from '../../lib/mapMarkerZoom';
-import { COMMUNITY_CLUSTER_LAYER, COMMUNITY_RACE_DOT_LAYER, COMMUNITY_REAL_SOURCE, installCommunityLayers, syncCommunityLayers, type CommunityEntry } from '../../lib/mapCommunityLayers';
+import { COMMUNITY_CLUSTER_LAYER, COMMUNITY_RACE_DOT_LAYER, COMMUNITY_SINGLE_SIGNAL_RING, COMMUNITY_REAL_SOURCE, installCommunityLayers, syncCommunityLayers, type CommunityEntry } from '../../lib/mapCommunityLayers';
 import { HOTSPOT_TEST_CENTERS_SOURCE, HOTSPOT_TEST_CIRCLES, HOTSPOT_TEST_SCENARIOS, installRealHotspotHeat, installHotspotTestLayers, syncHotspotTestLayers, type HotspotTestCity } from '../../lib/mapHotspotSignals';
 
 // Required by MapLibre v6 and Vite 8: ship the real same-origin WebGL worker.
@@ -489,6 +489,7 @@ export default function ArcadeMapLibreView({
     updateAtmosphere();
     map.on('click', COMMUNITY_CLUSTER_LAYER, onCommunityClusterClick);
     map.on('click', COMMUNITY_RACE_DOT_LAYER, onCommunityClusterClick);
+    map.on('click', COMMUNITY_SINGLE_SIGNAL_RING, onCommunityClusterClick);
     const onTestHotspotClick = (event: import('maplibre-gl').MapLayerMouseEvent) => {
       if (!hotspotEnabledRef.current) return;
       const feature = event.features?.[0];
@@ -524,6 +525,7 @@ export default function ArcadeMapLibreView({
       map.off('zoom', updateAtmosphere);
       map.off('click', COMMUNITY_CLUSTER_LAYER, onCommunityClusterClick);
       map.off('click', COMMUNITY_RACE_DOT_LAYER, onCommunityClusterClick);
+      map.off('click', COMMUNITY_SINGLE_SIGNAL_RING, onCommunityClusterClick);
       map.off('click', HOTSPOT_TEST_CIRCLES, onTestHotspotClick);
       activeRunPopupRef.current?.remove();
       activeRunPopupRef.current = null;
