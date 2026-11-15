@@ -7,6 +7,7 @@ import type { ArcadeMapEntry, ArcadeMapView } from './ArcadeMapChrome';
 import { eventPopupLngLat } from '../../lib/mapPopupAnchor';
 import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters, validMapPoint } from '../../lib/mapHostPlacement';
 import { markerInViewport } from '../../lib/mapMarkerVisibility';
+import type { MapCameraScope } from '../../lib/mapHeadingScope';
 import { groupOverlappingRuns } from '../../lib/mapRunGrouping';
 import { markerPinOpacityAtZoom, markerScaleAtZoom, PIN_FADE_END_ZOOM } from '../../lib/mapMarkerZoom';
 import { COMMUNITY_CLUSTER_LAYER, COMMUNITY_RACE_DOT_LAYER, installCommunityLayers, syncCommunityLayers, type CommunityEntry } from '../../lib/mapCommunityLayers';
@@ -46,6 +47,7 @@ export type ArcadeMapLibreProps = {
   hostLocation: MapCoordinate | null;
   regionalRuns: readonly { id: string; location: MapCoordinate }[];
   onWideViewChange: (wide: boolean) => void;
+  onCameraChange: (camera: MapCameraScope) => void;
   onSelectRun: (id: string) => void;
   onJoinRun: (id: string) => void;
   onCancelRun: (id: string) => void;
@@ -357,7 +359,7 @@ function detailElement(run: ArcadeVectorRun, onJoin: () => void, onCancel: () =>
 /** Owns only map rendering: no auth, Supabase, races or geolocation reads. */
 export default function ArcadeMapLibreView({
   initialCenter, initialZoom, userCoords, ipCoords, recenterTick, retryTick, view,
-  players, runs, hostDialogOpen, hostLocation, regionalRuns, onWideViewChange, onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt,
+  players, runs, hostDialogOpen, hostLocation, regionalRuns, onWideViewChange, onCameraChange, onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt,
   onTilesLoaded, onTilesError,
 }: ArcadeMapLibreProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -381,8 +383,9 @@ export default function ArcadeMapLibreView({
   liveRegionalRef.current = regionalRuns;
   const [ready, setReady] = useState(false);
   const [tilted, setTilted] = useState(true);
-  const callbacks = useRef({ onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange });
-  callbacks.current = { onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange };
+  const [popupVisible, setPopupVisible] = useState(false);
+  const callbacks = useRef({ onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange, onCameraChange });
+  callbacks.current = { onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange, onCameraChange };
   const firstGPS = useRef(false);
   const firstIP = useRef(false);
   const previousRecenter = useRef(recenterTick);
@@ -417,6 +420,8 @@ export default function ArcadeMapLibreView({
         syncDistantDots(map, livePlayersRef.current, liveRunsRef.current, latestGpsRef.current, liveRegionalRef.current);
         callbacks.current.onTilesLoaded();
         callbacks.current.onWideViewChange(map.getZoom() <= 11.2);
+        const camera = map.getCenter();
+        callbacks.current.onCameraChange({ zoom: map.getZoom(), lat: camera.lat, lng: camera.lng });
         setReady(true);
       } catch {
         callbacks.current.onTilesError();
@@ -427,6 +432,10 @@ export default function ArcadeMapLibreView({
       callbacks.current.onTilesError();
     };
     const onZoomEnd = () => callbacks.current.onWideViewChange(map.getZoom() <= 11.2);
+    const onCameraIdle = () => {
+      const center = map.getCenter();
+      callbacks.current.onCameraChange({ zoom: map.getZoom(), lat: center.lat, lng: center.lng });
+    };
     const onCommunityClusterClick = (event: import('maplibre-gl').MapLayerMouseEvent) => {
       const geometry = event.features?.[0]?.geometry;
       if (!geometry || geometry.type !== 'Point') return;
@@ -436,6 +445,7 @@ export default function ArcadeMapLibreView({
     map.on('style.load', onStyle);
     map.on('error', onFailure);
     map.on('zoomend', onZoomEnd);
+    map.on('moveend', onCameraIdle);
     const updateAtmosphere = () => {
       // A quiet thematic overlay only: nothing here represents a fake player.
       const zoom = map.getZoom();
@@ -450,6 +460,7 @@ export default function ArcadeMapLibreView({
       map.off('style.load', onStyle);
       map.off('error', onFailure);
       map.off('zoomend', onZoomEnd);
+      map.off('moveend', onCameraIdle);
       map.off('zoom', updateAtmosphere);
       map.off('click', COMMUNITY_CLUSTER_LAYER, onCommunityClusterClick);
       map.off('click', COMMUNITY_RACE_DOT_LAYER, onCommunityClusterClick);
@@ -714,6 +725,7 @@ export default function ArcadeMapLibreView({
       popup.setPadding({ top: 175, right: 15, bottom: 145, left: 15 });
       popup.on('close', () => {
         if (hostPopupRef.current === popup) hostPopupRef.current = null;
+        setPopupVisible(Boolean(hostPopupRef.current || activeRunPopupRef.current));
         if (!hostCreatingRef.current) {
           hostSelectionMarkerRef.current?.remove();
           hostSelectionMarkerRef.current = null;
@@ -721,6 +733,7 @@ export default function ArcadeMapLibreView({
       });
       popup.addTo(map);
       hostPopupRef.current = popup;
+      setPopupVisible(true);
     };
 
     const pointFromPointer = (ev: PointerEvent) => {
@@ -880,9 +893,11 @@ export default function ArcadeMapLibreView({
         popup.setPadding({ top: 190, right: 18, bottom: 155, left: 18 });
         popup.on('close', () => {
           if (activeRunPopupRef.current === popup) activeRunPopupRef.current = null;
+          setPopupVisible(Boolean(activeRunPopupRef.current || hostPopupRef.current));
         });
         popup.addTo(map);
         activeRunPopupRef.current = popup;
+        setPopupVisible(true);
         callbacks.current.onSelectRun(selectedRun.id);
 
         // Leave room ABOVE the event for the entire detail card and BELOW it
@@ -934,9 +949,11 @@ export default function ArcadeMapLibreView({
       <div ref={atmosphereRef} className={'runnit-gl-distance-atmosphere' + (view === 'list' ? ' is-hidden' : '')} aria-hidden="true" />
       {view === 'map' && <button
         type="button"
-        className="runnit-gl-tilt-button"
+        className={'runnit-gl-tilt-button' + (popupVisible ? ' is-obscured-by-popup' : '')}
         aria-label={tilted ? 'Zur flachen 2D-Karte wechseln' : 'Zur schrägen 3D-Karte wechseln'}
         aria-pressed={tilted}
+        aria-hidden={popupVisible}
+        disabled={popupVisible}
         onClick={() => {
           const next = !tilted;
           setTilted(next);
