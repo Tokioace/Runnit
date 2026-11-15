@@ -63,7 +63,7 @@ test('country map uses MapLibre clustering with real totals and zoom-to-explore'
   assert.match(mapSource, /map\.easeTo\(\{ center: \[coordinates\[0\], coordinates\[1\]\]/);
   assert.match(screen, /regionalRuns=\{regionalRuns\}/);
   assert.match(screen, /\.eq\('status', 'open'\)/);
-  assert.match(screen, /\.select\('id, location'\)/);
+  assert.match(screen, /\.select\('id, location, expires_at'\)/);
   assert.match(screen, /!authUser \|\| !wideMapView/);
   // Normal map must not synthesize examples when no genuine race is returned.
   assert.doesNotMatch(screen, /DEMO · BEISPIELRENNEN/);
