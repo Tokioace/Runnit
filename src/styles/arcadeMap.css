@@ -210,3 +210,141 @@
   width:7px;height:7px;flex:none;border-radius:50%;
   background:#f14d66;box-shadow:0 0 8px #f14d66;
 }
+
+
+/* CHALLENGE CREATOR — EA BIG/Y2K-inspired, purposeful single-choice sprint HUD.
+   Keep the card comfortably inside the iPhone safe areas, without a tall form. */
+.runnit-host-setup-backdrop{
+  position:fixed;inset:0;z-index:1200;
+  display:grid;place-items:center;
+  padding:max(16px,env(safe-area-inset-top,0px)) 16px
+    max(20px,env(safe-area-inset-bottom,0px));
+  background:radial-gradient(circle at 50% 70%,rgba(29,94,138,.18),rgba(3,8,27,.82) 65%);
+  backdrop-filter:blur(6px);
+}
+.runnit-host-setup-panel{
+  position:relative;isolation:isolate;
+  width:min(100%,390px);max-height:min(86dvh,640px);
+  overflow-y:auto;overscroll-behavior:contain;
+  padding:16px 17px 13px;
+  border:1px solid #5ceaff;border-bottom:3px solid #ccff24;
+  border-radius:19px 5px 19px 5px;
+  color:#fff;
+  background:
+    linear-gradient(145deg,rgba(37,111,158,.46),transparent 27%),
+    repeating-linear-gradient(135deg,transparent 0 17px,rgba(70,202,242,.025) 18px,transparent 20px),
+    linear-gradient(158deg,#162f66,#0d1b44 55%,#171138);
+  box-shadow:inset 0 1px #d4fbff,0 0 26px #25ddff61,0 25px 90px #000e;
+}
+.runnit-host-setup-panel::before{
+  content:"";position:absolute;pointer-events:none;
+  top:0;left:0;right:0;height:5px;
+  background:linear-gradient(90deg,#48dfff,#bfff1e,#41ceff 80%,transparent);
+}
+.runnit-host-setup-top{position:relative;padding-right:38px;}
+.runnit-host-setup-eyebrow{
+  color:#7feaff;font-size:9px;font-weight:950;font-style:italic;
+  letter-spacing:.18em;
+}
+.runnit-host-setup-top h2{
+  margin:7px 0 0;font-size:clamp(29px,8vw,38px);
+  font-style:italic;font-weight:1000;line-height:.96;
+  letter-spacing:-.06em;text-shadow:1px 2px #23276c,0 0 12px #44baff;
+}
+.runnit-host-setup-top h2 span{color:#c7ff23;text-shadow:0 0 9px #b6ff2670;}
+.runnit-host-setup-top p{
+  margin-top:5px;color:#b9d6fa;font-size:10px;font-weight:900;
+  letter-spacing:.12em;
+}
+.runnit-host-setup-close{
+  position:absolute;right:0;top:0;
+  width:35px;height:35px;border-radius:10px 3px;
+  color:#ebf9ff;background:#11244d;border:1px solid #80cfff;
+  font-size:19px;font-weight:800;box-shadow:0 0 8px #21cfff55;
+}
+.runnit-host-setup-location{
+  display:flex;align-items:center;gap:7px;
+  min-height:36px;margin:16px 0;
+  padding:8px 10px;border:1px solid #8dff6260;
+  border-radius:8px 2px;background:#19395c;
+  color:#d8ffb1;font-size:9px;font-weight:1000;
+  letter-spacing:.03em;white-space:nowrap;
+}
+.runnit-host-setup-location span:last-child{color:#a9e7fb;}
+.runnit-host-setup-beacon{
+  display:block;flex:none;width:8px;height:8px;border-radius:50%;
+  background:#c5ff24;box-shadow:0 0 0 3px #b3ff2530,0 0 8px #c8ff28;
+  animation:runnit-host-beacon 1.5s ease-in-out infinite;
+}
+@keyframes runnit-host-beacon{50%{box-shadow:0 0 0 6px #b3ff250b,0 0 12px #c8ff28}}
+.runnit-host-setup-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.runnit-host-setup-heading label{
+  font-size:12px;font-weight:1000;letter-spacing:.06em;font-style:italic;
+  color:#f1f9ff;
+}
+.runnit-host-setup-heading small{
+  font-size:9px;font-weight:900;letter-spacing:.1em;color:#71dff8;
+}
+.runnit-host-setup-distances{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;margin:9px 0 10px;
+}
+.runnit-host-setup-distances button{
+  display:flex;align-items:baseline;justify-content:center;gap:3px;
+  min-height:66px;border:1px solid #5f9bbf;
+  border-radius:11px 3px 11px 3px;
+  background:linear-gradient(155deg,#203a71,#0e1b44 75%);
+  box-shadow:inset 0 1px #80c9e566;color:#bce9ff;
+  transform:skew(-3deg);transition:background .15s,box-shadow .15s;
+}
+.runnit-host-setup-distances button strong{
+  font-size:29px;font-weight:1000;font-style:italic;
+  letter-spacing:-.07em;line-height:1;
+}
+.runnit-host-setup-distances button span{font-size:12px;font-weight:1000;font-style:italic;}
+.runnit-host-setup-distances button.is-selected{
+  background:linear-gradient(140deg,#efff84,#c3ff15 60%,#7fbd0b);
+  border-color:#f7ffc0;color:#112738;
+  box-shadow:inset 0 1px #fff,0 0 13px #b4ff2699;
+}
+.runnit-host-setup-note{margin:10px 0 16px;color:#c8ddfa;font-size:10px;line-height:1.55;font-weight:650;}
+.runnit-host-setup-error{
+  border:1px solid #ff99aa79;background:#591b40;
+  color:#ffe1e9;padding:9px;margin-bottom:9px;border-radius:8px;font-size:11px;
+}
+.runnit-host-setup-create{
+  width:100%;min-height:52px;
+  border:1px solid #f3ff9e;border-radius:12px 3px 12px 3px;
+  background:linear-gradient(128deg,#e8ff7f,#c0ff0d 55%,#6ea50d);
+  box-shadow:inset 0 2px #fffbc6,0 0 18px #b7ff239c;
+  color:#0c2533;font-size:clamp(13px,3.5vw,16px);
+  font-style:italic;font-weight:1000;letter-spacing:-.02em;
+}
+.runnit-host-setup-bottom{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  margin-top:12px;
+}
+.runnit-host-setup-bottom button{
+  padding:8px 2px;min-height:40px;color:#a8cee3;
+  font-size:10px;font-weight:950;font-style:italic;letter-spacing:.04em;
+}
+.runnit-host-setup-bottom button:last-child{color:#64e5ff}
+.runnit-host-setup-panel button:disabled{opacity:.6;cursor:progress}
+.runnit-host-setup-panel button:focus-visible{outline:3px solid #fff;outline-offset:3px}
+@media(max-width:350px){
+  .runnit-host-setup-panel{padding:13px 12px 11px}
+  .runnit-host-setup-location{font-size:8px}
+  .runnit-host-setup-distances button strong{font-size:25px}
+}
+/* Compact, unobtrusive world-signal readout. */
+.runnit-community-map-legend{
+  width:max-content;max-width:calc(100% - 110px);
+  padding:6px 9px;font-size:10px;line-height:1.3;letter-spacing:.045em;
+  border-radius:9px 2px;border-color:#44dbf76e;
+  box-shadow:inset 0 1px #6cb1f642,0 0 10px #38dcff30;
+  background:linear-gradient(140deg,rgba(8,30,65,.95),rgba(10,13,42,.9));
+}
+@media(prefers-reduced-motion:reduce){
+  .runnit-host-setup-beacon{animation:none}
+  .runnit-host-setup-distances button{transition:none}
+}
