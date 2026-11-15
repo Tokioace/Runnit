@@ -64,8 +64,9 @@ test('the unmodified portrait launch remains viewport-filling while wide art is 
 
 test('map status messages respect iOS safe area and removed CTAs remain available in LISTE', () => {
   const map = read('src/screens/MapScreen.tsx');
-  assert.equal(map.match(/top-\[calc\(5\.5rem\+env\(safe-area-inset-top\)\)\]/g)?.length, 2);
-  assert.equal(map.match(/max-w-\[calc\(100%-2rem\)\]/g)?.length, 2);
+  // Auto-refresh status banners were deliberately removed; safe-area notices remain.
+  assert.doesNotMatch(map, /Loading…|No nearby activity yet/);
+  assert.match(map, /top-\[calc\(145px\+env\(safe-area-inset-top,0px\)\)\]/);
   const list = read('src/components/map/ArcadeMapChrome.tsx');
   const styles = read('src/styles/arcadeMap.css');
   assert.doesNotMatch(list, /onClick=\{onHost\}/);
