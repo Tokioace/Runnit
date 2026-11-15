@@ -1,4 +1,5 @@
 import type { ExpressionSpecification, GeoJSONSource, Map as GLMap } from 'maplibre-gl';
+import { ENERGY_ORB_PREFIX, installEnergyOrbSprites } from './mapEnergyOrb';
 
 /**
  * Read-only visual load test. These coordinates and counts are INVENTED.
@@ -65,6 +66,17 @@ const gradient = (glow: string, mid: string, bright: string): ExpressionSpecific
   1, '#fff8dc',
 ];
 
+// The synthetic city clouds NEVER blow out to white, nor glow independently
+// underneath a shared world/Europe cluster. The actual orb holds the glow.
+const simulationGradient = (glow: string, mid: string, bright: string): ExpressionSpecification => [
+  'interpolate', ['linear'], ['heatmap-density'],
+  0, 'rgba(0,0,0,0)',
+  .16, 'rgba(0,0,0,0)',
+  .38, glow,
+  .70, mid,
+  1, bright,
+];
+
 export function installRealHotspotHeat(map: GLMap, realSourceId: string, beforeLayerId: string) {
   if (map.getLayer(REAL_HEAT_LAYER)) return;
   // Uses the existing, authenticated and de-duplicated open-race cluster source.
@@ -94,8 +106,12 @@ function addSimulationHeat(map: GLMap, kind: HotspotKind, id: string, glow: stri
       'heatmap-weight': 1,
       'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, .55, 5, .76, 10, 1.05],
       'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 27, 4, 34, 7, 43, 11, 50, 12.8, 10],
-      'heatmap-color': gradient(glow, mid, bright),
-      'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 0, .48, 7, .63, 11, .60, 12.8, 0],
+      'heatmap-color': simulationGradient(glow, mid, bright),
+      // City point clouds only become visible AFTER MapLibre has separated
+      // the city anchors (clusterMaxZoom=10). No rogue gold/purple clouds
+      // behind a cyan total like 38 or 13 on distant zoom levels.
+      'heatmap-opacity': ['interpolate', ['linear'], ['zoom'],
+        0, 0, 10.7, 0, 11.1, .16, 11.8, .23, 12.6, 0],
     },
   });
 }
@@ -113,6 +129,9 @@ export function installHotspotTestLayers(map: GLMap) {
       clusterProperties: { total: ['+', ['get', 'count']] },
     });
 
+  // One sprite atlas per map style; names derive from the same fixed 3-city
+  // scenario counts used by clusterProperties.total.
+  installEnergyOrbSprites(map, HOTSPOT_TEST_SCENARIOS);
   addSimulationHeat(map, 'open-race', 'runnit-test-open-heat',
     'rgba(155,28,151,.16)', 'rgba(227,51,200,.48)', 'rgba(255,124,219,.77)');
   addSimulationHeat(map, 'visible-runner', 'runnit-test-runner-heat',
@@ -152,33 +171,23 @@ export function installHotspotTestLayers(map: GLMap) {
     });
   if (!map.getLayer(HOTSPOT_TEST_CIRCLES))
     map.addLayer({
-      id: HOTSPOT_TEST_CIRCLES, type: 'circle', source: HOTSPOT_TEST_CENTERS_SOURCE,
-      paint: {
-        'circle-radius': ['interpolate', ['linear'],
-          ['coalesce', ['get', 'total'], ['get', 'count']],
-          3, 15, 10, 18, 25, 21, 38, 24],
-        'circle-color': '#131d45',
-        'circle-stroke-color': ['case', ['has', 'point_count'], '#73edff',
-          ['match', ['get','kind'],
-            'open-race', '#ff61df', 'visible-runner', '#ad88ff', 'running-match', '#ffd15e', '#39e6ff']],
-        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 0, 2, 8, 2.5, 12.8, 0],
-        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 0, .93, 12.2, .93, 12.8, 0],
-        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 0, 1, 12.2, 1, 12.8, 0],
-      },
-    });
-  if (!map.getLayer(HOTSPOT_TEST_LABELS))
-    map.addLayer({
-      id: HOTSPOT_TEST_LABELS, type: 'symbol', source: HOTSPOT_TEST_CENTERS_SOURCE,
+      // Preserve this layer ID so existing map click-to-zoom works.
+      id: HOTSPOT_TEST_CIRCLES, type: 'symbol', source: HOTSPOT_TEST_CENTERS_SOURCE,
       layout: {
-        // Display the SUM of activities, never MapLibre's count of city anchors.
-        'text-field': ['to-string', ['coalesce', ['get', 'total'], ['get', 'count']]],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 0, 13, 6, 14, 10, 15],
-        'text-offset': [0, 0], 'text-anchor': 'center',
-        'text-allow-overlap': true, 'text-ignore-placement': true,
+        'icon-image': ['case', ['has', 'point_count'],
+          ['concat', ENERGY_ORB_PREFIX, '-mixed-', ['to-string', ['get', 'total']]],
+          ['concat', ENERGY_ORB_PREFIX, '-', ['get', 'kind'], '-', ['to-string', ['get', 'count']]]],
+        'icon-size': ['interpolate', ['linear'], ['zoom'],
+          0, .64, 4, .70, 8, .83, 11, 1, 12.6, .75],
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true,
+        'icon-anchor': 'center',
+        'icon-pitch-alignment': 'viewport',
+        'icon-rotation-alignment': 'viewport',
       },
       paint: {
-        'text-color': '#f7fbff', 'text-halo-color': '#091c3b', 'text-halo-width': 2,
-        'text-opacity': ['interpolate', ['linear'], ['zoom'], 0, 1, 11.4, 1, 12.8, 0],
+        'icon-opacity': ['interpolate', ['linear'], ['zoom'],
+          0, 1, 11.7, 1, 12.2, .76, 12.8, 0],
       },
     });
 }
