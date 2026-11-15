@@ -94,6 +94,7 @@ test('own open-lobby query requires host ownership and no challenger', async () 
 test('map offers visible hosted cancellation, explicit confirmation and accessible solo race demo', () => {
   const map = readFileSync(new URL('../src/screens/MapScreen.tsx', import.meta.url), 'utf8');
   const arena = readFileSync(new URL('../src/screens/SprintArenaLabScreen.tsx', import.meta.url), 'utf8');
+  const arcadeMap = readFileSync(new URL('../src/components/map/ArcadeMapChrome.tsx', import.meta.url), 'utf8');
   assert.match(map, /Meine offenen Rennen/);
   assert.match(map, /listHostedOpenDuels\(supabase, authUser\.id\)/);
   assert.match(map, /cancelHostedOpenDuel\(supabase, run\.id, authUser\.id\)/);
@@ -101,7 +102,9 @@ test('map offers visible hosted cancellation, explicit confirmation and accessib
   assert.match(map, /aria-modal="true"/);
   assert.match(map, /Rennen wirklich absagen\?/);
   assert.doesNotMatch(map, /window\.confirm\(/);
-  assert.match(map, /Renn-Grafik testen · Demo ohne zweiten Läufer/);
+  assert.match(arcadeMap, /Renn-Grafik testen · Nur Simulation/);
+  assert.match(arcadeMap, /to="\/sprint-lab"/);
+  assert.doesNotMatch(map, /runnit-map-demo-link/);
   assert.match(map, /navigate\('\/sprint-lab'\)/);
   assert.match(arena, /DEMO · KEINE ECHTEN LÄUFER/);
   assert.match(map, /onDemo=\{\(\) =>/);
