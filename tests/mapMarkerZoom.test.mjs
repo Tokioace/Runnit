@@ -39,16 +39,18 @@ test('marker root keeps MapLibre absolute positioning, scale acts only on inner 
   assert.doesNotMatch(css, /\.runnit-gl-marker-shell\s*\{\s*position:relative/);
 });
 
-test('low zoom uses geographic MapLibre layers, not fixed-size HTML flags or runners', () => {
+test('low zoom uses genuine MapLibre geo clusters and hides HTML markers', () => {
   const renderer = read('src/components/map/ArcadeMapLibreView.tsx');
-  assert.match(renderer, /id: DISTANT_DOT_LAYER, type: 'circle', source: DISTANT_DOT_SOURCE/);
-  assert.match(renderer, /'circle-radius': \['interpolate', \['linear'\], \['zoom'\]/);
-  assert.match(renderer, /'circle-opacity': \['interpolate', \['linear'\], \['zoom'\], 12\.2, 1, 12\.8, 0\]/);
-  assert.match(renderer, /source\.setData\(\{/);
-  assert.match(renderer, /coordinates: \[point\.position\.lng, point\.position\.lat\]/);
-  assert.match(renderer, /run\.isOwn \? '#c9ff0b' : '#f13edc'/);
-  assert.match(renderer, /syncDistantDots\(map, livePlayersRef\.current, liveRunsRef\.current, latestGpsRef\.current\)/);
+  const layers = read('src/lib/mapCommunityLayers.ts');
+  assert.match(renderer, /installCommunityLayers\(map\)/);
+  assert.match(renderer, /syncCommunityLayers\(map, entries, gps\)/);
+  assert.match(layers, /id: COMMUNITY_RACE_DOT_LAYER, type: 'circle', source: COMMUNITY_REAL_SOURCE/);
+  assert.match(layers, /'circle-radius': \['interpolate', \['linear'\], \['zoom'\]/);
+  assert.match(layers, /'circle-opacity': \['interpolate', \['linear'\], \['zoom'\], 12\.2, 1, 12\.8, 0\]/);
+  assert.match(layers, /coordinates: \[item\.lng, item\.lat\]/);
+  assert.match(renderer, /syncDistantDots\(map, livePlayersRef\.current, liveRunsRef\.current, latestGpsRef\.current, liveRegionalRef\.current\)/);
 });
+
 
 test('popup never follows a runner offscreen or survives continent zoom', () => {
   const renderer = read('src/components/map/ArcadeMapLibreView.tsx');
