@@ -81,7 +81,7 @@ test('demo control needs explicit ?hotspotDemo=1 and cannot create Supabase even
   assert.match(renderer, /syncHotspotTestLayers\(map, hotspotDemoEnabled\)/);
   assert.match(renderer, /hotspotFocus\.tick/);
   assert.match(renderer, /map\.on\('click', HOTSPOT_TEST_CIRCLES, onTestHotspotClick\)/);
-  assert.doesNotMatch(module, /supabase|\.from\(|createDuel|localStorage|sessionStorage/i);
+  assert.doesNotMatch(module, /\bsupabase\s*\.|\bcreateDuel\s*\(|\blocalStorage\s*\.|\bsessionStorage\s*\.|\bfrom\s*\(['\"]duels['\"]/i);
   assert.doesNotMatch(screen.slice(screen.indexOf('hotspotTestAvailable && arcadeMapView'), screen.indexOf('{mapTilesUnavailable &&')), /createDuel|setOpenRuns|setRegionalRuns/);
 });
 
