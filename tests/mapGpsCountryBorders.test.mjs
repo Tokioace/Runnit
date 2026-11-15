@@ -58,7 +58,7 @@ test('bright green park outlines and pale residential/landcover polygons are tun
   assert.match(renderer, /if \(wetland\) map\.setPaintProperty\(layer\.id, 'fill-pattern', null\)/);
 });
 
-test('3D/2D switch is stacked under locate and never obscures an active popup', () => {
+test('3D/2D switch is horizontally beside locate and never obscures an active popup', () => {
   const css = read('src/styles/maplibreArcade.css');
   const screen = read('src/screens/MapScreen.tsx');
   const view = read('src/components/map/ArcadeMapLibreView.tsx');
