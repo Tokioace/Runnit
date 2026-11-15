@@ -142,13 +142,43 @@ function styleArcadeMap(map: GLMap) {
   }
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** Shapes communicate marker type independently of distance, color and device emoji font. */
+function markerGlyph(kind: 'runner' | 'run'): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  svg.classList.add('runnit-gl-marker-glyph');
+
+  const add = (tag: string, attributes: Record<string, string>) => {
+    const node = document.createElementNS(SVG_NS, tag);
+    for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
+    svg.appendChild(node);
+  };
+  if (kind === 'runner') {
+    // Person silhouette: a circular avatar, not a finish flag or runner emoji.
+    add('circle', { cx: '12', cy: '7', r: '3.2' });
+    add('path', { d: 'M5 20v-1.7C5 14.7 8.1 12.5 12 12.5s7 2.2 7 5.8V20' });
+  } else {
+    // Checkered finish flag: the event pin, not a person/leaderboard shortcut.
+    add('path', { d: 'M5 3v18M6.5 4h13v11h-13' });
+    add('path', { d: 'M6.5 4H13v5.5H6.5zm6.5 5.5h6.5V15H13z', fill: 'currentColor', stroke: 'none' });
+  }
+  return svg;
+}
+
 function markerElement(kind: 'gps' | 'runner' | 'run', color: string, isDemo = false) {
   const el = document.createElement('button');
   el.type = 'button';
   el.className = 'runnit-gl-marker runnit-gl-' + kind + (isDemo ? ' is-demo' : '');
   el.style.setProperty('--runnit-pin', color);
-  el.setAttribute('aria-label', kind === 'gps' ? 'Dein GPS-Standort' : kind === 'run' ? 'Rennmarker öffnen' : 'Läufer anzeigen');
-  el.textContent = kind === 'gps' ? '' : '🏃';
+  const label = kind === 'gps' ? 'Dein GPS-Standort'
+    : kind === 'runner' ? (isDemo ? 'Demo-Spieler – Rangliste öffnen' : 'Spieler – Rangliste öffnen')
+    : (isDemo ? 'Demo-Rennen – Renndetails öffnen' : 'Rennen – Renndetails öffnen');
+  el.setAttribute('aria-label', label);
+  if (kind !== 'gps') el.appendChild(markerGlyph(kind));
   return el;
 }
 
@@ -306,12 +336,12 @@ export default function ArcadeMapLibreView({
     const markers: Marker[] = [];
     for (const person of players) {
       if (person.source === 'server-unverified' || !finiteCoords(person.location)) continue;
-      const el = markerElement('runner', person.colorHex, person.source === 'demo');
+      const el = markerElement('runner', '#a985ff', person.source === 'demo');
       el.addEventListener('click', (event) => {
         event.stopPropagation();
         callbacks.current.onGhostClick();
       });
-      markers.push(new Marker({ element: el, anchor: 'bottom' })
+      markers.push(new Marker({ element: el, anchor: 'center' })
         .setLngLat([person.location.lng, person.location.lat]).addTo(map));
     }
     return () => { for (const marker of markers) marker.remove(); };
