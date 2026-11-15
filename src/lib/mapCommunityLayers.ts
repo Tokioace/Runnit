@@ -84,11 +84,11 @@ export function installCommunityLayers(map: GLMap) {
       id: COMMUNITY_SINGLE_SIGNAL_RING, type: 'circle', source: COMMUNITY_REAL_SOURCE,
       filter: ['!', ['has', 'point_count']],
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 7, 5, 12, 8, 17, 12.8, 8],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 11, 5, 16, 8, 20, 12.8, 8],
         'circle-color': '#081e3f',
         'circle-opacity': 0,
         'circle-stroke-color': ['get', 'color'],
-        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 0, 1.1, 8, 1.8, 12.8, 0],
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 0, 1.3, 8, 2.0, 12.8, 0],
         'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 0, 0.65, 8, 0.86, 12.8, 0],
       },
     });
