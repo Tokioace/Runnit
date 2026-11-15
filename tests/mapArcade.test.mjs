@@ -70,10 +70,10 @@ test('a marker popup shows one exact run; LISTE remains an independent search vi
   const ml = read('src/components/map/ArcadeMapLibreView.tsx');
   const chrome = read('src/components/map/ArcadeMapChrome.tsx');
   assert.match(ml, /const popup = new Popup/);
-  assert.match(ml, /setDOMContent\(detailElement\(run/);
-  assert.match(ml, /callbacks\.current\.onSelectRun\(run\.id\)/);
-  assert.match(ml, /callbacks\.current\.onJoinRun\(run\.id\)/);
-  assert.match(ml, /callbacks\.current\.onCancelRun\(run\.id\)/);
+  assert.match(ml, /setDOMContent\(detailElement\(selectedRun/);
+  assert.match(ml, /callbacks\.current\.onSelectRun\(selectedRun\.id\)/);
+  assert.match(ml, /callbacks\.current\.onJoinRun\(selectedRun\.id\)/);
+  assert.match(ml, /callbacks\.current\.onCancelRun\(selectedRun\.id\)/);
   assert.doesNotMatch(ml, /setArcadeMapView\('list'\)/);
   assert.match(chrome, /type ArcadeMapView = 'map' \| 'list'/);
   assert.match(chrome, /onViewChange\('map'\)/);
@@ -130,4 +130,14 @@ test('race popup persists through GPS updates and map movement, while runner mar
   assert.match(ml, /gpsMarkerRef\.current\.setLngLat/);
   assert.match(ml, /callbacks\.current\.onGhostClick\(\)/);
   assert.match(screen, /view=\{arcadeMapView\}/);
+});
+
+
+test('simulated challenge markers stay stable across normal GPS drift while panning', () => {
+  const screen = read('src/screens/MapScreen.tsx');
+  assert.match(screen, /const \[demoOrigin, setDemoOrigin\] = useState/);
+  assert.match(screen, /haversineM\(previous\.lat, previous\.lng, userCoords\.lat, userCoords\.lng\) > 750/);
+  assert.match(screen, /const seed = \`demo-runs-\$\{Math\.floor\(demoOrigin\.lat \* 10000\)\}/);
+  assert.match(screen, /\}, \[demoOrigin\?\.lat, demoOrigin\?\.lng\]\)/);
+  assert.doesNotMatch(screen, /demo-runs-\$\{Math\.floor\(userCoords\.lat \* 10000\)\}/);
 });

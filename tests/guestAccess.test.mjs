@@ -39,7 +39,7 @@ test('guest race host button and join button request account login before other 
   assert.match(map, /if \(run\) \{ void handleJoinRun\(run\); \}/);
   const vector = read('src/components/map/ArcadeMapLibreView.tsx');
   assert.match(vector, /const popup = new Popup/);
-  assert.match(vector, /callbacks\.current\.onJoinRun\(run\.id\)/);
+  assert.match(vector, /callbacks\.current\.onJoinRun\(selectedRun\.id\)/);
   assert.match(map, /<ArcadeMapLibreView/);
   assert.doesNotMatch(map, /In demo mode, create local run/);
   assert.doesNotMatch(map, /In demo mode, start race immediately/);
