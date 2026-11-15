@@ -209,7 +209,7 @@ export function installEnergyOrbSprites(map: GLMap, seeds: readonly OrbSeed[]) {
  */
 export function installOnDemandRealEnergyOrbs(map: GLMap) {
   map.setMissingStyleImageResolver((id) => {
-    const match = /^runnit-energy-orb-open-race-(\\d{1,9})$/.exec(id);
+    const match = /^runnit-energy-orb-open-race-(\d{1,9})$/.exec(id);
     if (!match || map.hasImage(id)) return;
     const count = Number(match[1]);
     if (!Number.isSafeInteger(count) || count < 1) return;
