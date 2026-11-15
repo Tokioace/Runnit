@@ -55,7 +55,7 @@ test('long hold on empty map opens anchored host prompt; panning cancels, no lis
   assert.match(renderer, /setTimeout\(\(\) => \{[\s\S]{0,150}openAt\(location\);[\s\S]{0,15}\}, 600\)/);
   assert.match(renderer, /map\.on\('contextmenu', onRightClick\)/);
   assert.match(renderer, /canHostAt\(gps, position\)/);
-  assert.match(renderer, /title\.textContent = 'HIER RENNEN VERANSTALTEN'/);
+  assert.match(renderer, /title\.textContent = 'RENNEN HIER'/);
   assert.match(renderer, /callbacks\.current\.onHostAt\(position\)/);
   assert.match(screen, /const openHostRunAt = \(point: Coordinates\) =>/);
   assert.match(screen, /setHostLocation\(\{ lat: point\.lat, lng: point\.lng \}\)/);
