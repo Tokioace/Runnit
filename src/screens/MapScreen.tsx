@@ -717,6 +717,8 @@ export default function MapScreen() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const { coords: userCoords, locationError, locating, requestOnce, insecureContext, unsupported } = useUserLocation();
+  const liveUserCoordsRef = useRef(userCoords);
+  liveUserCoordsRef.current = userCoords;
   const { user: authUser, loading: authLoading, signIn, signUp, signOut } = useSupabaseUser();
 
   // Neutral global overview when neither permission nor network IP lookup succeeds.
@@ -1185,6 +1187,15 @@ export default function MapScreen() {
             // INSERT or UPDATE open
             const location = parseGeographyPoint(row.location);
             if (!location) return copy;
+            // A global open-duels feed must not inject distant events into
+            // the local 5-km list. Use the latest GPS fix without rebuilding
+            // the Realtime subscription on every geolocation update.
+            const gps = liveUserCoordsRef.current;
+            const mine = row.host_user_id === authUser.id;
+            if (!mine && (!gps ||
+              haversineM(gps.lat, gps.lng, location.lat, location.lng) > 5_000)) {
+              return copy.filter(r => r.id !== row.id);
+            }
             const existingIdx = copy.findIndex((r) => r.id === row.id);
             const updated: OpenRun = {
               id: row.id,
@@ -1208,7 +1219,7 @@ export default function MapScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [center.lat, center.lng, authUser?.id]);
+  }, [authUser?.id]);
 
   // Auto-expire duels older than 30 minutes
   useEffect(() => {
@@ -1440,9 +1451,10 @@ export default function MapScreen() {
       {arcadeMapView === 'map' && wideMapView && (
         <div className="runnit-community-map-legend" aria-label="Übersicht über echte offene Rennen">
           <span className="runnit-community-map-signal" aria-hidden="true" />
-          {regionalRuns.length > 0
-            ? `COMMUNITY · ${regionalRuns.length} echte offene Rennen`
-            : 'COMMUNITY · Noch keine öffentlichen Rennen'}
+          {!authUser ? 'COMMUNITY · Für Live-Rennen anmelden'
+            : regionalRuns.length > 0
+              ? `COMMUNITY · ${regionalRuns.length} echte offene Rennen`
+              : 'COMMUNITY · Noch keine öffentlichen Rennen'}
         </div>
       )}
 
