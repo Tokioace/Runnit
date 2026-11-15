@@ -737,6 +737,7 @@ export default function MapScreen() {
   const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
   const [regionalRuns, setRegionalRuns] = useState<Array<{ id: string; location: Coordinates }>>([]);
   const [wideMapView, setWideMapView] = useState(false);
+  const [mapCamera, setMapCamera] = useState({ zoom: initialZoom, lat: center.lat, lng: center.lng });
   const [arcadeMapView, setArcadeMapView] = useState<ArcadeMapView>('map');
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   // Own live lobby is visible even when its map popup is closed or GPS changes.
@@ -1388,6 +1389,7 @@ export default function MapScreen() {
         }))}
         regionalRuns={regionalRuns}
         onWideViewChange={setWideMapView}
+        onCameraChange={setMapCamera}
         hostDialogOpen={hostOpen}
         hostLocation={hostLocation}
         runs={openRuns.map((run, index) => ({
@@ -1455,6 +1457,7 @@ export default function MapScreen() {
         onViewChange={setArcadeMapView}
         cityName={cityName}
         hasGps={Boolean(userCoords)}
+        camera={mapCamera}
         entries={arcadeRuns}
         selectedId={selectedRunId}
         onJoin={joinArcadeRun}
