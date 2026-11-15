@@ -138,7 +138,7 @@ test('Hotspot Lab starts collapsed and selecting a city hides the menu while kee
   assert.match(css, /\.runnit-hotspot-test-console\.is-expanded\{/);
   assert.match(css, /\.runnit-hotspot-test-expander\{/);
   assert.match(css, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
-  assert.match(screen, /!hotspotDemoEnabled && \(players\.some/);
+  assert.doesNotMatch(screen, /DEMO · BEISPIELRENNEN|generateDemoRuns|generateCityPlayers/);
 });
 
 test('test heat glows are visually quieter while the real challenge heat source is unchanged', () => {
