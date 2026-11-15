@@ -20,6 +20,7 @@ type Props = {
   onJoin: (id: string) => void;
   onCancel: (id: string) => void;
   loading: boolean;
+  live?: boolean;
 };
 function distanceLabel(meters: number | null): string {
   if (meters === null || !Number.isFinite(meters) || meters < 0) return 'Abstand nicht verfügbar';
@@ -54,11 +55,10 @@ export function ArcadeRunCard({ entry, onJoin, onCancel, selected = false, varia
   );
 }
 export default function ArcadeMapChrome({
-  view, onViewChange, cityName, hasGps, entries, selectedId, onJoin, onCancel, loading,
+  view, onViewChange, cityName, hasGps, entries, selectedId, onJoin, onCancel, loading, live = false,
 }: Props) {
-  const orderedEntries = selectedId
-    ? [...entries].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId))
-    : entries;
+  // Never reorder the list on an event tap: that moves the reader's scroll position.
+  const orderedEntries = entries;
   return (
     <>
       <header className="runnit-arcade-map-header" aria-label="Rennen in deiner Nähe">
@@ -79,10 +79,10 @@ export default function ArcadeMapChrome({
 
       {view === 'list' && (
         <section aria-label="Rennen als Liste" className="runnit-arcade-map-list">
-          <div className="runnit-arcade-map-list-heading"><Flag aria-hidden="true" /> OFFENE HERAUSFORDERUNGEN <small>{entries.length} angezeigt</small></div>
+          <div className="runnit-arcade-map-list-heading"><Flag aria-hidden="true" /> OFFENE HERAUSFORDERUNGEN <small>{live && <span className="runnit-arcade-live-dot" aria-label="Live-Aktualisierung aktiv">LIVE</span>}{entries.length} angezeigt</small></div>
           <p className="runnit-arcade-map-list-hint">Neues Rennen? Halte einen Punkt innerhalb deines 500-m-Radars in der Karte gedrückt.</p>
           <Link to="/sprint-lab" className="runnit-arcade-map-lab-link">Renn-Grafik testen · Nur Simulation <ChevronRight aria-hidden="true" /></Link>
-          {loading && <p className="runnit-arcade-map-list-hint" role="status">Rennen werden geladen …</p>}
+          {loading && entries.length === 0 && <p className="runnit-arcade-map-list-hint" role="status">Rennen werden erstmalig geladen …</p>}
           {!loading && entries.length === 0 && (
             <div className="runnit-arcade-map-empty">
               <Footprints aria-hidden="true" />
