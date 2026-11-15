@@ -485,6 +485,9 @@ export default function ArcadeMapLibreView({
     };
     const onRightClick = (ev: import('maplibre-gl').MapMouseEvent) => {
       ev.originalEvent.preventDefault();
+      // Mobile uses the pointer timer; avoid a second popup when iOS emits
+      // a synthetic contextmenu on finger release after a long hold.
+      if (ev.originalEvent.button !== 2) return;
       discard();
       openAt({ lat: ev.lngLat.lat, lng: ev.lngLat.lng });
     };
@@ -559,6 +562,7 @@ export default function ArcadeMapLibreView({
     for (const originalRun of runs) {
       if (!finiteCoords(originalRun.location)) continue;
       const el = markerElement('run', originalRun.isOwn ? '#c9ff0b' : '#f13edc', originalRun.isDemo);
+      if (originalRun.isOwn) el.classList.add('is-own');
       const marker = new Marker({ element: el, anchor: 'bottom' })
         .setLngLat(eventPopupLngLat(originalRun))
         .addTo(map);
@@ -635,7 +639,7 @@ export default function ArcadeMapLibreView({
 
   return (
     <>
-      <div ref={canvasRef} className="runnit-gl-canvas" role="application" aria-label="Dreidimensionale Karte mit Rennen in deiner Nähe" />
+      <div ref={canvasRef} className="runnit-gl-canvas" role="application" aria-label="Dreidimensionale Karte mit Rennen in deiner Nähe. Zum Veranstalten Karte an einem Punkt im 500-Meter-Radar länger gedrückt halten." />
       <button
         type="button"
         className="runnit-gl-tilt-button"

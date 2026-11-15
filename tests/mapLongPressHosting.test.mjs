@@ -91,3 +91,13 @@ test('MapLibre checks both geo bounds and screen space after every move/zoom', (
   assert.match(renderer, /visiblePlayersRef\.current = visibleMarkers/);
   assert.match(renderer, /visibleRunsRef\.current = visibleMarkers/);
 });
+
+
+test('own green flag is not confused with pink public races or violet players', () => {
+  const ml = read('src/components/map/ArcadeMapLibreView.tsx');
+  const css = read('src/styles/maplibreArcade.css');
+  assert.match(ml, /if \(originalRun\.isOwn\) el\.classList\.add\('is-own'\)/);
+  assert.match(css, /\.runnit-gl-marker\.runnit-gl-run\.is-own/);
+  assert.match(css, /\.runnit-gl-marker\.runnit-gl-run:not\(\.is-own\)/);
+  assert.match(ml, /ev\.originalEvent\.button !== 2/);
+});

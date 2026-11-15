@@ -1186,7 +1186,7 @@ export default function MapScreen() {
     if (!requireRaceAccount()) return;
     setRaceNotice(null);
     if (!userCoords || !canHostAt(userCoords, point)) {
-      setRaceNotice('Wähle einen Punkt innerhalb deines 500-m-Radars. Dein GPS-Standort muss verfügbar sein.');
+      setRaceNotice(`Wähle einen Punkt innerhalb deines ${HOST_PLACEMENT_RADIUS_METERS}-m-Radars. Dein GPS-Standort muss verfügbar sein.`);
       if (!userCoords) requestOnce();
       return;
     }
