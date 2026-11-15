@@ -17,6 +17,7 @@ import { LeaderboardSheet } from '../components/leaderboard/Sheet';
 import { leaderboardSourceLabel, type LeaderboardSource } from '../lib/leaderboardProvenance';
 import ArcadeMapChrome, { type ArcadeMapEntry, type ArcadeMapView } from '../components/map/ArcadeMapChrome';
 import { parseGeographyPoint } from '../lib/duelLocation';
+import { reconcileOpenRaces } from '../lib/reconcileOpenRaces';
 import { cancelHostedOpenDuel, cancelHostedDuelMessage, listHostedOpenDuels, type HostedOpenDuel } from '../db/cancelHostedDuel';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
@@ -735,12 +736,21 @@ export default function MapScreen() {
   const [hostOpen, setHostOpen] = useState(false);
   const [hostLocation, setHostLocation] = useState<Coordinates | null>(null);
   const [raceNotice, setRaceNotice] = useState<string | null>(null);
+  // Only genuine user actions create a notice; dismiss automatically so a
+  // previous warning cannot cover the next long-press dialog indefinitely.
+  useEffect(() => {
+    if (!raceNotice) return;
+    const id = window.setTimeout(() => setRaceNotice(null), 4200);
+    return () => window.clearTimeout(id);
+  }, [raceNotice]);
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [cityName, setCityName] = useState<string | null>(null);
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
+  const [regionalRuns, setRegionalRuns] = useState<Array<{ id: string; location: Coordinates }>>([]);
+  const [wideMapView, setWideMapView] = useState(false);
   const [arcadeMapView, setArcadeMapView] = useState<ArcadeMapView>('map');
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   // Own live lobby is visible even when its map popup is closed or GPS changes.
@@ -749,8 +759,11 @@ export default function MapScreen() {
   const [cancelConfirmation, setCancelConfirmation] = useState<HostedOpenDuel | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancellingRunId, setCancellingRunId] = useState<string | null>(null);
-  const [loadingGhosts, setLoadingGhosts] = useState(false);
+  const [, setLoadingGhosts] = useState(false);
   const [loadingDuels, setLoadingDuels] = useState(false);
+  const discoveryLoadedRef = useRef(false);
+  const [discoveryCoords, setDiscoveryCoords] = useState<Coordinates | null>(null);
+  const [discoveryRefreshTick, setDiscoveryRefreshTick] = useState(0);
   const [userTimes, setUserTimes] = useState<number[]>([]);
   const [matchOverlay, setMatchOverlay] = useState<{ duelId: string; startsAt: number; targetDistanceM: number } | null>(null);
   const [race, setRace] = useState<
@@ -998,36 +1011,49 @@ export default function MapScreen() {
     }));
   }, [demoOrigin?.lat, demoOrigin?.lng]);
 
+  // GPS can update every second. Nearby discovery should not flicker or
+  // reload for ordinary sensor drift; Realtime handles urgent race changes.
+  useEffect(() => {
+    if (!userCoords) { setDiscoveryCoords(null); return; }
+    setDiscoveryCoords(previous => !previous ||
+      haversineM(previous.lat, previous.lng, userCoords.lat, userCoords.lng) >= 100
+      ? { lat: userCoords.lat, lng: userCoords.lng } : previous);
+  }, [userCoords?.lat, userCoords?.lng]);
+
+  useEffect(() => {
+    if (!authUser) return;
+    const id = window.setInterval(() => setDiscoveryRefreshTick(value => value + 1), 90_000);
+    return () => window.clearInterval(id);
+  }, [authUser?.id]);
+
   // Guests see clearly labeled sample challenges, not private Supabase rows.
-  // Load nearby open duels - with demo data fallback
+  // First load may show a placeholder; background refreshes are completely silent.
   useEffect(() => {
     if (!authUser) {
+      discoveryLoadedRef.current = false;
       setOpenRuns(generateDemoRuns);
       setLoadingDuels(false);
       return;
     }
-    if (!userCoords) {
-      // Ensure loading state is not stuck when location is unavailable
+    if (!discoveryCoords) {
       setLoadingDuels(false);
       return;
     }
     let isActive = true;
     (async () => {
-      if (!isActive) return;
-      setLoadingDuels(true);
+      if (!discoveryLoadedRef.current) setLoadingDuels(true);
       try {
-        const { data, error } = await getNearbyDuels(supabase, { userLocation: userCoords, radiusKm: 5 });
-        if (!isActive) return;
-        
+        const { data, error } = await getNearbyDuels(supabase, { userLocation: discoveryCoords, radiusKm: 5 });
+        if (!isActive || error) return; // never replace real races with demo on a network failure
+
         let mapped: OpenRun[] = [];
-        
-        // Try to use real data first
-        if (!error && data && data.length > 0) {
+        if (data && data.length > 0) {
           const hostIds = Array.from(new Set(data.map((d: any) => d.host_user_id).filter(Boolean)));
           const { data: hostUsers } = await supabase
             .from('users')
             .select('id, username')
             .in('id', hostIds);
+          if (!isActive) return;
           const hostById = new Map<string, any>((hostUsers || []).map((u: any) => [u.id, u]));
           mapped = data
             .filter((d: any) => d.status === 'open')
@@ -1046,26 +1072,45 @@ export default function MapScreen() {
             })
             .filter((run): run is OpenRun => run !== null);
         } else {
-          // Use stable demo runs
           mapped = generateDemoRuns;
         }
-        
-        if (!isActive) return;
-        // The personal pending race is always kept on the map even if the
-        // nearby discovery RPC temporarily falls back to sample data.
-        setOpenRuns(previous => {
-          const own = previous.filter(run => run.hostUserId === authUser.id && !run.id.startsWith('demo-run-'));
-          const ids = new Set(own.map(run => run.id));
-          return [...own, ...mapped.filter(run => !ids.has(run.id))];
-        });
+
+        if (isActive) setOpenRuns(previous => reconcileOpenRaces(previous, mapped, authUser.id));
       } finally {
-        if (isActive) setLoadingDuels(false);
+        if (isActive) {
+          discoveryLoadedRef.current = true;
+          setLoadingDuels(false);
+        }
       }
     })();
-    return () => {
-      isActive = false;
+    return () => { isActive = false; };
+  }, [generateDemoRuns, discoveryCoords?.lat, discoveryCoords?.lng, authUser?.id, discoveryRefreshTick]);
+
+  // A regional view must reflect real open challenges, not invented demo
+  // accounts or private users. Existing authenticated RLS permits reading
+  // open races. We fetch only ID + geometry, never host identity.
+  useEffect(() => {
+    if (!authUser || !wideMapView) {
+      setRegionalRuns([]);
+      return;
+    }
+    let active = true;
+    const refresh = async () => {
+      const { data, error } = await supabase
+        .from('duels')
+        .select('id, location')
+        .eq('status', 'open')
+        .limit(500);
+      if (!active || error) return;
+      setRegionalRuns((data ?? []).flatMap(row => {
+        const location = parseGeographyPoint(row.location);
+        return location ? [{ id: row.id as string, location }] : [];
+      }));
     };
-  }, [generateDemoRuns, userCoords, authUser?.id]);
+    void refresh();
+    const id = window.setInterval(() => void refresh(), 90_000);
+    return () => { active = false; window.clearInterval(id); };
+  }, [authUser?.id, wideMapView]);
 
   // Fetch only this authenticated host's open, unjoined lobbies. Keep the
   // cancellation action independent from the 5-km map search and Leaflet popup.
@@ -1342,6 +1387,8 @@ export default function MapScreen() {
           colorHex: player.colorHex,
           source: player.source,
         }))}
+        regionalRuns={regionalRuns}
+        onWideViewChange={setWideMapView}
         runs={openRuns.map((run, index) => ({
           ...arcadeRuns[index],
           location: run.location,
@@ -1389,16 +1436,13 @@ export default function MapScreen() {
           <button type="button" onClick={() => { requestOnce(); setRecenterTick(x => x + 1); }} className="mt-2 rounded-lg bg-violet-500 px-3 py-2 font-bold text-white">Standort erneut suchen</button>
         </div>
       )}
-      {/* Loading and Empty states */}
-      {(loadingGhosts || loadingDuels) && (
-        <div className="runnit-arcade-status pointer-events-none absolute inset-x-4 top-[calc(5.5rem+env(safe-area-inset-top))] z-[900] mx-auto w-fit max-w-[calc(100%-2rem)] rounded-full bg-white/10 px-4 py-2 text-sm text-white ring-1 ring-white/15 backdrop-blur">
-          <span className="mr-2 inline-block h-3 w-3 animate-ping rounded-full bg-white/70"></span>
-          Loading…
-        </div>
-      )}
-      {!loadingGhosts && !loadingDuels && players.length === 0 && openRuns.length === 0 && (
-        <div className="runnit-arcade-status pointer-events-none absolute inset-x-4 top-[calc(5.5rem+env(safe-area-inset-top))] z-[900] mx-auto w-fit max-w-[calc(100%-2rem)] rounded-lg bg-white/5 px-3 py-2 text-xs text-white/80 ring-1 ring-white/10">
-          No nearby activity yet
+      {/* Background updates are silent; a fixed LIVE chip never shifts content. */}
+      {arcadeMapView === 'map' && wideMapView && (
+        <div className="runnit-community-map-legend" aria-label="Übersicht über echte offene Rennen">
+          <span className="runnit-community-map-signal" aria-hidden="true" />
+          {regionalRuns.length > 0
+            ? `COMMUNITY · ${regionalRuns.length} echte offene Rennen`
+            : 'COMMUNITY · Noch keine öffentlichen Rennen'}
         </div>
       )}
 
@@ -1412,7 +1456,8 @@ export default function MapScreen() {
         selectedId={selectedRunId}
         onJoin={joinArcadeRun}
         onCancel={cancelArcadeRun}
-        loading={loadingDuels}
+        loading={loadingDuels && !discoveryLoadedRef.current}
+        live={Boolean(authUser)}
       />
 
       {/* Locate me control */}
@@ -1556,7 +1601,7 @@ export default function MapScreen() {
       )}
 
       {raceNotice && (
-        <div role="status" className="runnit-arcade-race-notice pointer-events-auto absolute inset-x-4 bottom-56 z-[951] mx-auto max-w-sm rounded-2xl border border-amber-300/25 bg-[#191827]/95 px-4 py-3 text-xs leading-5 text-amber-100 shadow-lg">
+        <div role="status" className="runnit-arcade-race-notice pointer-events-none absolute inset-x-4 top-[calc(145px+env(safe-area-inset-top,0px))] z-[938] mx-auto max-w-sm rounded-xl border border-amber-300/25 bg-[#191827]/90 px-3 py-2 text-center text-xs leading-5 text-amber-100 shadow-lg">
           {raceNotice}
         </div>
       )}
