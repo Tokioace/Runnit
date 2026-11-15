@@ -71,17 +71,19 @@ test('far-away landcover and roads lose contrast without harming street zoom', (
   assert.match(map, /12, 0\.82, 16, 0\.96/);
 });
 
-test('3D switch has both CSS and React safeguards for host and race popups', () => {
+test('3D switch stays enabled during host chooser but is safeguarded for race detail popup', () => {
   const map = read('src/components/map/ArcadeMapLibreView.tsx');
   const css = read('src/styles/maplibreArcade.css');
   assert.match(map, /const \[popupVisible, setPopupVisible\] = useState\(false\)/);
   assert.match(map, /setPopupVisible\(true\)/);
-  assert.match(map, /setPopupVisible\(Boolean\(activeRunPopupRef\.current \|\| hostPopupRef\.current\)\)/);
-  assert.match(map, /setPopupVisible\(Boolean\(hostPopupRef\.current \|\| activeRunPopupRef\.current\)\)/);
+  assert.match(map, /setPopupVisible\(false\)/);
+  assert.match(map, /setPopupVisible\(Boolean\(activeRunPopupRef\.current\)\)/);
+  assert.doesNotMatch(map, /setPopupVisible\(Boolean\(activeRunPopupRef\.current \|\| hostPopupRef\.current\)\)/);
   assert.match(map, /' is-obscured-by-popup'/);
   assert.match(map, /aria-hidden=\{popupVisible\}/);
   assert.match(map, /disabled=\{popupVisible\}/);
   assert.match(css, /\.runnit-gl-tilt-button\.is-obscured-by-popup/);
   assert.match(css, /visibility:hidden!important/);
   assert.match(css, /:has\(\.maplibregl-popup\.runnit-gl-race-popup\)/);
+  assert.doesNotMatch(css, /:has\(\.maplibregl-popup\.runnit-gl-host-popup\)/);
 });
