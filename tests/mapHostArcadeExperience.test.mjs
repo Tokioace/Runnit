@@ -18,14 +18,15 @@ test('host prompt is small, geographically anchored and never the fixed mobile r
   assert.doesNotMatch(fixedSection, /\.runnit-gl-race-popup,\s*\.runnit-map-arcade \.maplibregl-popup\.runnit-gl-host-popup \{\s*position:fixed/);
 });
 
-test('long-pressed geographic marker pulses through the hosting dialog and stops only on close', () => {
+test('long-pressed geographic marker pulses only while choosing a point and vanishes on WEITER', () => {
   const renderer = read('src/components/map/ArcadeMapLibreView.tsx');
   const screen = read('src/screens/MapScreen.tsx');
   const style = read('src/styles/maplibreArcade.css');
   assert.match(renderer, /hostSelectionMarkerRef\.current = new Marker\(\{ element: anchor, anchor: 'center' \}\)/);
   assert.match(renderer, /setLngLat\(\[position\.lng, position\.lat\]\)\.addTo\(map\)/);
-  assert.match(renderer, /hostCreatingRef\.current = true;\s*closeHostPopup\(\);\s*callbacks\.current\.onHostAt\(position\)/);
-  assert.match(renderer, /if \(hostDialogOpen \|\| hostLocation \|\| !hostCreatingRef\.current\) return/);
+  assert.match(renderer, /closeHostPopup\(\);\s*callbacks\.current\.onHostAt\(position\)/);
+  assert.match(renderer, /const clearHostSelection = \(\) => \{/);
+  assert.doesNotMatch(renderer, /hostCreatingRef/);
   assert.match(renderer, /hostSelectionMarkerRef\.current\?\.remove\(\)/);
   assert.match(screen, /hostDialogOpen=\{hostOpen\}/);
   assert.match(screen, /hostLocation=\{hostLocation\}/);
