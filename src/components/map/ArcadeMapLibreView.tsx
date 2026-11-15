@@ -87,7 +87,7 @@ function styleArcadeMap(map: GLMap) {
         // Default hillshading gives low-zoom land large grey patches. Preserve
         // subtle relief while giving the network map its dark arcade contrast.
         map.setPaintProperty(layer.id, 'raster-opacity',
-          ['interpolate', ['linear'], ['zoom'], 0, 0.09, 3, 0.065, 6, 0.02, 7, 0]);
+          ['interpolate', ['linear'], ['zoom'], 0, 0.035, 3, 0.03, 6, 0.01, 7, 0]);
       } else if (layer.type === 'line' && name === 'boundary_2') {
         // The OpenFreeMap Liberty country-border layer (admin_level=2).
         map.setPaintProperty(layer.id, 'line-color', '#27e9ff');
@@ -110,13 +110,13 @@ function styleArcadeMap(map: GLMap) {
         // is not a country border. Lower its intensity rather than highlighting it.
         map.setPaintProperty(layer.id, 'line-color', '#285668');
         map.setPaintProperty(layer.id, 'line-opacity',
-          ['interpolate', ['linear'], ['zoom'], 3, 0, 8, 0.045, 11, 0.12, 15, 0.29]);
+          ['interpolate', ['linear'], ['zoom'], 3, 0, 8, 0.02, 11, 0.10, 15, 0.29]);
         map.setPaintProperty(layer.id, 'line-width', 0.75);
       } else if (layer.type === 'fill' && name === 'park') {
         map.setPaintProperty(layer.id, 'fill-color', '#153544');
         map.setPaintProperty(layer.id, 'fill-outline-color', '#285665');
         map.setPaintProperty(layer.id, 'fill-opacity',
-          ['interpolate', ['linear'], ['zoom'], 3, 0.025, 7, 0.075, 10, 0.20, 15, 0.56]);
+          ['interpolate', ['linear'], ['zoom'], 3, 0.012, 7, 0.04, 10, 0.15, 15, 0.56]);
       } else if (layer.type === 'fill' && name.startsWith('landcover_')) {
         const ice = name.includes('ice');
         const sand = name.includes('sand');
@@ -130,7 +130,7 @@ function styleArcadeMap(map: GLMap) {
             9, ice ? '#354f62' : '#133449',
             14, ice ? '#517283' : sand ? '#30485a' : wetland ? '#17384b' : '#163746']);
         map.setPaintProperty(layer.id, 'fill-opacity',
-          ['interpolate', ['linear'], ['zoom'], 2, ice ? 0.12 : 0.035, 7, 0.08, 10, 0.22, 14, 0.53]);
+          ['interpolate', ['linear'], ['zoom'], 2, ice ? 0.08 : 0.018, 7, 0.045, 10, 0.15, 14, 0.53]);
       } else if (layer.type === 'fill' && name.startsWith('landuse_')) {
         // Residential/industrial and amenities used to remain pale grey;
         // quiet them down without hiding streets or actual buildings.
@@ -139,10 +139,12 @@ function styleArcadeMap(map: GLMap) {
             2, '#0c273d', 9, residential ? '#143348' : '#17394b',
             14, residential ? '#183b50' : '#214355']);
         map.setPaintProperty(layer.id, 'fill-opacity',
-          ['interpolate', ['linear'], ['zoom'], 3, 0.025, 7, 0.075, 10, 0.20, 14, 0.56]);
+          ['interpolate', ['linear'], ['zoom'], 3, 0.012, 7, 0.045, 10, 0.14, 14, 0.56]);
       } else if (layer.type === 'background') {
         map.setPaintProperty(layer.id, 'background-color',
-          ['interpolate', ['linear'], ['zoom'], 2, '#071225', 7, '#0a1c34', 13, '#10243d']);
+          ['interpolate', ['linear'], ['zoom'],
+            0, '#1c3e53', 2, '#1b3b51', 4, '#1b3c50',
+            7, '#18394e', 10, '#17364c', 13, '#10243d']);
       } else if (layer.type === 'fill' && /building/.test(name)) {
         map.setPaintProperty(layer.id, 'fill-color', '#3d5c77');
         map.setPaintProperty(layer.id, 'fill-opacity', 0.94);
@@ -154,9 +156,25 @@ function styleArcadeMap(map: GLMap) {
         map.setPaintProperty(layer.id, 'line-opacity',
           main ? ['interpolate', ['linear'], ['zoom'], 3, 0.20, 6, 0.38, 9, 0.68, 12, 0.94, 16, 1]
             : ['interpolate', ['linear'], ['zoom'], 3, 0.06, 6, 0.12, 9, 0.35, 12, 0.82, 16, 0.96]);
+      } else if (layer.type === 'fill' && name === 'water') {
+        // The Liberty/OpenMapTiles water POLYGON covers seas, lakes and coastlines.
+        // Use its polygon edge, rather than inventing a water LineString layer.
+        // On world/Europe zoom, water must be substantially darker than land.
+        map.setPaintProperty(layer.id, 'fill-color',
+          ['interpolate', ['linear'], ['zoom'],
+            0, '#05101f', 2, '#061425', 4, '#071728',
+            7, '#0a2033', 10, '#0e2940', 13, '#123852']);
+        map.setPaintProperty(layer.id, 'fill-outline-color',
+          ['interpolate', ['linear'], ['zoom'],
+            0, 'rgba(104,213,245,0.56)',
+            3, 'rgba(112,226,250,0.72)',
+            5, 'rgba(113,232,254,0.78)',
+            8, 'rgba(80,205,238,0.42)',
+            11, 'rgba(80,205,238,0.08)',
+            13, 'rgba(80,205,238,0)']);
       } else if (layer.type === 'fill' && /water/.test(name)) {
         map.setPaintProperty(layer.id, 'fill-color',
-          ['interpolate', ['linear'], ['zoom'], 2, '#0a1d32', 8, '#0a2946', 13, '#123852']);
+          ['interpolate', ['linear'], ['zoom'], 2, '#061425', 8, '#0a2033', 13, '#123852']);
       } else if (layer.type === 'fill' && /park|wood|forest|landcover|grass/.test(name)) {
         map.setPaintProperty(layer.id, 'fill-color',
           ['interpolate', ['linear'], ['zoom'], 2, '#102b39', 8, '#113743', 13, '#193b49']);
