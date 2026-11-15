@@ -1202,6 +1202,10 @@ export default function MapScreen() {
   const openHostRunAt = (point: Coordinates) => {
     if (!requireRaceAccount()) return;
     setRaceNotice(null);
+    if (hostedOpenDuels.some(run => !run.expiresAt || isOpenEventAvailable(run.expiresAt))) {
+      setRaceNotice('Du hast bereits ein offenes Event. Warte auf einen Gegner oder storniere es zuerst.');
+      return;
+    }
     if (!userCoords || !canHostAt(userCoords, point)) {
       setRaceNotice(`Wähle einen Punkt innerhalb deines ${HOST_PLACEMENT_RADIUS_METERS}-m-Radars. Dein GPS-Standort muss verfügbar sein.`);
       if (!userCoords) requestOnce();
@@ -1225,6 +1229,20 @@ export default function MapScreen() {
       throw new Error('Der gewählte Punkt liegt jetzt außerhalb deines 500-m-Radars. Bitte wähle erneut einen Punkt.');
     }
 
+    // Friendly preflight for the UI. The UNIQUE PARTIAL INDEX in Postgres
+    // is still the real atomic protection against racing double-clicks,
+    // extra tabs, malicious HTTP requests and concurrent devices.
+    const { data: activeHosted, error: activeCheckError } = await supabase
+      .from('duels')
+      .select('id, status')
+      .eq('host_user_id', authUser.id)
+      .in('status', ['open', 'matched'])
+      .limit(1);
+    if (activeCheckError) throw activeCheckError;
+    if (activeHosted?.length) {
+      throw new Error('Du hast bereits ein aktives Event. Schließe zuerst dein vorheriges Rennen ab oder storniere es.');
+    }
+
     const { data, error } = await createDuel(supabase, {
       hostUserId: authUser.id,
       location: hostLocation,
@@ -1232,7 +1250,7 @@ export default function MapScreen() {
       targetDistanceM: distanceMeters,
     });
     if (error) throw error;
-    if (!data?.id || data.status !== 'open') {
+    if (!data?.id || data.status !== 'open' || !data.expires_at) {
       throw new Error('Renn-Erstellung wurde nicht bestätigt.');
     }
 
@@ -1244,16 +1262,18 @@ export default function MapScreen() {
       distanceMeters,
       location: hostLocation,
       createdAt: data.created_at,
+      expiresAt: data.expires_at,
       targetDistanceM: distanceMeters,
     };
     setOpenRuns(previous => [created, ...previous.filter(run => run.id !== created.id)]);
     setHostedOpenDuels(previous => [
       { id: created.id, hostUserId: authUser.id, distanceMeters,
-        createdAt: created.createdAt ?? null, location: created.location },
+        createdAt: created.createdAt ?? null, expiresAt: created.expiresAt,
+        location: created.location },
       ...previous.filter(run => run.id !== created.id),
     ]);
     setHostedDuelsLoadError(false);
-    setRaceNotice(`Dein ${distanceMeters}-m-Rennen wurde erstellt. Warte auf einen zweiten Läufer; dann startet der Countdown.`);
+    setRaceNotice(`Dein ${distanceMeters}-m-Event ist 60 Minuten offen. Sobald jemand beitritt, endet das Wartefenster.`);
   };
 
   const handleCancelHostedRun = (run: HostedOpenDuel) => {
@@ -1330,6 +1350,7 @@ export default function MapScreen() {
         hostUserId: run.hostUserId ?? '',
         distanceMeters: run.distanceMeters,
         createdAt: run.createdAt ?? null,
+        expiresAt: run.expiresAt,
       });
     }
   };
@@ -1341,6 +1362,7 @@ export default function MapScreen() {
     distanceAwayMeters: userCoords ? haversineM(userCoords.lat, userCoords.lng, run.location.lat, run.location.lng) : null,
     isOwn: Boolean(authUser && (run.hostUserId === authUser.id || hostedOpenDuels.some(own => own.id === run.id))),
     isDemo: run.id.startsWith('demo-run-'),
+    expiresAt: run.expiresAt,
   }));
 
   return (
