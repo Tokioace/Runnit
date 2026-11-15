@@ -84,6 +84,25 @@
 .runnit-map-arcade .maplibregl-canvas{-webkit-touch-callout:none;touch-action:none}
 
 
+/* MapLibre owns the geographic transform on the outer shell. The inner
+   button alone is zoom-scaled, so tiny distant markers cannot drift or clamp
+   at the edge of a tilted/rotated map. */
+.runnit-map-arcade .runnit-gl-marker-shell{
+  position:absolute;width:42px;height:44px;pointer-events:none;
+}
+.runnit-map-arcade .runnit-gl-marker-shell.is-runner{width:43px;height:43px}
+.runnit-map-arcade .runnit-gl-marker-shell.is-gps{width:29px;height:29px}
+.runnit-map-arcade .runnit-gl-marker-shell > .runnit-gl-marker{
+  pointer-events:auto;transition:none;
+}
+.runnit-map-arcade .runnit-gl-marker-shell > .runnit-gl-marker.runnit-gl-run{
+  transform-origin:center bottom;
+}
+.runnit-map-arcade .runnit-gl-marker-shell > .runnit-gl-marker.runnit-gl-runner,
+.runnit-map-arcade .runnit-gl-marker-shell > .runnit-gl-marker.runnit-gl-gps{
+  transform-origin:center center;
+}
+
 /* Real open challenges remain pink; ONLY the authenticated host's flag is lime.
    Neither demo status nor distance alters the visual event ownership state. */
 .runnit-map-arcade .runnit-gl-marker.runnit-gl-run:not(.is-own){

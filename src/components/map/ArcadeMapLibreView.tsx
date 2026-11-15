@@ -7,6 +7,7 @@ import type { ArcadeMapEntry, ArcadeMapView } from './ArcadeMapChrome';
 import { eventPopupLngLat } from '../../lib/mapPopupAnchor';
 import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters, validMapPoint } from '../../lib/mapHostPlacement';
 import { markerInViewport } from '../../lib/mapMarkerVisibility';
+import { markerPinOpacityAtZoom, markerScaleAtZoom, PIN_FADE_END_ZOOM } from '../../lib/mapMarkerZoom';
 
 // Required by MapLibre v6 and Vite 8: ship the real same-origin WebGL worker.
 // Without ?worker&url, production may show a blank map without a build failure.
@@ -15,6 +16,8 @@ setWorkerUrl(workerUrl);
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 const BUILDING_TILES = 'https://tiles.openfreemap.org/planet';
 const RADAR_ID = 'runnit-gps-radar';
+const DISTANT_DOT_SOURCE = 'runnit-distance-dots';
+const DISTANT_DOT_LAYER = 'runnit-distance-dot-circles';
 const BUILDING_LAYER_ID = 'runnit-3d-buildings';
 const PITCH_DEGREES = 46;
 const BEARING_DEGREES = -13;
@@ -144,6 +147,57 @@ function styleArcadeMap(map: GLMap) {
       },
     });
   }
+  // Real WebGL points follow geographic coordinates, not HTML marker transforms.
+  // Render tiny pins at country/region zoom; crossfade into the detailed HTML art.
+  if (!map.getSource(DISTANT_DOT_SOURCE)) {
+    map.addSource(DISTANT_DOT_SOURCE, {
+      type: 'geojson', data: { type: 'FeatureCollection', features: [] },
+    });
+  }
+  if (!map.getLayer(DISTANT_DOT_LAYER)) {
+    map.addLayer({
+      id: DISTANT_DOT_LAYER, type: 'circle', source: DISTANT_DOT_SOURCE,
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'],
+          0, 1.7, 5, 2.0, 9, 2.8, 12.8, 5.0],
+        'circle-color': ['get', 'color'],
+        'circle-stroke-color': '#0b1837',
+        'circle-stroke-width': 0.8,
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0],
+        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0],
+      },
+    });
+  }
+}
+
+/** Keep dots in MapLibre's renderer so projected locations never get pushed to a
+ * screen edge by browser layout or HTML marker wrapping at small zoom levels. */
+function syncDistantDots(
+  map: GLMap,
+  players: readonly ArcadeVectorPlayer[],
+  runs: readonly ArcadeVectorRun[],
+  gps: MapCoordinate | null,
+) {
+  const source = map.getSource(DISTANT_DOT_SOURCE) as GeoJSONSource | undefined;
+  if (!source) return;
+  const points = [
+    ...players.filter(player => player.source !== 'server-unverified' && finiteCoords(player.location))
+      .map(player => ({ position: player.location, color: '#a985ff' })),
+    ...runs.filter(run => finiteCoords(run.location))
+      .map(run => ({ position: run.location, color: run.isOwn ? '#c9ff0b' : '#f13edc' })),
+    ...(gps && finiteCoords(gps) ? [{ position: gps, color: '#19e7ff' }] : []),
+  ];
+  source.setData({
+    type: 'FeatureCollection',
+    features: points.map(point => ({
+      type: 'Feature' as const,
+      properties: { color: point.color },
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [point.position.lng, point.position.lat],
+      },
+    })),
+  });
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -184,6 +238,18 @@ function markerElement(kind: 'gps' | 'runner' | 'run', color: string, isDemo = f
   el.setAttribute('aria-label', label);
   if (kind !== 'gps') el.appendChild(markerGlyph(kind));
   return el;
+}
+
+/** MapLibre translates this OUTER shell to a geographic coordinate. Scaling only
+ * the INNER button avoids overriding MapLibre's transform and drifting pins. */
+function markerShell(button: HTMLButtonElement): HTMLDivElement {
+  const shell = document.createElement('div');
+  shell.className = 'runnit-gl-marker-shell';
+  if (button.classList.contains('runnit-gl-runner')) shell.classList.add('is-runner');
+  if (button.classList.contains('runnit-gl-gps')) shell.classList.add('is-gps');
+  button.style.transformOrigin = button.classList.contains('runnit-gl-run') ? 'center bottom' : 'center center';
+  shell.appendChild(button);
+  return shell;
 }
 
 function detailElement(run: ArcadeVectorRun, onJoin: () => void, onCancel: () => void) {
@@ -236,6 +302,8 @@ export default function ArcadeMapLibreView({
   latestGpsRef.current = userCoords;
   const liveRunsRef = useRef(runs);
   liveRunsRef.current = runs;
+  const livePlayersRef = useRef(players);
+  livePlayersRef.current = players;
   const [ready, setReady] = useState(false);
   const [tilted, setTilted] = useState(true);
   const callbacks = useRef({ onSelectRun, onJoinRun, onCancelRun, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError });
@@ -270,6 +338,7 @@ export default function ArcadeMapLibreView({
     const onStyle = () => {
       try {
         styleArcadeMap(map);
+        syncDistantDots(map, livePlayersRef.current, liveRunsRef.current, latestGpsRef.current);
         callbacks.current.onTilesLoaded();
         setReady(true);
       } catch {
@@ -329,7 +398,7 @@ export default function ArcadeMapLibreView({
     if (userCoords && finiteCoords(userCoords)) {
       if (!gpsMarkerRef.current) {
         gpsMarkerRef.current = new Marker({
-          element: markerElement('gps', '#1b80ff'),
+          element: markerShell(markerElement('gps', '#1b80ff')),
           anchor: 'center',
         }).setLngLat([userCoords.lng, userCoords.lat]).addTo(map);
       } else {
@@ -339,6 +408,8 @@ export default function ArcadeMapLibreView({
       gpsMarkerRef.current?.remove();
       gpsMarkerRef.current = null;
     }
+    syncDistantDots(map, livePlayersRef.current, liveRunsRef.current, userCoords);
+    refreshVisiblePins();
   }, [ready, userCoords?.lat, userCoords?.lng]);
 
   // MapLibre HTML Markers can be rendered at a screen edge even when their
@@ -361,13 +432,40 @@ export default function ArcadeMapLibreView({
       right: 23,
     };
     const bounds = map.getBounds();
-    for (const item of [...visiblePlayersRef.current, ...visibleRunsRef.current]) {
-      const geo = item.point;
+    const opacity = markerPinOpacityAtZoom(map.getZoom());
+    const scale = markerScaleAtZoom(map.getZoom());
+    const updateMarker = (marker: Marker, geo: MapCoordinate) => {
       const geographicMatch = validMapPoint(geo) && bounds.contains([geo.lng, geo.lat]);
       const screen = geographicMatch ? map.project([geo.lng, geo.lat]) : { x: NaN, y: NaN };
-      const visible = markerInViewport(geographicMatch, screen, viewport);
+      const visible = opacity > 0 && markerInViewport(geographicMatch, screen, viewport);
+      const shell = marker.getElement();
       // An inline style wins over the decorative CSS display:grid rule.
-      item.marker.getElement().style.display = visible ? '' : 'none';
+      shell.style.display = visible ? '' : 'none';
+      shell.style.opacity = String(opacity);
+      shell.style.pointerEvents = opacity >= 0.8 ? '' : 'none';
+      // The shell retains the geographic transform owned by MapLibre.
+      const button = shell.firstElementChild as HTMLElement | null;
+      if (button) {
+        button.style.transform = 'scale(' + scale + ')';
+        button.style.pointerEvents = opacity >= 0.8 ? 'auto' : 'none';
+      }
+    };
+    for (const item of [...visiblePlayersRef.current, ...visibleRunsRef.current]) {
+      updateMarker(item.marker, item.point);
+    }
+    const gps = latestGpsRef.current;
+    if (gpsMarkerRef.current && gps && validMapPoint(gps)) updateMarker(gpsMarkerRef.current, gps);
+
+    // A detail popup should not float over an entire continent or under UI
+    // chrome after the associated race has left the visible, usable map.
+    for (const popup of [activeRunPopupRef.current, hostPopupRef.current]) {
+      if (!popup) continue;
+      const location = popup.getLngLat();
+      const geographicMatch = bounds.contains([location.lng, location.lat]);
+      const projected = geographicMatch ? map.project([location.lng, location.lat]) : { x: NaN, y: NaN };
+      if (map.getZoom() < PIN_FADE_END_ZOOM || !markerInViewport(geographicMatch, projected, viewport)) {
+        popup.remove();
+      }
     }
   };
 
@@ -512,6 +610,13 @@ export default function ArcadeMapLibreView({
     };
   }, [ready]);
 
+  // Data changes are reflected on the low-zoom WebGL layer without rebuilding
+  // either the map or the detailed marker DOM nodes.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && ready) syncDistantDots(map, livePlayersRef.current, liveRunsRef.current, latestGpsRef.current);
+  }, [ready, playerMarkerKey, runMarkerKey]);
+
   // Green/yellow demo runners still open the leaderboard, never a race popup.
   useEffect(() => {
     const map = mapRef.current;
@@ -525,7 +630,7 @@ export default function ArcadeMapLibreView({
         event.stopPropagation();
         callbacks.current.onGhostClick();
       });
-      const marker = new Marker({ element: el, anchor: 'center' })
+      const marker = new Marker({ element: markerShell(el), anchor: 'center' })
         .setLngLat([person.location.lng, person.location.lat]).addTo(map);
       markers.push(marker);
       visibleMarkers.push({ marker, point: person.location });
@@ -563,7 +668,7 @@ export default function ArcadeMapLibreView({
       if (!finiteCoords(originalRun.location)) continue;
       const el = markerElement('run', originalRun.isOwn ? '#c9ff0b' : '#f13edc', originalRun.isDemo);
       if (originalRun.isOwn) el.classList.add('is-own');
-      const marker = new Marker({ element: el, anchor: 'bottom' })
+      const marker = new Marker({ element: markerShell(el), anchor: 'bottom' })
         .setLngLat(eventPopupLngLat(originalRun))
         .addTo(map);
       markers.push(marker);
@@ -600,13 +705,19 @@ export default function ArcadeMapLibreView({
         activeRunPopupRef.current = popup;
         callbacks.current.onSelectRun(selectedRun.id);
 
-        // If the tapped event is underneath the top tabs or bottom dock,
-        // move the camera to THIS event, never to the runner's GPS location.
+        // Leave room ABOVE the event for the entire detail card and BELOW it
+        // for the bottom dock. Never pan towards the runner's GPS position.
+        const rect = map.getContainer().getBoundingClientRect();
+        const header = document.querySelector('.runnit-arcade-map-switch')?.getBoundingClientRect();
+        const dock = document.querySelector('.runnit-game-dock')?.getBoundingClientRect();
+        const top = header ? header.bottom - rect.top + 16 : 190;
+        const bottom = dock ? dock.top - rect.top - 22 : map.getContainer().clientHeight - 100;
+        const targetY = Math.max(top + 190, Math.min(bottom - 30, top + (bottom - top) * 0.68));
         const point = map.project(eventPosition);
         const { clientWidth, clientHeight } = map.getContainer();
-        if (point.y < 330 || point.y > clientHeight - 235 ||
-            point.x < 25 || point.x > clientWidth - 25) {
-          map.easeTo({ center: eventPosition, offset: [0, 90], duration: 260 });
+        if (Math.abs(point.y - targetY) > 35 ||
+            point.x < 35 || point.x > clientWidth - 35) {
+          map.easeTo({ center: eventPosition, offset: [0, targetY - clientHeight / 2], duration: 260 });
         }
       });
     }
