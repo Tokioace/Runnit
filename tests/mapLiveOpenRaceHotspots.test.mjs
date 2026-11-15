@@ -13,7 +13,9 @@ test('real 01 orb represents precisely one authenticated open race, not the demo
   assert.equal(energyOrbId('open-race', 1), 'runnit-energy-orb-open-race-1');
   assert.match(map, /id: COMMUNITY_SINGLE_SIGNAL_RING, type: 'symbol', source: COMMUNITY_REAL_SOURCE/);
   assert.match(map, /filter: \['!', \['has', 'point_count'\]\]/);
-  assert.match(map, /'icon-image': \['concat', ENERGY_ORB_PREFIX, '-open-race-1'\]/);
+  assert.match(map, /'icon-image': \['case', \['==', \['get', 'own'\], 1\]/);
+  assert.match(map, /'-own-race-1'/);
+  assert.match(map, /'-open-race-1'/);
   assert.match(map, /'icon-opacity': \['interpolate', \['linear'\], \['zoom'\],\s*0, 1, 12\.2, 1, 12\.8, 0\]/);
   assert.match(renderer, /map\.on\('click', COMMUNITY_SINGLE_SIGNAL_RING, onCommunityClusterClick\)/);
   assert.match(renderer, /map\.off\('click', COMMUNITY_SINGLE_SIGNAL_RING, onCommunityClusterClick\)/);
@@ -31,6 +33,8 @@ test('open duel counts must never include user GPS, unverified player locations,
   assert.equal(collections.demo.features.length, 2);
   assert.equal(collections.gps.features.length, 1);
   assert.deepEqual(collections.real.features[0].geometry.coordinates, [9.43, 48.94]);
+  assert.equal(collections.real.features[0].properties.own, 1);
+  assert.equal(energyOrbId('own-race', 1), 'runnit-energy-orb-own-race-1');
   const screen = read('src/screens/MapScreen.tsx');
   assert.match(screen, /\.eq\('status', 'open'\)/);
   assert.match(screen, /\.select\('id, location'\)/);
