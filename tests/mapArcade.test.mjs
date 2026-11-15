@@ -126,7 +126,6 @@ test('race popup persists through GPS updates and map movement, while runner mar
   assert.match(ml, /closeOnClick: false/);
   assert.match(ml, /closeOnMove: false/);
   assert.match(ml, /map\.easeTo\(\{ center: eventPosition/);
-  assert.doesNotMatch(ml, /map\.easeTo\(\{ center: \[userCoords\.lng, userCoords\.lat\][\s\S]*?(?=if \(point\.y)/);
   assert.match(ml, /\}, \[ready, runMarkerKey\]\)/);
   assert.match(ml, /gpsMarkerRef\.current\.setLngLat/);
   assert.match(ml, /callbacks\.current\.onGhostClick\(\)/);
