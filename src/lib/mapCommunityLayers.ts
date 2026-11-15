@@ -212,6 +212,12 @@ export function installCommunityLayers(map: GLMap) {
       },
     });
   }
+  // The user's GPS point is geographic, but it must never paint ON TOP of
+  // the count or typography of an own (or nearby foreign) open-race orb.
+  // Place both location layers underneath real activity; the cyan radius
+  // remains visible and low-zoom GPS remains legible away from events.
+  map.moveLayer(COMMUNITY_GPS_AURA_LAYER, COMMUNITY_SINGLE_HALO_LAYER);
+  map.moveLayer(COMMUNITY_GPS_LAYER, COMMUNITY_SINGLE_HALO_LAYER);
 }
 
 export function syncCommunityLayers(map: GLMap, entries: readonly CommunityEntry[], gps: CommunityCoordinate | null) {
