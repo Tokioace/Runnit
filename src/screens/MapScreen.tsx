@@ -486,62 +486,46 @@ function HostRunDialog({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#050611]/75 backdrop-blur-[4px]">
-      <div className="w-full max-w-md rounded-t-[30px] border border-violet-300/20 bg-[#101322] p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white shadow-[0_-25px_80px_rgba(0,0,0,.5)]">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-extrabold tracking-tight text-white">{t('host.title')}</h2>
-          <button
-            onClick={onClose}
-            disabled={submitting}
-            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/70 transition hover:bg-white/10 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-            aria-label="Rennen-Dialog schließen"
-          >
-            ✕
-          </button>
-        </div>
+    <div className="runnit-host-setup-backdrop" role="presentation">
+      <section className="runnit-host-setup-panel" role="dialog" aria-modal="true" aria-labelledby="runnit-host-setup-title">
+        <header className="runnit-host-setup-top">
+          <span className="runnit-host-setup-eyebrow">RUNNIT // STREET CHALLENGE</span>
+          <button type="button" onClick={onClose} disabled={submitting}
+            className="runnit-host-setup-close" aria-label="Rennen-Dialog schließen">✕</button>
+          <h2 id="runnit-host-setup-title">1V1 <span>DUELL</span></h2>
+          <p>SETZE DEINE CHALLENGE</p>
+        </header>
         {selectedLocationDistance !== undefined && (
-          <p className="mb-3 rounded-xl border border-lime-300/30 bg-lime-400/10 px-3 py-2 text-xs font-bold text-lime-100">
-            Ausgewählter Punkt: {Math.round(selectedLocationDistance)} m von deinem Standort. Das Rennen erscheint genau dort auf der Karte.
-          </p>
+          <div className="runnit-host-setup-location">
+            <span className="runnit-host-setup-beacon" aria-hidden="true" />
+            STARTPUNKT FIXIERT <span>· {Math.round(selectedLocationDistance)} M ENTFERNT</span>
+          </div>
         )}
-        <label className="mb-2 block text-sm font-medium text-white/80">
-          {t('host.distanceLabel')}
-        </label>
-        <div className="mb-5">
-          <select
-            value={distance}
-            onChange={(e) => setDistance(parseInt(e.target.value))}
-            className="w-full rounded-2xl border border-white/15 bg-[#161a2b] p-4 text-white outline-none focus:ring-2 focus:ring-violet-400"
-            aria-label={t('host.selectDistance')}
-          >
-            <option value={50}>{t('host.distance.50')}</option>
-            <option value={75}>{t('host.distance.75')}</option>
-            <option value={100}>{t('host.distance.100')}</option>
-          </select>
+        <div className="runnit-host-setup-section">
+          <div className="runnit-host-setup-heading">
+            <label id="runnit-host-distance-label">{t('host.distanceLabel').toUpperCase()}</label>
+            <small>01 / DISTANZ</small>
+          </div>
+          <div className="runnit-host-setup-distances" role="group" aria-labelledby="runnit-host-distance-label">
+            {[50, 75, 100].map(value => (
+              <button type="button" key={value} disabled={submitting}
+                aria-pressed={distance === value}
+                className={distance === value ? 'is-selected' : ''}
+                onClick={() => setDistance(value)}>
+                <strong>{value}</strong><span>M</span>
+              </button>
+            ))}
+          </div>
+          <p className="runnit-host-setup-note">OFFENE CHALLENGE · START ERST, WENN EIN ZWEITER LÄUFER BEITRITT.</p>
         </div>
-        <p className="mb-4 text-xs leading-5 text-white/60">Nach dem Erstellen bleibt dein Duell offen, bis ein zweiter Läufer beitritt. Erst dann startet der Countdown.</p>
-        <button type="button" onClick={onDemo} disabled={submitting}
-          className="mb-4 flex min-h-12 w-full items-center justify-center rounded-xl border border-cyan-300/40 bg-cyan-300/10 px-4 text-sm font-extrabold text-cyan-100 disabled:opacity-50">
-          Renn-Grafik allein testen · Simulation
-        </button>
-        {hostError && <p role="alert" className="mb-4 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-xs leading-5 text-rose-100">{hostError}</p>}
-        <div className="flex items-center justify-end gap-3">
-          <button
-            onClick={onClose}
-            disabled={submitting}
-            className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-          >
-            {t('buttons.cancel')}
-          </button>
-          <button
-            onClick={() => { void submitHost(); }}
-            disabled={submitting}
-            className="rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(99,102,241,.20)] transition hover:brightness-110 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-          >
-            {submitting ? 'Rennen wird gespeichert …' : t('buttons.hostRun')}
-          </button>
+        {hostError && <p role="alert" className="runnit-host-setup-error">{hostError}</p>}
+        <button type="button" className="runnit-host-setup-create" onClick={() => { void submitHost(); }}
+          disabled={submitting}>{submitting ? 'RENNEN WIRD GESPEICHERT …' : 'CHALLENGE ERSTELLEN  ›'}</button>
+        <div className="runnit-host-setup-bottom">
+          <button type="button" onClick={onClose} disabled={submitting}>ABBRECHEN</button>
+          <button type="button" onClick={onDemo} disabled={submitting}>SIMULATION TESTEN ↗</button>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
@@ -1404,6 +1388,8 @@ export default function MapScreen() {
         }))}
         regionalRuns={regionalRuns}
         onWideViewChange={setWideMapView}
+        hostDialogOpen={hostOpen}
+        hostLocation={hostLocation}
         runs={openRuns.map((run, index) => ({
           ...arcadeRuns[index],
           location: run.location,
@@ -1455,10 +1441,10 @@ export default function MapScreen() {
       {arcadeMapView === 'map' && wideMapView && (
         <div className="runnit-community-map-legend" aria-label="Übersicht über echte offene Rennen">
           <span className="runnit-community-map-signal" aria-hidden="true" />
-          {!authUser ? 'COMMUNITY · Für Live-Rennen anmelden'
+          {!authUser ? 'NETWORK · LIVE-RENNEN NACH ANMELDUNG'
             : regionalRuns.length > 0
-              ? `COMMUNITY · ${regionalRuns.length} echte offene Rennen`
-              : 'COMMUNITY · Noch keine öffentlichen Rennen'}
+              ? `LIVE SIGNAL · ${regionalRuns.length} ${regionalRuns.length === 1 ? 'CHALLENGE' : 'CHALLENGES'}`
+              : 'NETWORK · KEINE LIVE-CHALLENGES'}
         </div>
       )}
 
@@ -1476,8 +1462,8 @@ export default function MapScreen() {
         live={realtimeConnected}
       />
 
-      {/* Locate me control */}
-      <div className="pointer-events-auto absolute right-4 top-[calc(9.4rem+env(safe-area-inset-top))] z-[950]">
+      {/* Map-only controls must not float over scrollable race cards. */}
+      {arcadeMapView === 'map' && <div className="pointer-events-auto absolute right-4 top-[calc(9.4rem+env(safe-area-inset-top))] z-[950]">
         <button
           onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
           className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/70 bg-[#10254f]/90 text-cyan-100 shadow-[0_12px_35px_rgba(0,0,0,.4)] backdrop-blur-xl transition hover:bg-violet-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
@@ -1486,7 +1472,7 @@ export default function MapScreen() {
         >
           <LocateFixed className="h-6 w-6" aria-hidden="true" />
         </button>
-      </div>
+      </div>}
 
       {/* Location notices */}
       {insecureContext && (

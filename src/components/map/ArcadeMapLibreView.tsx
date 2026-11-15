@@ -40,6 +40,8 @@ export type ArcadeMapLibreProps = {
   view: ArcadeMapView;
   players: readonly ArcadeVectorPlayer[];
   runs: readonly ArcadeVectorRun[];
+  hostDialogOpen: boolean;
+  hostLocation: MapCoordinate | null;
   regionalRuns: readonly { id: string; location: MapCoordinate }[];
   onWideViewChange: (wide: boolean) => void;
   onSelectRun: (id: string) => void;
@@ -83,7 +85,9 @@ function styleArcadeMap(map: GLMap) {
         map.setPaintProperty(layer.id, 'fill-opacity', 0.94);
       } else if (layer.type === 'line' && /road|street|highway|transportation/.test(name)) {
         const main = /motorway|trunk|primary|main/.test(name);
-        map.setPaintProperty(layer.id, 'line-color', main ? '#b9d8e9' : '#779bb9');
+        map.setPaintProperty(layer.id, 'line-color', main
+          ? ['interpolate', ['linear'], ['zoom'], 3, '#355676', 8, '#567f9f', 12, '#85b8d5', 16, '#b9d8e9']
+          : ['interpolate', ['linear'], ['zoom'], 3, '#29435e', 8, '#416b86', 12, '#608caa', 16, '#779bb9']);
         map.setPaintProperty(layer.id, 'line-opacity', main ? 1 : 0.94);
       } else if (layer.type === 'fill' && /water/.test(name)) {
         map.setPaintProperty(layer.id, 'fill-color', '#123852');
@@ -267,7 +271,7 @@ function detailElement(run: ArcadeVectorRun, onJoin: () => void, onCancel: () =>
 /** Owns only map rendering: no auth, Supabase, races or geolocation reads. */
 export default function ArcadeMapLibreView({
   initialCenter, initialZoom, userCoords, ipCoords, recenterTick, retryTick, view,
-  players, runs, regionalRuns, onWideViewChange, onSelectRun, onJoinRun, onCancelRun, onGhostClick, onHostAt, onInvalidHostAt,
+  players, runs, hostDialogOpen, hostLocation, regionalRuns, onWideViewChange, onSelectRun, onJoinRun, onCancelRun, onGhostClick, onHostAt, onInvalidHostAt,
   onTilesLoaded, onTilesError,
 }: ArcadeMapLibreProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -275,6 +279,9 @@ export default function ArcadeMapLibreView({
   const gpsMarkerRef = useRef<Marker | null>(null);
   const activeRunPopupRef = useRef<Popup | null>(null);
   const hostPopupRef = useRef<Popup | null>(null);
+  const hostSelectionMarkerRef = useRef<Marker | null>(null);
+  const hostCreatingRef = useRef(false);
+  const atmosphereRef = useRef<HTMLDivElement | null>(null);
   const ignoreMapClickUntilRef = useRef(0);
   const visiblePlayersRef = useRef<Array<{ marker: Marker; point: MapCoordinate }>>([]);
   const visibleRunsRef = useRef<Array<{ marker: Marker; point: MapCoordinate }>>([]);
@@ -343,18 +350,29 @@ export default function ArcadeMapLibreView({
     map.on('style.load', onStyle);
     map.on('error', onFailure);
     map.on('zoomend', onZoomEnd);
+    const updateAtmosphere = () => {
+      // A quiet thematic overlay only: nothing here represents a fake player.
+      const zoom = map.getZoom();
+      if (atmosphereRef.current) atmosphereRef.current.style.opacity =
+        String(Math.max(0, Math.min(0.9, (13.3 - zoom) / 5.8)));
+    };
+    map.on('zoom', updateAtmosphere);
+    updateAtmosphere();
     map.on('click', COMMUNITY_CLUSTER_LAYER, onCommunityClusterClick);
     map.on('click', COMMUNITY_RACE_DOT_LAYER, onCommunityClusterClick);
     return () => {
       map.off('style.load', onStyle);
       map.off('error', onFailure);
       map.off('zoomend', onZoomEnd);
+      map.off('zoom', updateAtmosphere);
       map.off('click', COMMUNITY_CLUSTER_LAYER, onCommunityClusterClick);
       map.off('click', COMMUNITY_RACE_DOT_LAYER, onCommunityClusterClick);
       activeRunPopupRef.current?.remove();
       activeRunPopupRef.current = null;
       hostPopupRef.current?.remove();
       hostPopupRef.current = null;
+      hostSelectionMarkerRef.current?.remove();
+      hostSelectionMarkerRef.current = null;
       gpsMarkerRef.current?.remove();
       gpsMarkerRef.current = null;
       map.remove();
@@ -485,6 +503,15 @@ export default function ArcadeMapLibreView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
+  // Keep the geographic pulse alive while the user configures/saves a race.
+  // Only the confirmed creation or dialog cancellation clears the selection.
+  useEffect(() => {
+    if (hostDialogOpen || hostLocation || !hostCreatingRef.current) return;
+    hostCreatingRef.current = false;
+    hostSelectionMarkerRef.current?.remove();
+    hostSelectionMarkerRef.current = null;
+  }, [hostDialogOpen, hostLocation?.lat, hostLocation?.lng]);
+
   // Long-press is reserved for empty map canvas, not for a marker or a UI tab.
   // A drag or pinch cancels it; desktop right-click is an equivalent gesture.
   useEffect(() => {
@@ -508,7 +535,10 @@ export default function ArcadeMapLibreView({
       if (Date.now() - lastOpened < 900) return;
       lastOpened = Date.now();
       ignoreMapClickUntilRef.current = Date.now() + 900;
+      hostCreatingRef.current = false;
       closeHostPopup();
+      hostSelectionMarkerRef.current?.remove();
+      hostSelectionMarkerRef.current = null;
       const gps = latestGpsRef.current;
       if (!validMapPoint(gps)) {
         callbacks.current.onInvalidHostAt('Zum Platzieren eines Rennens benötigst du einen GPS-Standort.');
@@ -520,22 +550,28 @@ export default function ArcadeMapLibreView({
       }
       activeRunPopupRef.current?.remove();
       activeRunPopupRef.current = null;
-      closeHostPopup();
+      // A real geographic MapLibre marker, not a screen-fixed decoration.
+      const anchor = document.createElement('div');
+      anchor.className = 'runnit-gl-host-pulse';
+      anchor.setAttribute('aria-hidden', 'true');
+      hostSelectionMarkerRef.current = new Marker({ element: anchor, anchor: 'center' })
+        .setLngLat([position.lng, position.lat]).addTo(map);
 
       const root = document.createElement('div');
       root.className = 'runnit-gl-host-details';
       const title = document.createElement('strong');
-      title.textContent = 'HIER RENNEN VERANSTALTEN';
+      title.textContent = 'RENNEN HIER';
       root.appendChild(title);
       const info = document.createElement('p');
-      info.textContent = Math.round(mapDistanceMeters(gps, position)) + ' m von deinem GPS-Standort · innerhalb des ' + HOST_PLACEMENT_RADIUS_METERS + '-m-Radars';
+      info.textContent = Math.round(mapDistanceMeters(gps, position)) + ' m · IM ' + HOST_PLACEMENT_RADIUS_METERS + '-M-RADAR';
       root.appendChild(info);
       const create = document.createElement('button');
       create.type = 'button';
       create.className = 'runnit-gl-host-cta';
-      create.textContent = 'RENNEN HIER ERSTELLEN »';
+      create.textContent = 'ERSTELLEN ›';
       create.addEventListener('click', (event) => {
         event.stopPropagation();
+        hostCreatingRef.current = true;
         closeHostPopup();
         callbacks.current.onHostAt(position);
       });
@@ -545,12 +581,16 @@ export default function ArcadeMapLibreView({
         closeButton: true,
         closeOnClick: false,
         closeOnMove: false,
-        maxWidth: '300px',
-        offset: 12,
+        maxWidth: '188px',
+        offset: 18,
       }).setLngLat([position.lng, position.lat]).setDOMContent(root);
-      popup.setPadding({ top: 185, right: 16, bottom: 150, left: 16 });
+      popup.setPadding({ top: 175, right: 15, bottom: 145, left: 15 });
       popup.on('close', () => {
         if (hostPopupRef.current === popup) hostPopupRef.current = null;
+        if (!hostCreatingRef.current) {
+          hostSelectionMarkerRef.current?.remove();
+          hostSelectionMarkerRef.current = null;
+        }
       });
       popup.addTo(map);
       hostPopupRef.current = popup;
@@ -749,7 +789,8 @@ export default function ArcadeMapLibreView({
   return (
     <>
       <div ref={canvasRef} className="runnit-gl-canvas" role="application" aria-label="Dreidimensionale Karte mit Rennen in deiner Nähe. Zum Veranstalten Karte an einem Punkt im 500-Meter-Radar länger gedrückt halten." />
-      <button
+      <div ref={atmosphereRef} className={'runnit-gl-distance-atmosphere' + (view === 'list' ? ' is-hidden' : '')} aria-hidden="true" />
+      {view === 'map' && <button
         type="button"
         className="runnit-gl-tilt-button"
         aria-label={tilted ? 'Zur flachen 2D-Karte wechseln' : 'Zur schrägen 3D-Karte wechseln'}
@@ -759,7 +800,7 @@ export default function ArcadeMapLibreView({
           setTilted(next);
           mapRef.current?.easeTo({ pitch: next ? PITCH_DEGREES : 0, bearing: next ? BEARING_DEGREES : 0, duration: 350 });
         }}
-      >{tilted ? '3D' : '2D'}</button>
+      >{tilted ? '3D' : '2D'}</button>}
     </>
   );
 }
