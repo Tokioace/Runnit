@@ -64,6 +64,9 @@ test('simulation has separate GeoJSON sources and color-coded player/match/race 
   assert.match(layer, /'running-match', 'runnit-test-running-heat'/);
   assert.match(layer, /'circle-stroke-color': \['match', \['get','kind'\]/);
   assert.match(layer, /'text-field': \['concat', \['to-string', \['get','count'\]\]/);
+  assert.match(layer, /id: 'runnit-test-detail-dots', type: 'circle', source: HOTSPOT_TEST_SOURCE/);
+  assert.match(layer, /minzoom: 12\.2/);
+  assert.match(layer, /12\.2, 0, 12\.8, \.8, 14, 1/);
   assert.match(layer, /syncHotspotTestLayers\(map: GLMap, enabled: boolean\)/);
 });
 
