@@ -1,4 +1,5 @@
 import type { Map as GLMap, GeoJSONSource } from 'maplibre-gl';
+import { installRealHotspotHeat } from './mapHotspotSignals';
 
 /** Only real open challenges may contribute to the wide-area community count.
  * Demo markers and the viewer's own location are in separate map sources. */
@@ -77,6 +78,9 @@ export function installCommunityLayers(map: GLMap) {
       },
     });
   }
+  // Thermal background follows only authenticated, deduplicated open races.
+  // It uses the same real source as the verified community count.
+  installRealHotspotHeat(map, COMMUNITY_REAL_SOURCE, COMMUNITY_SINGLE_HALO_LAYER);
   if (!map.getLayer(COMMUNITY_SINGLE_SIGNAL_RING)) {
     // Exactly one real open race still reads like an active signal, not a
     // fabricated cluster. Ring always shares its genuine coordinates.
