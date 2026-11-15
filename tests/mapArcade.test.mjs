@@ -83,7 +83,8 @@ test('a marker popup shows one exact run; LISTE remains an independent search vi
   assert.match(chrome, /NOCH KEINE RENNEN/);
   assert.match(chrome, /onJoin\(entry\.id\)/);
   assert.match(chrome, /onCancel\(entry\.id\)/);
-  assert.match(chrome, /onClick=\{onHost\}>RENNEN VERANSTALTEN/);
+  assert.doesNotMatch(chrome, /onClick=\{onHost\}>RENNEN VERANSTALTEN/);
+  assert.match(chrome, /Halte einen Punkt innerhalb deines 500-m-Radars/);
   assert.doesNotMatch(chrome, /watchPosition|from ['"][^'"]*supabase/);
 });
 
