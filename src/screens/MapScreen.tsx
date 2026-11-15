@@ -763,6 +763,7 @@ export default function MapScreen() {
   const [cancellingRunId, setCancellingRunId] = useState<string | null>(null);
   const [, setLoadingGhosts] = useState(false);
   const [loadingDuels, setLoadingDuels] = useState(false);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const discoveryLoadedRef = useRef(false);
   const [discoveryCoords, setDiscoveryCoords] = useState<Coordinates | null>(null);
   const [discoveryRefreshTick, setDiscoveryRefreshTick] = useState(0);
@@ -1155,7 +1156,8 @@ export default function MapScreen() {
   // No Realtime subscription while exploring as an unauthenticated guest.
   // Realtime updates for duels
   useEffect(() => {
-    if (!authUser) return;
+    if (!authUser) { setRealtimeConnected(false); return; }
+    setRealtimeConnected(false);
     const channel = supabase
       .channel('duels-realtime')
       .on(
@@ -1217,7 +1219,7 @@ export default function MapScreen() {
           });
         }
       )
-      .subscribe();
+      .subscribe(status => setRealtimeConnected(status === 'SUBSCRIBED'));
     return () => {
       supabase.removeChannel(channel);
     };
@@ -1471,7 +1473,7 @@ export default function MapScreen() {
         onJoin={joinArcadeRun}
         onCancel={cancelArcadeRun}
         loading={loadingDuels && !discoveryLoadedRef.current}
-        live={Boolean(authUser)}
+        live={realtimeConnected}
       />
 
       {/* Locate me control */}
