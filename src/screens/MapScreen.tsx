@@ -759,7 +759,11 @@ export default function MapScreen() {
   const [hotspotLabExpanded, setHotspotLabExpanded] = useState(false);
   const [hotspotFocus, setHotspotFocus] = useState<{ city: HotspotTestCity; tick: number }>({ city: 'all', tick: 0 });
   const [mapCamera, setMapCamera] = useState({ zoom: initialZoom, lat: center.lat, lng: center.lng });
-  const [arcadeMapView, setArcadeMapView] = useState<ArcadeMapView>('map');
+  // The ranking screen's RENNEN dock link opens the existing race list.
+  // Creating/starting a race still requires the same account and GPS checks.
+  const [arcadeMapView, setArcadeMapView] = useState<ArcadeMapView>(() =>
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'list'
+      ? 'list' : 'map');
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   // Own live lobby is visible even when its map popup is closed or GPS changes.
   const [hostedOpenDuels, setHostedOpenDuels] = useState<HostedOpenDuel[]>([]);
