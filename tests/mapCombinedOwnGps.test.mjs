@@ -112,20 +112,19 @@ test('low zoom gets differentiated filled/hollow cyan satellite and GPS stays ge
   assert.match(source, /map\.moveLayer\(COMMUNITY_GPS_LAYER, COMMUNITY_SINGLE_HALO_LAYER\)/);
 });
 
-test('street own pin badge differentiates radius vs co-location and stale GPS is rechecked', () => {
+test('close street view keeps GPS and flag separate; only remote orb gets a blue satellite', () => {
   const screen = read('src/screens/MapScreen.tsx');
   const view = read('src/components/map/ArcadeMapLibreView.tsx');
   const css = read('src/styles/maplibreArcade.css');
   assert.match(screen, /accuracyMeters: pos\.coords\.accuracy/);
   assert.match(screen, /sampledAtMs: pos\.timestamp/);
   assert.match(view, /userCoords\?\.accuracyMeters, userCoords\?\.sampledAtMs/);
-  assert.match(view, /const gpsBadge = nearestOwnGpsBadge\(gps,/);
-  assert.match(view, /button\.dataset\.gpsInRadius = inRadius \? 'true' : 'false'/);
-  assert.match(view, /button\.dataset\.gpsNearby = nearby \? 'true' : 'false'/);
-  assert.match(view, /if \(nearby\) mergedIntoVisiblePin = true/);
+  assert.match(view, /if \(gpsMarkerRef.current && gps && validMapPoint\(gps\)\)/);
+  assert.match(view, /updateMarker\(gpsMarkerRef.current, gps\)/);
+  assert.doesNotMatch(view, /button\.dataset\.gpsInRadius|button\.dataset\.gpsNearby|mergedIntoVisiblePin/);
   assert.match(view, /window\.setInterval\(refreshGpsBadge, 15_000\)/);
   assert.match(view, /document\.addEventListener\('visibilitychange', refreshGpsBadge\)/);
   assert.doesNotMatch(view, /projectedMarkersOverlap\(projectedGps, projectedRun\)/);
-  assert.match(css, /\.runnit-gl-marker\.runnit-gl-run\.is-own\[data-gps-in-radius="true"\]::before/);
-  assert.match(css, /\.runnit-gl-marker\.runnit-gl-run\.is-own\[data-gps-nearby="true"\]::before/);
+  assert.doesNotMatch(css, /\.runnit-gl-marker\.runnit-gl-run\.is-own\[data-gps-in-radius=/);
+  assert.doesNotMatch(css, /\.runnit-gl-marker\.runnit-gl-run\.is-own\[data-gps-nearby=/);
 });
