@@ -1634,7 +1634,7 @@ export default function MapScreen() {
             <div className="runnit-cancel-header">
               <span>RUNNIT // RACE CONTROL</span>
               <span className="runnit-cancel-warning" aria-hidden="true">!</span>
-              <h2 id="cancel-hosted-title">Rennen wirklich <em>absagen?</em></h2>
+              <h2 id="cancel-hosted-title">Rennen wirklich absagen?</h2>
             </div>
             <div className="runnit-cancel-run-info">
               <strong>1V1 DUELL · {cancelConfirmation.distanceMeters} M</strong>
