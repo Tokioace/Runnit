@@ -61,10 +61,10 @@ test('world border glow is dimmer than regional border emphasis', () => {
 test('far-away landcover and roads lose contrast without harming street zoom', () => {
   const map = read('src/components/map/ArcadeMapLibreView.tsx');
   assert.match(map, /name === 'natural_earth'/);
-  assert.match(map, /0, 0\.09, 3, 0\.065, 6, 0\.02/);
+  assert.match(map, /0, 0\.035, 3, 0\.03, 6, 0\.01/);
   assert.match(map, /name === 'park_outline'/);
-  assert.match(map, /3, 0, 8, 0\.045, 11, 0\.12/);
-  assert.match(map, /ice \? 0\.12 : 0\.035, 7, 0\.08/);
+  assert.match(map, /3, 0, 8, 0\.02, 11, 0\.10/);
+  assert.match(map, /ice \? 0\.08 : 0\.018, 7, 0\.045/);
   assert.match(map, /residential \? '#143348' : '#17394b'/);
   assert.match(map, /main \? \['interpolate', \['linear'\], \['zoom'\], 3, 0\.20/);
   assert.match(map, /3, 0\.06, 6, 0\.12, 9, 0\.35/);
