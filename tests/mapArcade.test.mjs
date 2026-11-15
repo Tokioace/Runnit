@@ -70,7 +70,8 @@ test('a marker popup shows one exact run; LISTE remains an independent search vi
   const ml = read('src/components/map/ArcadeMapLibreView.tsx');
   const chrome = read('src/components/map/ArcadeMapChrome.tsx');
   assert.match(ml, /const popup = new Popup/);
-  assert.match(ml, /setDOMContent\(detailElement\(selectedRun/);
+  assert.match(ml, /const detail = detailElement\(selectedRun,/);
+  assert.match(ml, /\.setDOMContent\(detail\)/);
   assert.match(ml, /callbacks\.current\.onSelectRun\(selectedRun\.id\)/);
   assert.match(ml, /callbacks\.current\.onJoinRun\(selectedRun\.id\)/);
   assert.match(ml, /callbacks\.current\.onCancelRun\(selectedRun\.id\)/);
