@@ -21,6 +21,7 @@ const COMMUNITY_SINGLE_SIGNAL_RING = 'runnit-community-single-signal-ring';
 const COMMUNITY_CLUSTER_HALO_LAYER = 'runnit-community-cluster-glows';
 const COMMUNITY_DEMO_LAYER = 'runnit-community-demo-dots';
 const COMMUNITY_GPS_LAYER = 'runnit-community-gps-dot';
+const COMMUNITY_GPS_AURA_LAYER = 'runnit-community-gps-aura';
 const valid = (p: CommunityCoordinate) =>
   Number.isFinite(p.lat) && Number.isFinite(p.lng) && Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180;
 
@@ -83,11 +84,11 @@ export function installCommunityLayers(map: GLMap) {
       id: COMMUNITY_SINGLE_SIGNAL_RING, type: 'circle', source: COMMUNITY_REAL_SOURCE,
       filter: ['!', ['has', 'point_count']],
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 7, 5, 12, 8, 17, 12.8, 8],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 11, 5, 16, 8, 20, 12.8, 8],
         'circle-color': '#081e3f',
         'circle-opacity': 0,
         'circle-stroke-color': ['get', 'color'],
-        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 0, 1.1, 8, 1.8, 12.8, 0],
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 0, 1.3, 8, 2.0, 12.8, 0],
         'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 0, 0.65, 8, 0.86, 12.8, 0],
       },
     });
@@ -164,18 +165,36 @@ export function installCommunityLayers(map: GLMap) {
   if (!map.getSource(COMMUNITY_GPS_SOURCE)) {
     map.addSource(COMMUNITY_GPS_SOURCE, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   }
+  // GPS is deliberately a DIFFERENT source from real racing activity, so
+  // it remains geographically anchored without ever increasing cluster totals.
+  // A soft cyan outer aura is narrower than a real race's lime/magenta halo;
+  // when an own race and GPS overlap, both rings remain recognizable.
+  if (!map.getLayer(COMMUNITY_GPS_AURA_LAYER)) {
+    map.addLayer({
+      id: COMMUNITY_GPS_AURA_LAYER, type: 'circle', source: COMMUNITY_GPS_SOURCE,
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'],
+          0, 8, 5, 11, 9, 12, 12.8, 10],
+        'circle-color': '#09bfff',
+        'circle-blur': 0.7,
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'],
+          0, 0.27, 12.2, 0.27, 12.8, 0],
+      },
+    });
+  }
   if (!map.getLayer(COMMUNITY_GPS_LAYER)) {
     map.addLayer({
       id: COMMUNITY_GPS_LAYER, type: 'circle', source: COMMUNITY_GPS_SOURCE,
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 11.5, 0, 12.2, 3.5, 12.8, 4],
-        'circle-color': '#2485ff',
-        'circle-stroke-color': '#e1ffff',
-        'circle-stroke-width': 1.3,
-        // At regional/country scales a GPS pixel is NOT an active challenge.
-        // Hide it there; the verified race signal remains visible and separate.
-        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 11.5, 0, 12.2, 0.78, 12.8, 0],
-        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 11.5, 0, 12.2, 0.9, 12.8, 0],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'],
+          0, 3.3, 5, 3.8, 9, 4.3, 12.8, 5.0],
+        'circle-color': '#237bff',
+        'circle-stroke-color': '#adf8ff',
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 0, 1.2, 8, 1.6, 12.8, 1.9],
+        // Crossfade into the original, geographic HTML GPS marker when
+        // zoomed in: no duplicate blue centers at street level.
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 0, 1, 12.2, 1, 12.8, 0],
+        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 0, 1, 12.2, 1, 12.8, 0],
       },
     });
   }

@@ -56,13 +56,15 @@ test('mini-host label is clearly proximity, NOT a preselected race distance', ()
   assert.doesNotMatch(map, /create\.textContent = 'RENNEN HIER ERSTELLEN/);
 });
 
-test('global verified challenge remains visible but GPS vanishes at country zoom', () => {
+test('country GPS stays visible as a separate blue location, while real races keep their signals', () => {
   const layers = read('src/lib/mapCommunityLayers.ts');
   const map = read('src/components/map/ArcadeMapLibreView.tsx');
   assert.match(layers,/COMMUNITY_SINGLE_SIGNAL_RING/);
   assert.match(layers,/COMMUNITY_SINGLE_HALO_LAYER/);
-  assert.match(layers,/'circle-opacity': \['interpolate', \['linear'\], \['zoom'\], 11\.5, 0, 12\.2, 0\.78, 12\.8, 0\]/);
-  assert.match(layers,/'circle-color': '#2485ff'/);
+  assert.match(layers,/COMMUNITY_GPS_AURA_LAYER/);
+  assert.match(layers,/'circle-color': '#237bff'/);
+  assert.match(layers,/'circle-opacity': \['interpolate', \['linear'\], \['zoom'\], 0, 1, 12\.2, 1, 12\.8, 0\]/);
+  assert.match(layers,/source: COMMUNITY_GPS_SOURCE/);
   assert.match(map,/'background-color',\s*\['interpolate', \['linear'\], \['zoom'\]/);
   assert.match(map,/'fill-color',\s*\['interpolate', \['linear'\], \['zoom'\]/);
 });

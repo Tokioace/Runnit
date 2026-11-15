@@ -292,3 +292,33 @@
   content:"";position:absolute;inset:0;pointer-events:none;
   background:linear-gradient(160deg,transparent 40%,rgba(46,181,255,.075) 50%,transparent 60%);
 }
+
+
+/* Unified right-hand map controls: the 2D/3D switch sits directly below the
+   48px locate button (at 9.4rem), with 8px breathing room. Never in the
+   centre of an event panel as in the earlier iPhone screenshots. */
+.runnit-map-arcade .runnit-gl-tilt-button{
+  right:16px;
+  top:calc(9.4rem + env(safe-area-inset-top,0px) + 56px);
+  width:48px;min-width:48px;height:40px;
+  border-radius:11px 4px 11px 4px;
+  font-size:13px;line-height:1;
+  box-shadow:inset 0 1px #d6f6ff,0 0 8px rgba(40,218,255,.45);
+  transition:opacity .12s ease,visibility .12s ease;
+}
+/* Even compact iPhone panels can overlap on pitched maps. Whenever a user
+   opens a race or hosting callout, temporarily retract the 3D switch.
+   It returns as soon as the dialog closes; map pitch state is retained. */
+.runnit-map-arcade:has(.maplibregl-popup.runnit-gl-race-popup) .runnit-gl-tilt-button,
+.runnit-map-arcade:has(.maplibregl-popup.runnit-gl-host-popup) .runnit-gl-tilt-button{
+  opacity:0;visibility:hidden;pointer-events:none;
+}
+@media(max-width:360px){
+  .runnit-map-arcade .runnit-gl-tilt-button{
+    right:16px;
+    top:calc(9.4rem + env(safe-area-inset-top,0px) + 56px);
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .runnit-map-arcade .runnit-gl-tilt-button{transition:none}
+}
