@@ -58,7 +58,7 @@ test('guest cannot reach running and finished race UI even if local state persis
 test('guest browsing does not query protected personal leaderboard or duel data', () => {
   const map = read('src/screens/MapScreen.tsx');
   assert.match(map, /if \(!authUser\) \{\s*setPlayers\(generateCityPlayers\);/);
-  assert.match(map, /if \(!authUser\) \{\s*setOpenRuns\(generateDemoRuns\);/);
+  assert.match(map, /if \(!authUser\) \{\s*discoveryLoadedRef\.current = false;\s*setOpenRuns\(generateDemoRuns\);/);
   assert.match(map, /if \(!authUser\) return;\s*const channel = supabase/);
   assert.match(map, /Demo-Modus: einige Spieler oder Rennen sind frei erfunden/);
 });
