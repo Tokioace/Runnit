@@ -81,8 +81,14 @@ test('countdown is isolated from expensive MapLibre render, with expiry on map a
   assert.match(timer, /visibilitychange/);
   assert.match(timer, /openEventClockLabel\(expiresAt, nowMs\)/);
   assert.match(timer, /onExpire\?\.\(\)/);
-  assert.match(screen, /<OpenEventCountdown/);
-  assert.match(screen, /setOpenRuns\(prev => prev\.filter\(item => item\.id !== run\.id\)\)/);
+  const renderer = read('src/components/map/ArcadeMapLibreView.tsx');
+  assert.doesNotMatch(screen, /<OpenEventCountdown/);
+  assert.match(renderer, /clock.textContent = openEventClockLabel\(run.expiresAt\)/);
+  assert.match(renderer, /expiryInterval = window.setInterval\(updatePopupClock, 1000\)/);
+  assert.match(renderer, /if \(expiryInterval !== null\) window.clearInterval\(expiryInterval\)/);
+  assert.match(renderer, /callbacks.current.onRunExpired\(selectedRun.id\)/);
+  assert.match(screen, /setRegionalRuns\(previous => \{/);
+  assert.match(screen, /window.setInterval\(pruneExpired, 1000\)/);
   assert.match(cards, /<OpenEventCountdown expiresAt=\{entry\.expiresAt\}/);
   assert.match(hosted, /select\('id, host_user_id, target_distance_m, created_at, expires_at, location'\)/);
   assert.match(created, /created_at, expires_at/);

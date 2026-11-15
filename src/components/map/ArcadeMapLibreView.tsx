@@ -7,7 +7,7 @@ import type { ArcadeMapEntry, ArcadeMapView } from './ArcadeMapChrome';
 import { eventPopupLngLat } from '../../lib/mapPopupAnchor';
 import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters, validMapPoint } from '../../lib/mapHostPlacement';
 import { markerInViewport } from '../../lib/mapMarkerVisibility';
-import { nearestOwnGpsBadge } from '../../lib/mapOwnGpsProximity.ts';
+import { openEventClockLabel, openEventMsLeft } from '../../lib/duelExpiry.ts';
 import type { MapCameraScope } from '../../lib/mapHeadingScope';
 import { groupOverlappingRuns } from '../../lib/mapRunGrouping';
 import { markerPinOpacityAtZoom, markerScaleAtZoom, PIN_FADE_END_ZOOM } from '../../lib/mapMarkerZoom';
@@ -47,7 +47,7 @@ export type ArcadeMapLibreProps = {
   runs: readonly ArcadeVectorRun[];
   hostDialogOpen: boolean;
   hostLocation: MapCoordinate | null;
-  regionalRuns: readonly { id: string; location: MapCoordinate }[];
+  regionalRuns: readonly { id: string; location: MapCoordinate; expiresAt?: string }[];
   hotspotDemoEnabled: boolean;
   hotspotFocus: { city: HotspotTestCity; tick: number };
   onWideViewChange: (wide: boolean) => void;
@@ -55,6 +55,7 @@ export type ArcadeMapLibreProps = {
   onSelectRun: (id: string) => void;
   onJoinRun: (id: string) => void;
   onCancelRun: (id: string) => void;
+  onRunExpired: (id: string) => void;
   onOpenRunGroup: () => void;
   onGhostClick: () => void;
   onHostAt: (position: MapCoordinate) => void;
@@ -281,7 +282,7 @@ function syncDistantDots(
   players: readonly ArcadeVectorPlayer[],
   runs: readonly ArcadeVectorRun[],
   gps: MapCoordinate | null,
-  regionalRuns: readonly { id: string; location: MapCoordinate }[],
+  regionalRuns: readonly { id: string; location: MapCoordinate; expiresAt?: string }[],
 ) {
   const entries: CommunityEntry[] = [
     ...runs.map(run => ({
@@ -375,6 +376,22 @@ function detailElement(run: ArcadeVectorRun, onJoin: () => void, onCancel: () =>
   addLine('♧ 1/2 · ' + run.distanceMeters + ' m · @' + run.hostUsername);
   if (run.isDemo) addLine('DEMO · FIKTIVER GEGNER', 'runnit-gl-demo-status');
   if (run.isOwn) addLine('DEIN OFFENES RENNEN', 'runnit-gl-own-status');
+  // One server-authoritative mini countdown for BOTH own and foreign races.
+  // Do not invent timers for demo challenges, and never extend expiry locally.
+  if (!run.isDemo && run.expiresAt) {
+    const countdown = document.createElement('div');
+    countdown.className = 'runnit-gl-run-expiry';
+    countdown.setAttribute('aria-label', 'Verbleibende Zeit zum Beitreten');
+    const label = document.createElement('span');
+    label.textContent = 'EVENT ENDET IN';
+    const clock = document.createElement('time');
+    clock.dateTime = run.expiresAt;
+    clock.setAttribute('role', 'timer');
+    clock.setAttribute('aria-live', 'off');
+    clock.textContent = openEventClockLabel(run.expiresAt);
+    countdown.append(label, clock);
+    root.appendChild(countdown);
+  }
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'runnit-gl-run-cta' + (run.isOwn ? ' is-cancel' : '');
@@ -390,7 +407,7 @@ function detailElement(run: ArcadeVectorRun, onJoin: () => void, onCancel: () =>
 /** Owns only map rendering: no auth, Supabase, races or geolocation reads. */
 export default function ArcadeMapLibreView({
   initialCenter, initialZoom, userCoords, ipCoords, recenterTick, retryTick, view,
-  players, runs, hostDialogOpen, hostLocation, regionalRuns, hotspotDemoEnabled, hotspotFocus, onWideViewChange, onCameraChange, onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt,
+  players, runs, hostDialogOpen, hostLocation, regionalRuns, hotspotDemoEnabled, hotspotFocus, onWideViewChange, onCameraChange, onSelectRun, onJoinRun, onCancelRun, onRunExpired, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt,
   onTilesLoaded, onTilesError,
 }: ArcadeMapLibreProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -417,8 +434,8 @@ export default function ArcadeMapLibreView({
   const [ready, setReady] = useState(false);
   const [tilted, setTilted] = useState(true);
   const [popupVisible, setPopupVisible] = useState(false);
-  const callbacks = useRef({ onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange, onCameraChange });
-  callbacks.current = { onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange, onCameraChange };
+  const callbacks = useRef({ onSelectRun, onJoinRun, onCancelRun, onRunExpired, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange, onCameraChange });
+  callbacks.current = { onSelectRun, onJoinRun, onCancelRun, onRunExpired, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange, onCameraChange };
   const firstGPS = useRef(false);
   const firstIP = useRef(false);
   const previousRecenter = useRef(recenterTick);
@@ -691,37 +708,12 @@ export default function ArcadeMapLibreView({
       setGroupBadge(item.marker, group?.count ?? 0, group?.label);
       if (covered.has(index)) item.marker.getElement().style.display = 'none';
     });
+    // At close street zoom the own event flag must NOT wear a blue satellite.
+    // Its geographic GPS position is still shown by the separate normal dot.
+    // The combined cyan accessory belongs exclusively to low-zoom real orbs.
     const gps = latestGpsRef.current;
-    // A solid blue satellite means a recent, accurate GPS fix within 30 m.
-    // A hollow cyan satellite says only that GPS is within the true 500 m
-    // hosting circle. Never imply that screen-pixel overlap is co-location.
-    const gpsBadge = nearestOwnGpsBadge(gps,
-      visibleRunsRef.current.map(({ id, point, isOwn }) => ({
-        id, lat: point.lat, lng: point.lng, isOwn,
-      })));
-    let mergedIntoVisiblePin = false;
-    for (const item of visibleRunsRef.current) {
-      if (!item.isOwn) continue;
-      const button = item.marker.getElement().firstElementChild as HTMLElement | null;
-      const visible = item.marker.getElement().style.display !== 'none';
-      const inRadius = visible && gpsBadge?.raceId === item.id;
-      const nearby = inRadius && gpsBadge?.state === 'at-event';
-      if (button) {
-        button.dataset.gpsInRadius = inRadius ? 'true' : 'false';
-        button.dataset.gpsNearby = nearby ? 'true' : 'false';
-        button.title = nearby ? 'Dein Rennen · GPS direkt am Event' :
-          inRadius ? 'Dein Rennen · GPS im 500-Meter-Umkreis' : '';
-      }
-      // Hide the decorative HTML GPS dot ONLY when the filled, precise
-      // at-event satellite is visible. Otherwise the GPS stays independent.
-      if (nearby) mergedIntoVisiblePin = true;
-    }
     if (gpsMarkerRef.current && gps && validMapPoint(gps)) {
       updateMarker(gpsMarkerRef.current, gps);
-      // The HTML event pin shows the cyan satellite instead of a blue dot
-      // covering the green flag. GPS itself stays at its real coordinates.
-      if (mergedIntoVisiblePin)
-        gpsMarkerRef.current.getElement().style.display = 'none';
     }
 
     // A detail popup should not float over an entire continent or under UI
@@ -1035,10 +1027,23 @@ export default function ArcadeMapLibreView({
         }
         const selectedRun = liveRunsRef.current.find(run => run.id === originalRun.id);
         if (!selectedRun || !finiteCoords(selectedRun.location)) return;
+        // Do not briefly expose a join action on a race whose server deadline
+        // has already passed but whose status-change event is still in flight.
+        if (!selectedRun.isDemo && selectedRun.expiresAt &&
+            openEventMsLeft(selectedRun.expiresAt) === 0) {
+          callbacks.current.onRunExpired(selectedRun.id);
+          return;
+        }
         const eventPosition = eventPopupLngLat(selectedRun);
         closePopup();
         hostPopupRef.current?.remove();
         hostPopupRef.current = null;
+        const detail = detailElement(selectedRun,
+          () => callbacks.current.onJoinRun(selectedRun.id),
+          () => callbacks.current.onCancelRun(selectedRun.id));
+        const clock = detail.querySelector<HTMLTimeElement>('.runnit-gl-run-expiry time');
+        const expiryBox = detail.querySelector<HTMLElement>('.runnit-gl-run-expiry');
+        const action = detail.querySelector<HTMLButtonElement>('.runnit-gl-run-cta');
         const popup = new Popup({
           className: 'runnit-gl-race-popup' + (selectedRun.isOwn ? ' is-own-popup' : ''),
           maxWidth: selectedRun.isOwn ? '242px' : '290px',
@@ -1048,11 +1053,28 @@ export default function ArcadeMapLibreView({
           closeOnMove: false,
         })
           .setLngLat(eventPosition)
-          .setDOMContent(detailElement(selectedRun,
-            () => callbacks.current.onJoinRun(selectedRun.id),
-            () => callbacks.current.onCancelRun(selectedRun.id)));
+          .setDOMContent(detail);
+        let expiryInterval: number | null = null;
+        const updatePopupClock = () => {
+          if (!selectedRun.expiresAt) return;
+          const msLeft = openEventMsLeft(selectedRun.expiresAt);
+          if (clock) clock.textContent = openEventClockLabel(selectedRun.expiresAt);
+          expiryBox?.classList.toggle('is-urgent', msLeft > 0 && msLeft <= 300_000);
+          if (msLeft === 0) {
+            if (action) action.disabled = true;
+            popup.remove();
+            // The server cron expires the database row. Client cleanup only
+            // removes an already-expired open challenge from every map view.
+            callbacks.current.onRunExpired(selectedRun.id);
+          }
+        };
+        const onPageVisible = () => {
+          if (!document.hidden) updatePopupClock();
+        };
         popup.setPadding({ top: 190, right: 18, bottom: 155, left: 18 });
         popup.on('close', () => {
+          if (expiryInterval !== null) window.clearInterval(expiryInterval);
+          document.removeEventListener('visibilitychange', onPageVisible);
           if (activeRunPopupRef.current === popup) activeRunPopupRef.current = null;
           setPopupVisible(Boolean(activeRunPopupRef.current || hostPopupRef.current));
         });
@@ -1060,6 +1082,12 @@ export default function ArcadeMapLibreView({
         activeRunPopupRef.current = popup;
         setPopupVisible(true);
         callbacks.current.onSelectRun(selectedRun.id);
+        if (selectedRun.expiresAt && !selectedRun.isDemo) {
+          // Isolated 1Hz clock only while this popup is open; no map rerender.
+          expiryInterval = window.setInterval(updatePopupClock, 1000);
+          document.addEventListener('visibilitychange', onPageVisible);
+          updatePopupClock();
+        }
 
         // Leave room ABOVE the event for the entire detail card and BELOW it
         // for the bottom dock. Never pan towards the runner's GPS position.

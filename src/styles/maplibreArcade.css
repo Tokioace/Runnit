@@ -343,28 +343,29 @@
 }
 
 
-/* Y2K blue proximity satellite. A hollow cyan ring means the GPS fix lies
-   within 500 meters of this own race, without claiming precise co-location.
-   A bright filled blue lens is reserved for the strict 30 m GPS match.
-   Both are visually detached from the count and ignore touch events. */
-.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own[data-gps-in-radius="true"]::before{
-  content:"";position:absolute;z-index:5;
-  left:-10px;bottom:-2px;width:16px;height:16px;box-sizing:border-box;
-  border:3px solid #39e6ff;border-radius:50%;
-  background:radial-gradient(circle,#0a2347 38%,#103c73 100%);
-  box-shadow:inset 0 0 4px #35caff,0 0 0 3px rgba(34,221,255,.27),0 0 13px #20bfff;
-  pointer-events:none;
+/* On close street zoom, show an ordinary event flag and the phone's actual
+   GPS point. The cyan satellite exists ONLY on far-zoom MapLibre Y2K orbs. */
+
+/* Compact Y2K countdown belongs INSIDE the tapped event's popup (foreign
+   and own alike), not as a floating HUD covering the map or event flag. */
+.runnit-map-arcade .runnit-gl-run-expiry{
+  display:flex;align-items:center;gap:9px;justify-content:space-between;
+  padding:7px 9px;margin:9px 0 6px;border:1px solid #aef638af;
+  border-bottom:2px solid #35edff;border-radius:9px 3px;
+  background:linear-gradient(116deg,rgba(13,45,66,.96),rgba(5,24,45,.93));
+  box-shadow:inset 0 1px #ecfff341,0 0 9px #7efb2632;
 }
-.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own[data-gps-nearby="true"]::before{
-  border:2px solid #edffff;
-  background:radial-gradient(circle at 32% 28%,#b3fbff 0%,#3aafff 33%,#1164f2 85%);
-  box-shadow:0 0 0 3px rgba(34,221,255,.42),0 0 13px #26ddff;
+.runnit-map-arcade .runnit-gl-run-expiry>span{
+  font:italic 950 9px/1.25 system-ui,-apple-system,sans-serif;
+  letter-spacing:.045em;color:#c9eeff;white-space:nowrap;
 }
-.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own.is-run-group[data-gps-in-radius="true"]::before{
-  left:-10px;bottom:-2px;
+.runnit-map-arcade .runnit-gl-run-expiry>time{
+  font:italic 1000 19px/1 system-ui,-apple-system,sans-serif;
+  letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:#cfff66;
+  text-shadow:0 0 8px #94ff5275;white-space:nowrap;
 }
-@media(prefers-reduced-motion:reduce){
-  .runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own[data-gps-in-radius="true"]::before{
-    transition:none;animation:none;
-  }
+.runnit-map-arcade .runnit-gl-run-expiry.is-urgent{
+  border-color:#ffba66;border-bottom-color:#ff5fa3;
+  box-shadow:0 0 11px #ff913e40;
 }
+.runnit-map-arcade .runnit-gl-run-expiry.is-urgent>time{color:#ffd09d}
