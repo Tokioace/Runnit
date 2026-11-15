@@ -42,7 +42,7 @@ export async function listHostedOpenDuels(client: DuelClient, hostUserId: string
       distanceMeters: Number.isFinite(row.target_distance_m) && row.target_distance_m > 0
         ? row.target_distance_m : 100,
       createdAt: typeof row.created_at === 'string' ? row.created_at : null,
-      expiresAt: typeof row.expires_at === 'string' ? row.expires_at : null,
+      ...(typeof row.expires_at === 'string' ? { expiresAt: row.expires_at } : {}),
       location: parseGeographyPoint(row.location),
     }));
 }
