@@ -17,7 +17,7 @@ export const COMMUNITY_GPS_SOURCE = 'runnit-community-gps';
 export const COMMUNITY_CLUSTER_LAYER = 'runnit-community-clusters';
 export const COMMUNITY_RACE_DOT_LAYER = 'runnit-community-real-dots';
 const COMMUNITY_SINGLE_HALO_LAYER = 'runnit-community-single-glows';
-const COMMUNITY_SINGLE_SIGNAL_RING = 'runnit-community-single-signal-ring';
+export const COMMUNITY_SINGLE_SIGNAL_RING = 'runnit-community-single-signal-ring';
 const COMMUNITY_CLUSTER_HALO_LAYER = 'runnit-community-cluster-glows';
 const COMMUNITY_DEMO_LAYER = 'runnit-community-demo-dots';
 const COMMUNITY_GPS_LAYER = 'runnit-community-gps-dot';
@@ -81,18 +81,26 @@ export function installCommunityLayers(map: GLMap) {
     });
   }
   if (!map.getLayer(COMMUNITY_SINGLE_SIGNAL_RING)) {
-    // Exactly one real open race still reads like an active signal, not a
-    // fabricated cluster. Ring always shares its genuine coordinates.
+    // One confirmed public OPEN race is a real activity beacon too.
+    // Render "01" with the same Y2K dial as a multi-race cluster, without
+    // implying that a runner is currently online or that a duel has started.
     map.addLayer({
-      id: COMMUNITY_SINGLE_SIGNAL_RING, type: 'circle', source: COMMUNITY_REAL_SOURCE,
+      id: COMMUNITY_SINGLE_SIGNAL_RING, type: 'symbol', source: COMMUNITY_REAL_SOURCE,
       filter: ['!', ['has', 'point_count']],
+      layout: {
+        'icon-image': ['concat', ENERGY_ORB_PREFIX, '-open-race-1'],
+        'icon-size': ['interpolate', ['linear'], ['zoom'],
+          0, .58, 5, .68, 10, .83, 12.2, .82, 12.8, .60],
+        'icon-anchor': 'center',
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true,
+        'icon-pitch-alignment': 'viewport',
+        'icon-rotation-alignment': 'viewport',
+      },
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 11, 5, 16, 8, 20, 12.8, 8],
-        'circle-color': '#081e3f',
-        'circle-opacity': 0,
-        'circle-stroke-color': ['get', 'color'],
-        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 0, 1.3, 8, 2.0, 12.8, 0],
-        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 0, 0.65, 8, 0.86, 12.8, 0],
+        // Crossfade into the already existing geographic race pin.
+        'icon-opacity': ['interpolate', ['linear'], ['zoom'],
+          0, 1, 12.2, 1, 12.8, 0],
       },
     });
   }
@@ -105,8 +113,10 @@ export function installCommunityLayers(map: GLMap) {
         'circle-color': ['get', 'color'],
         'circle-stroke-color': '#122849',
         'circle-stroke-width': 1.6,
-        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0],
-        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0],
+        // Small dot is a fallback while an icon is loading; most of it sits
+        // behind the Y2K glass core, without producing an extra count.
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 0, .25, 11, .25, 12.2, .25, 12.8, 0],
+        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 0, .25, 11, .25, 12.2, .25, 12.8, 0],
       },
     });
   }
