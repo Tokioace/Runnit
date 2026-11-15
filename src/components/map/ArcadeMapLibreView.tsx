@@ -8,7 +8,7 @@ import { eventPopupLngLat } from '../../lib/mapPopupAnchor';
 import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters, validMapPoint } from '../../lib/mapHostPlacement';
 import { markerInViewport } from '../../lib/mapMarkerVisibility';
 import { markerPinOpacityAtZoom, markerScaleAtZoom, PIN_FADE_END_ZOOM } from '../../lib/mapMarkerZoom';
-import { COMMUNITY_CLUSTER_LAYER, installCommunityLayers, syncCommunityLayers, type CommunityEntry } from '../../lib/mapCommunityLayers';
+import { COMMUNITY_CLUSTER_LAYER, COMMUNITY_RACE_DOT_LAYER, installCommunityLayers, syncCommunityLayers, type CommunityEntry } from '../../lib/mapCommunityLayers';
 
 // Required by MapLibre v6 and Vite 8: ship the real same-origin WebGL worker.
 // Without ?worker&url, production may show a blank map without a build failure.
@@ -346,11 +346,13 @@ export default function ArcadeMapLibreView({
     map.on('error', onFailure);
     map.on('zoomend', onZoomEnd);
     map.on('click', COMMUNITY_CLUSTER_LAYER, onCommunityClusterClick);
+    map.on('click', COMMUNITY_RACE_DOT_LAYER, onCommunityClusterClick);
     return () => {
       map.off('style.load', onStyle);
       map.off('error', onFailure);
       map.off('zoomend', onZoomEnd);
       map.off('click', COMMUNITY_CLUSTER_LAYER, onCommunityClusterClick);
+      map.off('click', COMMUNITY_RACE_DOT_LAYER, onCommunityClusterClick);
       activeRunPopupRef.current?.remove();
       activeRunPopupRef.current = null;
       hostPopupRef.current?.remove();
