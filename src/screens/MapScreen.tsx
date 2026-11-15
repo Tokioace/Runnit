@@ -1112,6 +1112,15 @@ export default function MapScreen() {
           const row: any = payload.new ?? payload.old;
           if (!row) return;
 
+          // A second browser/device can join or cancel the host's lobby.
+          // Stop the visible open-lobby timer as soon as the server confirms
+          // a non-open status; the matched race uses its own start countdown.
+          if (row.host_user_id === authUser.id &&
+              (payload.eventType === 'DELETE' || row.status !== 'open' ||
+               (typeof row.expires_at === 'string' && !isOpenEventAvailable(row.expires_at)))) {
+            setHostedOpenDuels(previous => previous.filter(run => run.id !== row.id));
+          }
+
           // Show match overlay if this duel becomes matched and involves current user
           if (
             payload.eventType === 'UPDATE' &&
@@ -1331,8 +1340,10 @@ export default function MapScreen() {
       await joinDuel(supabase as any, run.id);
       // Success will trigger realtime update (status -> matched) and remove from open list
     } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to join duel', e);
+      const message = e instanceof Error ? e.message.toLowerCase() : '';
+      setRaceNotice(message.includes('expired') || message.includes('unavailable')
+        ? 'Dieses Event ist bereits abgelaufen oder nicht mehr frei.'
+        : 'Beitritt fehlgeschlagen. Bitte überprüfe die Verbindung oder versuche es erneut.');
     }
   };
 
@@ -1489,6 +1500,22 @@ export default function MapScreen() {
               ? `LIVE SIGNAL · ${regionalRuns.length} ${regionalRuns.length === 1 ? 'CHALLENGE' : 'CHALLENGES'}`
               : 'NETWORK · KEINE LIVE-CHALLENGES'}
         </div>
+      )}
+
+      {/* Show the server-backed timer only for an authenticated host's OPEN
+          lobby. A matched race no longer has a waiting countdown. */}
+      {arcadeMapView === 'map' && hostedOpenDuels.map(run =>
+        run.expiresAt && isOpenEventAvailable(run.expiresAt) ? (
+          <OpenEventCountdown
+            key={run.id} expiresAt={run.expiresAt} variant="hud"
+            onExpire={() => {
+              setHostedOpenDuels(prev => prev.filter(item => item.id !== run.id));
+              setOpenRuns(prev => prev.filter(item => item.id !== run.id));
+              setRegionalRuns(prev => prev.filter(item => item.id !== run.id));
+              setDiscoveryRefreshTick(tick => tick + 1);
+            }}
+          />
+        ) : null
       )}
 
       {/* KARTE stays unobstructed. LISTE contains the interactive run cards. */}
