@@ -7,6 +7,7 @@ import type { ArcadeMapEntry, ArcadeMapView } from './ArcadeMapChrome';
 import { eventPopupLngLat } from '../../lib/mapPopupAnchor';
 import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters, validMapPoint } from '../../lib/mapHostPlacement';
 import { markerInViewport } from '../../lib/mapMarkerVisibility';
+import { groupOverlappingRuns } from '../../lib/mapRunGrouping';
 import { markerPinOpacityAtZoom, markerScaleAtZoom, PIN_FADE_END_ZOOM } from '../../lib/mapMarkerZoom';
 import { COMMUNITY_CLUSTER_LAYER, COMMUNITY_RACE_DOT_LAYER, installCommunityLayers, syncCommunityLayers, type CommunityEntry } from '../../lib/mapCommunityLayers';
 
@@ -47,6 +48,7 @@ export type ArcadeMapLibreProps = {
   onSelectRun: (id: string) => void;
   onJoinRun: (id: string) => void;
   onCancelRun: (id: string) => void;
+  onOpenRunGroup: () => void;
   onGhostClick: () => void;
   onHostAt: (position: MapCoordinate) => void;
   onInvalidHostAt: (message: string) => void;
@@ -79,7 +81,8 @@ function styleArcadeMap(map: GLMap) {
     const name = layer.id.toLowerCase();
     try {
       if (layer.type === 'background') {
-        map.setPaintProperty(layer.id, 'background-color', '#10243d');
+        map.setPaintProperty(layer.id, 'background-color',
+          ['interpolate', ['linear'], ['zoom'], 2, '#071225', 7, '#0a1c34', 13, '#10243d']);
       } else if (layer.type === 'fill' && /building/.test(name)) {
         map.setPaintProperty(layer.id, 'fill-color', '#3d5c77');
         map.setPaintProperty(layer.id, 'fill-opacity', 0.94);
@@ -90,9 +93,11 @@ function styleArcadeMap(map: GLMap) {
           : ['interpolate', ['linear'], ['zoom'], 3, '#29435e', 8, '#416b86', 12, '#608caa', 16, '#779bb9']);
         map.setPaintProperty(layer.id, 'line-opacity', main ? 1 : 0.94);
       } else if (layer.type === 'fill' && /water/.test(name)) {
-        map.setPaintProperty(layer.id, 'fill-color', '#123852');
+        map.setPaintProperty(layer.id, 'fill-color',
+          ['interpolate', ['linear'], ['zoom'], 2, '#0a1d32', 8, '#0a2946', 13, '#123852']);
       } else if (layer.type === 'fill' && /park|wood|forest|landcover|grass/.test(name)) {
-        map.setPaintProperty(layer.id, 'fill-color', '#193b49');
+        map.setPaintProperty(layer.id, 'fill-color',
+          ['interpolate', ['linear'], ['zoom'], 2, '#102b39', 8, '#113743', 13, '#193b49']);
       } else if (layer.type === 'symbol' && /label|place|road/.test(name)) {
         map.setPaintProperty(layer.id, 'text-color', '#bed6e9');
         map.setPaintProperty(layer.id, 'text-halo-color', '#081a30');
@@ -220,6 +225,7 @@ function markerElement(kind: 'gps' | 'runner' | 'run', color: string, isDemo = f
     : kind === 'runner' ? (isDemo ? 'Demo-Spieler – Rangliste öffnen' : 'Spieler – Rangliste öffnen')
     : (isDemo ? 'Demo-Rennen – Renndetails öffnen' : 'Rennen – Renndetails öffnen');
   el.setAttribute('aria-label', label);
+  el.dataset.baseLabel = label;
   if (kind !== 'gps') el.appendChild(markerGlyph(kind));
   return el;
 }
@@ -238,10 +244,10 @@ function markerShell(button: HTMLButtonElement): HTMLDivElement {
 
 function detailElement(run: ArcadeVectorRun, onJoin: () => void, onCancel: () => void) {
   const root = document.createElement('div');
-  root.className = 'runnit-gl-run-details';
+  root.className = 'runnit-gl-run-details' + (run.isOwn ? ' is-own-run' : '');
   const title = document.createElement('strong');
   title.className = 'runnit-gl-run-title';
-  title.textContent = '1v1 DUELL';
+  title.textContent = run.isOwn ? 'DEIN 1V1' : '1v1 DUELL';
   root.appendChild(title);
   const addLine = (value: string, className = '') => {
     const p = document.createElement('p');
@@ -271,7 +277,7 @@ function detailElement(run: ArcadeVectorRun, onJoin: () => void, onCancel: () =>
 /** Owns only map rendering: no auth, Supabase, races or geolocation reads. */
 export default function ArcadeMapLibreView({
   initialCenter, initialZoom, userCoords, ipCoords, recenterTick, retryTick, view,
-  players, runs, hostDialogOpen, hostLocation, regionalRuns, onWideViewChange, onSelectRun, onJoinRun, onCancelRun, onGhostClick, onHostAt, onInvalidHostAt,
+  players, runs, hostDialogOpen, hostLocation, regionalRuns, onWideViewChange, onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt,
   onTilesLoaded, onTilesError,
 }: ArcadeMapLibreProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -284,7 +290,7 @@ export default function ArcadeMapLibreView({
   const atmosphereRef = useRef<HTMLDivElement | null>(null);
   const ignoreMapClickUntilRef = useRef(0);
   const visiblePlayersRef = useRef<Array<{ marker: Marker; point: MapCoordinate }>>([]);
-  const visibleRunsRef = useRef<Array<{ marker: Marker; point: MapCoordinate }>>([]);
+  const visibleRunsRef = useRef<Array<{ marker: Marker; point: MapCoordinate; isDemo: boolean; isOwn: boolean }>>([]);
   const latestGpsRef = useRef(userCoords);
   latestGpsRef.current = userCoords;
   const liveRunsRef = useRef(runs);
@@ -295,8 +301,8 @@ export default function ArcadeMapLibreView({
   liveRegionalRef.current = regionalRuns;
   const [ready, setReady] = useState(false);
   const [tilted, setTilted] = useState(true);
-  const callbacks = useRef({ onSelectRun, onJoinRun, onCancelRun, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange });
-  callbacks.current = { onSelectRun, onJoinRun, onCancelRun, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange };
+  const callbacks = useRef({ onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange });
+  callbacks.current = { onSelectRun, onJoinRun, onCancelRun, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange };
   const firstGPS = useRef(false);
   const firstIP = useRef(false);
   const previousRecenter = useRef(recenterTick);
@@ -468,6 +474,47 @@ export default function ArcadeMapLibreView({
     for (const item of [...visiblePlayersRef.current, ...visibleRunsRef.current]) {
       updateMarker(item.marker, item.point);
     }
+    // Reuse badge DOM between map movements so the interface never flashes.
+    const setGroupBadge = (marker: Marker, count: number, label = '') => {
+      const button = marker.getElement().firstElementChild as HTMLElement | null;
+      if (!button) return;
+      const current = Number(button.dataset.groupCount || '0');
+      if (current === count) return;
+      button.dataset.groupCount = String(count);
+      button.querySelector('.runnit-gl-run-group-count')?.remove();
+      button.classList.toggle('is-run-group', count > 1);
+      button.setAttribute('aria-label', count > 1 ? label : (button.dataset.baseLabel || 'Rennen'));
+      if (count > 1) {
+        const badge = document.createElement('span');
+        badge.className = 'runnit-gl-run-group-count';
+        badge.textContent = String(count);
+        badge.setAttribute('aria-hidden', 'true');
+        button.appendChild(badge);
+      }
+    };
+    const eligible = visibleRunsRef.current.flatMap((item, index) => {
+      if (item.marker.getElement().style.display === 'none') return [];
+      const point = map.project([item.point.lng, item.point.lat]);
+      return [{ index, x: point.x, y: point.y, isOwn: item.isOwn, isDemo: item.isDemo }];
+    });
+    const clusters = groupOverlappingRuns(eligible, Math.max(25, Math.min(48, 14 + scale * 42)));
+    const counts = new Map<number, { count: number; label: string }>();
+    const covered = new Set<number>();
+    for (const group of clusters) {
+      if (group.members.length < 2) continue;
+      counts.set(group.anchor, {
+        count: group.members.length,
+        label: group.members.length + ' Rennen an diesem Standort, davon ' + group.demoCount + ' Demo. Antippen zum Erkunden',
+      });
+      for (const index of group.members) {
+        if (index !== group.anchor) covered.add(index);
+      }
+    }
+    visibleRunsRef.current.forEach((item, index) => {
+      const group = counts.get(index);
+      setGroupBadge(item.marker, group?.count ?? 0, group?.label);
+      if (covered.has(index)) item.marker.getElement().style.display = 'none';
+    });
     const gps = latestGpsRef.current;
     if (gpsMarkerRef.current && gps && validMapPoint(gps)) updateMarker(gpsMarkerRef.current, gps);
 
@@ -563,12 +610,12 @@ export default function ArcadeMapLibreView({
       title.textContent = 'RENNEN HIER';
       root.appendChild(title);
       const info = document.createElement('p');
-      info.textContent = Math.round(mapDistanceMeters(gps, position)) + ' m · IM ' + HOST_PLACEMENT_RADIUS_METERS + '-M-RADAR';
+      info.textContent = 'IM RADAR · ' + Math.round(mapDistanceMeters(gps, position)) + ' M VON DIR';
       root.appendChild(info);
       const create = document.createElement('button');
       create.type = 'button';
       create.className = 'runnit-gl-host-cta';
-      create.textContent = 'ERSTELLEN ›';
+      create.textContent = 'WEITER ›';
       create.addEventListener('click', (event) => {
         event.stopPropagation();
         hostCreatingRef.current = true;
@@ -689,7 +736,7 @@ export default function ArcadeMapLibreView({
     const map = mapRef.current;
     if (!map || !ready) return;
     const markers: Marker[] = [];
-    const visibleMarkers: Array<{ marker: Marker; point: MapCoordinate }> = [];
+    const visibleMarkers: Array<{ marker: Marker; point: MapCoordinate; isDemo: boolean; isOwn: boolean }> = [];
     const closePopup = () => {
       activeRunPopupRef.current?.remove();
       activeRunPopupRef.current = null;
@@ -710,13 +757,28 @@ export default function ArcadeMapLibreView({
         .setLngLat(eventPopupLngLat(originalRun))
         .addTo(map);
       markers.push(marker);
-      visibleMarkers.push({ marker, point: originalRun.location });
+      visibleMarkers.push({ marker, point: originalRun.location, isDemo: originalRun.isDemo, isOwn: originalRun.isOwn });
 
       el.addEventListener('click', (event) => {
         // Prevent MapLibre's background-click handler from instantly closing it.
         event.preventDefault();
         event.stopPropagation();
 
+        const groupCount = Number(el.dataset.groupCount || '0');
+        if (groupCount > 1) {
+          // Keep geographic anchors intact. Reveal individual flags with zoom;
+          // exact coordinate duplicates open the searchable list at street scale.
+          if (map.getZoom() < 17.2) {
+            map.easeTo({
+              center: eventPopupLngLat(originalRun),
+              zoom: Math.min(map.getZoom() + 1.7, 18),
+              duration: 340,
+            });
+          } else {
+            callbacks.current.onOpenRunGroup();
+          }
+          return;
+        }
         const selectedRun = liveRunsRef.current.find(run => run.id === originalRun.id);
         if (!selectedRun || !finiteCoords(selectedRun.location)) return;
         const eventPosition = eventPopupLngLat(selectedRun);
@@ -724,8 +786,8 @@ export default function ArcadeMapLibreView({
         hostPopupRef.current?.remove();
         hostPopupRef.current = null;
         const popup = new Popup({
-          className: 'runnit-gl-race-popup',
-          maxWidth: '290px',
+          className: 'runnit-gl-race-popup' + (selectedRun.isOwn ? ' is-own-popup' : ''),
+          maxWidth: selectedRun.isOwn ? '242px' : '290px',
           offset: 23,
           closeButton: true,
           closeOnClick: false,
