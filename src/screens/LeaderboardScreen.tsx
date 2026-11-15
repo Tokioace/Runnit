@@ -2,6 +2,7 @@ import { useState, type KeyboardEvent } from 'react';
 import { ChevronLeft, Crown, Globe2, LockKeyhole, MapPinned, ShieldAlert, Trophy, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ArcadeAvatar, { type ArcadeAvatarVariant } from '../components/leaderboard/ArcadeAvatar';
+import { leaderboardSourceLabel } from '../lib/leaderboardProvenance';
 import BottomNav from '../components/ui/BottomNav';
 import '../styles/leaderboardArcade.css';
 
@@ -9,13 +10,13 @@ import '../styles/leaderboardArcade.css';
  * reference. No real users, verification, friends or player XP/points exist
  * in this data source. Never merge these records with server results. */
 const showcase: ReadonlyArray<{
-  name: string; level: number; points: number; avatar: ArcadeAvatarVariant; featured?: boolean;
+  name: string; level: number; points: number; avatar: ArcadeAvatarVariant; source: 'demo'; featured?: boolean;
 }> = [
-  { name: 'SpeedKaze',   level: 36, points: 5420, avatar: 'speed' },
-  { name: 'NightRunner', level: 34, points: 5210, avatar: 'night' },
-  { name: 'AeroFox',     level: 33, points: 5080, avatar: 'aero' },
-  { name: 'Stergios',    level: 24, points: 4920, avatar: 'player', featured: true },
-  { name: 'RunHikari',   level: 28, points: 4760, avatar: 'hikari' },
+  { name: 'SpeedKaze',   level: 36, points: 5420, avatar: 'speed', source: 'demo' },
+  { name: 'NightRunner', level: 34, points: 5210, avatar: 'night', source: 'demo' },
+  { name: 'AeroFox',     level: 33, points: 5080, avatar: 'aero', source: 'demo' },
+  { name: 'Stergios',    level: 24, points: 4920, avatar: 'player', source: 'demo', featured: true },
+  { name: 'RunHikari',   level: 28, points: 4760, avatar: 'hikari', source: 'demo' },
 ];
 
 type RankingTab = 'global' | 'region' | 'friends';
@@ -30,7 +31,7 @@ const points = new Intl.NumberFormat('de-DE');
 function ArcadeShowcaseRow({ entry, rank }: { entry: (typeof showcase)[number]; rank: number }) {
   return (
     <li className={'runnit-ranking-row' + (entry.featured ? ' is-featured' : '')}
-      aria-label={`Demo-Platz ${rank}: ${entry.name}, fiktives Level ${entry.level}, ${points.format(entry.points)} Demo-Punkte`}>
+      aria-label={`Demo-Platz ${rank}: ${entry.name}, fiktives Level ${entry.level}, ${points.format(entry.points)} Demo-Punkte; ${leaderboardSourceLabel(entry.source)}`}>
       <div className={'runnit-ranking-place' + (rank === 1 ? ' is-gold' : '')} aria-hidden="true">
         {rank === 1 && <Crown />}
         <strong>{rank}</strong>
@@ -113,7 +114,7 @@ export default function LeaderboardScreen() {
 
         <div className="runnit-ranking-demo-ribbon" role="note">
           <ShieldAlert aria-hidden="true" />
-          <span><strong>DESIGNVORSCHAU</strong> · Alle Namen, Level und Punkte unten sind fiktiv.</span>
+          <span><strong>DESIGNVORSCHAU / DEMO</strong> · Alle Namen, Level und Punkte unten sind fiktiv.</span>
         </div>
 
         <div role="tabpanel" id={'ranking-panel-' + activeTab}
