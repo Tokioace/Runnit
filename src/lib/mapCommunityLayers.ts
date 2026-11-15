@@ -15,7 +15,9 @@ export const COMMUNITY_DEMO_SOURCE = 'runnit-community-demo';
 export const COMMUNITY_GPS_SOURCE = 'runnit-community-gps';
 export const COMMUNITY_CLUSTER_LAYER = 'runnit-community-clusters';
 const COMMUNITY_COUNT_LAYER = 'runnit-community-cluster-counts';
-const COMMUNITY_RACE_DOT_LAYER = 'runnit-community-real-dots';
+export const COMMUNITY_RACE_DOT_LAYER = 'runnit-community-real-dots';
+const COMMUNITY_SINGLE_HALO_LAYER = 'runnit-community-single-glows';
+const COMMUNITY_CLUSTER_HALO_LAYER = 'runnit-community-cluster-glows';
 const COMMUNITY_DEMO_LAYER = 'runnit-community-demo-dots';
 const COMMUNITY_GPS_LAYER = 'runnit-community-gps-dot';
 const valid = (p: CommunityCoordinate) =>
@@ -57,6 +59,20 @@ export function installCommunityLayers(map: GLMap) {
       cluster: true, clusterMaxZoom: 11, clusterRadius: 52,
     });
   }
+  // Even one genuine race should be visible across a region without
+  // pretending it represents multiple runners.
+  if (!map.getLayer(COMMUNITY_SINGLE_HALO_LAYER)) {
+    map.addLayer({
+      id: COMMUNITY_SINGLE_HALO_LAYER, type: 'circle', source: COMMUNITY_REAL_SOURCE,
+      filter: ['!', ['has', 'point_count']],
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 11, 6, 15, 10, 17, 12.8, 8],
+        'circle-color': ['get', 'color'],
+        'circle-blur': 0.82,
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.38, 12.8, 0],
+      },
+    });
+  }
   if (!map.getLayer(COMMUNITY_RACE_DOT_LAYER)) {
     map.addLayer({
       id: COMMUNITY_RACE_DOT_LAYER, type: 'circle', source: COMMUNITY_REAL_SOURCE,
@@ -68,6 +84,18 @@ export function installCommunityLayers(map: GLMap) {
         'circle-stroke-width': 1.1,
         'circle-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0],
         'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0],
+      },
+    });
+  }
+  if (!map.getLayer(COMMUNITY_CLUSTER_HALO_LAYER)) {
+    map.addLayer({
+      id: COMMUNITY_CLUSTER_HALO_LAYER, type: 'circle', source: COMMUNITY_REAL_SOURCE,
+      filter: ['has', 'point_count'],
+      paint: {
+        'circle-radius': ['step', ['get', 'point_count'], 25, 5, 33, 20, 43],
+        'circle-color': '#6d53fa',
+        'circle-blur': 0.78,
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.42, 12.8, 0],
       },
     });
   }
