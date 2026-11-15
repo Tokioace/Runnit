@@ -32,19 +32,16 @@ test('GPS source stays independent of real/demos and is layered behind event orb
   assert.equal(collections.gps.features.length, 1);
 });
 
-test('coincident own race marker hides only decorative HTML GPS marker on street zoom', () => {
+test('GPS is combined only with a geographically near own event, never for mere pixel overlap', () => {
   assert.equal(projectedMarkersOverlap({ x: 150, y: 210 }, { x: 150, y: 210 }), true);
-  assert.equal(projectedMarkersOverlap({ x: 150, y: 210 }, { x: 187, y: 210 }), true);
   assert.equal(projectedMarkersOverlap({ x: 150, y: 210 }, { x: 188, y: 210 }), false);
-  assert.equal(projectedMarkersOverlap({ x: 150, y: 210 }, { x: 190, y: 210 }), false);
-  assert.equal(projectedMarkersOverlap({ x: Number.NaN, y: 0 }, { x: 0, y: 0 }), false);
-  assert.equal(projectedMarkersOverlap({ x: 0, y: 0 }, { x: 0, y: 0 }, -1), false);
   const renderer = read('src/components/map/ArcadeMapLibreView.tsx');
-  assert.match(renderer, /visibleRunsRef\.current\.some\(\(item\) =>/);
-  assert.match(renderer, /if \(!item\.isOwn \|\| item\.marker\.getElement\(\)\.style\.display === 'none'\) return false/);
-  assert.match(renderer, /projectedMarkersOverlap\(projectedGps, projectedRun\)/);
-  assert.match(renderer, /if \(overlapsOwnEvent\) gpsShell\.style\.display = 'none'/);
+  assert.match(renderer, /const nearbyOwnId = closestOwnRaceForGps\(gps,/);
+  assert.match(renderer, /button\.dataset\.gpsNearby = nearby \? 'true' : 'false'/);
+  assert.match(renderer, /if \(mergedIntoVisiblePin\)/);
+  assert.doesNotMatch(renderer, /projectedMarkersOverlap\(projectedGps, projectedRun\)/);
 });
+
 
 test('2D/3D and recenter are horizontally aligned with full-size touch targets', () => {
   const screen = read('src/screens/MapScreen.tsx');

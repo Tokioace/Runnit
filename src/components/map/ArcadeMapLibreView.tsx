@@ -6,7 +6,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import type { ArcadeMapEntry, ArcadeMapView } from './ArcadeMapChrome';
 import { eventPopupLngLat } from '../../lib/mapPopupAnchor';
 import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters, validMapPoint } from '../../lib/mapHostPlacement';
-import { markerInViewport, projectedMarkersOverlap } from '../../lib/mapMarkerVisibility';
+import { markerInViewport } from '../../lib/mapMarkerVisibility';
+import { closestOwnRaceForGps } from '../../lib/mapOwnGpsProximity.ts';
 import type { MapCameraScope } from '../../lib/mapHeadingScope';
 import { groupOverlappingRuns } from '../../lib/mapRunGrouping';
 import { markerPinOpacityAtZoom, markerScaleAtZoom, PIN_FADE_END_ZOOM } from '../../lib/mapMarkerZoom';
@@ -25,7 +26,7 @@ const COUNTRY_GLOW_LAYER_ID = 'runnit-country-boundary-glow';
 const PITCH_DEGREES = 46;
 const BEARING_DEGREES = -13;
 
-export type MapCoordinate = { lat: number; lng: number };
+export type MapCoordinate = { lat: number; lng: number; accuracyMeters?: number; sampledAtMs?: number };
 export type ArcadeVectorRun = ArcadeMapEntry & { location: MapCoordinate };
 export type ArcadeVectorPlayer = {
   id: string;
@@ -402,7 +403,7 @@ export default function ArcadeMapLibreView({
   const atmosphereRef = useRef<HTMLDivElement | null>(null);
   const ignoreMapClickUntilRef = useRef(0);
   const visiblePlayersRef = useRef<Array<{ marker: Marker; point: MapCoordinate }>>([]);
-  const visibleRunsRef = useRef<Array<{ marker: Marker; point: MapCoordinate; isDemo: boolean; isOwn: boolean }>>([]);
+  const visibleRunsRef = useRef<Array<{ id: string; marker: Marker; point: MapCoordinate; isDemo: boolean; isOwn: boolean }>>([]);
   const latestGpsRef = useRef(userCoords);
   latestGpsRef.current = userCoords;
   const liveRunsRef = useRef(runs);
@@ -585,7 +586,7 @@ export default function ArcadeMapLibreView({
     }
     syncDistantDots(map, livePlayersRef.current, liveRunsRef.current, userCoords, liveRegionalRef.current);
     refreshVisiblePins();
-  }, [ready, userCoords?.lat, userCoords?.lng]);
+  }, [ready, userCoords?.lat, userCoords?.lng, userCoords?.accuracyMeters, userCoords?.sampledAtMs]);
 
   // MapLibre HTML Markers can be rendered at a screen edge even when their
   // geographic anchor is far outside a pitched/rotated visible map. Check both
@@ -670,21 +671,32 @@ export default function ArcadeMapLibreView({
       if (covered.has(index)) item.marker.getElement().style.display = 'none';
     });
     const gps = latestGpsRef.current;
+    // No pixel-overlap heuristic: a distant event may overlap a GPS dot
+    // on a country map even when the runner is kilometers away.
+    // Combine only when the browser reports recent, sufficiently accurate
+    // GPS coordinates within 30 meters of one of the user's real races.
+    const nearbyOwnId = closestOwnRaceForGps(gps,
+      visibleRunsRef.current.map(({ id, point, isOwn }) => ({
+        id, lat: point.lat, lng: point.lng, isOwn,
+      })));
+    let mergedIntoVisiblePin = false;
+    for (const item of visibleRunsRef.current) {
+      if (!item.isOwn) continue;
+      const button = item.marker.getElement().firstElementChild as HTMLElement | null;
+      const nearby = nearbyOwnId === item.id &&
+        item.marker.getElement().style.display !== 'none';
+      if (button) {
+        button.dataset.gpsNearby = nearby ? 'true' : 'false';
+        button.title = nearby ? 'Dein Rennen · Dein Standort ist in der Nähe' : '';
+      }
+      if (nearby) mergedIntoVisiblePin = true;
+    }
     if (gpsMarkerRef.current && gps && validMapPoint(gps)) {
       updateMarker(gpsMarkerRef.current, gps);
-      const gpsShell = gpsMarkerRef.current.getElement();
-      if (gpsShell.style.display !== 'none') {
-        const projectedGps = map.project([gps.lng, gps.lat]);
-        // If the GPS dot sits on top of the user's own event pin, keep the
-        // event accessible and its number unobscured. The cyan radar still
-        // marks the actual position; the GPS dot returns once they separate.
-        const overlapsOwnEvent = visibleRunsRef.current.some((item) => {
-          if (!item.isOwn || item.marker.getElement().style.display === 'none') return false;
-          const projectedRun = map.project([item.point.lng, item.point.lat]);
-          return projectedMarkersOverlap(projectedGps, projectedRun);
-        });
-        if (overlapsOwnEvent) gpsShell.style.display = 'none';
-      }
+      // The HTML event pin shows the cyan satellite instead of a blue dot
+      // covering the green flag. GPS itself stays at its real coordinates.
+      if (mergedIntoVisiblePin)
+        gpsMarkerRef.current.getElement().style.display = 'none';
     }
 
     // A detail popup should not float over an entire continent or under UI
@@ -953,7 +965,7 @@ export default function ArcadeMapLibreView({
     const map = mapRef.current;
     if (!map || !ready) return;
     const markers: Marker[] = [];
-    const visibleMarkers: Array<{ marker: Marker; point: MapCoordinate; isDemo: boolean; isOwn: boolean }> = [];
+    const visibleMarkers: Array<{ id: string; marker: Marker; point: MapCoordinate; isDemo: boolean; isOwn: boolean }> = [];
     const closePopup = () => {
       activeRunPopupRef.current?.remove();
       activeRunPopupRef.current = null;
@@ -974,7 +986,7 @@ export default function ArcadeMapLibreView({
         .setLngLat(eventPopupLngLat(originalRun))
         .addTo(map);
       markers.push(marker);
-      visibleMarkers.push({ marker, point: originalRun.location, isDemo: originalRun.isDemo, isOwn: originalRun.isOwn });
+      visibleMarkers.push({ id: originalRun.id, marker, point: originalRun.location, isDemo: originalRun.isDemo, isOwn: originalRun.isOwn });
 
       el.addEventListener('click', (event) => {
         // Prevent MapLibre's background-click handler from instantly closing it.

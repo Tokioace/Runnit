@@ -29,6 +29,9 @@ import type { HotspotTestCity } from '../lib/mapHotspotSignals';
 type Coordinates = {
   lat: number;
   lng: number;
+  // Browser-reported GPS accuracy & freshness; never sourced from IP position.
+  accuracyMeters?: number;
+  sampledAtMs?: number;
 };
 
 type Player = {
@@ -102,7 +105,12 @@ function useUserLocation() {
   const watchIdRef = useRef<number | null>(null);
 
   const onSuccess = React.useCallback((pos: GeolocationPosition) => {
-    setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+    setCoords({
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude,
+      accuracyMeters: pos.coords.accuracy,
+      sampledAtMs: pos.timestamp,
+    });
     setLocationError(null);
     setLocating(false);
   }, []);

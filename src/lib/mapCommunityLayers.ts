@@ -1,5 +1,6 @@
 import type { Map as GLMap, GeoJSONSource } from 'maplibre-gl';
 import { ENERGY_ORB_PREFIX, installOnDemandRealEnergyOrbs } from './mapEnergyOrb.ts';
+import { closestOwnRaceForGps, type ViewerGpsFix } from './mapOwnGpsProximity.ts';
 
 /** Only real open challenges may contribute to the wide-area community count.
  * Demo markers and the viewer's own location are in separate map sources. */
@@ -10,7 +11,7 @@ export type CommunityEntry = {
   kind: 'race' | 'player' | 'demo-race' | 'demo-player';
   isOwn?: boolean;
 };
-export type CommunityCoordinate = { lat: number; lng: number };
+export type CommunityCoordinate = ViewerGpsFix;
 export const COMMUNITY_REAL_SOURCE = 'runnit-community-real';
 export const COMMUNITY_DEMO_SOURCE = 'runnit-community-demo';
 export const COMMUNITY_GPS_SOURCE = 'runnit-community-gps';
@@ -19,6 +20,8 @@ export const COMMUNITY_RACE_DOT_LAYER = 'runnit-community-real-dots';
 const COMMUNITY_SINGLE_HALO_LAYER = 'runnit-community-single-glows';
 export const COMMUNITY_SINGLE_SIGNAL_RING = 'runnit-community-single-signal-ring';
 const COMMUNITY_CLUSTER_HALO_LAYER = 'runnit-community-cluster-glows';
+export const COMMUNITY_OWN_GPS_SATELLITE_GLOW = 'runnit-community-own-gps-satellite-glow';
+export const COMMUNITY_OWN_GPS_SATELLITE_DOT = 'runnit-community-own-gps-satellite-dot';
 const COMMUNITY_DEMO_LAYER = 'runnit-community-demo-dots';
 const COMMUNITY_GPS_LAYER = 'runnit-community-gps-dot';
 const COMMUNITY_GPS_AURA_LAYER = 'runnit-community-gps-aura';
@@ -38,10 +41,13 @@ export function buildCommunityCollections(entries: readonly CommunityEntry[], gp
       if (!real.has(key) || item.isOwn) real.set(key, item);
     }
   }
+  const ownGpsRaceId = closestOwnRaceForGps(gps, [...real.values()]);
   const feature = (item: CommunityEntry) => ({
     type: 'Feature' as const,
     properties: {
       own: item.isOwn ? 1 : 0,
+      // Calculated on the viewer's device; never written to Supabase.
+      nearbyGps: item.kind === 'race' && item.isOwn && item.id === ownGpsRaceId ? 1 : 0,
       color: item.isOwn ? '#c9ff0b' :
         (item.kind === 'player' || item.kind === 'demo-player' ? '#a985ff' : '#f13edc'),
     },
@@ -156,6 +162,42 @@ export function installCommunityLayers(map: GLMap) {
       paint: {
         'icon-opacity': ['interpolate', ['linear'], ['zoom'],
           0, 1, 12.2, 1, 12.8, 0],
+      },
+    });
+  }
+  // The GPS badge is an accessory to the REAL event marker, not a moved
+  // geolocation fix. We keep the GPS source untouched and position a small
+  // cyan satellite on the lower-left rim of a solo own-event orb.
+  const gpsBadgeFilter: unknown[] = [
+    'all', ['!', ['has', 'point_count']], ['==', ['get', 'nearbyGps'], 1],
+  ];
+  if (!map.getLayer(COMMUNITY_OWN_GPS_SATELLITE_GLOW)) {
+    map.addLayer({
+      id: COMMUNITY_OWN_GPS_SATELLITE_GLOW,
+      type: 'circle', source: COMMUNITY_REAL_SOURCE, filter: gpsBadgeFilter as any,
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 8, 8, 9.5, 12.8, 5],
+        'circle-translate': [-12, 17],
+        'circle-translate-anchor': 'viewport',
+        'circle-color': '#22cfff',
+        'circle-blur': 0.72,
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 0, .45, 12.2, .62, 12.8, 0],
+      },
+    });
+  }
+  if (!map.getLayer(COMMUNITY_OWN_GPS_SATELLITE_DOT)) {
+    map.addLayer({
+      id: COMMUNITY_OWN_GPS_SATELLITE_DOT,
+      type: 'circle', source: COMMUNITY_REAL_SOURCE, filter: gpsBadgeFilter as any,
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 4.3, 8, 5.0, 12.8, 4],
+        'circle-translate': [-12, 17],
+        'circle-translate-anchor': 'viewport',
+        'circle-color': '#238bff',
+        'circle-stroke-color': '#e9fbff',
+        'circle-stroke-width': 1.6,
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 0, 1, 12.2, 1, 12.8, 0],
+        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 0, 1, 12.2, 1, 12.8, 0],
       },
     });
   }
