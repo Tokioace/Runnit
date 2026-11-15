@@ -1,4 +1,5 @@
 import type { Map as GLMap, GeoJSONSource } from 'maplibre-gl';
+import { ENERGY_ORB_PREFIX, installOnDemandRealEnergyOrbs } from './mapEnergyOrb.ts';
 
 /** Only real open challenges may contribute to the wide-area community count.
  * Demo markers and the viewer's own location are in separate map sources. */
@@ -14,7 +15,6 @@ export const COMMUNITY_REAL_SOURCE = 'runnit-community-real';
 export const COMMUNITY_DEMO_SOURCE = 'runnit-community-demo';
 export const COMMUNITY_GPS_SOURCE = 'runnit-community-gps';
 export const COMMUNITY_CLUSTER_LAYER = 'runnit-community-clusters';
-const COMMUNITY_COUNT_LAYER = 'runnit-community-cluster-counts';
 export const COMMUNITY_RACE_DOT_LAYER = 'runnit-community-real-dots';
 const COMMUNITY_SINGLE_HALO_LAYER = 'runnit-community-single-glows';
 const COMMUNITY_SINGLE_SIGNAL_RING = 'runnit-community-single-signal-ring';
@@ -57,6 +57,9 @@ export function buildCommunityCollections(entries: readonly CommunityEntry[], gp
 }
 
 export function installCommunityLayers(map: GLMap) {
+  // Real clusters get the same high-definition energy-orb system as the demo,
+  // with on-demand sprites for whatever genuine open-race total appears.
+  installOnDemandRealEnergyOrbs(map);
   if (!map.getSource(COMMUNITY_REAL_SOURCE)) {
     map.addSource(COMMUNITY_REAL_SOURCE, {
       type: 'geojson', data: { type: 'FeatureCollection', features: [] },
@@ -112,36 +115,34 @@ export function installCommunityLayers(map: GLMap) {
       id: COMMUNITY_CLUSTER_HALO_LAYER, type: 'circle', source: COMMUNITY_REAL_SOURCE,
       filter: ['has', 'point_count'],
       paint: {
-        'circle-radius': ['step', ['get', 'point_count'], 37, 5, 48, 20, 57],
-        'circle-color': '#6d53fa',
-        'circle-blur': 0.78,
-        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.42, 12.8, 0],
+        'circle-radius': ['step', ['get', 'point_count'], 23, 5, 33, 20, 42],
+        'circle-color': '#a23af4',
+        'circle-blur': 0.86,
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 0, .08, 10, .16, 12.8, 0],
       },
     });
   }
   if (!map.getLayer(COMMUNITY_CLUSTER_LAYER)) {
     map.addLayer({
-      id: COMMUNITY_CLUSTER_LAYER, type: 'circle', source: COMMUNITY_REAL_SOURCE,
+      id: COMMUNITY_CLUSTER_LAYER, type: 'symbol', source: COMMUNITY_REAL_SOURCE,
       filter: ['has', 'point_count'],
-      paint: {
-        'circle-radius': ['step', ['get', 'point_count'], 16, 5, 22, 20, 28],
-        'circle-color': ['step', ['get', 'point_count'], '#3d2d9f', 5, '#7530b5', 20, '#b22c8c'],
-        'circle-stroke-color': '#56ebff',
-        'circle-stroke-width': 2.4,
-        'circle-blur': 0.06,
-        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0],
-        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0],
+      layout: {
+        // Counts come exclusively from MapLibre's genuine clustered open
+        // races, never mocked runners or matches. Sprite IDs are resolved
+        // lazily by installOnDemandRealEnergyOrbs().
+        'icon-image': ['concat', ENERGY_ORB_PREFIX, '-open-race-',
+          ['to-string', ['get', 'point_count']]],
+        'icon-size': ['interpolate', ['linear'], ['zoom'],
+          0, .61, 6, .73, 10, .84, 12.6, .72],
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true,
+        'icon-anchor': 'center',
+        'icon-pitch-alignment': 'viewport',
+        'icon-rotation-alignment': 'viewport',
       },
-    });
-    map.addLayer({
-      id: COMMUNITY_COUNT_LAYER, type: 'symbol', source: COMMUNITY_REAL_SOURCE,
-      filter: ['has', 'point_count'],
-      layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 13, 'text-allow-overlap': true },
       paint: {
-        'text-color': '#faffff',
-        'text-halo-color': '#1b1245',
-        'text-halo-width': 1,
-        'text-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0],
+        'icon-opacity': ['interpolate', ['linear'], ['zoom'],
+          0, 1, 12.2, 1, 12.8, 0],
       },
     });
   }
