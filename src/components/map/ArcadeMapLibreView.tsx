@@ -7,7 +7,7 @@ import type { ArcadeMapEntry, ArcadeMapView } from './ArcadeMapChrome';
 import { eventPopupLngLat } from '../../lib/mapPopupAnchor';
 import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters, validMapPoint } from '../../lib/mapHostPlacement';
 import { markerInViewport } from '../../lib/mapMarkerVisibility';
-import { closestOwnRaceForGps } from '../../lib/mapOwnGpsProximity.ts';
+import { nearestOwnGpsBadge } from '../../lib/mapOwnGpsProximity.ts';
 import type { MapCameraScope } from '../../lib/mapHeadingScope';
 import { groupOverlappingRuns } from '../../lib/mapRunGrouping';
 import { markerPinOpacityAtZoom, markerScaleAtZoom, PIN_FADE_END_ZOOM } from '../../lib/mapMarkerZoom';
@@ -588,6 +588,27 @@ export default function ArcadeMapLibreView({
     refreshVisiblePins();
   }, [ready, userCoords?.lat, userCoords?.lng, userCoords?.accuracyMeters, userCoords?.sampledAtMs]);
 
+  // GPS geolocation watches can pause while iOS Safari is stationary.
+  // Re-evaluate the device-only badge timestamps while the map is visible;
+  // the satellite must disappear when its last fix becomes stale. No extra
+  // network requests, geolocation reads or WebGL redraw loop are created.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    const refreshGpsBadge = () => {
+      if (document.hidden) return;
+      syncDistantDots(map, livePlayersRef.current, liveRunsRef.current,
+        latestGpsRef.current, liveRegionalRef.current);
+      refreshVisiblePins();
+    };
+    const interval = window.setInterval(refreshGpsBadge, 15_000);
+    document.addEventListener('visibilitychange', refreshGpsBadge);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshGpsBadge);
+    };
+  }, [ready]);
+
   // MapLibre HTML Markers can be rendered at a screen edge even when their
   // geographic anchor is far outside a pitched/rotated visible map. Check both
   // the actual geo bounds and screen projection on every camera move.
@@ -671,11 +692,10 @@ export default function ArcadeMapLibreView({
       if (covered.has(index)) item.marker.getElement().style.display = 'none';
     });
     const gps = latestGpsRef.current;
-    // No pixel-overlap heuristic: a distant event may overlap a GPS dot
-    // on a country map even when the runner is kilometers away.
-    // Combine only when the browser reports recent, sufficiently accurate
-    // GPS coordinates within 30 meters of one of the user's real races.
-    const nearbyOwnId = closestOwnRaceForGps(gps,
+    // A solid blue satellite means a recent, accurate GPS fix within 30 m.
+    // A hollow cyan satellite says only that GPS is within the true 500 m
+    // hosting circle. Never imply that screen-pixel overlap is co-location.
+    const gpsBadge = nearestOwnGpsBadge(gps,
       visibleRunsRef.current.map(({ id, point, isOwn }) => ({
         id, lat: point.lat, lng: point.lng, isOwn,
       })));
@@ -683,12 +703,17 @@ export default function ArcadeMapLibreView({
     for (const item of visibleRunsRef.current) {
       if (!item.isOwn) continue;
       const button = item.marker.getElement().firstElementChild as HTMLElement | null;
-      const nearby = nearbyOwnId === item.id &&
-        item.marker.getElement().style.display !== 'none';
+      const visible = item.marker.getElement().style.display !== 'none';
+      const inRadius = visible && gpsBadge?.raceId === item.id;
+      const nearby = inRadius && gpsBadge?.state === 'at-event';
       if (button) {
+        button.dataset.gpsInRadius = inRadius ? 'true' : 'false';
         button.dataset.gpsNearby = nearby ? 'true' : 'false';
-        button.title = nearby ? 'Dein Rennen · Dein Standort ist in der Nähe' : '';
+        button.title = nearby ? 'Dein Rennen · GPS direkt am Event' :
+          inRadius ? 'Dein Rennen · GPS im 500-Meter-Umkreis' : '';
       }
+      // Hide the decorative HTML GPS dot ONLY when the filled, precise
+      // at-event satellite is visible. Otherwise the GPS stays independent.
       if (nearby) mergedIntoVisiblePin = true;
     }
     if (gpsMarkerRef.current && gps && validMapPoint(gps)) {

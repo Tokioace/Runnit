@@ -36,8 +36,9 @@ test('GPS is combined only with a geographically near own event, never for mere 
   assert.equal(projectedMarkersOverlap({ x: 150, y: 210 }, { x: 150, y: 210 }), true);
   assert.equal(projectedMarkersOverlap({ x: 150, y: 210 }, { x: 188, y: 210 }), false);
   const renderer = read('src/components/map/ArcadeMapLibreView.tsx');
-  assert.match(renderer, /const nearbyOwnId = closestOwnRaceForGps\(gps,/);
+  assert.match(renderer, /const gpsBadge = nearestOwnGpsBadge\(gps,/);
   assert.match(renderer, /button\.dataset\.gpsNearby = nearby \? 'true' : 'false'/);
+  assert.match(renderer, /button\.dataset\.gpsInRadius = inRadius \? 'true' : 'false'/);
   assert.match(renderer, /if \(mergedIntoVisiblePin\)/);
   assert.doesNotMatch(renderer, /projectedMarkersOverlap\(projectedGps, projectedRun\)/);
 });
