@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { getMapLibreStyleUrls } from './helpers/mapLibreStyleUrls.mjs';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
@@ -41,7 +42,7 @@ test('revised map keeps keyless OSM vector tiles, map state and real GPS control
   const map = read('src/screens/MapScreen.tsx');
   assert.match(map, /<ArcadeMapLibreView/);
   const vector = read('src/components/map/ArcadeMapLibreView.tsx');
-  assert.match(vector, /https:\/\/tiles\.openfreemap\.org\/styles\/liberty/);
+  assert.equal(getMapLibreStyleUrls(vector).STYLE_URL, 'https://tiles.openfreemap.org/styles/liberty');
   assert.match(map, /watchPosition/);
   assert.match(map, /<RaceOverlay/);
   assert.match(map, /submitDuelResult/);

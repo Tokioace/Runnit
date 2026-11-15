@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { getMapLibreStyleUrls } from './helpers/mapLibreStyleUrls.mjs';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
@@ -42,7 +43,7 @@ test('map has a neutral initial center and explicit tile failure handling', () =
   assert.match(map, /lat: 22, lng: 0/);
   assert.match(map, /onTilesError/);
   const vector = read('src/components/map/ArcadeMapLibreView.tsx');
-  assert.match(vector, /https:\/\/tiles\.openfreemap\.org\/styles\/liberty/);
+  assert.equal(getMapLibreStyleUrls(vector).STYLE_URL, 'https://tiles.openfreemap.org/styles/liberty');
   assert.match(vector, /map\.setStyle\(STYLE_URL\)/);
   assert.doesNotMatch(map, /setTileProvider|tileProvider/);
   assert.match(map, /setTileRetryCount/);

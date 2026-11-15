@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import { getMapLibreStyleUrls } from './helpers/mapLibreStyleUrls.mjs';
 const read = p => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
 test('MapLibre replaces only Leaflet rendering; secure race operations stay in MapScreen', () => {
@@ -30,8 +31,10 @@ test('new MapLibre vector renderer has usable iPhone worker, 3D buildings and br
   assert.equal(lock.packages['node_modules/maplibre-gl'].version, '6.17.0');
   assert.match(ml, /import workerUrl from 'maplibre-gl\/dist\/maplibre-gl-worker\.mjs\?worker&url'/);
   assert.match(ml, /setWorkerUrl\(workerUrl\)/);
-  assert.match(ml, /https:\/\/tiles\.openfreemap\.org\/styles\/liberty/);
-  assert.match(ml, /https:\/\/tiles\.openfreemap\.org\/planet/);
+  assert.deepEqual(getMapLibreStyleUrls(ml), {
+    STYLE_URL: 'https://tiles.openfreemap.org/styles/liberty',
+    BUILDING_TILES: 'https://tiles.openfreemap.org/planet',
+  });
   assert.match(ml, /type: 'fill-extrusion'/);
   assert.match(ml, /'source-layer': 'building'/);
   assert.match(ml, /PITCH_DEGREES = 46/);
