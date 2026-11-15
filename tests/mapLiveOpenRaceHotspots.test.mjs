@@ -37,7 +37,7 @@ test('open duel counts must never include user GPS, unverified player locations,
   assert.equal(energyOrbId('own-race', 1), 'runnit-energy-orb-own-race-1');
   const screen = read('src/screens/MapScreen.tsx');
   assert.match(screen, /\.eq\('status', 'open'\)/);
-  assert.match(screen, /\.select\('id, location'\)/);
+  assert.match(screen, /\.select\('id, location, expires_at'\)/);
   assert.match(screen, /new URLSearchParams\(window\.location\.search\)\.get\('hotspotDemo'\) === '1'/);
 });
 

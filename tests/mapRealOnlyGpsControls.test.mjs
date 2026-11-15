@@ -15,7 +15,7 @@ test('normal Runnit map has no synthetic racing events, runner pins or example-r
   // Explicit opt-in synthetic hotspot lab remains available only via its URL switch.
   assert.match(screen, /new URLSearchParams\(window\.location\.search\)\.get\('hotspotDemo'\) === '1'/);
   assert.match(screen, /hotspotTestAvailable && arcadeMapView === 'map'/);
-  assert.match(screen, /\.from\('duels'\)\s*\.select\('id, location'\)\s*\.eq\('status', 'open'\)/);
+  assert.match(screen, /\.from\('duels'\)\s*\.select\('id, location, expires_at'\)\s*\.eq\('status', 'open'\)/);
 });
 
 test('GPS source stays independent of real/demos and is layered behind event orbs', () => {

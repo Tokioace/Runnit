@@ -519,3 +519,65 @@
 @media(prefers-reduced-motion:reduce){
   .runnit-hotspot-test-expander::before{animation:none}
 }
+
+
+/* One-open-event anti-spam HUD: compact sport-tech timer, visually separate
+   from the lower LIVE SIGNAL badge and the iPhone navigation dock. */
+.runnit-open-countdown-hud{
+  pointer-events:none;position:absolute;z-index:926;
+  left:12px;bottom:calc(149px + env(safe-area-inset-bottom,0px));
+  width:min(280px,calc(100vw - 24px));padding:9px 11px 8px;
+  border:1px solid rgba(196,255,34,.83);border-bottom:2px solid #47eeff;
+  border-radius:11px 3px 11px 3px;
+  background:linear-gradient(130deg,rgba(24,47,88,.95),rgba(6,14,46,.95));
+  box-shadow:inset 0 1px rgba(240,255,255,.47),
+    0 0 13px rgba(170,255,33,.26),0 7px 20px #0206199c;
+  color:#edf9ff;
+}
+.runnit-open-countdown-heading{
+  display:flex;align-items:center;gap:7px;
+  font:italic 950 10px/1.2 system-ui,-apple-system,sans-serif;
+  letter-spacing:.055em;
+}
+.runnit-open-countdown-heading>span:nth-child(2){flex:1;white-space:nowrap}
+.runnit-open-countdown-heading time{
+  color:#d6ff58;font-size:19px;letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;text-shadow:0 0 8px rgba(202,255,31,.4);
+}
+.runnit-open-countdown-led{
+  width:8px;height:8px;border-radius:50%;flex:none;
+  background:#d7ff42;box-shadow:0 0 8px #c9ff24;
+}
+.runnit-open-countdown-track{
+  height:3px;background:rgba(130,177,238,.26);border-radius:2px;
+  margin-top:6px;overflow:hidden;
+}
+.runnit-open-countdown-track>span{
+  display:block;height:100%;
+  background:linear-gradient(90deg,#3ce2ff,#b9ff24);
+  box-shadow:0 0 7px #acff20;transition:width 1s linear;
+}
+.runnit-open-countdown-hud.is-urgent{
+  border-color:#ffb34a;box-shadow:0 0 15px #ff8c3e59;
+}
+.runnit-open-countdown-hud.is-urgent time{color:#ffd27c}
+.runnit-open-countdown-hud.is-urgent .runnit-open-countdown-track>span{
+  background:linear-gradient(90deg,#ff4aad,#ffd35c);
+}
+.runnit-open-countdown-list{display:flex;align-items:center;gap:6px!important}
+.runnit-open-countdown-list>span{
+  font:italic 900 10px/1.2 system-ui,sans-serif;color:#9eeefb;
+}
+.runnit-open-countdown-inline{
+  font:italic 1000 12px/1 system-ui,sans-serif;color:#ceff64;
+  letter-spacing:.055em;font-variant-numeric:tabular-nums;
+  text-shadow:0 0 6px rgba(156,255,60,.42);
+}
+.runnit-open-countdown-inline.is-urgent{color:#ffcf83}
+@media(max-width:360px){
+  .runnit-open-countdown-hud{width:min(258px,calc(100vw - 24px));padding:8px}
+  .runnit-open-countdown-heading{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){
+  .runnit-open-countdown-track>span{transition:none}
+}

@@ -1,6 +1,7 @@
 import { ArrowLeft, ChevronRight, Flag, Footprints, List, Map as MapIcon, MapPin, Swords, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { mapHeadingForCamera, type MapCameraScope } from '../../lib/mapHeadingScope';
+import OpenEventCountdown from './OpenEventCountdown';
 
 export type ArcadeMapView = 'map' | 'list';
 export type ArcadeMapEntry = {
@@ -10,6 +11,7 @@ export type ArcadeMapEntry = {
   distanceAwayMeters: number | null;
   isOwn: boolean;
   isDemo: boolean;
+  expiresAt?: string;
 };
 type Props = {
   view: ArcadeMapView;
@@ -43,6 +45,7 @@ export function ArcadeRunCard({ entry, onJoin, onCancel, selected = false, varia
         <div className="runnit-arcade-map-race-title">1v1 <span>DUELL</span></div>
         <p><MapPin aria-hidden="true" /> {distanceLabel(entry.distanceAwayMeters)}</p>
         <p><Users aria-hidden="true" /> 1/2 · {entry.distanceMeters} m · @{entry.hostUsername}</p>
+        {entry.expiresAt && <p className="runnit-open-countdown-list"><span>ENDET IN</span><OpenEventCountdown expiresAt={entry.expiresAt} /></p>}
         {entry.isDemo && <strong className="runnit-arcade-demo-tag">DEMO · FIKTIVER GEGNER</strong>}
         {entry.isOwn && <strong className="runnit-arcade-own-tag">DEIN OFFENES RENNEN</strong>}
       </div>

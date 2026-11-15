@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ArcadeMapLibreView from '../components/map/ArcadeMapLibreView';
+import OpenEventCountdown from '../components/map/OpenEventCountdown';
+import { isOpenEventAvailable } from '../lib/duelExpiry.ts';
 import { LocateFixed } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useSupabaseUser } from '../hooks/useSupabaseUser';
@@ -52,6 +54,7 @@ type OpenRun = {
   distanceMeters: number;
   location: Coordinates;
   createdAt?: string;
+  expiresAt?: string;
   targetDistanceM?: number;
 };
 
@@ -479,7 +482,9 @@ function HostRunDialog({
       const code = typeof error === 'object' && error !== null && 'code' in error
         ? String(error.code) : '';
       const message = error instanceof Error ? error.message.toLowerCase() : '';
-      if (code === '42501' || message.includes('row-level security') || message.includes('permission denied')) {
+      if (code === '23505' || message.includes('aktives event') || message.includes('aktive challenge')) {
+        setHostError('Du hast bereits ein aktives Event. Beende oder storniere es, bevor du ein neues erstellst.');
+      } else if (code === '42501' || message.includes('row-level security') || message.includes('permission denied')) {
         setHostError('Du hast derzeit keine Berechtigung, ein Rennen zu speichern. Bitte melde dich erneut an.');
       } else if (message.includes('außerhalb') || message.includes('gps-standort')) {
         setHostError(error instanceof Error ? error.message : 'Standort nicht mehr verfügbar.');
@@ -525,7 +530,7 @@ function HostRunDialog({
               </button>
             ))}
           </div>
-          <p className="runnit-host-setup-note">OFFENE CHALLENGE · START ERST, WENN EIN ZWEITER LÄUFER BEITRITT.</p>
+          <p className="runnit-host-setup-note">OFFENE CHALLENGE · 60 MINUTEN ZEIT FÜR EINEN GEGNER. NUR EIN AKTIVES EVENT PRO USER.</p>
         </div>
         {hostError && <p role="alert" className="runnit-host-setup-error">{hostError}</p>}
         <button type="button" className="runnit-host-setup-create" onClick={() => { void submitHost(); }}
@@ -997,7 +1002,8 @@ export default function MapScreen() {
           if (!isActive) return;
           const hostById = new Map<string, any>((hostUsers || []).map((u: any) => [u.id, u]));
           mapped = data
-            .filter((d: any) => d.status === 'open')
+            .filter((d: any) => d.status === 'open' &&
+              (typeof d.expires_at !== 'string' || isOpenEventAvailable(d.expires_at)))
             .map((d: any) => {
               const location = parseGeographyPoint(d.location);
               if (!location) return null;
@@ -1008,6 +1014,7 @@ export default function MapScreen() {
                 distanceMeters: d.target_distance_m || (d.max_distance_km ?? 0) * 1000 || 100,
                 location,
                 createdAt: d.created_at,
+                expiresAt: d.expires_at,
                 targetDistanceM: d.target_distance_m || undefined,
               } as OpenRun;
             })
@@ -1037,8 +1044,9 @@ export default function MapScreen() {
     const refresh = async () => {
       const { data, error } = await supabase
         .from('duels')
-        .select('id, location')
+        .select('id, location, expires_at')
         .eq('status', 'open')
+        .gt('expires_at', new Date().toISOString())
         .limit(500);
       if (!active || error) return;
       setRegionalRuns((data ?? []).flatMap(row => {
@@ -1075,6 +1083,7 @@ export default function MapScreen() {
               distanceMeters: run.distanceMeters,
               location: run.location!,
               createdAt: run.createdAt ?? undefined,
+              expiresAt: run.expiresAt ?? undefined,
               targetDistanceM: run.distanceMeters,
             }));
           const others = previous.filter(run => run.hostUserId !== authUser.id);
@@ -1103,6 +1112,15 @@ export default function MapScreen() {
           const row: any = payload.new ?? payload.old;
           if (!row) return;
 
+          // A second browser/device can join or cancel the host's lobby.
+          // Stop the visible open-lobby timer as soon as the server confirms
+          // a non-open status; the matched race uses its own start countdown.
+          if (row.host_user_id === authUser.id &&
+              (payload.eventType === 'DELETE' || row.status !== 'open' ||
+               (typeof row.expires_at === 'string' && !isOpenEventAvailable(row.expires_at)))) {
+            setHostedOpenDuels(previous => previous.filter(run => run.id !== row.id));
+          }
+
           // Show match overlay if this duel becomes matched and involves current user
           if (
             payload.eventType === 'UPDATE' &&
@@ -1122,7 +1140,11 @@ export default function MapScreen() {
             if (payload.eventType === 'DELETE' || (payload.eventType === 'UPDATE' && row.status !== 'open')) {
               return copy.filter((r) => r.id !== row.id);
             }
-            // INSERT or UPDATE open
+            // INSERT or UPDATE open; cron or client may deliver an expired
+            // event before its status transition is observed.
+            if (typeof row.expires_at === 'string' && !isOpenEventAvailable(row.expires_at)) {
+              return copy.filter(r => r.id !== row.id);
+            }
             const location = parseGeographyPoint(row.location);
             if (!location) return copy;
             // A global open-duels feed must not inject distant events into
@@ -1142,6 +1164,7 @@ export default function MapScreen() {
               distanceMeters: row.target_distance_m || (row.max_distance_km ?? 0) * 1000 || 100,
               location,
               createdAt: row.created_at,
+              expiresAt: row.expires_at,
               targetDistanceM: row.target_distance_m || undefined,
             };
             if (existingIdx >= 0) {
@@ -1161,13 +1184,20 @@ export default function MapScreen() {
     };
   }, [authUser?.id]);
 
-  // Auto-expire duels older than 30 minutes
+  // The server is the authority for expiration. Client-side pruning only
+  // keeps the map truthful until a cron/realtime update arrives, even after
+  // waking Safari from the background. No client UPDATE/DELETE is attempted.
   useEffect(() => {
-    const interval = setInterval(() => {
-      const cutoff = Date.now() - 30 * 60 * 1000;
-      setOpenRuns((prev) => prev.filter((r) => !r.createdAt || new Date(r.createdAt).getTime() >= cutoff));
-    }, 60 * 1000);
-    return () => clearInterval(interval);
+    const pruneExpired = () => {
+      setOpenRuns(previous => previous.filter(run => !run.expiresAt || isOpenEventAvailable(run.expiresAt)));
+      setHostedOpenDuels(previous => previous.filter(run => !run.expiresAt || isOpenEventAvailable(run.expiresAt)));
+    };
+    const interval = window.setInterval(pruneExpired, 15_000);
+    document.addEventListener('visibilitychange', pruneExpired);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', pruneExpired);
+    };
   }, []);
 
   // Guest restriction applies to every entry point, including handlers.
@@ -1181,6 +1211,10 @@ export default function MapScreen() {
   const openHostRunAt = (point: Coordinates) => {
     if (!requireRaceAccount()) return;
     setRaceNotice(null);
+    if (hostedOpenDuels.some(run => !run.expiresAt || isOpenEventAvailable(run.expiresAt))) {
+      setRaceNotice('Du hast bereits ein offenes Event. Warte auf einen Gegner oder storniere es zuerst.');
+      return;
+    }
     if (!userCoords || !canHostAt(userCoords, point)) {
       setRaceNotice(`Wähle einen Punkt innerhalb deines ${HOST_PLACEMENT_RADIUS_METERS}-m-Radars. Dein GPS-Standort muss verfügbar sein.`);
       if (!userCoords) requestOnce();
@@ -1204,6 +1238,20 @@ export default function MapScreen() {
       throw new Error('Der gewählte Punkt liegt jetzt außerhalb deines 500-m-Radars. Bitte wähle erneut einen Punkt.');
     }
 
+    // Friendly preflight for the UI. The UNIQUE PARTIAL INDEX in Postgres
+    // is still the real atomic protection against racing double-clicks,
+    // extra tabs, malicious HTTP requests and concurrent devices.
+    const { data: activeHosted, error: activeCheckError } = await supabase
+      .from('duels')
+      .select('id, status')
+      .eq('host_user_id', authUser.id)
+      .in('status', ['open', 'matched'])
+      .limit(1);
+    if (activeCheckError) throw activeCheckError;
+    if (activeHosted?.length) {
+      throw new Error('Du hast bereits ein aktives Event. Schließe zuerst dein vorheriges Rennen ab oder storniere es.');
+    }
+
     const { data, error } = await createDuel(supabase, {
       hostUserId: authUser.id,
       location: hostLocation,
@@ -1211,7 +1259,7 @@ export default function MapScreen() {
       targetDistanceM: distanceMeters,
     });
     if (error) throw error;
-    if (!data?.id || data.status !== 'open') {
+    if (!data?.id || data.status !== 'open' || !data.expires_at) {
       throw new Error('Renn-Erstellung wurde nicht bestätigt.');
     }
 
@@ -1223,16 +1271,18 @@ export default function MapScreen() {
       distanceMeters,
       location: hostLocation,
       createdAt: data.created_at,
+      expiresAt: data.expires_at,
       targetDistanceM: distanceMeters,
     };
     setOpenRuns(previous => [created, ...previous.filter(run => run.id !== created.id)]);
     setHostedOpenDuels(previous => [
       { id: created.id, hostUserId: authUser.id, distanceMeters,
-        createdAt: created.createdAt ?? null, location: created.location },
+        createdAt: created.createdAt ?? null, expiresAt: created.expiresAt,
+        location: created.location },
       ...previous.filter(run => run.id !== created.id),
     ]);
     setHostedDuelsLoadError(false);
-    setRaceNotice(`Dein ${distanceMeters}-m-Rennen wurde erstellt. Warte auf einen zweiten Läufer; dann startet der Countdown.`);
+    setRaceNotice(`Dein ${distanceMeters}-m-Event ist 60 Minuten offen. Sobald jemand beitritt, endet das Wartefenster.`);
   };
 
   const handleCancelHostedRun = (run: HostedOpenDuel) => {
@@ -1290,8 +1340,10 @@ export default function MapScreen() {
       await joinDuel(supabase as any, run.id);
       // Success will trigger realtime update (status -> matched) and remove from open list
     } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to join duel', e);
+      const message = e instanceof Error ? e.message.toLowerCase() : '';
+      setRaceNotice(message.includes('expired') || message.includes('unavailable')
+        ? 'Dieses Event ist bereits abgelaufen oder nicht mehr frei.'
+        : 'Beitritt fehlgeschlagen. Bitte überprüfe die Verbindung oder versuche es erneut.');
     }
   };
 
@@ -1309,6 +1361,7 @@ export default function MapScreen() {
         hostUserId: run.hostUserId ?? '',
         distanceMeters: run.distanceMeters,
         createdAt: run.createdAt ?? null,
+        expiresAt: run.expiresAt,
       });
     }
   };
@@ -1320,6 +1373,7 @@ export default function MapScreen() {
     distanceAwayMeters: userCoords ? haversineM(userCoords.lat, userCoords.lng, run.location.lat, run.location.lng) : null,
     isOwn: Boolean(authUser && (run.hostUserId === authUser.id || hostedOpenDuels.some(own => own.id === run.id))),
     isDemo: run.id.startsWith('demo-run-'),
+    expiresAt: run.expiresAt,
   }));
 
   return (
@@ -1446,6 +1500,22 @@ export default function MapScreen() {
               ? `LIVE SIGNAL · ${regionalRuns.length} ${regionalRuns.length === 1 ? 'CHALLENGE' : 'CHALLENGES'}`
               : 'NETWORK · KEINE LIVE-CHALLENGES'}
         </div>
+      )}
+
+      {/* Show the server-backed timer only for an authenticated host's OPEN
+          lobby. A matched race no longer has a waiting countdown. */}
+      {arcadeMapView === 'map' && hostedOpenDuels.map(run =>
+        run.expiresAt && isOpenEventAvailable(run.expiresAt) ? (
+          <OpenEventCountdown
+            key={run.id} expiresAt={run.expiresAt} variant="hud"
+            onExpire={() => {
+              setHostedOpenDuels(prev => prev.filter(item => item.id !== run.id));
+              setOpenRuns(prev => prev.filter(item => item.id !== run.id));
+              setRegionalRuns(prev => prev.filter(item => item.id !== run.id));
+              setDiscoveryRefreshTick(tick => tick + 1);
+            }}
+          />
+        ) : null
       )}
 
       {/* KARTE stays unobstructed. LISTE contains the interactive run cards. */}
