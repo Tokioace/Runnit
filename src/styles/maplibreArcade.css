@@ -341,3 +341,27 @@
 .runnit-arcade-map-heading-copy h1 {
   text-wrap:balance;
 }
+
+
+/* When the runner is really near their own open race, show GPS as a tiny
+   cyan Y2K satellite on the green flag rather than hiding location entirely.
+   No coordinate is displaced: this is an indicator, not a moved map point.
+   The marker remains a normal full-size tappable event button. */
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own[data-gps-nearby="true"]::before {
+  content:"";position:absolute;z-index:4;
+  left:-8px;bottom:0;width:12px;height:12px;
+  border:2px solid #edffff;border-radius:50%;
+  background:radial-gradient(circle at 32% 28%,#b3fbff 0%,#3aafff 33%,#1164f2 85%);
+  box-shadow:0 0 0 2px rgba(34,221,255,.35),0 0 9px #26ddff;
+  pointer-events:none;
+}
+/* Own race group markers can reuse the same GPS satellite without obscuring
+   the actual group count or its tap target. */
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own.is-run-group[data-gps-nearby="true"]::before {
+  left:-8px;bottom:0;
+}
+@media(prefers-reduced-motion:reduce){
+  .runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own[data-gps-nearby="true"]::before {
+    transition:none;animation:none;
+  }
+}
