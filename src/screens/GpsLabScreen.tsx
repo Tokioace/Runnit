@@ -6,6 +6,7 @@ import { assessFairPlay, type MotionSample, type PositionSample } from '../lib/f
 import { estimatePatternSteps } from '../lib/walkingPattern';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { createWalkingImuExport } from '../lib/walkingImuExport';
+import { validWalkingGpsFixTimestamp } from '../lib/walkingGpsFix';
 import { detectWalkingPhase } from '../lib/walkingPhase';
 import { findImuGaps, splitTraceAtGaps, summarizeImuGaps } from '../lib/imuGapDiagnostics';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
@@ -78,6 +79,7 @@ function WalkingLab() {
   const [traceWindowStartSec, setTraceWindowStartSec] = useState(0);
   const [showAxes, setShowAxes] = useState(false);
   const gps = useRef<PositionSample[]>([]);
+  const lastGpsFixEpochMs = useRef<number | null>(null);
   const imu = useRef<MotionSample[]>([]);
   const lastMotionSampleAt = useRef<number | null>(null);
   const livePeakCounter = useRef(new LiveStepPeakCounter(67));
@@ -159,7 +161,7 @@ function WalkingLab() {
     } catch { motionAllowed = false; }
     if (!mounted.current || !pending.current) return;
     pending.current = false;
-    gps.current = []; imu.current = []; lastMotionSampleAt.current = null; livePeakCounter.current.reset(); rawPeakCounter.current.reset(); setLiveStepCount(0); setRawStepCount(0); setCount({ gps: 0, imu: 0 });
+    gps.current = []; imu.current = []; lastMotionSampleAt.current = null; lastGpsFixEpochMs.current = null; livePeakCounter.current.reset(); rawPeakCounter.current.reset(); setLiveStepCount(0); setRawStepCount(0); setCount({ gps: 0, imu: 0 });
     setStraightRouteConfirmed(false); setReport(null); setPatternReport(null); setMotionTrace([]); setMotionGaps([]); setTraceWindowStartSec(0); setShowAxes(false); setReferenceSteps(''); setElapsed(0); setPocketLock(false); setBackgroundInterrupted(false); start.current = performance.now();
     running.current = true; recording.current = false; setActive(true);
     countdownEnd.current = performance.now() + 10000;
@@ -172,7 +174,7 @@ function WalkingLab() {
         if (countdownTimer.current !== null) clearInterval(countdownTimer.current);
         countdownTimer.current = null;
         if (!running.current) return;
-        gps.current = []; imu.current = []; livePeakCounter.current.reset(); rawPeakCounter.current.reset(); setLiveStepCount(0); setRawStepCount(0); setCount({ gps: 0, imu: 0 });
+        gps.current = []; imu.current = []; lastGpsFixEpochMs.current = null; livePeakCounter.current.reset(); rawPeakCounter.current.reset(); setLiveStepCount(0); setRawStepCount(0); setCount({ gps: 0, imu: 0 });
         start.current = performance.now();
         recording.current = true;
         setCountdown(null);
@@ -204,8 +206,10 @@ function WalkingLab() {
     watch.current = navigator.geolocation.watchPosition(p => {
       if (!running.current || !recording.current) return;
       // Geolocation timestamps are epoch milliseconds, convert to performance clock.
+      if (!validWalkingGpsFixTimestamp(p.timestamp, Date.now(), lastGpsFixEpochMs.current)) return;
       const timestampMs = p.timestamp - performance.timeOrigin;
-      if (!Number.isFinite(timestampMs) || timestampMs < start.current - 5000) return;
+      if (!Number.isFinite(timestampMs) || timestampMs < start.current - 1000) return;
+      lastGpsFixEpochMs.current = p.timestamp;
       gps.current.push({ timestampMs, latitude: p.coords.latitude, longitude: p.coords.longitude, accuracyM: p.coords.accuracy });
       if (gps.current.length > 10000) gps.current.shift();
       setCount(v => ({ ...v, gps: gps.current.length }));
