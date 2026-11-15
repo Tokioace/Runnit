@@ -1,6 +1,6 @@
 import type { Map as GLMap, GeoJSONSource } from 'maplibre-gl';
 import { ENERGY_ORB_PREFIX, installOnDemandRealEnergyOrbs } from './mapEnergyOrb.ts';
-import { closestOwnRaceForGps, type ViewerGpsFix } from './mapOwnGpsProximity.ts';
+import { nearestOwnGpsBadge, type ViewerGpsFix } from './mapOwnGpsProximity.ts';
 
 /** Only real open challenges may contribute to the wide-area community count.
  * Demo markers and the viewer's own location are in separate map sources. */
@@ -41,13 +41,17 @@ export function buildCommunityCollections(entries: readonly CommunityEntry[], gp
       if (!real.has(key) || item.isOwn) real.set(key, item);
     }
   }
-  const ownGpsRaceId = closestOwnRaceForGps(gps, [...real.values()]);
+  const ownGpsBadge = nearestOwnGpsBadge(gps, [...real.values()]);
   const feature = (item: CommunityEntry) => ({
     type: 'Feature' as const,
     properties: {
       own: item.isOwn ? 1 : 0,
       // Calculated on the viewer's device; never written to Supabase.
-      nearbyGps: item.kind === 'race' && item.isOwn && item.id === ownGpsRaceId ? 1 : 0,
+      nearbyGps: item.kind === 'race' && item.isOwn &&
+        item.id === ownGpsBadge?.raceId && ownGpsBadge.state === 'at-event' ? 1 : 0,
+      // Hollow cyan = in true 500 m radius; filled blue = precise 30 m fix.
+      gpsInRadius: item.kind === 'race' && item.isOwn &&
+        item.id === ownGpsBadge?.raceId ? 1 : 0,
       color: item.isOwn ? '#c9ff0b' :
         (item.kind === 'player' || item.kind === 'demo-player' ? '#a985ff' : '#f13edc'),
     },
@@ -169,7 +173,7 @@ export function installCommunityLayers(map: GLMap) {
   // geolocation fix. We keep the GPS source untouched and position a small
   // cyan satellite on the lower-left rim of a solo own-event orb.
   const gpsBadgeFilter: unknown[] = [
-    'all', ['!', ['has', 'point_count']], ['==', ['get', 'nearbyGps'], 1],
+    'all', ['!', ['has', 'point_count']], ['==', ['get', 'gpsInRadius'], 1],
   ];
   if (!map.getLayer(COMMUNITY_OWN_GPS_SATELLITE_GLOW)) {
     map.addLayer({
@@ -181,7 +185,9 @@ export function installCommunityLayers(map: GLMap) {
         'circle-translate-anchor': 'viewport',
         'circle-color': '#22cfff',
         'circle-blur': 0.72,
-        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 0, .45, 12.2, .62, 12.8, 0],
+        'circle-opacity': ['case', ['==', ['get', 'nearbyGps'], 1],
+          ['interpolate', ['linear'], ['zoom'], 0, .48, 12.2, .62, 12.8, 0],
+          ['interpolate', ['linear'], ['zoom'], 0, .30, 12.2, .44, 12.8, 0]],
       },
     });
   }
@@ -193,9 +199,11 @@ export function installCommunityLayers(map: GLMap) {
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 4.3, 8, 5.0, 12.8, 4],
         'circle-translate': [-12, 17],
         'circle-translate-anchor': 'viewport',
-        'circle-color': '#238bff',
-        'circle-stroke-color': '#e9fbff',
-        'circle-stroke-width': 1.6,
+        'circle-color': ['case', ['==', ['get', 'nearbyGps'], 1],
+          '#238bff', '#0c244d'],
+        'circle-stroke-color': ['case', ['==', ['get', 'nearbyGps'], 1],
+          '#e9fbff', '#30dcff'],
+        'circle-stroke-width': ['case', ['==', ['get', 'nearbyGps'], 1], 1.6, 2.3],
         'circle-opacity': ['interpolate', ['linear'], ['zoom'], 0, 1, 12.2, 1, 12.8, 0],
         'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 0, 1, 12.2, 1, 12.8, 0],
       },
