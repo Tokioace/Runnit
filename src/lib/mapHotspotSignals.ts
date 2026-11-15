@@ -92,10 +92,10 @@ function addSimulationHeat(map: GLMap, kind: HotspotKind, id: string, glow: stri
     filter: ['==', ['get', 'kind'], kind],
     paint: {
       'heatmap-weight': 1,
-      'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, .7, 5, 1.0, 10, 1.45],
-      'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 37, 4, 47, 7, 58, 11, 68, 12.8, 10],
+      'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, .55, 5, .76, 10, 1.05],
+      'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 27, 4, 34, 7, 43, 11, 50, 12.8, 10],
       'heatmap-color': gradient(glow, mid, bright),
-      'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 0, .78, 7, .85, 11, .83, 12.8, 0],
+      'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 0, .48, 7, .63, 11, .60, 12.8, 0],
     },
   });
 }
@@ -105,14 +105,20 @@ export function installHotspotTestLayers(map: GLMap) {
   if (!map.getSource(HOTSPOT_TEST_SOURCE))
     map.addSource(HOTSPOT_TEST_SOURCE, { type: 'geojson', data: buildHotspotTestData(false).points });
   if (!map.getSource(HOTSPOT_TEST_CENTERS_SOURCE))
-    map.addSource(HOTSPOT_TEST_CENTERS_SOURCE, { type: 'geojson', data: buildHotspotTestData(false).centers });
+    map.addSource(HOTSPOT_TEST_CENTERS_SOURCE, {
+      type: 'geojson', data: buildHotspotTestData(false).centers,
+      // Only three CITY anchors are clustered: 3 + 10 + 25 becomes 38,
+      // never point_count=3 (cities) or fabricated real-player activity.
+      cluster: true, clusterMaxZoom: 10, clusterRadius: 72,
+      clusterProperties: { total: ['+', ['get', 'count']] },
+    });
 
   addSimulationHeat(map, 'open-race', 'runnit-test-open-heat',
-    'rgba(155,28,151,.24)', 'rgba(227,51,200,.62)', 'rgba(255,124,219,.95)');
+    'rgba(155,28,151,.16)', 'rgba(227,51,200,.48)', 'rgba(255,124,219,.77)');
   addSimulationHeat(map, 'visible-runner', 'runnit-test-runner-heat',
-    'rgba(64,37,167,.24)', 'rgba(138,74,242,.63)', 'rgba(189,139,255,.95)');
+    'rgba(64,37,167,.16)', 'rgba(138,74,242,.49)', 'rgba(189,139,255,.78)');
   addSimulationHeat(map, 'running-match', 'runnit-test-running-heat',
-    'rgba(167,63,29,.20)', 'rgba(255,136,38,.68)', 'rgba(255,211,82,.97)');
+    'rgba(167,63,29,.12)', 'rgba(255,136,38,.43)', 'rgba(255,211,82,.72)');
 
   // Inspect the individual (fake) signals on street zoom: the wide-area
   // thermal cloud gives way to 3/10/25 separate, noninteractive DEMO dots.
@@ -136,21 +142,25 @@ export function installHotspotTestLayers(map: GLMap) {
     map.addLayer({
       id: 'runnit-test-hub-aura', type: 'circle', source: HOTSPOT_TEST_CENTERS_SOURCE,
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 27, 5, 38, 10, 48, 12.8, 12],
-        'circle-color': ['match', ['get','kind'],
-          'open-race', '#f33edb', 'visible-runner', '#9d6cfb', 'running-match', '#ffb73d', '#36e8ff'],
-        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 0, .12, 8, .17, 12.8, 0],
-        'circle-blur': .76,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 22, 5, 29, 10, 35, 12.8, 12],
+        'circle-color': ['case', ['has', 'point_count'], '#8761ff',
+          ['match', ['get', 'kind'],
+            'open-race', '#f33edb', 'visible-runner', '#9d6cfb', 'running-match', '#ffb73d', '#36e8ff']],
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 0, .07, 8, .11, 12.8, 0],
+        'circle-blur': .84,
       },
     });
   if (!map.getLayer(HOTSPOT_TEST_CIRCLES))
     map.addLayer({
       id: HOTSPOT_TEST_CIRCLES, type: 'circle', source: HOTSPOT_TEST_CENTERS_SOURCE,
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 15, 6, 19, 11, 23, 12.8, 3],
+        'circle-radius': ['interpolate', ['linear'],
+          ['coalesce', ['get', 'total'], ['get', 'count']],
+          3, 15, 10, 18, 25, 21, 38, 24],
         'circle-color': '#131d45',
-        'circle-stroke-color': ['match', ['get','kind'],
-          'open-race', '#ff61df', 'visible-runner', '#ad88ff', 'running-match', '#ffd15e', '#39e6ff'],
+        'circle-stroke-color': ['case', ['has', 'point_count'], '#73edff',
+          ['match', ['get','kind'],
+            'open-race', '#ff61df', 'visible-runner', '#ad88ff', 'running-match', '#ffd15e', '#39e6ff']],
         'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 0, 2, 8, 2.5, 12.8, 0],
         'circle-opacity': ['interpolate', ['linear'], ['zoom'], 0, .93, 12.2, .93, 12.8, 0],
         'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 0, 1, 12.2, 1, 12.8, 0],
@@ -160,9 +170,11 @@ export function installHotspotTestLayers(map: GLMap) {
     map.addLayer({
       id: HOTSPOT_TEST_LABELS, type: 'symbol', source: HOTSPOT_TEST_CENTERS_SOURCE,
       layout: {
-        'text-field': ['concat', ['to-string', ['get','count']], '\n', ['get','city']],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 0, 10, 6, 12, 10, 13],
-        'text-offset': [0, 1.6], 'text-anchor': 'top', 'text-allow-overlap': true,
+        // Display the SUM of activities, never MapLibre's count of city anchors.
+        'text-field': ['to-string', ['coalesce', ['get', 'total'], ['get', 'count']]],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 0, 13, 6, 14, 10, 15],
+        'text-offset': [0, 0], 'text-anchor': 'center',
+        'text-allow-overlap': true, 'text-ignore-placement': true,
       },
       paint: {
         'text-color': '#f7fbff', 'text-halo-color': '#091c3b', 'text-halo-width': 2,

@@ -62,8 +62,9 @@ test('simulation has separate GeoJSON sources and color-coded player/match/race 
   assert.match(layer, /'open-race', 'runnit-test-open-heat'/);
   assert.match(layer, /'visible-runner', 'runnit-test-runner-heat'/);
   assert.match(layer, /'running-match', 'runnit-test-running-heat'/);
-  assert.match(layer, /'circle-stroke-color': \['match', \['get','kind'\]/);
-  assert.match(layer, /'text-field': \['concat', \['to-string', \['get','count'\]\]/);
+  assert.match(layer, /'circle-stroke-color': \['case', \['has', 'point_count'\], '#73edff'/);
+  assert.match(layer, /'text-field': \['to-string', \['coalesce', \['get', 'total'\], \['get', 'count'\]\]\]/);
+  assert.match(layer, /'text-offset': \[0, 0\], 'text-anchor': 'center'/);
   assert.match(layer, /id: 'runnit-test-detail-dots', type: 'circle', source: HOTSPOT_TEST_SOURCE/);
   assert.match(layer, /minzoom: 12\.2/);
   assert.match(layer, /12\.2, 0, 12\.8, \.8, 14, 1/);
@@ -92,10 +93,54 @@ test('Hotspot Lab remains legible on iPhone without hiding normal map markers', 
   const css = read('src/styles/arcadeMap.css');
   const renderer = read('src/components/map/ArcadeMapLibreView.tsx');
   assert.match(css, /\.runnit-hotspot-test-console\{/);
-  assert.match(css, /bottom:calc\(176px \+ env\(safe-area-inset-bottom,0px\)\)/);
+  assert.match(css, /bottom:calc\(154px \+ env\(safe-area-inset-bottom,0px\)\)/);
   assert.match(css, /overscroll-behavior:contain/);
   assert.match(css, /\.runnit-hotspot-test-cities button\[aria-pressed="true"\]/);
   assert.match(renderer, /installHotspotTestLayers\(map\)/);
   assert.match(renderer, /installCommunityLayers\(map\)/);
   assert.match(renderer, /map\.easeTo\(\{\s*center: seed \? \[seed\.lng, seed\.lat\] : \[10\.43, 48\.58\]/);
+});
+
+
+test('global hotspot center aggregation sums actual scenario activity, not three city anchors', () => {
+  const map = read('src/lib/mapHotspotSignals.ts');
+  const scenarios = buildHotspotTestData(true).centers.features;
+  assert.equal(scenarios.length, 3);
+  assert.equal(scenarios.reduce((count, center) => count + center.properties.count, 0), 38);
+  assert.match(map, /cluster: true, clusterMaxZoom: 10, clusterRadius: 72/);
+  assert.match(map, /clusterProperties: \{ total: \['\+', \['get', 'count'\]\] \}/);
+  assert.match(map, /'circle-radius': \['interpolate', \['linear'\],\s*\['coalesce', \['get', 'total'\], \['get', 'count'\]\]/);
+  assert.match(map, /'circle-color': \['case', \['has', 'point_count'\], '#8761ff'/);
+  assert.doesNotMatch(map, /'text-field': \['concat', \['to-string', \['get','count'\]\]/);
+});
+
+test('city clicks resolve genuine cluster expansion zoom before opening demo detail points', () => {
+  const renderer = read('src/components/map/ArcadeMapLibreView.tsx');
+  assert.match(renderer, /const clusterId = feature\?\.properties\?\.cluster_id/);
+  assert.match(renderer, /getSource\(HOTSPOT_TEST_CENTERS_SOURCE\) as GeoJSONSource/);
+  assert.match(renderer, /source\.getClusterExpansionZoom\(clusterId\)/);
+  assert.match(renderer, /Math\.max\(13\.2, map\.getZoom\(\)\)/);
+  assert.match(renderer, /map\.off\('click', HOTSPOT_TEST_CIRCLES, onTestHotspotClick\)/);
+});
+
+test('Hotspot Lab starts collapsed and selecting a city hides the menu while keeping the test running', () => {
+  const screen = read('src/screens/MapScreen.tsx');
+  const css = read('src/styles/arcadeMap.css');
+  assert.match(screen, /const \[hotspotLabExpanded, setHotspotLabExpanded\] = useState\(false\)/);
+  assert.match(screen, /'runnit-hotspot-test-console' \+ \(hotspotLabExpanded \? ' is-expanded' : ''\)/);
+  assert.match(screen, /aria-expanded=\{hotspotLabExpanded\}/);
+  assert.match(screen, /aria-controls="runnit-hotspot-test-details"/);
+  assert.match(screen, /setHotspotFocus\(previous => \(\{ city, tick: previous\.tick \+ 1 \}\)\);\s*setHotspotLabExpanded\(false\)/);
+  assert.match(css, /\.runnit-hotspot-test-console\.is-expanded\{/);
+  assert.match(css, /\.runnit-hotspot-test-expander\{/);
+  assert.match(css, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(screen, /!hotspotDemoEnabled && \(players\.some/);
+});
+
+test('test heat glows are visually quieter while the real challenge heat source is unchanged', () => {
+  const map = read('src/lib/mapHotspotSignals.ts');
+  assert.match(map, /'heatmap-radius': \['interpolate', \['linear'\], \['zoom'\], 0, 27, 4, 34, 7, 43, 11, 50/);
+  assert.match(map, /'heatmap-opacity': \['interpolate', \['linear'\], \['zoom'\], 0, \.48, 7, \.63, 11, \.60/);
+  assert.match(map, /'rgba\(167,63,29,\.12\)', 'rgba\(255,136,38,\.43\)', 'rgba\(255,211,82,\.72\)'/);
+  assert.match(map, /'heatmap-opacity': \['interpolate', \['linear'\], \['zoom'\], 0, \.30, 5, \.42, 10, \.45/);
 });

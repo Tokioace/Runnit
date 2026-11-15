@@ -743,6 +743,8 @@ export default function MapScreen() {
   const hotspotTestAvailable = typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('hotspotDemo') === '1';
   const [hotspotDemoEnabled, setHotspotDemoEnabled] = useState(hotspotTestAvailable);
+  // The map stays visible by default. An explicit chip opens this test-only HUD.
+  const [hotspotLabExpanded, setHotspotLabExpanded] = useState(false);
   const [hotspotFocus, setHotspotFocus] = useState<{ city: HotspotTestCity; tick: number }>({ city: 'all', tick: 0 });
   const [mapCamera, setMapCamera] = useState({ zoom: initialZoom, lat: center.lat, lng: center.lng });
   const [arcadeMapView, setArcadeMapView] = useState<ArcadeMapView>('map');
@@ -1421,7 +1423,7 @@ export default function MapScreen() {
           Deine eigenen offenen Rennen konnten nicht aktualisiert werden. Bitte verbinde dich erneut.
         </p>
       )}
-      {arcadeMapView === 'map' && (players.some((player) => player.source === 'demo') ||
+      {arcadeMapView === 'map' && !hotspotDemoEnabled && (players.some((player) => player.source === 'demo') ||
         openRuns.some((run) => run.id.startsWith('demo-run-'))) && (
         <div className="runnit-arcade-demo-chip" role="status"
           title="Demo-Modus: einige Spieler oder Rennen sind frei erfunden">
@@ -1430,36 +1432,53 @@ export default function MapScreen() {
       )}
 
       {hotspotTestAvailable && arcadeMapView === 'map' && !hostOpen && (
-        <section className="runnit-hotspot-test-console" aria-label="Simulierter Community-Hotspot-Test">
-          <div className="runnit-hotspot-test-top">
+        <section className={'runnit-hotspot-test-console' + (hotspotLabExpanded ? ' is-expanded' : '')}
+          aria-label="Simulierter Community-Hotspot-Test">
+          <button type="button" className="runnit-hotspot-test-expander"
+            aria-expanded={hotspotLabExpanded}
+            aria-controls="runnit-hotspot-test-details"
+            onClick={() => setHotspotLabExpanded(value => !value)}>
             <span className="runnit-hotspot-test-title">HOTSPOT LAB <span>· DEMO</span></span>
-            <button type="button" onClick={() => setHotspotDemoEnabled(value => !value)}
-              aria-pressed={hotspotDemoEnabled}>
-              {hotspotDemoEnabled ? 'AUS' : 'TESTEN'}
-            </button>
-          </div>
-          {hotspotDemoEnabled && (
-            <>
-              <p className="runnit-hotspot-test-disclaimer">SIMULATION · KEINE ECHTEN SPIELER ODER MATCHES</p>
-              <div className="runnit-hotspot-test-keys" aria-label="Simulierte Testaktivität">
-                <span><i className="is-open" /> 3 OFFENE</span>
-                <span><i className="is-runner" /> 10 RUNNER</span>
-                <span><i className="is-match" /> 25 MATCHES</span>
+            <span className="runnit-hotspot-test-toggle-icon" aria-hidden="true">{hotspotLabExpanded ? '−' : '+'}</span>
+          </button>
+          {hotspotLabExpanded && (
+            <div id="runnit-hotspot-test-details" className="runnit-hotspot-test-details">
+              <div className="runnit-hotspot-test-top">
+                <p className="runnit-hotspot-test-disclaimer">SIMULATION · KEINE ECHTEN SPIELER ODER MATCHES</p>
+                <button type="button" className="runnit-hotspot-test-power"
+                  onClick={() => {
+                    setHotspotDemoEnabled(value => !value);
+                    setHotspotLabExpanded(false);
+                  }} aria-pressed={hotspotDemoEnabled}>
+                  {hotspotDemoEnabled ? 'AUS' : 'TESTEN'}
+                </button>
               </div>
-              <div className="runnit-hotspot-test-cities">
-                {([
-                  ['all', 'ALLE'],
-                  ['backnang', 'BACKNANG'],
-                  ['stuttgart', 'STUTTGART'],
-                  ['munich', 'MÜNCHEN'],
-                ] as const).map(([city, label]) => (
-                  <button type="button" key={city} aria-pressed={hotspotFocus.city === city}
-                    onClick={() => setHotspotFocus(previous => ({ city, tick: previous.tick + 1 }))}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </>
+              {hotspotDemoEnabled && (
+                <>
+                  <div className="runnit-hotspot-test-keys" aria-label="Simulierte Testaktivität">
+                    <span><i className="is-open" /> 3 OFFENE</span>
+                    <span><i className="is-runner" /> 10 RUNNER</span>
+                    <span><i className="is-match" /> 25 MATCHES</span>
+                  </div>
+                  <div className="runnit-hotspot-test-cities">
+                    {([
+                      ['all', 'ALLE'],
+                      ['backnang', 'BACKNANG'],
+                      ['stuttgart', 'STUTTGART'],
+                      ['munich', 'MÜNCHEN'],
+                    ] as const).map(([city, label]) => (
+                      <button type="button" key={city} aria-pressed={hotspotFocus.city === city}
+                        onClick={() => {
+                          setHotspotFocus(previous => ({ city, tick: previous.tick + 1 }));
+                          setHotspotLabExpanded(false);
+                        }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           )}
         </section>
       )}

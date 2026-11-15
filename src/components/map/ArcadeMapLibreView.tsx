@@ -11,7 +11,7 @@ import type { MapCameraScope } from '../../lib/mapHeadingScope';
 import { groupOverlappingRuns } from '../../lib/mapRunGrouping';
 import { markerPinOpacityAtZoom, markerScaleAtZoom, PIN_FADE_END_ZOOM } from '../../lib/mapMarkerZoom';
 import { COMMUNITY_CLUSTER_LAYER, COMMUNITY_RACE_DOT_LAYER, COMMUNITY_REAL_SOURCE, installCommunityLayers, syncCommunityLayers, type CommunityEntry } from '../../lib/mapCommunityLayers';
-import { HOTSPOT_TEST_CIRCLES, HOTSPOT_TEST_SCENARIOS, installRealHotspotHeat, installHotspotTestLayers, syncHotspotTestLayers, type HotspotTestCity } from '../../lib/mapHotspotSignals';
+import { HOTSPOT_TEST_CENTERS_SOURCE, HOTSPOT_TEST_CIRCLES, HOTSPOT_TEST_SCENARIOS, installRealHotspotHeat, installHotspotTestLayers, syncHotspotTestLayers, type HotspotTestCity } from '../../lib/mapHotspotSignals';
 
 // Required by MapLibre v6 and Vite 8: ship the real same-origin WebGL worker.
 // Without ?worker&url, production may show a blank map without a build failure.
@@ -495,7 +495,25 @@ export default function ArcadeMapLibreView({
       const geometry = feature?.geometry;
       if (!geometry || geometry.type !== 'Point') return;
       const coordinates = geometry.coordinates;
-      map.easeTo({ center: [coordinates[0], coordinates[1]], zoom: Math.min(11, Math.max(8.7, map.getZoom() + 2)), duration: 500 });
+      const target: [number, number] = [coordinates[0], coordinates[1]];
+      const clusterId = feature?.properties?.cluster_id;
+      if (typeof clusterId === 'number') {
+        const source = map.getSource(HOTSPOT_TEST_CENTERS_SOURCE) as GeoJSONSource | undefined;
+        // Jump to the FIRST zoom that genuinely splits this particular
+        // group. Never guess which of the three cities is behind the marker.
+        if (source) {
+          void source.getClusterExpansionZoom(clusterId).then(zoom => {
+            if (mapRef.current !== map) return;
+            map.easeTo({ center: target, zoom: Math.min(13.2, Math.max(zoom + 0.4, map.getZoom() + 1.5)), duration: 500 });
+          }).catch(() => {
+            if (mapRef.current === map)
+              map.easeTo({ center: target, zoom: Math.min(13.2, map.getZoom() + 2.5), duration: 500 });
+          });
+          return;
+        }
+      }
+      // An individual city's hub reveals the individual synthetic signals.
+      map.easeTo({ center: target, zoom: Math.max(13.2, map.getZoom()), duration: 500 });
     };
     map.on('click', HOTSPOT_TEST_CIRCLES, onTestHotspotClick);
     return () => {
