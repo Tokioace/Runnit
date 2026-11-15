@@ -168,6 +168,6 @@ test('person and event markers preserve independent click semantics', () => {
   assert.match(renderer, /onSelectRun\(selectedRun\.id\)/);
   assert.match(renderer, /setLngLat\(eventPopupLngLat\(originalRun\)\)/);
   assert.match(renderer, /setLngLat\(eventPosition\)/);
-  assert.match(renderer, /new Marker\(\{ element: el, anchor: 'center' \}\)/);
-  assert.match(renderer, /new Marker\(\{ element: el, anchor: 'bottom' \}\)/);
+  assert.match(renderer, /new Marker\(\{ element: markerShell\(el\), anchor: 'center' \}\)/);
+  assert.match(renderer, /new Marker\(\{ element: markerShell\(el\), anchor: 'bottom' \}\)/);
 });
