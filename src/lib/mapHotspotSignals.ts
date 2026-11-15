@@ -114,6 +114,24 @@ export function installHotspotTestLayers(map: GLMap) {
   addSimulationHeat(map, 'running-match', 'runnit-test-running-heat',
     'rgba(167,63,29,.20)', 'rgba(255,136,38,.68)', 'rgba(255,211,82,.97)');
 
+  // Inspect the individual (fake) signals on street zoom: the wide-area
+  // thermal cloud gives way to 3/10/25 separate, noninteractive DEMO dots.
+  // No fake race can be joined or mistaken for an authenticated map flag.
+  if (!map.getLayer('runnit-test-detail-dots'))
+    map.addLayer({
+      id: 'runnit-test-detail-dots', type: 'circle', source: HOTSPOT_TEST_SOURCE,
+      minzoom: 12.2,
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 12.2, 2, 14, 4, 17, 5],
+        'circle-color': ['match', ['get','kind'],
+          'open-race', '#f33edb', 'visible-runner', '#9d6cfb', 'running-match', '#ffb73d', '#36e8ff'],
+        'circle-stroke-color': '#0e1839',
+        'circle-stroke-width': 1.5,
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 0, 12.8, .8, 14, 1],
+        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 0, 12.8, .8, 14, 1],
+      },
+    });
+
   if (!map.getLayer('runnit-test-hub-aura'))
     map.addLayer({
       id: 'runnit-test-hub-aura', type: 'circle', source: HOTSPOT_TEST_CENTERS_SOURCE,
