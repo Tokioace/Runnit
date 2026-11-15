@@ -1397,6 +1397,7 @@ export default function MapScreen() {
         onSelectRun={setSelectedRunId}
         onJoinRun={joinArcadeRun}
         onCancelRun={cancelArcadeRun}
+        onOpenRunGroup={() => setArcadeMapView('list')}
         onGhostClick={() => setGhostOpen(true)}
         onHostAt={openHostRunAt}
         onInvalidHostAt={setRaceNotice}
@@ -1627,25 +1628,31 @@ export default function MapScreen() {
       </BottomSheet>
 
       {cancelConfirmation && (
-        <div className="fixed inset-0 z-[1450] flex items-center justify-center bg-[#050816]/85 p-5 text-white backdrop-blur-md">
+        <div className="runnit-cancel-overlay">
           <section role="dialog" aria-modal="true" aria-labelledby="cancel-hosted-title"
-            className="w-full max-w-sm space-y-5 rounded-[28px] border border-rose-300/30 bg-gradient-to-br from-[#2a1936] to-[#101929] p-6 shadow-[0_24px_85px_rgba(0,0,0,.65)]">
-            <h2 id="cancel-hosted-title" className="text-xl font-black">Rennen wirklich absagen?</h2>
-            <p className="text-sm leading-6 text-white/70">
-              Dein {cancelConfirmation.distanceMeters}-m-Rennen wird nur dann abgesagt,
-              wenn noch niemand beigetreten ist. Danach verschwindet es aus den offenen Rennen.
+            className="runnit-cancel-panel">
+            <div className="runnit-cancel-header">
+              <span>RUNNIT // RACE CONTROL</span>
+              <span className="runnit-cancel-warning" aria-hidden="true">!</span>
+              <h2 id="cancel-hosted-title">Rennen wirklich <em>absagen?</em></h2>
+            </div>
+            <div className="runnit-cancel-run-info">
+              <strong>1V1 DUELL · {cancelConfirmation.distanceMeters} M</strong>
+              <span>WARTET AUF GEGNER</span>
+            </div>
+            <p className="runnit-cancel-explainer">
+              Absagen ist nur möglich, solange noch niemand beigetreten ist.
+              Danach verschwindet die offene Challenge von der Karte.
             </p>
-            {cancelError && <p role="alert" className="rounded-xl border border-rose-300/30 bg-rose-400/10 p-3 text-xs leading-5 text-rose-100">{cancelError}</p>}
+            {cancelError && <p role="alert" className="runnit-cancel-error">{cancelError}</p>}
             <button type="button" disabled={Boolean(cancellingRunId)}
               onClick={() => { void confirmCancelHostedRun(); }}
-              className="min-h-14 w-full rounded-xl bg-rose-500 px-4 font-black text-white disabled:opacity-40">
-              {cancellingRunId ? 'Absage wird bestätigt …' : 'Ja, Rennen absagen'}
+              className="runnit-cancel-confirm">
+              {cancellingRunId ? 'ABSAGE WIRD BESTÄTIGT …' : 'JA, RENNEN ABSAGEN ›'}
             </button>
             <button type="button" disabled={Boolean(cancellingRunId)}
               onClick={() => { setCancelConfirmation(null); setCancelError(null); }}
-              className="min-h-12 w-full rounded-xl border border-white/20 bg-white/5 px-4 font-bold text-white/80 disabled:opacity-40">
-              Nein, Rennen behalten
-            </button>
+              className="runnit-cancel-keep">NEIN, RENNEN BEHALTEN</button>
           </section>
         </div>
       )}
