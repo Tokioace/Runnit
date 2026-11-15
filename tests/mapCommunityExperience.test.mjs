@@ -99,8 +99,8 @@ test('real activity orbs derive only from verified open-race clusters and render
   assert.match(community, /id: COMMUNITY_CLUSTER_LAYER, type: 'symbol', source: COMMUNITY_REAL_SOURCE/);
   assert.match(community, /filter: \['has', 'point_count'\]/);
   assert.match(orbs, /map\.setMissingStyleImageResolver\(\(id\) =>/);
-  assert.match(orbs, /const match = \/\^runnit-energy-orb-open-race-/);
+  assert.match(orbs, /const match = \/\^runnit-energy-orb-\(open-race\|own-race\)/);
   assert.match(orbs, /Number\.isSafeInteger\(count\) \|\| count < 1/);
-  assert.match(orbs, /drawEnergyOrb\(\{ id, tone: 'open-race', count \}\)/);
+  assert.match(orbs, /drawEnergyOrb\(\{ id, tone: match\[1\] as 'open-race' \| 'own-race', count \}\)/);
   assert.doesNotMatch(orbs, /from\(['"]duels['"]\)|supabase|fetch\(/);
 });

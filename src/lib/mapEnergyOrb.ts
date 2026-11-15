@@ -7,7 +7,7 @@ import type { Map as GLMap } from 'maplibre-gl';
  * style from local canvas instructions. No external fonts, image downloads,
  * user data, continuous canvas painting, or per-player HTML elements.
  */
-export type EnergyOrbTone = 'open-race' | 'visible-runner' | 'running-match' | 'mixed';
+export type EnergyOrbTone = 'open-race' | 'own-race' | 'visible-runner' | 'running-match' | 'mixed';
 export type OrbSeed = { kind: Exclude<EnergyOrbTone, 'mixed'>; count: number };
 export type EnergyOrbSpec = { id: string; count: number; tone: EnergyOrbTone };
 
@@ -21,6 +21,11 @@ const COLORS: Record<EnergyOrbTone, {
   'open-race': {
     neon: '#ff4be0', shine: '#ffe0ff', glow: 'rgba(255,39,201,.32)',
     veil: 'rgba(255,39,201,0)', secondary: '#ffb8f6',
+  },
+  'own-race': {
+    // Own challenges remain chartreuse, as the original map distinguishes them.
+    neon: '#c9ff0b', shine: '#f4ffe0', glow: 'rgba(174,255,35,.30)',
+    veil: 'rgba(174,255,35,0)', secondary: '#56edff',
   },
   'visible-runner': {
     neon: '#a57aff', shine: '#f4e8ff', glow: 'rgba(151,83,255,.34)',
@@ -209,11 +214,11 @@ export function installEnergyOrbSprites(map: GLMap, seeds: readonly OrbSeed[]) {
  */
 export function installOnDemandRealEnergyOrbs(map: GLMap) {
   map.setMissingStyleImageResolver((id) => {
-    const match = /^runnit-energy-orb-open-race-(\d{1,9})$/.exec(id);
+    const match = /^runnit-energy-orb-(open-race|own-race)-(\d{1,9})$/.exec(id);
     if (!match || map.hasImage(id)) return;
-    const count = Number(match[1]);
+    const count = Number(match[2]);
     if (!Number.isSafeInteger(count) || count < 1) return;
-    const image = drawEnergyOrb({ id, tone: 'open-race', count });
+    const image = drawEnergyOrb({ id, tone: match[1] as 'open-race' | 'own-race', count });
     if (image) map.addImage(id, image, { pixelRatio: ENERGY_ORB_PIXEL_RATIO });
   });
 }

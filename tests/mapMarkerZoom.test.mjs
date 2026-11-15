@@ -46,7 +46,10 @@ test('low zoom uses genuine MapLibre geo clusters and hides HTML markers', () =>
   assert.match(renderer, /syncCommunityLayers\(map, entries, gps\)/);
   assert.match(layers, /id: COMMUNITY_RACE_DOT_LAYER, type: 'circle', source: COMMUNITY_REAL_SOURCE/);
   assert.match(layers, /'circle-radius': \['interpolate', \['linear'\], \['zoom'\]/);
-  assert.match(layers, /'circle-opacity': \['interpolate', \['linear'\], \['zoom'\], 12\.2, 1, 12\.8, 0\]/);
+  // A standalone confirmed event now uses a 01 orb, which crossfades into the HTML pin.
+  assert.match(layers, /id: COMMUNITY_SINGLE_SIGNAL_RING, type: 'symbol', source: COMMUNITY_REAL_SOURCE/);
+  assert.match(layers, /'icon-opacity': \['interpolate', \['linear'\], \['zoom'\],\s*0, 1, 12\.2, 1, 12\.8, 0\]/);
+  assert.match(layers, /'circle-opacity': \['interpolate', \['linear'\], \['zoom'\], 0, \.25, 11, \.25, 12\.2, \.25, 12\.8, 0\]/);
   assert.match(layers, /coordinates: \[item\.lng, item\.lat\]/);
   assert.match(renderer, /syncDistantDots\(map, livePlayersRef\.current, liveRunsRef\.current, latestGpsRef\.current, liveRegionalRef\.current\)/);
 });
