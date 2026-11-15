@@ -85,7 +85,7 @@ test('own open-lobby query requires host ownership and no challenger', async () 
   const result = await listHostedOpenDuels(client, host);
   assert.deepEqual(result, [{ id: duel, hostUserId: host, distanceMeters: 50, createdAt: '2026-11-11T18:00:00Z', location: { lat: 48.94, lng: 9.43 } }]);
   assert.deepEqual(calls, [
-    ['from', 'duels'], ['select', 'id, host_user_id, target_distance_m, created_at, location'],
+    ['from', 'duels'], ['select', 'id, host_user_id, target_distance_m, created_at, expires_at, location'],
     ['eq', 'host_user_id', host], ['eq', 'status', 'open'], ['is', 'challenger_user_id', null],
     ['order', 'created_at', { ascending: false }], ['limit', 20],
   ]);
