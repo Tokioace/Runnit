@@ -141,3 +141,32 @@ test('simulated challenge markers stay stable across normal GPS drift while pann
   assert.match(screen, /\}, \[demoOrigin\?\.lat, demoOrigin\?\.lng\]\)/);
   assert.doesNotMatch(screen, /demo-runs-\$\{Math\.floor\(userCoords\.lat \* 10000\)\}/);
 });
+
+
+test('player markers are circular violet people; race markers are checkered flags independent of range', () => {
+  const renderer = read('src/components/map/ArcadeMapLibreView.tsx');
+  const css = read('src/styles/maplibreArcade.css');
+  assert.match(renderer, /function markerGlyph\(kind: 'runner' \| 'run'\)/);
+  assert.match(renderer, /kind === 'runner'/);
+  assert.match(renderer, /add\('circle', \{ cx: '12', cy: '7', r: '3\.2' \}\)/);
+  assert.match(renderer, /Checkered finish flag/);
+  assert.match(renderer, /markerElement\('runner', '#a985ff', person\.source === 'demo'\)/);
+  assert.match(renderer, /markerElement\('run', originalRun\.isOwn \? '#c9ff0b' : '#f13edc', originalRun\.isDemo\)/);
+  assert.match(css, /\.runnit-gl-marker\.runnit-gl-runner \{/);
+  assert.match(css, /border-radius:50%/);
+  assert.match(css, /\.runnit-gl-marker\.runnit-gl-run \{/);
+  assert.doesNotMatch(renderer, /textContent = kind === 'gps' \? '' : '🏃'/);
+  assert.doesNotMatch(renderer, /person\.distanceAwayMeters|originalRun\.distanceAwayMeters.*markerElement/);
+});
+
+test('person and event markers preserve independent click semantics', () => {
+  const renderer = read('src/components/map/ArcadeMapLibreView.tsx');
+  assert.match(renderer, /Demo-Spieler – Rangliste öffnen/);
+  assert.match(renderer, /Demo-Rennen – Renndetails öffnen/);
+  assert.match(renderer, /callbacks\.current\.onGhostClick\(\)/);
+  assert.match(renderer, /onSelectRun\(selectedRun\.id\)/);
+  assert.match(renderer, /setLngLat\(eventPopupLngLat\(originalRun\)\)/);
+  assert.match(renderer, /setLngLat\(eventPosition\)/);
+  assert.match(renderer, /new Marker\(\{ element: el, anchor: 'center' \}\)/);
+  assert.match(renderer, /new Marker\(\{ element: el, anchor: 'bottom' \}\)/);
+});
