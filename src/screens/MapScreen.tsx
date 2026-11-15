@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ArcadeMapLibreView from '../components/map/ArcadeMapLibreView';
-import OpenEventCountdown from '../components/map/OpenEventCountdown';
 import { isOpenEventAvailable } from '../lib/duelExpiry.ts';
 import { LocateFixed } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
@@ -749,7 +748,7 @@ export default function MapScreen() {
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
-  const [regionalRuns, setRegionalRuns] = useState<Array<{ id: string; location: Coordinates }>>([]);
+  const [regionalRuns, setRegionalRuns] = useState<Array<{ id: string; location: Coordinates; expiresAt?: string }>>([]);
   const [wideMapView, setWideMapView] = useState(false);
   // The synthetic load test is opt-in via ?hotspotDemo=1, off for all normal
   // visitors. No synthetic race/player/match is persisted or queried.
@@ -1051,7 +1050,7 @@ export default function MapScreen() {
       if (!active || error) return;
       setRegionalRuns((data ?? []).flatMap(row => {
         const location = parseGeographyPoint(row.location);
-        return location ? [{ id: row.id as string, location }] : [];
+        return location ? [{ id: row.id as string, location, expiresAt: row.expires_at as string }] : [];
       }));
     };
     void refresh();
@@ -1189,10 +1188,24 @@ export default function MapScreen() {
   // waking Safari from the background. No client UPDATE/DELETE is attempted.
   useEffect(() => {
     const pruneExpired = () => {
-      setOpenRuns(previous => previous.filter(run => !run.expiresAt || isOpenEventAvailable(run.expiresAt)));
-      setHostedOpenDuels(previous => previous.filter(run => !run.expiresAt || isOpenEventAvailable(run.expiresAt)));
+      const now = Date.now();
+      // Return the previous array when nothing expires: a 1Hz deadline
+      // check must NOT rerender the entire MapLibre scene every second.
+      setOpenRuns(previous => {
+        const next = previous.filter(run => !run.expiresAt || isOpenEventAvailable(run.expiresAt, now));
+        return next.length === previous.length ? previous : next;
+      });
+      setHostedOpenDuels(previous => {
+        const next = previous.filter(run => !run.expiresAt || isOpenEventAvailable(run.expiresAt, now));
+        return next.length === previous.length ? previous : next;
+      });
+      setRegionalRuns(previous => {
+        const next = previous.filter(run => !run.expiresAt || isOpenEventAvailable(run.expiresAt, now));
+        return next.length === previous.length ? previous : next;
+      });
     };
-    const interval = window.setInterval(pruneExpired, 15_000);
+    pruneExpired();
+    const interval = window.setInterval(pruneExpired, 1000);
     document.addEventListener('visibilitychange', pruneExpired);
     return () => {
       window.clearInterval(interval);
@@ -1406,6 +1419,13 @@ export default function MapScreen() {
         onSelectRun={setSelectedRunId}
         onJoinRun={joinArcadeRun}
         onCancelRun={cancelArcadeRun}
+        onRunExpired={(id) => {
+          // Device-only instant cleanup; Supabase cron is authoritative.
+          setOpenRuns(previous => previous.filter(run => run.id !== id));
+          setHostedOpenDuels(previous => previous.filter(run => run.id !== id));
+          setRegionalRuns(previous => previous.filter(run => run.id !== id));
+          setDiscoveryRefreshTick(tick => tick + 1);
+        }}
         onOpenRunGroup={() => setArcadeMapView('list')}
         onGhostClick={() => setGhostOpen(true)}
         onHostAt={openHostRunAt}
@@ -1500,22 +1520,6 @@ export default function MapScreen() {
               ? `LIVE SIGNAL · ${regionalRuns.length} ${regionalRuns.length === 1 ? 'CHALLENGE' : 'CHALLENGES'}`
               : 'NETWORK · KEINE LIVE-CHALLENGES'}
         </div>
-      )}
-
-      {/* Show the server-backed timer only for an authenticated host's OPEN
-          lobby. A matched race no longer has a waiting countdown. */}
-      {arcadeMapView === 'map' && hostedOpenDuels.map(run =>
-        run.expiresAt && isOpenEventAvailable(run.expiresAt) ? (
-          <OpenEventCountdown
-            key={run.id} expiresAt={run.expiresAt} variant="hud"
-            onExpire={() => {
-              setHostedOpenDuels(prev => prev.filter(item => item.id !== run.id));
-              setOpenRuns(prev => prev.filter(item => item.id !== run.id));
-              setRegionalRuns(prev => prev.filter(item => item.id !== run.id));
-              setDiscoveryRefreshTick(tick => tick + 1);
-            }}
-          />
-        ) : null
       )}
 
       {/* KARTE stays unobstructed. LISTE contains the interactive run cards. */}
