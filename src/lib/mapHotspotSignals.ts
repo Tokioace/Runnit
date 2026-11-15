@@ -1,5 +1,5 @@
 import type { ExpressionSpecification, GeoJSONSource, Map as GLMap } from 'maplibre-gl';
-import { ENERGY_ORB_PREFIX, installEnergyOrbSprites } from './mapEnergyOrb';
+import { ENERGY_ORB_PREFIX, installEnergyOrbSprites } from './mapEnergyOrb.ts';
 
 /**
  * Read-only visual load test. These coordinates and counts are INVENTED.
