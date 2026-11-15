@@ -294,34 +294,34 @@
 }
 
 
-/* One horizontal Y2K control rail below KARTE/LISTE.
-   No vertical stack: locate on the left, 2D/3D on the right. */
+/* Compact, shared Y2K control rail, immediately beneath KARTE/LISTE.
+   The header starts at 7px, its title row is 54px high, followed by a
+   6px margin and a 52px tab switch (42px button + 8px padding + borders).
+   At 7.75rem the controls start ~5px below its lower edge rather than
+   floating ~30px further down. Both buttons must use the same anchor.
+   The right edge follows the LISTE tab on compact iPhone widths. */
+.runnit-map-arcade{
+  --runnit-map-tools-top:calc(7.75rem + env(safe-area-inset-top,0px));
+  --runnit-map-tools-right:calc(15px + 2.5vw);
+}
 .runnit-map-arcade .runnit-map-locate-slot{
-  right:72px;
-  top:calc(9.4rem + env(safe-area-inset-top,0px));
+  right:calc(var(--runnit-map-tools-right) + 56px);
+  top:var(--runnit-map-tools-top);
 }
 .runnit-map-arcade .runnit-gl-tilt-button{
-  right:16px;
-  top:calc(9.4rem + env(safe-area-inset-top,0px));
+  right:var(--runnit-map-tools-right);
+  top:var(--runnit-map-tools-top);
   width:48px;min-width:48px;height:48px;
   border-radius:11px 4px 11px 4px;
   font-size:13px;line-height:1;
   box-shadow:inset 0 1px #d6f6ff,0 0 8px rgba(40,218,255,.45);
   transition:opacity .12s ease,visibility .12s ease;
 }
-/* Even compact iPhone panels can overlap on pitched maps. Whenever a user
-   opens a race or hosting callout, temporarily retract the 3D switch.
-   It returns as soon as the dialog closes; map pitch state is retained. */
+/* Hide the 2D/3D control while a race or hosting popup is open; preserve the
+   existing popup protection while keeping the shared rail position fixed. */
 .runnit-map-arcade:has(.maplibregl-popup.runnit-gl-race-popup) .runnit-gl-tilt-button,
 .runnit-map-arcade:has(.maplibregl-popup.runnit-gl-host-popup) .runnit-gl-tilt-button{
   opacity:0;visibility:hidden;pointer-events:none;
-}
-@media(max-width:360px){
-  .runnit-map-arcade .runnit-map-locate-slot{right:68px}
-  .runnit-map-arcade .runnit-gl-tilt-button{
-    right:12px;
-    top:calc(9.4rem + env(safe-area-inset-top,0px));
-  }
 }
 @media(prefers-reduced-motion:reduce){
   .runnit-map-arcade .runnit-gl-tilt-button{transition:none}

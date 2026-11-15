@@ -49,7 +49,11 @@ test('2D/3D and recenter are horizontally aligned with full-size touch targets',
   const css = read('src/styles/maplibreArcade.css');
   assert.match(screen, /className="runnit-map-locate-slot pointer-events-auto absolute z-\[950\]"/);
   assert.match(screen, /aria-label="Meinen Standort anzeigen"/);
-  assert.match(css, /\.runnit-map-arcade \.runnit-map-locate-slot\{\s*right:72px;\s*top:calc\(9\.4rem \+ env\(safe-area-inset-top,0px\)\)/);
-  assert.match(css, /\.runnit-map-arcade \.runnit-gl-tilt-button\{\s*right:16px;\s*top:calc\(9\.4rem \+ env\(safe-area-inset-top,0px\)\);\s*width:48px;min-width:48px;height:48px/);
-  assert.match(css, /@media\(max-width:360px\)\{\s*\.runnit-map-arcade \.runnit-map-locate-slot\{right:68px\}/);
+  // Header: 7px top + 54px title + 6px gap + 52px tabs => 119px.
+  // Rail at 7.75rem (124px) leaves only ~5px below the LISTE tab.
+  assert.match(css, /--runnit-map-tools-top:calc\(7\.75rem \+ env\(safe-area-inset-top,0px\)\)/);
+  assert.match(css, /--runnit-map-tools-right:calc\(15px \+ 2\.5vw\)/);
+  assert.match(css, /\.runnit-map-arcade \.runnit-map-locate-slot\{\s*right:calc\(var\(--runnit-map-tools-right\) \+ 56px\);\s*top:var\(--runnit-map-tools-top\)/);
+  assert.match(css, /\.runnit-map-arcade \.runnit-gl-tilt-button\{\s*right:var\(--runnit-map-tools-right\);\s*top:var\(--runnit-map-tools-top\);\s*width:48px;min-width:48px;height:48px/);
+  assert.doesNotMatch(css, /top:calc\(9\.4rem \+ env\(safe-area-inset-top,0px\)\)/);
 });
