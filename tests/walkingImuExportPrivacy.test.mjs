@@ -6,11 +6,9 @@ import ts from 'typescript';
 // Exercise the real, dependency-free export helper rather than inspecting its source.
 const source = readFileSync(new URL('../src/lib/walkingImuExport.ts', import.meta.url), 'utf8');
 const js = ts.transpileModule(source.replace(/^import type .*;\s*/m, ''), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-const module = { exports: {} };
-new Function('module', 'exports', js)(module, module.exports);
-const { createWalkingImuExport } = module.exports;
+const { createWalkingImuExport } = await import('data:text/javascript;base64,' + Buffer.from(js).toString('base64'));
 
 test('walking IMU export uses relative monotonic times and never exports GPS fields', () => {
   const origin = 1800000000123;
