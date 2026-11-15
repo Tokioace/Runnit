@@ -1285,6 +1285,7 @@ export default function MapScreen() {
         ipCoords={ipCoords}
         recenterTick={recenterTick}
         retryTick={tileRetryCount}
+        view={arcadeMapView}
         players={players.filter((player) => player.source !== 'server-unverified').map((player) => ({
           id: player.id,
           location: player.location,

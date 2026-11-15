@@ -56,7 +56,7 @@ test('GPS radar and pins are based on actual geometry, not fake centroids', () =
   assert.match(ml, /radarPolygon\(userCoords\)/);
   assert.match(ml, /radiusMeters = 500/);
   assert.match(ml, /userCoords && finiteCoords\(userCoords\)/);
-  assert.match(ml, /if \(userCoords\) createMarker\(userCoords/);
+  assert.match(ml, /gpsMarkerRef\.current\.setLngLat\(\[userCoords\.lng, userCoords\.lat\]\)/);
   assert.match(ml, /person\.source === 'server-unverified'/);
   assert.match(ml, /if \(run\.isDemo\) addLine\('DEMO/);
   assert.match(ml, /document\.createElement\('div'\)/);
@@ -97,4 +97,38 @@ test('map has no permanent race cards and preserves demo distinction', () => {
   assert.match(chrome, /to="\/sprint-lab"/);
   assert.match(read('src/styles/maplibreArcade.css'), /runnit-gl-run-details/);
   assert.match(read('src/styles/arcadeMap.css'), /runnit-arcade-map-switch/);
+});
+
+
+test('distant event popup is pinned to its own GPS coordinates, not the viewer GPS point', async () => {
+  const { eventPopupLngLat } = await import('../src/lib/mapPopupAnchor.ts');
+  const ownGps = { lat: 48.947, lng: 9.426 };
+  const pinkEvent = { id: 'pink-300m', location: { lat: 48.949, lng: 9.430 } };
+  const fartherEvent = { id: 'pink-5km', location: { lat: 48.977, lng: 9.466 } };
+  assert.deepEqual(eventPopupLngLat(pinkEvent), [9.430, 48.949]);
+  assert.deepEqual(eventPopupLngLat(fartherEvent), [9.466, 48.977]);
+  assert.notDeepEqual(eventPopupLngLat(pinkEvent), [ownGps.lng, ownGps.lat]);
+  assert.notDeepEqual(eventPopupLngLat(fartherEvent), eventPopupLngLat(pinkEvent));
+  assert.throws(() => eventPopupLngLat({ location: { lat: NaN, lng: 9.4 } }), RangeError);
+});
+
+test('race popup persists through GPS updates and map movement, while runner markers keep leaderboard action', () => {
+  const ml = read('src/components/map/ArcadeMapLibreView.tsx');
+  const screen = read('src/screens/MapScreen.tsx');
+  assert.match(ml, /const runMarkerKey = useMemo/);
+  assert.match(ml, /const playerMarkerKey = useMemo/);
+  assert.doesNotMatch(ml, /dataKey\s*=\s*useMemo/);
+  assert.match(ml, /liveRunsRef\.current = runs/);
+  assert.match(ml, /const selectedRun = liveRunsRef\.current\.find\(run => run\.id === originalRun\.id\)/);
+  assert.match(ml, /const eventPosition = eventPopupLngLat\(selectedRun\)/);
+  assert.match(ml, /popup\.addTo\(map\)/);
+  assert.match(ml, /activeRunPopupRef\.current = popup/);
+  assert.match(ml, /closeOnClick: false/);
+  assert.match(ml, /closeOnMove: false/);
+  assert.match(ml, /map\.easeTo\(\{ center: eventPosition/);
+  assert.doesNotMatch(ml, /map\.easeTo\(\{ center: \[userCoords\.lng, userCoords\.lat\][\s\S]*?(?=if \(point\.y)/);
+  assert.match(ml, /\}, \[ready, runMarkerKey\]\)/);
+  assert.match(ml, /gpsMarkerRef\.current\.setLngLat/);
+  assert.match(ml, /callbacks\.current\.onGhostClick\(\)/);
+  assert.match(screen, /view=\{arcadeMapView\}/);
 });
