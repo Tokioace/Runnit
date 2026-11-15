@@ -30,7 +30,9 @@ export function buildCommunityCollections(entries: readonly CommunityEntry[], gp
   for (const item of entries) {
     if (!valid(item)) continue;
     if (item.kind === 'demo-race' || item.kind === 'demo-player') demo.push(item);
-    else {
+    else if (item.kind === 'race') {
+      // Wide-area "LIVE CHALLENGE" numbers count ONLY confirmed open
+      // races, never locally inferred or otherwise unverified players.
       const key = item.kind + ':' + item.id;
       if (!real.has(key) || item.isOwn) real.set(key, item);
     }
