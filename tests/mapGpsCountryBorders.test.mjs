@@ -23,7 +23,7 @@ test('at country zoom the GPS layer remains a visible blue center with cyan halo
   const gps = layers.slice(layers.indexOf('if (!map.getLayer(COMMUNITY_GPS_AURA_LAYER))'));
   assert.match(gps, /'circle-color': '#09bfff'/);
   assert.match(gps, /'circle-color': '#237bff'/);
-  assert.match(gps, /'circle-opacity': \['interpolate', \['linear'\], \['zoom'\], 0, 1, 12\.2, 1, 12\.4, 0\]/);
+  assert.match(gps, /'circle-opacity': \['interpolate', \['linear'\], \['zoom'\], 0, 1, 12\.2, 1, 12\.8, 0\]/);
   assert.match(gps, /'circle-stroke-opacity': \['interpolate', \['linear'\], \['zoom'\], 0, 1, 12\.2, 1, 12\.8, 0\]/);
   assert.doesNotMatch(gps, /11\.5,\s*0,\s*12\.2,\s*0\.78/);
   const view = read('src/components/map/ArcadeMapLibreView.tsx');
@@ -40,7 +40,7 @@ test('country borders use the verified Liberty country layer, with a soft cyan e
   assert.match(renderer, /id: COUNTRY_GLOW_LAYER_ID/);
   assert.match(renderer, /'source-layer': 'boundary'/);
   assert.match(renderer, /'admin_level'\], 2/);
-  assert.match(renderer, /map\.addLayer\(\{[\s\S]*?'line-blur': 2\.8,[\s\S]*?\}, 'boundary_2'\)/);
+  assert.match(renderer, /map\.addLayer\(\{[\s\S]*?'line-blur': 2\.4,[\s\S]*?\}, 'boundary_2'\)/);
   assert.match(renderer, /name === 'boundary_3'/);
   assert.match(renderer, /name === 'boundary_disputed'/);
 });
