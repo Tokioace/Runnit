@@ -407,7 +407,7 @@ function detailElement(run: ArcadeVectorRun, onJoin: () => void, onCancel: () =>
 /** Owns only map rendering: no auth, Supabase, races or geolocation reads. */
 export default function ArcadeMapLibreView({
   initialCenter, initialZoom, userCoords, ipCoords, recenterTick, retryTick, view,
-  players, runs, hostDialogOpen, hostLocation, regionalRuns, hotspotDemoEnabled, hotspotFocus, onWideViewChange, onCameraChange, onSelectRun, onJoinRun, onCancelRun, onRunExpired, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt,
+  players, runs, regionalRuns, hotspotDemoEnabled, hotspotFocus, onWideViewChange, onCameraChange, onSelectRun, onJoinRun, onCancelRun, onRunExpired, onOpenRunGroup, onGhostClick, onHostAt, onInvalidHostAt,
   onTilesLoaded, onTilesError,
 }: ArcadeMapLibreProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
