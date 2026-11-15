@@ -44,7 +44,8 @@ test('simulation is empty until explicitly enabled and never leaks to genuine co
 test('real heatmap reads ONLY verified open-race source and is density-sensitive', () => {
   const heat = read('src/lib/mapHotspotSignals.ts');
   const real = read('src/lib/mapCommunityLayers.ts');
-  assert.match(real, /installRealHotspotHeat\(map, COMMUNITY_REAL_SOURCE, COMMUNITY_SINGLE_HALO_LAYER\)/);
+  const renderer = read('src/components/map/ArcadeMapLibreView.tsx');
+  assert.match(renderer, /installRealHotspotHeat\(map, COMMUNITY_REAL_SOURCE, 'runnit-community-single-glows'\)/);
   assert.match(heat, /id: REAL_HEAT_LAYER,\s*type: 'heatmap',\s*source: realSourceId/);
   assert.match(heat, /'heatmap-weight': \['interpolate', \['linear'\], \['coalesce', \['get', 'point_count'\], 1\]/);
   assert.match(heat, /1, \.14, 3, \.3, 10, \.62, 25, 1/);
