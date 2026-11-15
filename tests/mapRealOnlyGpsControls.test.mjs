@@ -1,0 +1,57 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { projectedMarkersOverlap } from '../src/lib/mapMarkerVisibility.ts';
+import { buildCommunityCollections } from '../src/lib/mapCommunityLayers.ts';
+
+const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
+
+test('normal Runnit map has no synthetic racing events, runner pins or example-race banner', () => {
+  const screen = read('src/screens/MapScreen.tsx');
+  assert.match(screen, /if \(!authUser\) \{\s*discoveryLoadedRef\.current = false;\s*setOpenRuns\(\[\]\)/);
+  assert.match(screen, /if \(!authUser\) \{\s*setPlayers\(\[\]\)/);
+  assert.doesNotMatch(screen, /generateDemoRuns|generateCityPlayers|DEMO · BEISPIELRENNEN/);
+  assert.doesNotMatch(screen, /newPlayers = generateCityPlayers|mapped = generateDemoRuns/);
+  // Explicit opt-in synthetic hotspot lab remains available only via its URL switch.
+  assert.match(screen, /new URLSearchParams\(window\.location\.search\)\.get\('hotspotDemo'\) === '1'/);
+  assert.match(screen, /hotspotTestAvailable && arcadeMapView === 'map'/);
+  assert.match(screen, /\.from\('duels'\)\s*\.select\('id, location'\)\s*\.eq\('status', 'open'\)/);
+});
+
+test('GPS source stays independent of real/demos and is layered behind event orbs', () => {
+  const source = read('src/lib/mapCommunityLayers.ts');
+  assert.match(source, /map\.moveLayer\(COMMUNITY_GPS_AURA_LAYER, COMMUNITY_SINGLE_HALO_LAYER\)/);
+  assert.match(source, /map\.moveLayer\(COMMUNITY_GPS_LAYER, COMMUNITY_SINGLE_HALO_LAYER\)/);
+  const collections = buildCommunityCollections([
+    { id: 'open-1', lat: 48.95, lng: 9.44, kind: 'race', isOwn: true },
+    { id: 'open-1', lat: 48.95, lng: 9.44, kind: 'race' },
+    { id: 'mock', lat: 48.951, lng: 9.44, kind: 'demo-race' },
+  ], { lat: 48.95, lng: 9.44 });
+  assert.equal(collections.real.features.length, 1);
+  assert.equal(collections.demo.features.length, 1);
+  assert.equal(collections.gps.features.length, 1);
+});
+
+test('coincident own race marker hides only decorative HTML GPS marker on street zoom', () => {
+  assert.equal(projectedMarkersOverlap({ x: 150, y: 210 }, { x: 150, y: 210 }), true);
+  assert.equal(projectedMarkersOverlap({ x: 150, y: 210 }, { x: 187, y: 210 }), true);
+  assert.equal(projectedMarkersOverlap({ x: 150, y: 210 }, { x: 188, y: 210 }), false);
+  assert.equal(projectedMarkersOverlap({ x: 150, y: 210 }, { x: 190, y: 210 }), false);
+  assert.equal(projectedMarkersOverlap({ x: Number.NaN, y: 0 }, { x: 0, y: 0 }), false);
+  assert.equal(projectedMarkersOverlap({ x: 0, y: 0 }, { x: 0, y: 0 }, -1), false);
+  const renderer = read('src/components/map/ArcadeMapLibreView.tsx');
+  assert.match(renderer, /visibleRunsRef\.current\.some\(\(item\) =>/);
+  assert.match(renderer, /if \(!item\.isOwn \|\| item\.marker\.getElement\(\)\.style\.display === 'none'\) return false/);
+  assert.match(renderer, /projectedMarkersOverlap\(projectedGps, projectedRun\)/);
+  assert.match(renderer, /if \(overlapsOwnEvent\) gpsShell\.style\.display = 'none'/);
+});
+
+test('2D/3D and recenter are horizontally aligned with full-size touch targets', () => {
+  const screen = read('src/screens/MapScreen.tsx');
+  const css = read('src/styles/maplibreArcade.css');
+  assert.match(screen, /className="runnit-map-locate-slot pointer-events-auto absolute z-\[950\]"/);
+  assert.match(screen, /aria-label="Meinen Standort anzeigen"/);
+  assert.match(css, /\.runnit-map-arcade \.runnit-map-locate-slot\{\s*right:72px;\s*top:calc\(9\.4rem \+ env\(safe-area-inset-top,0px\)\)/);
+  assert.match(css, /\.runnit-map-arcade \.runnit-gl-tilt-button\{\s*right:16px;\s*top:calc\(9\.4rem \+ env\(safe-area-inset-top,0px\)\);\s*width:48px;min-width:48px;height:48px/);
+  assert.match(css, /@media\(max-width:360px\)\{\s*\.runnit-map-arcade \.runnit-map-locate-slot\{right:68px\}/);
+});
