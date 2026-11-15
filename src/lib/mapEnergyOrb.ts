@@ -163,7 +163,10 @@ function drawEnergyOrb(spec: EnergyOrbSpec): ImageData | undefined {
   }
 
   // Custom numeral artwork is baked into the orb, not a generic map font.
-  const text = spec.count < 10 ? `0${spec.count}` : String(spec.count);
+  const text = spec.count < 10 ? `0${spec.count}` :
+    spec.count >= 1000
+      ? new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(spec.count)
+      : String(spec.count);
   ctx.save();
   ctx.translate(cx, cy + 7.7);
   ctx.transform(1, 0, -.15, 1, 0, 0); // race-sport italic even on nonitalic fallback fonts
@@ -194,4 +197,23 @@ export function installEnergyOrbSprites(map: GLMap, seeds: readonly OrbSeed[]) {
     const image = drawEnergyOrb(spec);
     if (image) map.addImage(spec.id, image, { pixelRatio: ENERGY_ORB_PIXEL_RATIO });
   }
+}
+
+/**
+ * In MapLibre v6 missing sprite IDs must be resolved via this method, not
+ * via the old styleimagemissing event. Counts are taken only from the real
+ * cluster's point_count; this callback makes NO claim about active runners.
+ *
+ * Actual production activity is unpredictable, so create each real-race
+ * badge on demand rather than eager-registering hundreds of unused images.
+ */
+export function installOnDemandRealEnergyOrbs(map: GLMap) {
+  map.setMissingStyleImageResolver((id) => {
+    const match = /^runnit-energy-orb-open-race-(\\d{1,9})$/.exec(id);
+    if (!match || map.hasImage(id)) return;
+    const count = Number(match[1]);
+    if (!Number.isSafeInteger(count) || count < 1) return;
+    const image = drawEnergyOrb({ id, tone: 'open-race', count });
+    if (image) map.addImage(id, image, { pixelRatio: ENERGY_ORB_PIXEL_RATIO });
+  });
 }
