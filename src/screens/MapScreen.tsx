@@ -1209,7 +1209,9 @@ export default function MapScreen() {
             if (existingIdx >= 0) {
               copy[existingIdx] = updated;
             } else {
-              copy.unshift(updated);
+              // Append new events instead of pushing the user's current list
+              // viewport down while they are reading an existing challenge.
+              copy.push(updated);
             }
             return copy;
           });
