@@ -786,37 +786,12 @@ export default function MapScreen() {
     }
   }, [authUser]);
 
-  // Stable city demo data generator
-  const generateCityPlayers = useMemo(() => {
-    const seed = `city-${cityName || 'Berlin'}-${Math.floor(center.lat * 1000)}-${Math.floor(center.lng * 1000)}`;
-    const rng = seededRandom(seed);
-    const demoNames = [
-      'SpeedRunner23', 'FlashFeet', 'RocketRunner', 'TurboTom', 'LightningLisa',
-      'FastFreddy', 'QuickQuinn', 'RapidRyan', 'SwiftSarah', 'ZoomZoe',
-      'BlazeRunner', 'VelocityVic', 'DashDave', 'RushRita', 'BoltBen'
-    ];
-    
-    return Array.from({ length: 15 }, (_, i) => ({
-      id: `city-demo-${i}`,
-      username: demoNames[i] || `CityRunner${String(i + 1).padStart(2, '0')}`,
-      rank: i + 1,
-      bestTimeSeconds: 9.2 + (i * 0.4) + (rng() * 0.3),
-      distanceMeters: 100,
-      location: { 
-        lat: center.lat + (rng() - 0.5) * 0.01, 
-        lng: center.lng + (rng() - 0.5) * 0.01 
-      },
-      colorHex: colorForUsernameToHex(demoNames[i] || `CityRunner${String(i + 1).padStart(2, '0')}`),
-      source: 'demo' as const,
-    }));
-  }, [cityName, Math.floor(center.lat * 1000), Math.floor(center.lng * 1000)]);
-
-  // Guests explore labeled demo previews without querying protected run data.
-  // Database policies do not allow anonymous access to runner records.
-  // Load leaderboard (ghost runs) for city - with demo data fallback
+  // Normal map renders only verified activity. The opt-in Hotspot Lab
+  // has its own isolated synthetic source and never populates players.
+  // Leaderboard rows without verified geographic proof stay off the map.
   useEffect(() => {
     if (!authUser) {
-      setPlayers(generateCityPlayers);
+      setPlayers([]);
       setLoadingGhosts(false);
       return;
     }
@@ -849,10 +824,8 @@ export default function MapScreen() {
               source: 'server-unverified',
             } as Player;
           });
-        } else {
-          // Use stable demo data for city leaderboard
-          newPlayers = generateCityPlayers;
         }
+        // No invented users on the real map if the request is empty or fails.
         
         if (!isActive) return;
         setPlayers(newPlayers);
@@ -863,7 +836,7 @@ export default function MapScreen() {
     return () => {
       isActive = false;
     };
-  }, [generateCityPlayers, cityName, authUser?.id]);
+  }, [cityName, authUser?.id]);
 
   // Fetch approximate IP-based location when precise location is unavailable
   useEffect(() => {
@@ -971,43 +944,6 @@ export default function MapScreen() {
     };
   }, [userCoords, ipCoords]);
 
-  // Keep sample race locations stable while the user pans/zooms or GPS drifts.
-  // Regenerate only after a substantial actual move, never per ~10 m GPS fix.
-  const [demoOrigin, setDemoOrigin] = useState<Coordinates | null>(null);
-  useEffect(() => {
-    if (!userCoords) return;
-    setDemoOrigin(previous => {
-      if (!previous ||
-          haversineM(previous.lat, previous.lng, userCoords.lat, userCoords.lng) > 750) {
-        return { lat: userCoords.lat, lng: userCoords.lng };
-      }
-      return previous;
-    });
-  }, [userCoords?.lat, userCoords?.lng]);
-
-  // Stable demo runs generator
-  const generateDemoRuns = useMemo(() => {
-    if (!demoOrigin) return [];
-
-    const seed = `demo-runs-${Math.floor(demoOrigin.lat * 10000)}-${Math.floor(demoOrigin.lng * 10000)}`;
-    const rng = seededRandom(seed);
-    const demoHosts = ['ChallengeMaster', 'RaceKing', 'SprintQueen'];
-    const distances = [50, 75, 100];
-    
-    return Array.from({ length: 3 }, (_, i) => ({
-      id: `demo-run-${i}`,
-      hostUserId: `demo-host-${i}`,
-      hostUsername: demoHosts[i],
-      distanceMeters: distances[i],
-      location: {
-        lat: demoOrigin.lat + (rng() - 0.5) * 0.005, // ~250m radius
-        lng: demoOrigin.lng + (rng() - 0.5) * 0.005,
-      },
-      createdAt: new Date(Date.now() - rng() * 300000).toISOString(), // Stable time in last 5 min
-      targetDistanceM: distances[i],
-    }));
-  }, [demoOrigin?.lat, demoOrigin?.lng]);
-
   // GPS can update every second. Nearby discovery should not flicker or
   // reload for ordinary sensor drift; Realtime handles urgent race changes.
   useEffect(() => {
@@ -1023,12 +959,12 @@ export default function MapScreen() {
     return () => window.clearInterval(id);
   }, [authUser?.id]);
 
-  // Guests see clearly labeled sample challenges, not private Supabase rows.
-  // First load may show a placeholder; background refreshes are completely silent.
+  // Guests have an empty real challenge feed: protected user/duel data stays private.
+  // Background refreshes never inject fabricated example races.
   useEffect(() => {
     if (!authUser) {
       discoveryLoadedRef.current = false;
-      setOpenRuns(generateDemoRuns);
+      setOpenRuns([]);
       setLoadingDuels(false);
       return;
     }
@@ -1068,8 +1004,6 @@ export default function MapScreen() {
               } as OpenRun;
             })
             .filter((run): run is OpenRun => run !== null);
-        } else {
-          mapped = generateDemoRuns;
         }
 
         if (isActive) setOpenRuns(previous => reconcileOpenRaces(previous, mapped, authUser.id));
@@ -1081,7 +1015,7 @@ export default function MapScreen() {
       }
     })();
     return () => { isActive = false; };
-  }, [generateDemoRuns, discoveryCoords?.lat, discoveryCoords?.lng, authUser?.id, discoveryRefreshTick]);
+  }, [discoveryCoords?.lat, discoveryCoords?.lng, authUser?.id, discoveryRefreshTick]);
 
   // A regional view must reflect real open challenges, not invented demo
   // accounts or private users. Existing authenticated RLS permits reading
@@ -1423,14 +1357,6 @@ export default function MapScreen() {
           Deine eigenen offenen Rennen konnten nicht aktualisiert werden. Bitte verbinde dich erneut.
         </p>
       )}
-      {arcadeMapView === 'map' && !hotspotDemoEnabled && (players.some((player) => player.source === 'demo') ||
-        openRuns.some((run) => run.id.startsWith('demo-run-'))) && (
-        <div className="runnit-arcade-demo-chip" role="status"
-          title="Demo-Modus: einige Spieler oder Rennen sind frei erfunden">
-          DEMO · BEISPIELRENNEN
-        </div>
-      )}
-
       {hotspotTestAvailable && arcadeMapView === 'map' && !hostOpen && (
         <section className={'runnit-hotspot-test-console' + (hotspotLabExpanded ? ' is-expanded' : '')}
           aria-label="Simulierter Community-Hotspot-Test">
@@ -1530,7 +1456,7 @@ export default function MapScreen() {
       />
 
       {/* Map-only controls must not float over scrollable race cards. */}
-      {arcadeMapView === 'map' && <div className="pointer-events-auto absolute right-4 top-[calc(9.4rem+env(safe-area-inset-top))] z-[950]">
+      {arcadeMapView === 'map' && <div className="runnit-map-locate-slot pointer-events-auto absolute z-[950]">
         <button
           onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
           className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/70 bg-[#10254f]/90 text-cyan-100 shadow-[0_12px_35px_rgba(0,0,0,.4)] backdrop-blur-xl transition hover:bg-violet-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"

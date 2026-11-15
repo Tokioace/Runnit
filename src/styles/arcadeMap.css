@@ -59,16 +59,6 @@
 
 /* iPhone visual acceptance: map preview is the sole event detail surface.
    The old Leaflet popup and oversized independent demo tiles were removed. */
-.runnit-map-arcade .runnit-arcade-demo-chip{
-  pointer-events:none;position:absolute;z-index:940;
-  top:calc(161px + env(safe-area-inset-top,0px));
-  left:12px;max-width:calc(100% - 85px);
-  border:1px solid rgba(255,208,76,.8);border-radius:9px 3px;
-  background:rgba(23,17,28,.9);color:#ffdc7b;
-  box-shadow:0 0 10px rgba(237,161,30,.2);
-  padding:5px 9px;font-size:10px;line-height:1.1;font-weight:950;
-  font-style:italic;letter-spacing:.04em;
-}
 .runnit-arcade-map-lab-link{
   display:flex;align-items:center;justify-content:center;gap:6px;
   margin:0 0 12px;min-height:44px;padding:8px 10px;
@@ -94,7 +84,6 @@
   top:calc(212px + env(safe-area-inset-top,0px));
 }
 @media(max-width:360px){
- .runnit-map-arcade .runnit-arcade-demo-chip{font-size:9px;padding:5px 6px;left:7px;max-width:calc(100% - 73px)}
  .runnit-arcade-map-race-info p{font-size:8px}
 }
 

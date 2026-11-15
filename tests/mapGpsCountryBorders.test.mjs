@@ -58,14 +58,15 @@ test('bright green park outlines and pale residential/landcover polygons are tun
   assert.match(renderer, /if \(wetland\) map\.setPaintProperty\(layer\.id, 'fill-pattern', null\)/);
 });
 
-test('3D/2D switch is stacked under locate and never obscures an active popup', () => {
+test('3D/2D switch is horizontally beside locate and never obscures an active popup', () => {
   const css = read('src/styles/maplibreArcade.css');
   const screen = read('src/screens/MapScreen.tsx');
   const view = read('src/components/map/ArcadeMapLibreView.tsx');
-  assert.match(css, /top:calc\(9\.4rem \+ env\(safe-area-inset-top,0px\) \+ 56px\)/);
+  assert.match(css, /\.runnit-map-locate-slot\{\s*right:72px/);
+  assert.match(css, /top:calc\(9\.4rem \+ env\(safe-area-inset-top,0px\)\)/);
   assert.match(css, /:has\(\.maplibregl-popup\.runnit-gl-race-popup\) \.runnit-gl-tilt-button/);
   assert.match(css, /:has\(\.maplibregl-popup\.runnit-gl-host-popup\) \.runnit-gl-tilt-button/);
   assert.match(css, /opacity:0;visibility:hidden;pointer-events:none/);
-  assert.match(screen, /right-4 top-\[calc\(9\.4rem\+env\(safe-area-inset-top\)\)\]/);
+  assert.match(screen, /runnit-map-locate-slot pointer-events-auto absolute/);
   assert.match(view, /aria-pressed=\{tilted\}/);
 });

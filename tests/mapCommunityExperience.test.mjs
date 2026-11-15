@@ -65,7 +65,9 @@ test('country map uses MapLibre clustering with real totals and zoom-to-explore'
   assert.match(screen, /\.eq\('status', 'open'\)/);
   assert.match(screen, /\.select\('id, location'\)/);
   assert.match(screen, /!authUser \|\| !wideMapView/);
-  assert.match(screen, /DEMO · BEISPIELRENNEN/);
+  // Normal map must not synthesize examples when no genuine race is returned.
+  assert.doesNotMatch(screen, /DEMO · BEISPIELRENNEN/);
+  assert.doesNotMatch(screen, /generateDemoRuns|generateCityPlayers|mapped = generateDemoRuns/);
 });
 
 test('automatic refresh cannot inject loading banners, reorder selected card or shift list', () => {

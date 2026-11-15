@@ -26,3 +26,18 @@ export function markerInViewport(
     projected.x >= left && projected.x <= viewport.width - right &&
     projected.y >= viewport.top && projected.y <= viewport.bottom;
 }
+
+
+/** A real GPS fix and an own race can project to the same pixels.
+ * At street zoom the event pin must remain clickable and readable.
+ * GPS coordinates, tracking and the cyan radar stay unchanged; only the
+ * duplicate HTML blue dot is hidden while there is a visual collision. */
+export function projectedMarkersOverlap(
+  first: ViewportPoint,
+  second: ViewportPoint,
+  thresholdPx = 38,
+): boolean {
+  if (![first.x, first.y, second.x, second.y, thresholdPx].every(Number.isFinite) ||
+      thresholdPx <= 0) return false;
+  return Math.hypot(first.x - second.x, first.y - second.y) < thresholdPx;
+}
