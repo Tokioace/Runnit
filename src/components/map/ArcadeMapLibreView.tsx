@@ -10,8 +10,8 @@ import { markerInViewport } from '../../lib/mapMarkerVisibility';
 import type { MapCameraScope } from '../../lib/mapHeadingScope';
 import { groupOverlappingRuns } from '../../lib/mapRunGrouping';
 import { markerPinOpacityAtZoom, markerScaleAtZoom, PIN_FADE_END_ZOOM } from '../../lib/mapMarkerZoom';
-import { COMMUNITY_CLUSTER_LAYER, COMMUNITY_RACE_DOT_LAYER, installCommunityLayers, syncCommunityLayers, type CommunityEntry } from '../../lib/mapCommunityLayers';
-import { HOTSPOT_TEST_CIRCLES, HOTSPOT_TEST_SCENARIOS, installHotspotTestLayers, syncHotspotTestLayers, type HotspotTestCity } from '../../lib/mapHotspotSignals';
+import { COMMUNITY_CLUSTER_LAYER, COMMUNITY_RACE_DOT_LAYER, COMMUNITY_REAL_SOURCE, installCommunityLayers, syncCommunityLayers, type CommunityEntry } from '../../lib/mapCommunityLayers';
+import { HOTSPOT_TEST_CIRCLES, HOTSPOT_TEST_SCENARIOS, installRealHotspotHeat, installHotspotTestLayers, syncHotspotTestLayers, type HotspotTestCity } from '../../lib/mapHotspotSignals';
 
 // Required by MapLibre v6 and Vite 8: ship the real same-origin WebGL worker.
 // Without ?worker&url, production may show a blank map without a build failure.
@@ -269,6 +269,7 @@ function styleArcadeMap(map: GLMap) {
   }
   // WebGL-clustered community layer, with demo and GPS kept separate.
   installCommunityLayers(map);
+  installRealHotspotHeat(map, COMMUNITY_REAL_SOURCE, 'runnit-community-single-glows');
   installHotspotTestLayers(map);
 }
 
