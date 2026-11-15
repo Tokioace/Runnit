@@ -113,3 +113,37 @@
   border-color:#cbff0b;
   box-shadow:inset 0 1px #f5ffbe,0 0 0 2px rgba(180,255,0,.36),0 0 18px #cbff0b;
 }
+
+/* iPhone-safe race and long-press cards.
+   MapLibre's projected popup transform can crop a card beyond the edge of a
+   3D/pitched map. For narrow screens a bounded floating panel is more reliable
+   than moving the entire camera around to fit a tooltip. */
+@media(max-width:650px){
+  .runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup,
+  .runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup {
+    position:fixed!important;
+    top:auto!important;right:auto!important;
+    bottom:calc(105px + env(safe-area-inset-bottom,0px))!important;
+    left:50%!important;transform:translateX(-50%)!important;
+    width:min(310px,calc(100vw - 26px))!important;
+    max-width:calc(100vw - 26px)!important;
+    z-index:980!important;pointer-events:auto;
+  }
+  .runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup .maplibregl-popup-content,
+  .runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup .maplibregl-popup-content {
+    max-height:min(50dvh,380px);
+    overflow-y:auto;overscroll-behavior:contain;
+    box-sizing:border-box;
+  }
+  .runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup .maplibregl-popup-tip,
+  .runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup .maplibregl-popup-tip {
+    display:none;
+  }
+  .runnit-map-arcade .runnit-gl-run-details,
+  .runnit-map-arcade .runnit-gl-host-details {
+    width:100%;max-width:none;min-width:0;box-sizing:border-box;
+    overflow-wrap:anywhere;
+  }
+  .runnit-map-arcade .runnit-gl-run-details {padding-right:7px;}
+  .runnit-map-arcade .runnit-gl-host-details strong {padding-right:27px;}
+}

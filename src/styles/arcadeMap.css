@@ -186,3 +186,27 @@
 }
 
 /* Persistent hosted-races panel and obsolete list-host CTA are removed; own races use their lime pin. */
+
+/* Unobtrusive status: never insert/remove rows during auto-refresh. */
+.runnit-arcade-live-dot {
+  display:inline-flex;align-items:center;gap:4px;margin-right:8px;
+  font-size:9px;font-weight:900;letter-spacing:.09em;color:#d0f7ff;
+}
+.runnit-arcade-live-dot::before {
+  content:"";height:6px;width:6px;flex:none;border-radius:50%;
+  background:#ff4e63;box-shadow:0 0 7px rgba(255,78,99,.65);
+}
+.runnit-arcade-map-list{overflow-anchor:none;-webkit-overflow-scrolling:touch;}
+.runnit-community-map-legend{
+  pointer-events:none;position:absolute;left:12px;
+  bottom:calc(91px + env(safe-area-inset-bottom,0px));z-index:900;
+  max-width:calc(100% - 95px);display:flex;align-items:center;gap:6px;
+  padding:7px 10px;border:1px solid rgba(66,229,255,.48);
+  border-radius:9px 3px;background:rgba(6,18,47,.88);
+  color:#e1f8ff;font-size:10px;font-weight:900;letter-spacing:.035em;
+  box-shadow:0 0 12px rgba(20,219,255,.22);
+}
+.runnit-community-map-signal{
+  width:7px;height:7px;flex:none;border-radius:50%;
+  background:#f14d66;box-shadow:0 0 8px #f14d66;
+}

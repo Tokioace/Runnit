@@ -8,7 +8,7 @@ test('MapLibre replaces only Leaflet rendering; secure race operations stay in M
   const map = read('src/screens/MapScreen.tsx');
   assert.match(map, /<ArcadeMapLibreView/);
   assert.doesNotMatch(map, /<MapContainer|<TileLayer|<MapBadgeMarker|<Popup/);
-  assert.match(map, /getNearbyDuels\(supabase, \{ userLocation: userCoords, radiusKm: 5 \}\)/);
+  assert.match(map, /getNearbyDuels\(supabase, \{ userLocation: discoveryCoords, radiusKm: 5 \}\)/);
   assert.match(map, /onJoinRun=\{joinArcadeRun\}/);
   assert.match(map, /onCancelRun=\{cancelArcadeRun\}/);
   assert.match(map, /onGhostClick=\{\(\) => setGhostOpen\(true\)\}/);

@@ -8,6 +8,7 @@ import { eventPopupLngLat } from '../../lib/mapPopupAnchor';
 import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters, validMapPoint } from '../../lib/mapHostPlacement';
 import { markerInViewport } from '../../lib/mapMarkerVisibility';
 import { markerPinOpacityAtZoom, markerScaleAtZoom, PIN_FADE_END_ZOOM } from '../../lib/mapMarkerZoom';
+import { COMMUNITY_CLUSTER_LAYER, COMMUNITY_RACE_DOT_LAYER, installCommunityLayers, syncCommunityLayers, type CommunityEntry } from '../../lib/mapCommunityLayers';
 
 // Required by MapLibre v6 and Vite 8: ship the real same-origin WebGL worker.
 // Without ?worker&url, production may show a blank map without a build failure.
@@ -16,8 +17,6 @@ setWorkerUrl(workerUrl);
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 const BUILDING_TILES = 'https://tiles.openfreemap.org/planet';
 const RADAR_ID = 'runnit-gps-radar';
-const DISTANT_DOT_SOURCE = 'runnit-distance-dots';
-const DISTANT_DOT_LAYER = 'runnit-distance-dot-circles';
 const BUILDING_LAYER_ID = 'runnit-3d-buildings';
 const PITCH_DEGREES = 46;
 const BEARING_DEGREES = -13;
@@ -41,6 +40,8 @@ export type ArcadeMapLibreProps = {
   view: ArcadeMapView;
   players: readonly ArcadeVectorPlayer[];
   runs: readonly ArcadeVectorRun[];
+  regionalRuns: readonly { id: string; location: MapCoordinate }[];
+  onWideViewChange: (wide: boolean) => void;
   onSelectRun: (id: string) => void;
   onJoinRun: (id: string) => void;
   onCancelRun: (id: string) => void;
@@ -147,58 +148,37 @@ function styleArcadeMap(map: GLMap) {
       },
     });
   }
-  // Real WebGL points follow geographic coordinates, not HTML marker transforms.
-  // Render tiny pins at country/region zoom; crossfade into the detailed HTML art.
-  if (!map.getSource(DISTANT_DOT_SOURCE)) {
-    map.addSource(DISTANT_DOT_SOURCE, {
-      type: 'geojson', data: { type: 'FeatureCollection', features: [] },
-    });
-  }
-  if (!map.getLayer(DISTANT_DOT_LAYER)) {
-    map.addLayer({
-      id: DISTANT_DOT_LAYER, type: 'circle', source: DISTANT_DOT_SOURCE,
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'],
-          0, 1.7, 5, 2.0, 9, 2.8, 12.8, 5.0],
-        'circle-color': ['get', 'color'],
-        'circle-stroke-color': '#0b1837',
-        'circle-stroke-width': 0.8,
-        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0],
-        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 1, 12.8, 0],
-      },
-    });
-  }
+  // WebGL-clustered community layer, with demo and GPS kept separate.
+  installCommunityLayers(map);
 }
 
-/** Keep dots in MapLibre's renderer so projected locations never get pushed to a
- * screen edge by browser layout or HTML marker wrapping at small zoom levels. */
+/** MapLibre geo clusters use the same race locations as the local HTML pins.
+ * Regional counts never include sample users or the device location. */
 function syncDistantDots(
   map: GLMap,
   players: readonly ArcadeVectorPlayer[],
   runs: readonly ArcadeVectorRun[],
   gps: MapCoordinate | null,
+  regionalRuns: readonly { id: string; location: MapCoordinate }[],
 ) {
-  const source = map.getSource(DISTANT_DOT_SOURCE) as GeoJSONSource | undefined;
-  if (!source) return;
-  const points = [
-    ...players.filter(player => player.source !== 'server-unverified' && finiteCoords(player.location))
-      .map(player => ({ position: player.location, color: '#a985ff' })),
-    ...runs.filter(run => finiteCoords(run.location))
-      .map(run => ({ position: run.location, color: run.isOwn ? '#c9ff0b' : '#f13edc' })),
-    ...(gps && finiteCoords(gps) ? [{ position: gps, color: '#19e7ff' }] : []),
-  ];
-  source.setData({
-    type: 'FeatureCollection',
-    features: points.map(point => ({
-      type: 'Feature' as const,
-      properties: { color: point.color },
-      geometry: {
-        type: 'Point' as const,
-        coordinates: [point.position.lng, point.position.lat],
-      },
+  const entries: CommunityEntry[] = [
+    ...runs.map(run => ({
+      id: run.id, lat: run.location.lat, lng: run.location.lng,
+      kind: (run.isDemo ? 'demo-race' : 'race') as CommunityEntry['kind'],
+      isOwn: run.isOwn,
     })),
-  });
+    ...regionalRuns.map(run => ({
+      id: run.id, lat: run.location.lat, lng: run.location.lng,
+      kind: 'race' as const,
+    })),
+    ...players.filter(player => player.source !== 'server-unverified').map(player => ({
+      id: player.id, lat: player.location.lat, lng: player.location.lng,
+      kind: (player.source === 'demo' ? 'demo-player' : 'player') as CommunityEntry['kind'],
+    })),
+  ];
+  syncCommunityLayers(map, entries, gps);
 }
+
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -287,7 +267,7 @@ function detailElement(run: ArcadeVectorRun, onJoin: () => void, onCancel: () =>
 /** Owns only map rendering: no auth, Supabase, races or geolocation reads. */
 export default function ArcadeMapLibreView({
   initialCenter, initialZoom, userCoords, ipCoords, recenterTick, retryTick, view,
-  players, runs, onSelectRun, onJoinRun, onCancelRun, onGhostClick, onHostAt, onInvalidHostAt,
+  players, runs, regionalRuns, onWideViewChange, onSelectRun, onJoinRun, onCancelRun, onGhostClick, onHostAt, onInvalidHostAt,
   onTilesLoaded, onTilesError,
 }: ArcadeMapLibreProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -304,10 +284,12 @@ export default function ArcadeMapLibreView({
   liveRunsRef.current = runs;
   const livePlayersRef = useRef(players);
   livePlayersRef.current = players;
+  const liveRegionalRef = useRef(regionalRuns);
+  liveRegionalRef.current = regionalRuns;
   const [ready, setReady] = useState(false);
   const [tilted, setTilted] = useState(true);
-  const callbacks = useRef({ onSelectRun, onJoinRun, onCancelRun, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError });
-  callbacks.current = { onSelectRun, onJoinRun, onCancelRun, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError };
+  const callbacks = useRef({ onSelectRun, onJoinRun, onCancelRun, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange });
+  callbacks.current = { onSelectRun, onJoinRun, onCancelRun, onGhostClick, onHostAt, onInvalidHostAt, onTilesLoaded, onTilesError, onWideViewChange };
   const firstGPS = useRef(false);
   const firstIP = useRef(false);
   const previousRecenter = useRef(recenterTick);
@@ -316,6 +298,7 @@ export default function ArcadeMapLibreView({
   const playerMarkerKey = useMemo(() => JSON.stringify(players.map(person => [
     person.id, person.location.lat, person.location.lng, person.colorHex, person.source,
   ])), [players]);
+  const regionalMarkerKey = useMemo(() => JSON.stringify(regionalRuns.map(run => [run.id, run.location.lat, run.location.lng])), [regionalRuns]);
   const runMarkerKey = useMemo(() => JSON.stringify(runs.map(run => [
     run.id, run.location.lat, run.location.lng, run.isOwn, run.isDemo,
     run.hostUsername, run.distanceMeters,
@@ -338,8 +321,9 @@ export default function ArcadeMapLibreView({
     const onStyle = () => {
       try {
         styleArcadeMap(map);
-        syncDistantDots(map, livePlayersRef.current, liveRunsRef.current, latestGpsRef.current);
+        syncDistantDots(map, livePlayersRef.current, liveRunsRef.current, latestGpsRef.current, liveRegionalRef.current);
         callbacks.current.onTilesLoaded();
+        callbacks.current.onWideViewChange(map.getZoom() <= 11.2);
         setReady(true);
       } catch {
         callbacks.current.onTilesError();
@@ -349,11 +333,24 @@ export default function ArcadeMapLibreView({
       // A tile or style load failure is not an invented GPS fix.
       callbacks.current.onTilesError();
     };
+    const onZoomEnd = () => callbacks.current.onWideViewChange(map.getZoom() <= 11.2);
+    const onCommunityClusterClick = (event: import('maplibre-gl').MapLayerMouseEvent) => {
+      const geometry = event.features?.[0]?.geometry;
+      if (!geometry || geometry.type !== 'Point') return;
+      const coordinates = geometry.coordinates;
+      map.easeTo({ center: [coordinates[0], coordinates[1]], zoom: Math.min(map.getZoom() + 2.5, 13), duration: 400 });
+    };
     map.on('style.load', onStyle);
     map.on('error', onFailure);
+    map.on('zoomend', onZoomEnd);
+    map.on('click', COMMUNITY_CLUSTER_LAYER, onCommunityClusterClick);
+    map.on('click', COMMUNITY_RACE_DOT_LAYER, onCommunityClusterClick);
     return () => {
       map.off('style.load', onStyle);
       map.off('error', onFailure);
+      map.off('zoomend', onZoomEnd);
+      map.off('click', COMMUNITY_CLUSTER_LAYER, onCommunityClusterClick);
+      map.off('click', COMMUNITY_RACE_DOT_LAYER, onCommunityClusterClick);
       activeRunPopupRef.current?.remove();
       activeRunPopupRef.current = null;
       hostPopupRef.current?.remove();
@@ -408,7 +405,7 @@ export default function ArcadeMapLibreView({
       gpsMarkerRef.current?.remove();
       gpsMarkerRef.current = null;
     }
-    syncDistantDots(map, livePlayersRef.current, liveRunsRef.current, userCoords);
+    syncDistantDots(map, livePlayersRef.current, liveRunsRef.current, userCoords, liveRegionalRef.current);
     refreshVisiblePins();
   }, [ready, userCoords?.lat, userCoords?.lng]);
 
@@ -511,6 +508,7 @@ export default function ArcadeMapLibreView({
       if (Date.now() - lastOpened < 900) return;
       lastOpened = Date.now();
       ignoreMapClickUntilRef.current = Date.now() + 900;
+      closeHostPopup();
       const gps = latestGpsRef.current;
       if (!validMapPoint(gps)) {
         callbacks.current.onInvalidHostAt('Zum Platzieren eines Rennens benötigst du einen GPS-Standort.');
@@ -614,8 +612,8 @@ export default function ArcadeMapLibreView({
   // either the map or the detailed marker DOM nodes.
   useEffect(() => {
     const map = mapRef.current;
-    if (map && ready) syncDistantDots(map, livePlayersRef.current, liveRunsRef.current, latestGpsRef.current);
-  }, [ready, playerMarkerKey, runMarkerKey]);
+    if (map && ready) syncDistantDots(map, livePlayersRef.current, liveRunsRef.current, latestGpsRef.current, liveRegionalRef.current);
+  }, [ready, playerMarkerKey, runMarkerKey, regionalMarkerKey]);
 
   // Green/yellow demo runners still open the leaderboard, never a race popup.
   useEffect(() => {
