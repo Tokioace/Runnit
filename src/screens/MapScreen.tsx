@@ -950,11 +950,25 @@ export default function MapScreen() {
     };
   }, [userCoords, ipCoords]);
 
+  // Keep sample race locations stable while the user pans/zooms or GPS drifts.
+  // Regenerate only after a substantial actual move, never per ~10 m GPS fix.
+  const [demoOrigin, setDemoOrigin] = useState<Coordinates | null>(null);
+  useEffect(() => {
+    if (!userCoords) return;
+    setDemoOrigin(previous => {
+      if (!previous ||
+          haversineM(previous.lat, previous.lng, userCoords.lat, userCoords.lng) > 750) {
+        return { lat: userCoords.lat, lng: userCoords.lng };
+      }
+      return previous;
+    });
+  }, [userCoords?.lat, userCoords?.lng]);
+
   // Stable demo runs generator
   const generateDemoRuns = useMemo(() => {
-    if (!userCoords) return [];
-    
-    const seed = `demo-runs-${Math.floor(userCoords.lat * 10000)}-${Math.floor(userCoords.lng * 10000)}`;
+    if (!demoOrigin) return [];
+
+    const seed = `demo-runs-${Math.floor(demoOrigin.lat * 10000)}-${Math.floor(demoOrigin.lng * 10000)}`;
     const rng = seededRandom(seed);
     const demoHosts = ['ChallengeMaster', 'RaceKing', 'SprintQueen'];
     const distances = [50, 75, 100];
@@ -965,13 +979,13 @@ export default function MapScreen() {
       hostUsername: demoHosts[i],
       distanceMeters: distances[i],
       location: {
-        lat: userCoords.lat + (rng() - 0.5) * 0.005, // ~250m radius
-        lng: userCoords.lng + (rng() - 0.5) * 0.005,
+        lat: demoOrigin.lat + (rng() - 0.5) * 0.005, // ~250m radius
+        lng: demoOrigin.lng + (rng() - 0.5) * 0.005,
       },
       createdAt: new Date(Date.now() - rng() * 300000).toISOString(), // Stable time in last 5 min
       targetDistanceM: distances[i],
     }));
-  }, [userCoords ? Math.floor(userCoords.lat * 10000) : 0, userCoords ? Math.floor(userCoords.lng * 10000) : 0]);
+  }, [demoOrigin?.lat, demoOrigin?.lng]);
 
   // Guests see clearly labeled sample challenges, not private Supabase rows.
   // Load nearby open duels - with demo data fallback
