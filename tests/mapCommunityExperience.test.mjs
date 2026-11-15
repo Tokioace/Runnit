@@ -54,7 +54,10 @@ test('country map uses MapLibre clustering with real totals and zoom-to-explore'
   const mapSource = read('src/components/map/ArcadeMapLibreView.tsx');
   const screen = read('src/screens/MapScreen.tsx');
   assert.match(moduleSource, /cluster: true, clusterMaxZoom: 11, clusterRadius: 52/);
-  assert.match(moduleSource, /\['get', 'point_count_abbreviated'\]/);
+  assert.match(moduleSource, /installOnDemandRealEnergyOrbs\(map\)/);
+  assert.match(moduleSource, /'icon-image': \['concat', ENERGY_ORB_PREFIX, '-open-race-'/);
+  assert.match(moduleSource, /\['to-string', \['get', 'point_count'\]\]/);
+  assert.doesNotMatch(moduleSource, /'text-field': \['get', 'point_count_abbreviated'\]/);
   assert.match(moduleSource, /'circle-radius': \['step', \['get', 'point_count'\]/);
   assert.match(mapSource, /map\.on\('click', COMMUNITY_CLUSTER_LAYER, onCommunityClusterClick\)/);
   assert.match(mapSource, /map\.easeTo\(\{ center: \[coordinates\[0\], coordinates\[1\]\]/);
@@ -85,4 +88,19 @@ test('touch popups fit the iPhone viewport and action toasts expire', () => {
   assert.match(css, /max-width:calc\(100vw - 26px\)!important/);
   assert.match(css, /max-height:min\(50dvh,380px\)/);
   assert.match(screen, /setTimeout\(\(\) => setRaceNotice\(null\), 4200\)/);
+});
+
+
+test('real activity orbs derive only from verified open-race clusters and render count art lazily', () => {
+  const community = read('src/lib/mapCommunityLayers.ts');
+  const orbs = read('src/lib/mapEnergyOrb.ts');
+  assert.match(community, /else if \(item\.kind === 'race'\)/);
+  assert.match(community, /cluster: true, clusterMaxZoom: 11, clusterRadius: 52/);
+  assert.match(community, /id: COMMUNITY_CLUSTER_LAYER, type: 'symbol', source: COMMUNITY_REAL_SOURCE/);
+  assert.match(community, /filter: \['has', 'point_count'\]/);
+  assert.match(orbs, /map\.setMissingStyleImageResolver\(\(id\) =>/);
+  assert.match(orbs, /const match = \/\^runnit-energy-orb-open-race-/);
+  assert.match(orbs, /Number\.isSafeInteger\(count\) \|\| count < 1/);
+  assert.match(orbs, /drawEnergyOrb\(\{ id, tone: 'open-race', count \}\)/);
+  assert.doesNotMatch(orbs, /from\(['"]duels['"]\)|supabase|fetch\(/);
 });
