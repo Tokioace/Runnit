@@ -177,7 +177,8 @@ export function installCommunityLayers(map: GLMap) {
           0, 8, 5, 11, 9, 12, 12.8, 10],
         'circle-color': '#09bfff',
         'circle-blur': 0.7,
-        'circle-opacity': 0.27,
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'],
+          0, 0.27, 12.2, 0.27, 12.8, 0],
       },
     });
   }
@@ -190,8 +191,10 @@ export function installCommunityLayers(map: GLMap) {
         'circle-color': '#237bff',
         'circle-stroke-color': '#adf8ff',
         'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 0, 1.2, 8, 1.6, 12.8, 1.9],
-        'circle-opacity': 1,
-        'circle-stroke-opacity': 1,
+        // Crossfade into the original, geographic HTML GPS marker when
+        // zoomed in: no duplicate blue centers at street level.
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 0, 1, 12.2, 1, 12.8, 0],
+        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 0, 1, 12.2, 1, 12.8, 0],
       },
     });
   }
