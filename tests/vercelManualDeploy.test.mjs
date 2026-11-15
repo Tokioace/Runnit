@@ -4,14 +4,17 @@ import { readFileSync } from 'node:fs';
 
 const config = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
 
-test('Vercel builds previews only by explicit developer/user trigger', () => {
+test('Vercel automatically builds develop and main, but PR feature previews require user trigger', () => {
   assert.deepEqual(config.git?.deploymentEnabled, {
     main: true,
+    develop: true,
     '**': false,
   });
-  assert.equal(config.git.deploymentEnabled.develop, undefined);
+  assert.equal(config.git.deploymentEnabled.develop, true);
+  assert.equal(config.git.deploymentEnabled['feature/**'], undefined);
+  assert.equal(config.git.deploymentEnabled['fix/**'], undefined);
   assert.equal(config.previewDeploymentsDisabled, undefined,
-    'do not disable preview creation from a branch via the Dashboard');
+    'leave manual preview creation available');
   assert.equal(config.ignoreCommand, undefined,
     'ignored build scripts still create canceled deployment records');
 });
