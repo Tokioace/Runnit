@@ -6,7 +6,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import type { ArcadeMapEntry, ArcadeMapView } from './ArcadeMapChrome';
 import { eventPopupLngLat } from '../../lib/mapPopupAnchor';
 import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters, validMapPoint } from '../../lib/mapHostPlacement';
-import { markerInViewport } from '../../lib/mapMarkerVisibility';
+import { markerInViewport, projectedMarkersOverlap } from '../../lib/mapMarkerVisibility';
 import type { MapCameraScope } from '../../lib/mapHeadingScope';
 import { groupOverlappingRuns } from '../../lib/mapRunGrouping';
 import { markerPinOpacityAtZoom, markerScaleAtZoom, PIN_FADE_END_ZOOM } from '../../lib/mapMarkerZoom';
@@ -670,7 +670,22 @@ export default function ArcadeMapLibreView({
       if (covered.has(index)) item.marker.getElement().style.display = 'none';
     });
     const gps = latestGpsRef.current;
-    if (gpsMarkerRef.current && gps && validMapPoint(gps)) updateMarker(gpsMarkerRef.current, gps);
+    if (gpsMarkerRef.current && gps && validMapPoint(gps)) {
+      updateMarker(gpsMarkerRef.current, gps);
+      const gpsShell = gpsMarkerRef.current.getElement();
+      if (gpsShell.style.display !== 'none') {
+        const projectedGps = map.project([gps.lng, gps.lat]);
+        // If the GPS dot sits on top of the user's own event pin, keep the
+        // event accessible and its number unobscured. The cyan radar still
+        // marks the actual position; the GPS dot returns once they separate.
+        const overlapsOwnEvent = visibleRunsRef.current.some((item) => {
+          if (!item.isOwn || item.marker.getElement().style.display === 'none') return false;
+          const projectedRun = map.project([item.point.lng, item.point.lat]);
+          return projectedMarkersOverlap(projectedGps, projectedRun);
+        });
+        if (overlapsOwnEvent) gpsShell.style.display = 'none';
+      }
+    }
 
     // A detail popup should not float over an entire continent or under UI
     // chrome after the associated race has left the visible, usable map.
