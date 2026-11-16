@@ -125,7 +125,7 @@ export default function App() {
         <Route path="/home" element={<DashboardScreen displayName={auth.user?.displayName} />} />
         <Route path="/stats" element={<StatsScreen />} />
         <Route path="/map" element={<MapScreen />} />
-        <Route path="/leaderboard" element={<LeaderboardScreen />} />
+        <Route path="/leaderboard" element={<LeaderboardScreen displayName={auth.user?.displayName} />} />
         <Route path="/profile" element={<ProfileScreen />} />
         <Route path="/gps-lab" element={<GpsLabScreen />} />
         <Route path="/gps-field-test" element={<GpsFieldTestScreen />} />
