@@ -42,6 +42,7 @@ export default function GhostRunScreen() {
   const [summary, setSummary] = useState<DiagnosticSummary | null>(null);
   const [interrupted, setInterrupted] = useState(false);
   const [saveToAccount, setSaveToAccount] = useState(true);
+  const saveEnabledRef = useRef(true);
   const [saveStatus, setSaveStatus] = useState<'idle'|'saving'|'saved'|'error'>('idle');
   const [savedRuns, setSavedRuns] = useState<SavedRun[]>([]);
   const [savedMessage, setSavedMessage] = useState('');
@@ -82,9 +83,10 @@ export default function GhostRunScreen() {
     if (!unmountedRef.current && data) setSavedRuns(data as SavedRun[]);
   }, [user?.id]);
   useEffect(() => { void refreshSaved(); }, [refreshSaved]);
+  useEffect(() => { saveEnabledRef.current = saveToAccount; }, [saveToAccount]);
 
   const saveSummary = useCallback(async (item: DiagnosticSummary) => {
-    if (!saveToAccount || !user?.id || savedRef.current) return;
+    if (!saveEnabledRef.current || !user?.id || savedRef.current) return;
     savedRef.current = true; // a run can never be written twice from duplicate callbacks
     setSaveStatus('saving');
     const { error } = await supabase.from('ghost_run_sessions').insert({
@@ -99,7 +101,7 @@ export default function GhostRunScreen() {
       setSavedMessage('Messzusammenfassung privat im Konto gespeichert. Keine Ranglistenwertung.');
       void refreshSaved();
     }
-  }, [saveToAccount, user?.id, refreshSaved]);
+  }, [user?.id, refreshSaved]);
 
   const stopRun = useCallback((reason: 'finished'|'stopped', message: string) => {
     if (phaseRef.current !== 'running') return;
@@ -333,9 +335,12 @@ export default function GhostRunScreen() {
       window.removeEventListener('pagehide', pageHide);
     };
   }, [stopRun, setCurrentPhase]);
-  useEffect(() => () => {
-    unmountedRef.current = true;
-    stopGps();
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+      stopGps();
+    };
   }, [stopGps]);
 
   const exportJson = () => {
