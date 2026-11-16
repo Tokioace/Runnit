@@ -32,8 +32,8 @@ test('lobby shows both users and individual ready states, with audio unlock by t
   assert.match(map, /challengerName=\{/);
   assert.match(map, /if \(raceSoundEnabled\) unlockRaceAudio\(\)/);
   assert.match(lobby, /role="dialog" aria-modal="true"/);
-  assert.match(lobby, /hostReady=\{hostReady\}/);
-  assert.match(lobby, /challengerReady=\{challengerReady\}/);
+  assert.match(lobby, /ready=\{hostReady\}/);
+  assert.match(lobby, /ready=\{challengerReady\}/);
   assert.match(lobby, /disabled=\{mineReady \|\| readyBusy\}/);
   assert.match(lobby, /START ERST WENN/);
   assert.match(lobby, /ICH BIN READY/);
