@@ -20,15 +20,15 @@ test('arcade dashboard uses no fictional verified activity or ranking values', (
   assert.match(src, /XP NOCH NICHT VERFÜGBAR/);
   assert.match(src, /NOCH KEINE/);
 });
-test('five arcade dock destinations remain real and accessible', () => {
+test('three arcade dock destinations remain real and accessible', () => {
   const src = read('src/components/ui/BottomNav.tsx');
-  assert.match(src, /grid-cols-5/);
-  assert.match(src, /href: '\/home', label: 'Start'/);
-  assert.match(src, /href: '\/map', label: 'Karte'/);
-  assert.match(src, /href: '\/stats', label: 'Stats'/);
+  assert.match(src, /arena-global-dock/);
+  assert.match(src, /href: '\/home', label: 'PLAY'/);
+  assert.match(src, /href: '\/map', label: 'MAP'/);
+  assert.match(src, /href: '\/leaderboard', label: 'ARENA'/);
   assert.match(src, /aria-current/);
   assert.match(src, /aria-label=\{label\}/);
-  assert.match(src, /min-w-0/);
+  assert.match(read('src/styles/arenaArcade.css'), /\.arena-global-dock li\{min-width:0\}/);
 });
 test('dashboard theme is separate from preserved launch artwork', () => {
   const css = read('src/index.css');
@@ -46,7 +46,7 @@ test('Stats is a separate accessible route and does not reuse Home', () => {
   const stats = read('src/screens/StatsScreen.tsx');
   assert.match(app, /<Route path="\/stats" element=\{<StatsScreen \/>\}/);
   assert.match(app, /APP_PATHS.*'\/stats'/);
-  assert.match(nav, /href: '\/stats', label: 'Stats'/);
+  assert.doesNotMatch(nav, /href: '\/stats'/);
   assert.match(home, /to: '\/stats'/);
   assert.doesNotMatch(nav, /home#aktivitaet/);
   assert.match(stats, /WOCHENFORTSCHRITT/);
@@ -78,9 +78,9 @@ test('real iPhone screenshot follow-up keeps full dock names and fixes artwork d
   const nav = read('src/components/ui/BottomNav.tsx');
   const home = read('src/screens/DashboardScreen.tsx');
   const css = read('src/index.css');
-  assert.match(nav, /runnit-dock-caption/);
+  assert.match(nav, /arena-global-dock/);
   assert.doesNotMatch(nav, /className="block max-w-full truncate"/);
-  assert.match(nav, /display: 'RANGLISTE'/);
+  assert.match(nav, /label: 'ARENA'/);
   assert.match(home, /KEINE DATEN/);
   assert.match(css, /background-position: 63% 29%/);
   assert.match(css, /\.runnit-stats-screen::before/);
@@ -106,7 +106,7 @@ test('master reference layout is compact without flattened UI and preserves safe
   assert.match(css, /min-height:72px/); // original art-backed duel
   assert.match(css, /min-height:60px/); // real start CTA
   assert.match(css, /min-height:55px/); // five-label dock
-  assert.match(nav, /display: 'RANGLISTE'/);
+  assert.match(nav, /label: 'ARENA'/);
   assert.doesNotMatch(home, /<canvas|<map name=/);
   assert.match(home, /runnit-game-start group/);
   assert.match(home, /XP NOCH NICHT VERFÜGBAR/);
