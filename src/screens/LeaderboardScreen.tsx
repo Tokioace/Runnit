@@ -279,7 +279,7 @@ export default function LeaderboardScreen({ displayName }: { displayName?: strin
         <nav className="arena-tabs" role="tablist" aria-label="Arena Bereiche">
           {tabs.map(({ id, label }, index) =>
             <button key={id} id={'arena-tab-' + id} role="tab" type="button" aria-selected={tab === id}
-              aria-controls={'arena-panel-' + tab} tabIndex={tab === id ? 0 : -1}
+              aria-controls={'arena-panel-' + id} tabIndex={tab === id ? 0 : -1}
               onKeyDown={event => onTabKeyDown(event, index)}
               onClick={() => setTab(id)} className={tab === id ? 'is-active' : ''}>{label}</button>)}
         </nav>
