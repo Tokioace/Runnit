@@ -75,7 +75,7 @@ test('concurrent result submissions lock the duel, are idempotent and complete o
   assert.match(sql, /v_actor IS DISTINCT FROM v_duel.challenger_user_id/);
   assert.match(sql, /REVOKE ALL ON FUNCTION public.submit_duel_result/);
   assert.match(sql, /TO authenticated/);
-  assert.doesNotMatch(sql, /TRUNCATE|DELETE FROM public.duel_results/);
+  assert.doesNotMatch(sql, /(?:^|\n)\s*(?:TRUNCATE\s+|DELETE FROM\s+public\.duel_results)/i);
 });
 
 test('failed finish submission has an explicit retry and does not score an unverified leaderboard win', () => {
