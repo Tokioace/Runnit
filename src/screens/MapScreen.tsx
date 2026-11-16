@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import ArcadeMapLibreView from '../components/map/ArcadeMapLibreView';
 import { isOpenEventAvailable } from '../lib/duelExpiry.ts';
 import { LocateFixed } from 'lucide-react';
@@ -713,6 +713,13 @@ function AuthModal({
 export default function MapScreen() {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const location = useLocation();
+  const startParams = new URLSearchParams(location.search);
+  const startFromPlay = startParams.get('play') === 'duel';
+  const selectedStartDistance = [50, 75, 100].includes(Number(startParams.get('distance')))
+    ? Number(startParams.get('distance')) : 50;
+  const [hidePlayStartHint, setHidePlayStartHint] = useState(false);
+  useEffect(() => { setHidePlayStartHint(false); }, [location.search]);
   const { coords: userCoords, locationError, locating, requestOnce, insecureContext, unsupported } = useUserLocation();
   const liveUserCoordsRef = useRef(userCoords);
   liveUserCoordsRef.current = userCoords;
@@ -1238,6 +1245,7 @@ export default function MapScreen() {
       return;
     }
     setHostLocation({ lat: point.lat, lng: point.lng });
+    setHidePlayStartHint(true);
     setHostOpen(true);
   };
 
@@ -1395,6 +1403,12 @@ export default function MapScreen() {
 
   return (
     <div className="runnit-map runnit-map-arcade relative h-[100dvh] w-full max-w-full overflow-hidden bg-[#090b13] text-white">
+      {startFromPlay && !hidePlayStartHint && arcadeMapView === 'map' && !hostOpen && (
+        <aside className="pointer-events-auto absolute inset-x-3 top-[calc(196px+env(safe-area-inset-top,0px))] z-[951] mx-auto flex max-w-sm items-center gap-2 rounded-xl border-2 border-lime-300 bg-[#071a37]/95 px-3 py-2 text-xs text-white shadow-[0_0_16px_rgba(184,255,29,.5)]" role="status">
+          <span className="flex-1"><strong className="block text-[13px] font-black italic text-lime-300">1V1 · {selectedStartDistance} M · STARTPUNKT</strong> Halte einen Punkt innerhalb deines 500-m-Radars auf der Karte gedrückt.</span>
+          <button type="button" className="min-h-9 min-w-9 rounded-lg border border-cyan-300/70 bg-[#152b4d] text-lg font-bold" onClick={() => setHidePlayStartHint(true)} aria-label="Starthinweis schließen">×</button>
+        </aside>
+      )}
       <ArcadeMapLibreView
         initialCenter={center}
         initialZoom={initialZoom}
@@ -1741,7 +1755,7 @@ export default function MapScreen() {
         onHost={handleHostRun}
         selectedLocationDistance={hostLocation && userCoords ? mapDistanceMeters(userCoords, hostLocation) : undefined}
         onDemo={() => { setHostOpen(false); navigate('/sprint-lab'); }}
-        defaultDistance={50}
+        defaultDistance={startFromPlay ? selectedStartDistance : 50}
       />
 
       <AuthModal
