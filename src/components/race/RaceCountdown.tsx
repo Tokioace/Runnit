@@ -14,10 +14,24 @@ export function countdownSecond(startsAt: number, now: number): number {
 }
 
 type Props = { startsAt: number; targetDistanceM: number; soundEnabled: boolean;
-  wakeStatus: ScreenWakeLockStatus | 'idle'; onDone: () => void };
+  wakeStatus: ScreenWakeLockStatus | 'idle'; onDone: () => void; onAbort: () => Promise<void> };
 
-export default function RaceCountdown({ startsAt, targetDistanceM, soundEnabled, wakeStatus, onDone }: Props) {
+export default function RaceCountdown({ startsAt, targetDistanceM, soundEnabled, wakeStatus, onDone, onAbort }: Props) {
   const [remaining, setRemaining] = useState(() => countdownSecond(startsAt, Date.now()));
+  const [confirmAbort, setConfirmAbort] = useState(false);
+  const [aborting, setAborting] = useState(false);
+  const [abortError, setAbortError] = useState<string | null>(null);
+  const confirmExit = async () => {
+    if (aborting) return;
+    setAborting(true);
+    setAbortError(null);
+    try {
+      await onAbort();
+    } catch {
+      setAbortError('Rennabbruch nicht bestätigt. Bitte erneut versuchen.');
+      setAborting(false);
+    }
+  };
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
   const finishedRef = useRef(false);
@@ -78,6 +92,22 @@ export default function RaceCountdown({ startsAt, targetDistanceM, soundEnabled,
             onClick={() => { unlockRaceAudio(); scheduleArcadeStartSfx(startsAt); }}>
             TON AKTIVIEREN (iPHONE)
           </button>}
+          {confirmAbort ? (
+            <div className="race-arcade-confirm" role="alertdialog" aria-label="Countdown abbrechen">
+              <p>RENNEN FÜR BEIDE SPIELER ABBRECHEN?</p>
+              <div className="race-arcade-confirm-actions">
+                <button type="button" disabled={aborting} onClick={() => setConfirmAbort(false)}>NEIN</button>
+                <button type="button" disabled={aborting} onClick={() => { void confirmExit(); }}>
+                  {aborting ? 'WIRD ABGEBROCHEN…' : 'JA, ABBRECHEN'}
+                </button>
+              </div>
+              {abortError && <p className="race-arcade-error" role="alert">{abortError}</p>}
+            </div>
+          ) : (
+            <button type="button" className="race-arcade-danger-link" onClick={() => setConfirmAbort(true)}>
+              COUNTDOWN ABBRECHEN
+            </button>
+          )}
         </div>
       </div>
     </div>
