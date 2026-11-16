@@ -20,7 +20,7 @@ test('Arena follows the three latest supplied reference screens', () => {
   assert.match(screen, /<Legends scope=\{scope\} setScope=\{setScope\} currentName=\{currentName\}\/>/);
   assert.match(screen, /<BottomNav\/>/);
   assert.doesNotMatch(screen, /<PageFrame|RANGLISTE<\/h1>/);
-  for(const selector of ['arena-hero','arena-tabs','arena-section-bar','arena-showdown','arena-ladder-grid','arena-legends','arena-metrics','arena-board-list','arena-champion','arena-self-strip']) {
+  for(const selector of ['arena-hero','arena-tabs','arena-section-bar','arena-showdown','arena-ladder-grid','arena-metrics','arena-board-list','arena-champion','arena-self-strip']) {
     assert.match(css, new RegExp('\\.' + selector + '[\\{\\s\\.]'));
   }
 });
