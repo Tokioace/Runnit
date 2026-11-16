@@ -16,8 +16,8 @@ test('Arena follows the three latest supplied reference screens', () => {
   assert.match(screen, /aria-selected=\{tab === id\}/);
   assert.match(screen, /onKeyDown=\{event => onTabKeyDown\(event, index\)\}/);
   assert.match(screen, /<Rivals currentName=\{currentName\}\/>/);
-  assert.match(screen, /<Ladder scope=\{scope\} setScope=\{setScope\} currentName=\{currentName\}\/>/);
-  assert.match(screen, /<Legends scope=\{scope\} setScope=\{setScope\} currentName=\{currentName\}\/>/);
+  assert.match(screen, /<Ladder scope=\{scope\} setScope=\{changeScope\} currentName=\{currentName\}\/>/);
+  assert.match(screen, /<Legends scope=\{scope\} setScope=\{changeScope\} currentName=\{currentName\} resetScroll=\{resetScroll\}\/>/);
   assert.match(screen, /<BottomNav\/>/);
   assert.doesNotMatch(screen, /<PageFrame|RANGLISTE<\/h1>/);
   for(const selector of ['arena-hero','arena-tabs','arena-section-bar','arena-showdown','arena-ladder-grid','arena-metrics','arena-board-list','arena-champion','arena-self-strip']) {
@@ -41,7 +41,7 @@ test('Legends has exactly six metrics and always switches a single-metric rankin
   for(const id of ['times','speed','acceleration','reaction','wins','streak']) {
     assert.match(screen, new RegExp("id: '" + id + "'"));
   }
-  assert.match(screen, /onClick=\{\(\) => setMetric\(id\)\}/);
+  assert.match(screen, /onClick=\{\(\) => \{ setMetric\(id\); resetScroll\(\); \}\}/);
   assert.match(screen, /recordText\(metric, distance, i\)/);
   assert.match(screen, /LeaderboardList title=\{selected\.title/);
   assert.match(screen, /aria-pressed=\{metric === id\}/);
