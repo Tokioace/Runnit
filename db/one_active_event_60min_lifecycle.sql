@@ -89,14 +89,20 @@ BEGIN
           USING ERRCODE = '23514';
       END IF;
     ELSIF OLD.status = 'matched' AND NEW.status = 'abandoned' THEN
+      IF (to_jsonb(NEW) - 'status') IS DISTINCT FROM (to_jsonb(OLD) - 'status') THEN
+        RAISE EXCEPTION 'Only duel status may change during abandonment'
+          USING ERRCODE = '42501';
+      END IF;
       IF NOT (
-        (OLD.start_at IS NULL
-         AND OLD.matched_at <= statement_timestamp() - interval '30 minutes')
+        (auth.uid() IS NOT NULL
+          AND (OLD.host_user_id = auth.uid() OR OLD.challenger_user_id = auth.uid()))
+        OR (OLD.start_at IS NULL
+            AND OLD.matched_at <= statement_timestamp() - interval '30 minutes')
         OR (OLD.start_at IS NOT NULL
             AND OLD.start_at <= statement_timestamp() - interval '4 hours')
       ) THEN
-        RAISE EXCEPTION 'Matched challenge is not abandoned yet'
-          USING ERRCODE = '23514';
+        RAISE EXCEPTION 'Only a participant can abort a live matched duel'
+          USING ERRCODE = '42501';
       END IF;
     ELSE
       RAISE EXCEPTION 'Forbidden challenge lifecycle transition'

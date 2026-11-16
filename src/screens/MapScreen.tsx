@@ -20,6 +20,7 @@ import ArcadeMapChrome, { type ArcadeMapEntry, type ArcadeMapView } from '../com
 import { parseGeographyPoint } from '../lib/duelLocation';
 import { reconcileOpenRaces } from '../lib/reconcileOpenRaces';
 import { cancelHostedOpenDuel, cancelHostedDuelMessage, listHostedOpenDuels, type HostedOpenDuel } from '../db/cancelHostedDuel';
+import { abortMatchedDuel } from '../db/abortMatchedDuel';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage, type ScreenWakeLockStatus } from '../lib/screenWakeLock';
@@ -802,6 +803,10 @@ export default function MapScreen() {
   const [matchedNames, setMatchedNames] = useState<Record<string, string>>({});
   const joiningRunRef = useRef<string | null>(null);
   const matchStartHandledRef = useRef<string | null>(null);
+  // Keep the server-confirmed duel ID even after READY hides its lobby.
+  const activeDuelIdRef = useRef<string | null>(null);
+  // Ignore late Realtime/poll responses for duels confirmed as terminated.
+  const endedDuelIdsRef = useRef<Set<string>>(new Set());
   const [race, setRace] = useState<
     | { status: 'idle' }
     | { status: 'countdown'; duelId: string; startsAt: number; targetDistanceM: number }
@@ -812,11 +817,34 @@ export default function MapScreen() {
   // Keep it awake for the entire countdown and race, not just the step sampler.
   const wakeStatus = useScreenWakeLock(Boolean(matchOverlay) || race.status === 'countdown' || race.status === 'running');
 
+  const clearAbortedDuel = React.useCallback((duelId: string, remote: boolean) => {
+    if (activeDuelIdRef.current !== duelId) return;
+    endedDuelIdsRef.current.add(duelId);
+    activeDuelIdRef.current = null;
+    matchStartHandledRef.current = null;
+    setMatchOverlay(previous => previous?.duelId === duelId ? null : previous);
+    setMatchedDuel(previous => previous?.id === duelId ? null : previous);
+    setRace(previous => previous.status !== 'idle' && previous.duelId === duelId
+      ? { status: 'idle' } : previous);
+    setDismissedMatchId(null);
+    setReadyError(null);
+    setCancelError(null);
+    setCancelConfirmation(previous => previous?.id === duelId ? null : previous);
+    setOpenRuns(previous => previous.filter(run => run.id !== duelId));
+    setHostedOpenDuels(previous => previous.filter(run => run.id !== duelId));
+    setRaceNotice(remote
+      ? 'Dein Gegner hat das Duell abgebrochen. Du kannst wieder ein Rennen starten.'
+      : 'Duell für beide Spieler abgebrochen. Du kannst ein neues Rennen starten.');
+    setDiscoveryRefreshTick(tick => tick + 1);
+  }, []);
+
   // A DB-confirmed match is authoritative. Realtime, a join response and
   // foreground recovery all use this same idempotent transition.
   const applyMatchedDuel = React.useCallback((row: any) => {
     if (!authUser || row?.status !== 'matched' || typeof row.id !== 'string' ||
+        endedDuelIdsRef.current.has(row.id) ||
         (row.host_user_id !== authUser.id && row.challenger_user_id !== authUser.id)) return;
+    activeDuelIdRef.current = row.id;
     setOpenRuns(previous => previous.filter(run => run.id !== row.id));
     setHostedOpenDuels(previous => previous.filter(run => run.id !== row.id));
     setCancelConfirmation(previous => previous?.id === row.id ? null : previous);
@@ -1201,8 +1229,23 @@ export default function MapScreen() {
         .limit(1)
         .maybeSingle();
       if (!active || error) return;
-      if (data) applyMatchedDuel(data);
-      else setMatchedDuel(null);
+      if (data) {
+        applyMatchedDuel(data);
+        return;
+      }
+      // A race already in countdown/running hides the lobby. The active ref
+      // remains and must be checked when another iPhone aborts the match.
+      const activeId = activeDuelIdRef.current;
+      if (!activeId) {
+        setMatchedDuel(null);
+        return;
+      }
+      const { data: latest, error: statusError } = await supabase.from('duels')
+        .select('id, status').eq('id', activeId).maybeSingle();
+      if (!active || statusError) return;
+      if (latest?.status === 'abandoned') {
+        clearAbortedDuel(activeId, true);
+      }
     };
     const whenVisible = () => {
       if (document.visibilityState === 'visible') {
@@ -1220,7 +1263,7 @@ export default function MapScreen() {
       document.removeEventListener('visibilitychange', whenVisible);
       window.removeEventListener('focus', whenVisible);
     };
-  }, [authUser?.id, applyMatchedDuel]);
+  }, [authUser?.id, applyMatchedDuel, clearAbortedDuel]);
 
   // No Realtime subscription while exploring as an unauthenticated guest.
   // Realtime updates for duels
@@ -1249,6 +1292,9 @@ export default function MapScreen() {
           // matched. A real start_at is created after BOTH players confirm ready.
           if (payload.eventType === 'UPDATE' && row.status === 'matched') {
             applyMatchedDuel(row);
+          }
+          if (payload.eventType === 'UPDATE' && row.status === 'abandoned') {
+            clearAbortedDuel(row.id, true);
           }
 
           setOpenRuns((prev) => {
@@ -1298,7 +1344,7 @@ export default function MapScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [authUser?.id, applyMatchedDuel]);
+  }, [authUser?.id, applyMatchedDuel, clearAbortedDuel]);
 
   // The server is the authority for expiration. Client-side pruning only
   // keeps the map truthful until a cron/realtime update arrives, even after
@@ -1465,6 +1511,18 @@ export default function MapScreen() {
     } finally {
       setCancellingRunId(null);
     }
+  };
+
+  const confirmAbortMatchedDuel = async (duelId: string) => {
+    if (!authUser || !duelId || duelId.startsWith('demo-run-')) {
+      throw new Error('Du musst angemeldet sein, um dieses Rennen abzubrechen.');
+    }
+    // Leave the countdown/race visible until Supabase confirms termination.
+    const confirmed = await abortMatchedDuel(supabase, duelId);
+    if (confirmed.id !== duelId || confirmed.status !== 'abandoned') {
+      throw new Error('Der Server hat den Abbruch nicht bestätigt.');
+    }
+    clearAbortedDuel(duelId, false);
   };
 
   const confirmMatchReady = async () => {
@@ -1792,6 +1850,7 @@ export default function MapScreen() {
             if (next) unlockRaceAudio();
           }}
           onBack={() => setDismissedMatchId(matchedDuel.id)}
+          onAbort={() => confirmAbortMatchedDuel(matchedDuel.id)}
         />
       )}
       {matchedDuel && dismissedMatchId === matchedDuel.id && race.status === 'idle' && (
@@ -1808,6 +1867,7 @@ export default function MapScreen() {
           startsAt={matchOverlay.startsAt}
           targetDistanceM={matchOverlay.targetDistanceM}
           soundEnabled={raceSoundEnabled}
+          onAbort={() => confirmAbortMatchedDuel(matchOverlay.duelId)}
           onDone={() => {
             if (!authUser) {
               setMatchOverlay(null);
@@ -1831,12 +1891,8 @@ export default function MapScreen() {
           wakeStatus={wakeStatus}
           startedAt={race.startedAt}
           targetDistanceM={race.targetDistanceM}
-          onFinish={(endedAt, metrics, completed = true) => {
-            if (!completed) {
-              setRace({ status: 'idle' });
-              setRaceNotice('Testlauf manuell beendet. Kein Ergebnis als Zielankunft gespeichert.');
-              return;
-            }
+          onAbort={() => confirmAbortMatchedDuel(race.duelId)}
+          onFinish={(endedAt, metrics) => {
             const timeMs = Math.max(1, endedAt - race.startedAt);
             // Finish visuals and sound must fire without waiting on the network.
             setRace({ status: 'finished', duelId: race.duelId,
@@ -1972,7 +2028,7 @@ export default function MapScreen() {
   );
 }
 
-function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { startedAt: number; targetDistanceM: number; wakeStatus: ScreenWakeLockStatus | 'idle'; onFinish: (endedAt: number, metrics?: DuelMetrics, completed?: boolean) => void }) {
+function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish, onAbort }: { startedAt: number; targetDistanceM: number; wakeStatus: ScreenWakeLockStatus | 'idle'; onFinish: (endedAt: number, metrics?: DuelMetrics) => void; onAbort: () => Promise<void> }) {
   const [elapsedMs, setElapsedMs] = useState(Math.max(0, Date.now() - startedAt));
   const [acceptedDistanceM, setAcceptedDistanceM] = useState(0);
   const [displayDistanceM, setDisplayDistanceM] = useState(0);
@@ -1985,6 +2041,25 @@ function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { sta
   const [liveStepCount, setLiveStepCount] = useState(0);
   const overTargetStreakRef = useRef(0);
   const finishedRef = useRef(false);
+  const [confirmAbort, setConfirmAbort] = useState(false);
+  const [abortBusy, setAbortBusy] = useState(false);
+  const [abortError, setAbortError] = useState<string | null>(null);
+  const abortBusyRef = useRef(false);
+  const doAbort = async () => {
+    if (abortBusyRef.current || finishedRef.current) return;
+    abortBusyRef.current = true;
+    finishedRef.current = true; // do not count GPS distance during termination
+    setAbortBusy(true);
+    setAbortError(null);
+    try {
+      await onAbort(); // the parent clears race UI only after Supabase confirms
+    } catch {
+      finishedRef.current = false;
+      abortBusyRef.current = false;
+      setAbortBusy(false);
+      setAbortError('Rennabbruch nicht bestätigt. Bitte Verbindung prüfen und erneut versuchen.');
+    }
+  };
   const watchIdRef = useRef<number | null>(null);
   useEffect(() => {
     const id = setInterval(() => {
@@ -2120,21 +2195,24 @@ function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { sta
           <p className="race-arcade-wake">GPS-Bewertung experimentell · nicht verifiziert</p>
         </div>
         {wakeStatus !== 'idle' && <p className="race-arcade-wake">{screenWakeLockMessage(wakeStatus)}</p>}
-        <button type="button" className="race-arcade-link"
-          onClick={() => {
-            if (finishedRef.current) return;
-            finishedRef.current = true;
-            // Manual stop is NOT proof the full distance was completed.
-            const steps = liveStepCounter.current.count;
-            const stepLen = steps > 0 ? acceptedDistanceM / steps : undefined;
-            onFinish(Date.now(), {
-              stepsCount: steps, stepLengthAvgM: stepLen,
-              maxSpeedMps: maxSpeed, maxAccelMps2: maxAccel, distanceM: acceptedDistanceM,
-              metricsJson: { interrupted: true, finishedBy: 'manual-stop' },
-            }, false);
-          }}>
-          TESTLAUF MANUELL BEENDEN
-        </button>
+        {confirmAbort ? (
+          <div className="race-arcade-confirm" role="alertdialog" aria-label="Rennen abbrechen">
+            <p>RENNEN WIRKLICH ABBRECHEN? Beide Spieler werden zurück zur Karte geschickt. Der Lauf zählt nicht.</p>
+            <div className="race-arcade-confirm-actions">
+              <button type="button" disabled={abortBusy} onClick={() => setConfirmAbort(false)}>
+                NEIN, WEITER RENNEN
+              </button>
+              <button type="button" disabled={abortBusy} onClick={() => { void doAbort(); }}>
+                {abortBusy ? 'WIRD ABGEBROCHEN…' : 'JA, FÜR BEIDE ABBRECHEN'}
+              </button>
+            </div>
+            {abortError && <p role="alert" className="race-arcade-error">{abortError}</p>}
+          </div>
+        ) : (
+          <button type="button" className="race-arcade-danger-link" onClick={() => setConfirmAbort(true)}>
+            RENNEN ABBRECHEN
+          </button>
+        )}
       </div>
     </div>
   );
