@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export type ReadyLobbyProps = {
   hostName: string;
@@ -13,6 +13,7 @@ export type ReadyLobbyProps = {
   onReady: () => void;
   onSoundToggle: () => void;
   onBack: () => void;
+  onAbort: () => Promise<void>;
 };
 
 function RunnerCard({ name, role, ready, isMe, number }: {
@@ -36,7 +37,22 @@ function RunnerCard({ name, role, ready, isMe, number }: {
 /** Fully optional presentation layer; readiness is still server-authoritative. */
 export default function ReadyLobby(props: ReadyLobbyProps) {
   const { hostName, challengerName, hostReady, challengerReady, isHost, targetDistanceM,
-    readyBusy, readyError, soundEnabled, onReady, onSoundToggle, onBack } = props;
+    readyBusy, readyError, soundEnabled, onReady, onSoundToggle, onBack, onAbort } = props;
+  const [confirmAbort, setConfirmAbort] = useState(false);
+  const [aborting, setAborting] = useState(false);
+  const [abortError, setAbortError] = useState<string | null>(null);
+  const confirmExit = async () => {
+    if (aborting) return;
+    setAborting(true);
+    setAbortError(null);
+    try {
+      await onAbort();
+    } catch {
+      setAbortError('Rennabbruch nicht bestätigt. Bitte Verbindung prüfen und erneut versuchen.');
+    } finally {
+      setAborting(false);
+    }
+  };
   const mineReady = isHost ? hostReady : challengerReady;
   return (
     <div className="race-arcade-screen race-arcade-lobby" role="dialog" aria-modal="true"
@@ -70,6 +86,22 @@ export default function ReadyLobby(props: ReadyLobbyProps) {
             {readyBusy ? 'READY WIRD BESTÄTIGT…' : mineReady ? '✓ DU BIST READY — WARTE AUF GEGNER' : 'ICH BIN READY »'}
           </button>
           {readyError && <p className="race-arcade-error" role="alert">{readyError}</p>}
+          {confirmAbort ? (
+            <div className="race-arcade-confirm" role="alertdialog" aria-label="Duell abbrechen">
+              <p>WIRKLICH ABBRECHEN? Das Rennen endet für beide Spieler und wird nicht gewertet.</p>
+              <div className="race-arcade-confirm-actions">
+                <button type="button" disabled={aborting} onClick={() => setConfirmAbort(false)}>NEIN, WEITER</button>
+                <button type="button" disabled={aborting} onClick={() => { void confirmExit(); }}>
+                  {aborting ? 'WIRD ABGEBROCHEN…' : 'JA, DUELL ABBRECHEN'}
+                </button>
+              </div>
+              {abortError && <p role="alert" className="race-arcade-error">{abortError}</p>}
+            </div>
+          ) : (
+            <button className="race-arcade-danger-link" type="button" onClick={() => setConfirmAbort(true)}>
+              DUELL FÜR BEIDE ABBRECHEN
+            </button>
+          )}
           <button className="race-arcade-link" type="button" onClick={onBack}>ZUR KARTE · LOBBY BLEIBT AKTIV</button>
         </div>
       </div>
