@@ -20,6 +20,7 @@ import { parseGeographyPoint } from '../lib/duelLocation';
 import { reconcileOpenRaces } from '../lib/reconcileOpenRaces';
 import { cancelHostedOpenDuel, cancelHostedDuelMessage, listHostedOpenDuels, type HostedOpenDuel } from '../db/cancelHostedDuel';
 import { abortMatchedDuel } from '../db/abortMatchedDuel';
+import { readActiveDuelId, rememberActiveDuelId, forgetActiveDuelId } from '../lib/activeDuelStorage';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage, type ScreenWakeLockStatus } from '../lib/screenWakeLock';
@@ -823,6 +824,7 @@ export default function MapScreen() {
     if (activeDuelIdRef.current !== duelId) return;
     endedDuelIdsRef.current.add(duelId);
     activeDuelIdRef.current = null;
+    if (authUser) forgetActiveDuelId(authUser.id, duelId);
     matchStartHandledRef.current = null;
     setMatchOverlay(previous => previous?.duelId === duelId ? null : previous);
     setMatchedDuel(previous => previous?.id === duelId ? null : previous);
@@ -838,7 +840,7 @@ export default function MapScreen() {
       ? 'Dein Gegner hat das Duell abgebrochen. Du kannst wieder ein Rennen starten.'
       : 'Duell für beide Spieler abgebrochen. Du kannst ein neues Rennen starten.');
     setDiscoveryRefreshTick(tick => tick + 1);
-  }, []);
+  }, [authUser?.id]);
 
   // Once the server confirms completed, both participants must see their
   // results. Do not mark the race as seen until THIS phone closes the overlay.
@@ -849,6 +851,7 @@ export default function MapScreen() {
     const active = activeDuelIdRef.current;
     if (active && active !== row.id) return;
     activeDuelIdRef.current = row.id;
+    rememberActiveDuelId(authUser.id, row.id);
     setMatchOverlay(previous => previous?.duelId === row.id ? null : previous);
     setMatchedDuel(previous => previous?.id === row.id ? null : previous);
     setDismissedMatchId(null);
@@ -863,6 +866,7 @@ export default function MapScreen() {
   const closeCompletedDuel = React.useCallback((duelId: string) => {
     endedDuelIdsRef.current.add(duelId);
     if (activeDuelIdRef.current === duelId) activeDuelIdRef.current = null;
+    if (authUser) forgetActiveDuelId(authUser.id, duelId);
     matchStartHandledRef.current = null;
     latestFinishPayloadRef.current = null;
     setFinishSubmissionError(null);
@@ -874,7 +878,7 @@ export default function MapScreen() {
     setOpenRuns(previous => previous.filter(run => run.id !== duelId));
     setHostedOpenDuels(previous => previous.filter(run => run.id !== duelId));
     setDiscoveryRefreshTick(tick => tick + 1);
-  }, []);
+  }, [authUser?.id]);
 
   // A DB-confirmed match is authoritative. Realtime, a join response and
   // foreground recovery all use this same idempotent transition.
@@ -883,6 +887,7 @@ export default function MapScreen() {
         endedDuelIdsRef.current.has(row.id) ||
         (row.host_user_id !== authUser.id && row.challenger_user_id !== authUser.id)) return;
     activeDuelIdRef.current = row.id;
+    rememberActiveDuelId(authUser.id, row.id);
     setOpenRuns(previous => previous.filter(run => run.id !== row.id));
     setHostedOpenDuels(previous => previous.filter(run => run.id !== row.id));
     setCancelConfirmation(previous => previous?.id === row.id ? null : previous);
@@ -1273,7 +1278,8 @@ export default function MapScreen() {
       }
       // A race already in countdown/running hides the lobby. The active ref
       // remains and must be checked when another iPhone aborts the match.
-      const activeId = activeDuelIdRef.current;
+      const activeId = activeDuelIdRef.current || readActiveDuelId(authUser.id);
+      if (activeId) activeDuelIdRef.current = activeId;
       if (!activeId) {
         setMatchedDuel(null);
         return;
