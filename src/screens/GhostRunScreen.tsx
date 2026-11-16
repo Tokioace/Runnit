@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, Download, Flag, Footprints, Gauge, PauseCircle
 import { supabase } from '../lib/supabaseClient';
 import { useSupabaseUser } from '../hooks/useSupabaseUser';
 import { createGpsSprint, advanceGpsSprint, type GpsSprintState, type GpsSample } from '../lib/sprintGps';
+import { ghostSummary, safeNumber, type DiagnosticSummary, type MotionPermission } from '../lib/ghostRunSummary';
 import { isFreshStartFix, primeGpsSprint } from '../lib/gpsField';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
@@ -15,15 +16,8 @@ import '../styles/ghostRun.css';
 
 type Phase = 'idle' | 'acquiring' | 'ready' | 'countdown' | 'running' | 'finished' | 'stopped' | 'error';
 type Target = 50 | 75 | 100;
-type MotionPermission = 'granted' | 'denied' | 'unavailable';
 type GpsTrace = { t_ms: number; east_m: number | null; north_m: number | null; accuracy_m: number; distance_m: number; decision: string };
 type MotionTrace = { t_ms: number; ax: number; ay: number; az: number; magnitude: number; steps: number };
-type DiagnosticSummary = {
-  target_distance_m: number; run_state: 'finished' | 'stopped'; elapsed_ms: number | null;
-  observed_distance_m: number; steps_count: number; gps_accepted: number; gps_rejected: number;
-  motion_samples: number; motion_gaps: number; max_speed_mps: number;
-  motion_permission: MotionPermission; interrupted: boolean;
-};
 type SavedRun = {
   id: string; created_at: string; target_distance_m: number; run_state: 'finished' | 'stopped';
   elapsed_ms: number | null; steps_count: number; observed_distance_m: number;
@@ -32,29 +26,6 @@ const GPS_OPTIONS: PositionOptions = { enableHighAccuracy: true, maximumAge: 0, 
 const MAX_MOTION_SAMPLES = 30000;
 const MAX_GPS_SAMPLES = 3000;
 const MAX_RUN_MS = 5 * 60 * 1000;
-
-function safeNumber(value: number, digits = 2) {
-  return Number.isFinite(value) ? Number(value.toFixed(digits)) : 0;
-}
-export function ghostSummary(state: GpsSprintState, steps: number, imu: number, gaps: number,
-  permission: MotionPermission, interrupted: boolean, finish: boolean, endedAtMs: number): DiagnosticSummary {
-  return {
-    target_distance_m: state.targetMeters,
-    run_state: finish ? 'finished' : 'stopped',
-    elapsed_ms: finish && state.finishTimestampMs !== null
-      ? Math.max(1, state.finishTimestampMs - state.startedAtMs)
-      : null,
-    observed_distance_m: safeNumber(state.distanceM),
-    steps_count: Math.max(0, steps),
-    gps_accepted: state.acceptedSamples,
-    gps_rejected: state.rejectedSamples,
-    motion_samples: imu,
-    motion_gaps: gaps,
-    max_speed_mps: safeNumber(state.maxSpeedMps),
-    motion_permission: permission,
-    interrupted,
-  };
-}
 
 export default function GhostRunScreen() {
   const { user, loading } = useSupabaseUser();
@@ -139,7 +110,7 @@ export default function GhostRunScreen() {
     const summaryRow = ghostSummary(state, stepRef.current.count,
       motionTraceRef.current.length, gapCountRef.current,
       motionPermissionRef.current, interruptedRef.current,
-      reason === 'finished', Date.now());
+      reason === 'finished');
     setSummary(summaryRow);
     setLive(state);
     setNotice(message);
