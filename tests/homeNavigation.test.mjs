@@ -13,11 +13,12 @@ test('launch splash and original app dashboard have separate routes', () => {
   assert.match(app, /navigate\('\/home'\)/);
 });
 
-test('original dashboard is preserved and remains independent of geolocation and Supabase', () => {
+test('PLAY remains distinct from MAP and Supabase backend', () => {
   const dashboard = read('src/screens/DashboardScreen.tsx');
   assert.match(dashboard, /DEIN LAUF\./);
-  assert.match(dashboard, /to="\/map"/);
-  assert.match(dashboard, /to="\/gps-lab"/);
+  assert.match(dashboard, /to="\/map\?view=list"/);
+  assert.match(dashboard, /to="\/leaderboard"/);
+  assert.match(dashboard, /play-mode-dialog/);
   assert.match(dashboard, /<BottomNav/);
   assert.doesNotMatch(dashboard, /navigator\.geolocation|watchPosition\s*\(|getCurrentPosition\s*\(/);
   assert.doesNotMatch(dashboard, /from ['"][^'"]*supabase/i);
