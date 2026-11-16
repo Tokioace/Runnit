@@ -4,7 +4,7 @@
 .arena-screen{
   --a-cyan:#23eaff;--a-lime:#d3ff18;--a-pink:#ff2eea;--a-blue:#08102d;
   position:relative;isolation:isolate;display:flex;flex-direction:column;
-  height:100dvh;min-height:530px;max-width:100vw;overflow:hidden;color:#fff;
+  height:100dvh;min-height:0;max-width:100vw;overflow:hidden;color:#fff;
   background:
     radial-gradient(ellipse 50% 40% at 100% 28%,#9425bd44,transparent),
     radial-gradient(ellipse 60% 30% at 0% 77%,#06adea24,transparent),
@@ -24,11 +24,11 @@
   padding: max(5px,env(safe-area-inset-top,0px)) 8px 0;
 }
 .arena-hero{
-  flex:none;position:relative;isolation:isolate;height:clamp(143px,22dvh,205px);
+  flex:none;position:relative;isolation:isolate;height:clamp(98px,14.4dvh,142px);
   margin:0 -8px;overflow:hidden;
   background:
     linear-gradient(180deg,#050b2e5c 0%,#02071c16 55%,#080b29 100%),
-    url('/runnit-launch-hero.webp') left bottom/auto 90% no-repeat,
+    url('/runnit-runner-mark.svg') 2% 76%/auto 65% no-repeat,
     url('/runnit-arcade-city.svg') center 46%/cover no-repeat;
 }
 .arena-hero::before{
@@ -69,7 +69,7 @@
 .arena-hero-bottom em{color:var(--a-pink)}
 .arena-tabs{
   display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;
-  flex:0 0 clamp(36px,5.1dvh,51px);margin:0 4px;
+  flex:0 0 clamp(31px,4.7dvh,42px);margin:0 4px;
 }
 .arena-tabs button{
   min-width:0;line-height:1;display:grid;place-items:center;
@@ -87,7 +87,7 @@
 .arena-panel-area{position:relative;min-height:0;height:100%;width:100%;display:flex;
   flex-direction:column;gap:clamp(4px,.6dvh,8px)}
 .arena-section-bar{
-  position:relative;overflow:hidden;flex:0 0 clamp(39px,5.3dvh,57px);
+  position:relative;overflow:hidden;flex:0 0 clamp(32px,4.6dvh,44px);
   display:flex;gap:10px;align-items:center;padding:3px 12px;
   border:2px solid #42e8ff;border-radius:17px 6px 16px 6px;
   background:linear-gradient(98deg,#09183b 15%,#171547 70%,#7a137bbd);
@@ -105,7 +105,7 @@
   opacity:.4;mask-image:linear-gradient(90deg,transparent,#000 50%);
 }
 .arena-scope{
-  flex:0 0 clamp(30px,4.4dvh,40px);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  flex:0 0 clamp(26px,3.9dvh,34px);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
   gap:3px;border:1.5px solid #41d7f9;border-radius:28px;padding:1px 2px;
   background:linear-gradient(100deg,#071b3e,#17133b);
   box-shadow:0 0 9px #16cbfc83;
@@ -117,7 +117,7 @@
 }
 .arena-scope-button svg{height:16px;width:16px;flex:none}
 .arena-metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:3px;
-  flex:0 0 clamp(53px,8dvh,75px)}
+  flex:0 0 clamp(45px,6.9dvh,61px)}
 .arena-metric{
   min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
   padding:3px 1px;color:#f5f9ff;
@@ -129,7 +129,7 @@
 .arena-metric span{font:italic 1000 clamp(6px,1.7vw,12px)/1 system-ui,sans-serif;
   letter-spacing:-.055em;overflow-wrap:anywhere;text-align:center;max-width:100%}
 .arena-champion{
-  flex:0 0 clamp(73px,10.1dvh,111px);min-height:0;position:relative;isolation:isolate;
+  flex:0 0 clamp(64px,8.9dvh,90px);min-height:0;position:relative;isolation:isolate;
   border:2px solid #e23efe;border-radius:18px 5px 19px 5px;
   background:
     linear-gradient(110deg,#171047f5,#161348d9 53%,#561779dc),
@@ -161,7 +161,7 @@
   font:italic 1000 clamp(18px,6.1vw,37px)/1 system-ui,sans-serif;
   letter-spacing:-.05em;text-shadow:0 0 10px #f8ff34a8;
 }
-.arena-champion:has(.arena-distance) .arena-champion-main{padding-top:29px}
+.arena-champion:has(.arena-distance) .arena-champion-main{padding-top:26px}
 .arena-champion:has(.arena-distance) .arena-champion-avatar{width:min(100%,48px)}
 .arena-champion:has(.arena-distance) .arena-champion-score{padding:4px 1px}
 .arena-distance{
@@ -194,10 +194,10 @@
   color:#e4f2ff;font:italic 900 clamp(8px,2.2vw,12px)/1 system-ui,sans-serif;
   border-bottom:1px solid #7396bf}
 .arena-board-head span:nth-child(4){text-align:right;padding-right:8px}
-.arena-board-list{list-style:none;display:grid;grid-template-rows:repeat(10,minmax(0,1fr));gap:0;
-  min-height:0;flex:1;padding:0;margin:0}
+.arena-board-list{list-style:none;display:grid;grid-template-rows:repeat(10,minmax(20px,1fr));gap:0;
+  min-height:200px;flex:1 0 auto;padding:0;margin:0}
 .arena-board-row{
-  min-width:0;min-height:0;display:grid;grid-template-columns:9% 26px minmax(0,1fr) 13% 27%;
+  min-width:0;min-height:20px;display:grid;grid-template-columns:9% 21px minmax(0,1fr) 13% 27%;
   align-items:center;gap:3px;padding:1px 4px;
   border-bottom:1px solid #6e819d78;
 }
@@ -209,7 +209,7 @@
   font:italic 1000 clamp(11px,3.3vw,20px)/1 system-ui,sans-serif}
 .arena-board-rank svg{height:19px;width:19px;color:#ffdc22;fill:#ffd600}
 .arena-avatar{
-  display:block;flex:none;width:23px;height:23px;min-width:0;overflow:hidden;
+  display:block;flex:none;width:21px;height:21px;min-width:0;overflow:hidden;
   border:1px solid #68eaff;border-radius:6px 2px 6px 2px;
   background:#0e3a79;box-shadow:0 0 5px #1ee9ff91;
 }
@@ -223,7 +223,7 @@
   font:italic 1000 clamp(10px,2.8vw,17px)/1 system-ui,sans-serif;letter-spacing:-.04em}
 .arena-board-row.is-first .arena-board-value,.arena-board-row.is-current .arena-board-value{color:#edfc31}
 .arena-board-row.is-current{
-  flex:none;min-height:30px;margin-top:5px;border:2px solid #c5ff1f;border-radius:16px 4px 16px 4px;
+  flex:none;min-height:29px;margin-top:3px;border:2px solid #c5ff1f;border-radius:16px 4px 16px 4px;
   background:linear-gradient(95deg,#b5f514,#063718 25%,#07170d 81%,#23540d);
   box-shadow:0 0 9px #befb16, inset 0 1px #f4ffc7;
 }
@@ -271,7 +271,7 @@
   font:italic 850 clamp(7px,1.95vw,12px)/1.1 system-ui,sans-serif;white-space:nowrap}
 .arena-skill-card p svg{height:15px;width:15px;flex:none;color:#f9ef4b}
 .arena-skill-card p b{font-size:1.45em;color:#e9ff24}
-.arena-next-rival{flex:1;min-height:0;display:grid;grid-template-columns:25px minmax(0,1fr);
+.arena-next-rival{flex:0 0 clamp(54px,8dvh,73px);min-height:0;display:grid;grid-template-columns:25px minmax(0,1fr);
   grid-template-rows:auto 1fr;align-items:center;gap:2px;padding:5px;
   border:2px solid #ee2aef;border-radius:12px 3px;box-shadow:0 0 7px #fa38fa}
 .arena-next-rival>svg{color:#d9ff1b;height:22px;width:22px}
@@ -280,7 +280,7 @@
 .arena-next-rival .arena-avatar{width:25px;height:25px}
 /* RIVALS: one central VS showdown, two compact equal-height lists. */
 .arena-showdown{
-  flex:0 0 42%;min-height:0;display:flex;flex-direction:column;justify-content:space-between;
+  flex:0 0 clamp(153px,24dvh,205px);min-height:0;display:flex;flex-direction:column;justify-content:space-between;
   border:2px solid #f141f8;border-left-color:#37e6ff;border-radius:17px 6px 17px 5px;
   padding:8px;background:
     linear-gradient(120deg,#13184f99,#15063ba9 60%,#261151ad),
@@ -300,7 +300,7 @@
 .arena-versus small{white-space:nowrap;font:italic 900 clamp(7px,2vw,13px)/1 system-ui,sans-serif}
 .arena-versus b{color:#faff20;font:italic 1000 clamp(23px,6vw,38px)/1 system-ui,sans-serif}
 .arena-rematch{
-  flex:none;align-self:center;display:grid;place-items:center;width:65%;height:clamp(35px,5dvh,53px);
+  flex:none;align-self:center;display:grid;place-items:center;width:62%;height:clamp(29px,4.2dvh,39px);
   border:2px solid #f7ff75;border-radius:14px 3px;transform:skewX(-9deg);
   background:linear-gradient(150deg,#efff55,#a8f400 70%,#61b700);
   color:#081809;font:italic 1000 clamp(17px,5vw,31px)/1 system-ui,sans-serif;
@@ -325,7 +325,7 @@
   text-align:left;font:italic 850 clamp(8px,2.4vw,13px)/1.1 system-ui,sans-serif;
 }
 .arena-mini-row.is-selected{border-color:#caff27;box-shadow:0 0 7px #a3ff1d9c}
-.arena-mini-row .arena-avatar{width:22px;height:22px}
+.arena-mini-row .arena-avatar{width:19px;height:19px}
 .arena-mini-row>span:nth-child(2){min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .arena-mini-row b{white-space:nowrap;color:#f2ff38}
 .arena-invite-status{border-radius:8px 2px;padding:3px;color:#07190b!important;
@@ -396,3 +396,70 @@
   .arena-board-name{font-size:8px}
 }
 @media(prefers-reduced-motion:reduce){.arena-tabs button,.arena-global-dock a{transition:none}}
+
+/* iPhone screenshot regression: never compress ten entries into 0px grid
+   tracks. Prefer real minimum row height and a vertically scrollable content
+   well only when embedded Safari leaves too little room for the whole HUD. */
+.arena-stage{gap:3px}
+.arena-panel-area{gap:3px}
+.arena-hero-top{height:47%}
+.arena-logo{width:min(66%,390px)}
+.arena-motto{top:36%;left:29%;font-size:clamp(8px,2.3vw,14px)}
+.arena-hero h1{font-size:clamp(35px,10vw,63px);bottom:12%}
+.arena-hero-bottom{font-size:clamp(9px,2.6vw,16px)}
+.arena-content{overflow-y:auto;scrollbar-width:thin;scrollbar-color:#266f9b transparent}
+.arena-panel-area{min-height:100%}
+.arena-board{min-height:257px;padding:3px 5px 5px}
+.arena-board-title{font-size:clamp(11px,3vw,18px);padding-bottom:2px}
+.arena-board-head{height:17px;font-size:clamp(7px,2vw,11px)}
+.arena-board-row{padding:0 3px}
+.arena-board-rank{font-size:clamp(10px,2.9vw,17px)}
+.arena-board-rank svg{width:16px;height:16px}
+.arena-board-name{font-size:clamp(9px,2.5vw,14px)}
+.arena-board-level{font-size:clamp(7px,1.9vw,11px)}
+.arena-board-value{font-size:clamp(9px,2.55vw,15px)}
+.arena-board-row.is-current .arena-board-rank{font-size:clamp(13px,3.5vw,22px)}
+.arena-skill-card{gap:3px;padding:4px;min-height:257px}
+.arena-skill-user{flex-wrap:nowrap}
+.arena-skill-user strong{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.arena-skill-user .arena-avatar{width:clamp(32px,8vw,50px);height:clamp(32px,8vw,50px)}
+.arena-skill-rating{min-height:51px}
+.arena-skill-rating strong{font-size:clamp(26px,7vw,45px)}
+.arena-skill-card p{min-height:24px}
+.arena-skill-card p b{font-size:1.25em}
+.arena-next-rival{flex-shrink:0}
+.arena-metric span{font-size:clamp(7px,1.66vw,11px);hyphens:auto}
+.arena-metric svg{width:clamp(16px,3dvh,23px);height:clamp(16px,3dvh,23px)}
+.arena-champion-main{grid-template-columns:18% minmax(0,1fr) 39%}
+.arena-champion-name{gap:2px}
+.arena-champion-name>strong{font-size:clamp(13px,3.7vw,23px)}
+.arena-champion-name>span{font-size:clamp(7px,1.85vw,12px)}
+.arena-champion-score{padding:5px 1px;font-size:clamp(16px,5.4vw,30px)}
+.arena-showdown{padding:5px 6px}
+.arena-showdown-person{gap:2px}
+.arena-showdown-person .arena-avatar--large{width:clamp(53px,12vw,79px);height:clamp(53px,12vw,79px)}
+.arena-showdown-person strong{font-size:clamp(12px,3.2vw,19px)}
+.arena-showdown-person>span:last-child{font-size:clamp(9px,2.2vw,13px)}
+.arena-versus{gap:2px}
+.arena-versus strong{font-size:clamp(34px,8vw,57px)}
+.arena-versus b{font-size:clamp(20px,5vw,33px)}
+.arena-rematch{font-size:clamp(14px,4.3vw,24px)}
+.arena-duel-panel{gap:1px;padding:3px}
+.arena-duel-panel h2{min-height:22px;font-size:clamp(7px,1.95vw,12px)}
+.arena-mini-row{min-height:20px;font-size:clamp(7px,2vw,12px);padding:1px 2px}
+.arena-invite-status{font-size:clamp(6px,1.45vw,9px)}
+.arena-self-strip{flex-basis:clamp(30px,4.4dvh,40px)}
+/* Tiny webviews cannot physically fit 11 legible rows with the same chrome.
+   The content well scrolls as the fall-back; the PLAY/MAP/ARENA dock remains
+   always visible. In full-screen PWA dimensions all rows usually fit. */
+@media (max-height:700px){
+  .arena-hero{height:clamp(84px,13.2dvh,106px)}
+  .arena-hero h1{font-size:clamp(30px,9.2vw,54px)}
+  .arena-section-bar{flex-basis:31px}
+  .arena-scope{flex-basis:26px}
+  .arena-metrics{flex-basis:45px}
+  .arena-champion{flex-basis:64px}
+  .arena-tabs{flex-basis:31px}
+  .arena-section-bar strong{font-size:clamp(16px,5vw,30px)}
+  .arena-global-dock a{min-height:40px}
+}
