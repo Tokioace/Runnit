@@ -71,7 +71,7 @@ test('privacy: relative GPS/IMU export does not contain raw latitude longitude u
   assert.match(ghost,/east_m:/);
   assert.match(ghost,/north_m:/);
   assert.match(ghost,/raw_location_included: false/);
-  assert.match(ghost,/GPS \+ IMU/);
+  assert.match(ghost,/GPS \+ LIVE IMU/);
   assert.match(ghost,/JSON\.stringify\(report\)/);
   assert.match(ghost,/\.from\('ghost_run_sessions'\)\.insert\(/);
   assert.doesNotMatch(ghost,/\.from\('ghost_runs'\)\.insert\(/);
@@ -101,6 +101,6 @@ test('2 player result screen persists after finishing until each player closes i
   assert.match(finish,/outcome === 'won'/);
   assert.match(finish,/outcome === 'lost'/);
   assert.match(finish,/outcome === 'tie'/);
-  assert.match(finish,/\bstatus === 'completed'\b/);
+  assert.match(finish,/status === 'completed'/);
   assert.match(finish,/window\.setInterval/);
 });
