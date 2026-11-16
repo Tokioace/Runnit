@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   BarChart3, Building2, Check, Crown, Flag, Flame, Gauge, Globe2, Medal,
@@ -209,7 +209,7 @@ function Ladder({ scope, setScope, currentName }: { scope: Scope; setScope: (s: 
     </div>
   );
 }
-function Legends({ scope, setScope, currentName }: { scope: Scope; setScope: (s: Scope) => void; currentName: string }) {
+function Legends({ scope, setScope, currentName, resetScroll }: { scope: Scope; setScope: (s: Scope) => void; currentName: string; resetScroll: () => void }) {
   const [metric, setMetric] = useState<Metric>('acceleration');
   const [distance, setDistance] = useState<Distance>(100);
   const selected = metrics.find(m => m.id === metric)!;
@@ -223,7 +223,7 @@ function Legends({ scope, setScope, currentName }: { scope: Scope; setScope: (s:
       <div className="arena-metrics" role="group" aria-label="Rekordkategorie wählen">
         {metrics.map(({ id, title, icon: Icon }) =>
           <button type="button" key={id} aria-pressed={metric === id}
-            onClick={() => setMetric(id)} className={'arena-metric' + (metric === id ? ' is-active' : '')}>
+            onClick={() => { setMetric(id); resetScroll(); }} className={'arena-metric' + (metric === id ? ' is-active' : '')}>
             <Icon aria-hidden="true" /><span>{title}</span>
           </button>)}
       </div>
@@ -251,6 +251,9 @@ function Legends({ scope, setScope, currentName }: { scope: Scope; setScope: (s:
 export default function LeaderboardScreen({ displayName }: { displayName?: string | null }) {
   const [tab, setTab] = useState<ArenaTab>('rivals');
   const [scope, setScope] = useState<Scope>('global');
+  const contentRef = useRef<HTMLDivElement>(null);
+  const resetScroll = () => { if (contentRef.current) contentRef.current.scrollTop = 0; };
+  const changeScope = (value: Scope) => { setScope(value); resetScroll(); };
   const currentName = displayName?.trim() || 'Stergios';
   const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     const key = event.key;
@@ -262,6 +265,7 @@ export default function LeaderboardScreen({ displayName }: { displayName?: strin
     else return;
     event.preventDefault();
     setTab(tabs[target].id);
+    resetScroll();
     event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[target]?.focus();
   };
   return (
@@ -281,12 +285,12 @@ export default function LeaderboardScreen({ displayName }: { displayName?: strin
             <button key={id} id={'arena-tab-' + id} role="tab" type="button" aria-selected={tab === id}
               aria-controls={'arena-panel-' + id} tabIndex={tab === id ? 0 : -1}
               onKeyDown={event => onTabKeyDown(event, index)}
-              onClick={() => setTab(id)} className={tab === id ? 'is-active' : ''}>{label}</button>)}
+              onClick={() => { setTab(id); resetScroll(); }} className={tab === id ? 'is-active' : ''}>{label}</button>)}
         </nav>
-        <div className="arena-content" role="tabpanel" id={'arena-panel-' + tab} aria-labelledby={'arena-tab-' + tab}>
+        <div ref={contentRef} key={tab} className="arena-content" role="tabpanel" id={'arena-panel-' + tab} aria-labelledby={'arena-tab-' + tab}>
           {tab === 'rivals' ? <Rivals currentName={currentName}/> :
-            tab === 'ladder' ? <Ladder scope={scope} setScope={setScope} currentName={currentName}/> :
-              <Legends scope={scope} setScope={setScope} currentName={currentName}/>}
+            tab === 'ladder' ? <Ladder scope={scope} setScope={changeScope} currentName={currentName}/> :
+              <Legends scope={scope} setScope={changeScope} currentName={currentName} resetScroll={resetScroll}/>}
         </div>
         <div className="arena-demo-note" role="note"><ShieldAlert aria-hidden="true"/> DESIGNVORSCHAU · FIKTIVE NAMEN, RÄNGE UND REKORDE · NICHT VERIFIZIERT</div>
       </div>
