@@ -11,7 +11,6 @@ import { joinDuel } from '../db/joinDuel';
 import { getTopGhostRuns } from '../db/getTopGhostRuns';
 import { submitDuelResult, type DuelMetrics } from '../db/submitDuelResult';
 import { readyForDuel } from '../db/readyForDuel';
-import { getDuelResults } from '../db/getDuelResults';
 import BottomNav from '../components/ui/BottomNav';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { LeaderboardSheet } from '../components/leaderboard/Sheet';
@@ -28,7 +27,8 @@ import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters } from '../l
 import type { HotspotTestCity } from '../lib/mapHotspotSignals';
 import ReadyLobby from '../components/race/ReadyLobby';
 import RaceCountdown, { ARCADE_COUNTDOWN_SECONDS } from '../components/race/RaceCountdown';
-import { unlockRaceAudio, setRaceAudioMuted, playArcadeFinishSfx } from '../lib/arcadeRaceAudio';
+import DuelFinishScreen from '../components/race/DuelFinishScreen';
+import { unlockRaceAudio, setRaceAudioMuted } from '../lib/arcadeRaceAudio';
 import '../styles/raceArcade.css';
 
 // Types
@@ -792,7 +792,9 @@ export default function MapScreen() {
   const discoveryLoadedRef = useRef(false);
   const [discoveryCoords, setDiscoveryCoords] = useState<Coordinates | null>(null);
   const [discoveryRefreshTick, setDiscoveryRefreshTick] = useState(0);
-  const [userTimes, setUserTimes] = useState<number[]>([]);
+  const [finishSubmissionError, setFinishSubmissionError] = useState<string | null>(null);
+  const [finishSubmitting, setFinishSubmitting] = useState(false);
+  const latestFinishPayloadRef = useRef<{ duelId: string; timeMs: number; metrics?: DuelMetrics } | null>(null);
   const [matchOverlay, setMatchOverlay] = useState<{ duelId: string; startsAt: number; targetDistanceM: number } | null>(null);
   const [matchedDuel, setMatchedDuel] = useState<MatchedDuelState | null>(null);
   const [dismissedMatchId, setDismissedMatchId] = useState<string | null>(null);
@@ -835,6 +837,42 @@ export default function MapScreen() {
     setRaceNotice(remote
       ? 'Dein Gegner hat das Duell abgebrochen. Du kannst wieder ein Rennen starten.'
       : 'Duell für beide Spieler abgebrochen. Du kannst ein neues Rennen starten.');
+    setDiscoveryRefreshTick(tick => tick + 1);
+  }, []);
+
+  // Once the server confirms completed, both participants must see their
+  // results. Do not mark the race as seen until THIS phone closes the overlay.
+  const showCompletedDuel = React.useCallback((row: any) => {
+    if (!authUser || row?.status !== 'completed' || typeof row.id !== 'string' ||
+        endedDuelIdsRef.current.has(row.id) ||
+        (row.host_user_id !== authUser.id && row.challenger_user_id !== authUser.id)) return;
+    const active = activeDuelIdRef.current;
+    if (active && active !== row.id) return;
+    activeDuelIdRef.current = row.id;
+    setMatchOverlay(previous => previous?.duelId === row.id ? null : previous);
+    setMatchedDuel(previous => previous?.id === row.id ? null : previous);
+    setDismissedMatchId(null);
+    const start = typeof row.start_at === 'string' ? Date.parse(row.start_at) : NaN;
+    const startedAt = Number.isFinite(start) ? start : Date.now();
+    const targetDistanceM = Number(row.target_distance_m) > 0 ? Number(row.target_distance_m) : 50;
+    setRace(previous => previous.status === 'finished' && previous.duelId === row.id
+      ? previous : { status: 'finished', duelId: row.id, startedAt,
+        endedAt: Date.now(), targetDistanceM });
+  }, [authUser?.id]);
+
+  const closeCompletedDuel = React.useCallback((duelId: string) => {
+    endedDuelIdsRef.current.add(duelId);
+    if (activeDuelIdRef.current === duelId) activeDuelIdRef.current = null;
+    matchStartHandledRef.current = null;
+    latestFinishPayloadRef.current = null;
+    setFinishSubmissionError(null);
+    setMatchOverlay(previous => previous?.duelId === duelId ? null : previous);
+    setMatchedDuel(previous => previous?.id === duelId ? null : previous);
+    setDismissedMatchId(null);
+    setRace(previous => previous.status !== 'idle' && previous.duelId === duelId
+      ? { status: 'idle' } : previous);
+    setOpenRuns(previous => previous.filter(run => run.id !== duelId));
+    setHostedOpenDuels(previous => previous.filter(run => run.id !== duelId));
     setDiscoveryRefreshTick(tick => tick + 1);
   }, []);
 
@@ -1241,10 +1279,13 @@ export default function MapScreen() {
         return;
       }
       const { data: latest, error: statusError } = await supabase.from('duels')
-        .select('id, status').eq('id', activeId).maybeSingle();
+        .select('id, status, host_user_id, challenger_user_id, start_at, target_distance_m')
+        .eq('id', activeId).maybeSingle();
       if (!active || statusError) return;
       if (latest?.status === 'abandoned') {
         clearAbortedDuel(activeId, true);
+      } else if (latest?.status === 'completed') {
+        showCompletedDuel(latest);
       }
     };
     const whenVisible = () => {
@@ -1263,7 +1304,7 @@ export default function MapScreen() {
       document.removeEventListener('visibilitychange', whenVisible);
       window.removeEventListener('focus', whenVisible);
     };
-  }, [authUser?.id, applyMatchedDuel, clearAbortedDuel]);
+  }, [authUser?.id, applyMatchedDuel, clearAbortedDuel, showCompletedDuel]);
 
   // No Realtime subscription while exploring as an unauthenticated guest.
   // Realtime updates for duels
@@ -1295,6 +1336,9 @@ export default function MapScreen() {
           }
           if (payload.eventType === 'UPDATE' && row.status === 'abandoned') {
             clearAbortedDuel(row.id, true);
+          }
+          if (payload.eventType === 'UPDATE' && row.status === 'completed') {
+            showCompletedDuel(row);
           }
 
           setOpenRuns((prev) => {
@@ -1344,7 +1388,7 @@ export default function MapScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [authUser?.id, applyMatchedDuel, clearAbortedDuel]);
+  }, [authUser?.id, applyMatchedDuel, clearAbortedDuel, showCompletedDuel]);
 
   // The server is the authority for expiration. Client-side pruning only
   // keeps the map truthful until a cron/realtime update arrives, even after
@@ -1510,6 +1554,21 @@ export default function MapScreen() {
       }
     } finally {
       setCancellingRunId(null);
+    }
+  };
+
+  const retryFinishedTime = async () => {
+    const payload = latestFinishPayloadRef.current;
+    if (!payload || finishSubmitting) return;
+    setFinishSubmitting(true);
+    try {
+      const { error } = await submitDuelResult(supabase, payload.duelId, payload.timeMs, payload.metrics);
+      if (error) throw error;
+      setFinishSubmissionError(null);
+    } catch {
+      setFinishSubmissionError('Zielzeit konnte nicht gespeichert werden. Bitte erneut versuchen.');
+    } finally {
+      setFinishSubmitting(false);
     }
   };
 
@@ -1894,51 +1953,32 @@ export default function MapScreen() {
           onAbort={() => confirmAbortMatchedDuel(race.duelId)}
           onFinish={(endedAt, metrics) => {
             const timeMs = Math.max(1, endedAt - race.startedAt);
-            // Finish visuals and sound must fire without waiting on the network.
             setRace({ status: 'finished', duelId: race.duelId,
               startedAt: race.startedAt, endedAt, targetDistanceM: race.targetDistanceM });
+            setFinishSubmissionError(null);
             if (!race.duelId.startsWith('demo-run-')) {
+              latestFinishPayloadRef.current = { duelId: race.duelId, timeMs, metrics };
               void submitDuelResult(supabase, race.duelId, timeMs, metrics)
                 .then(({ error }) => {
-                  if (error) setRaceNotice('Rennzeit konnte nicht gespeichert werden. Ergebnis bleibt ungeprüft.');
+                  if (error) setFinishSubmissionError('Zielzeit nicht gespeichert. Bitte erneut versuchen.');
                 })
-                .catch(() => setRaceNotice('Verbindung unterbrochen. Ergebnis nicht bestätigt.'));
+                .catch(() => setFinishSubmissionError('Netzwerkfehler. Bitte Zielzeit erneut speichern.'));
             }
           }}
         />
       )}
 
       {race.status === 'finished' && authUser && (
-        <RaceFinishedOverlay
-          startedAt={race.startedAt}
-          endedAt={race.endedAt}
-          targetDistanceM={race.targetDistanceM}
+        <DuelFinishScreen
+          supabase={supabase}
           duelId={race.duelId}
-          currentUser={currentUser}
-          cityName={cityName}
-          onAddToLeaderboard={(time) => {
-            if (!authUser) return;
-            setUserTimes(prev => [...prev, time]);
-            // Add user to city leaderboard if they have a good time
-            if (currentUser && time < 15) { // Only add if time is reasonable
-              const newPlayer: Player = {
-                id: currentUser.id,
-                username: currentUser.username,
-                rank: 1, // Will be recalculated
-                bestTimeSeconds: time,
-                distanceMeters: race.targetDistanceM,
-                location: userCoords || { lat: 0, lng: 0 },
-                colorHex: colorForUsernameToHex(currentUser.username),
-                source: 'local-unverified',
-              };
-              setPlayers(prev => {
-                const filtered = prev.filter(p => p.id !== currentUser.id);
-                const updated = [newPlayer, ...filtered].sort((a, b) => a.bestTimeSeconds - b.bestTimeSeconds);
-                return updated.map((p, i) => ({ ...p, rank: i + 1 }));
-              });
-            }
-          }}
-          onClose={() => { setRace({ status: 'idle' }); }}
+          userId={authUser.id}
+          targetDistanceM={race.targetDistanceM}
+          isDemo={race.duelId.startsWith('demo-run-')}
+          submissionError={finishSubmissionError}
+          onRetrySubmit={retryFinishedTime}
+          onAbort={() => confirmAbortMatchedDuel(race.duelId)}
+          onClose={() => closeCompletedDuel(race.duelId)}
         />
       )}
 
@@ -2213,111 +2253,6 @@ function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish, onAbort
             RENNEN ABBRECHEN
           </button>
         )}
-      </div>
-    </div>
-  );
-}
-
-function RaceFinishedOverlay({ 
-  startedAt, 
-  endedAt, 
-  targetDistanceM, 
-  duelId, 
-  onClose,
-  currentUser,
-  cityName,
-  onAddToLeaderboard 
-}: { 
-  startedAt: number; 
-  endedAt: number; 
-  targetDistanceM: number; 
-  duelId: string; 
-  onClose: () => void;
-  currentUser: CurrentUser | null;
-  cityName: string | null;
-  onAddToLeaderboard?: (time: number) => void;
-}) {
-  const seconds = ((endedAt - startedAt) / 1000).toFixed(2);
-  const timeInSeconds = (endedAt - startedAt) / 1000;
-  const finishPlayed = useRef(false);
-  useEffect(() => {
-    if (finishPlayed.current) return;
-    finishPlayed.current = true;
-    playArcadeFinishSfx();
-  }, []);
-  
-  // Avoid repeatedly inserting a locally displayed result on parent re-renders.
-  const recordedLocalResultRef = useRef(false);
-  useEffect(() => {
-    if (recordedLocalResultRef.current || !currentUser || !onAddToLeaderboard) return;
-    recordedLocalResultRef.current = true;
-    onAddToLeaderboard(timeInSeconds);
-  }, [currentUser, onAddToLeaderboard, timeInSeconds]);
-
-  return (
-    <div className="race-arcade-screen race-arcade-finish">
-      <div className="race-arcade-light race-arcade-light-a" aria-hidden="true" />
-      <div className="race-arcade-light race-arcade-light-b" aria-hidden="true" />
-      <div className="race-arcade-shell">
-        <div className="race-arcade-topline"><span>RUNNIT // RACE CONTROL</span><span>FINISH</span></div>
-        <div className="race-arcade-finish-flag" aria-hidden="true">🏁</div>
-        <h2 className="race-arcade-finish-title">ZIEL<br />ERREICHT!</h2>
-        <p className="race-arcade-sound-caption">♪ FINISH BEEP + CROWD CHEER</p>
-        <div className="race-arcade-finish-result">
-          <p className="race-arcade-finish-label">1V1 DUELL · {targetDistanceM} M</p>
-          <p className="race-arcade-finish-time">{seconds}s</p>
-          <p className="race-arcade-finish-label">DEINE GEMESSENE ZEIT</p>
-          <div className="race-arcade-mini-stat"><span>DISTANZ (ZIEL)</span><strong>{targetDistanceM} M</strong></div>
-          <div className="race-arcade-mini-stat"><span>WERTUNG</span><strong>OFFEN</strong></div>
-        </div>
-        <p className="race-arcade-finish-note">
-          Zeit und GPS-Messung sind experimentell. Ein Sieg oder eine offizielle
-          Ranglistenplatzierung wird erst bei validierten Ergebnissen ausgewiesen.
-        </p>
-        <div className="race-arcade-finish-results"><SideBySideResults duelId={duelId} /></div>
-        <button type="button" className="race-arcade-primary" onClick={onClose}>
-          WEITER ZUR KARTE »
-        </button>
-        <button type="button" className="race-arcade-link" onClick={onClose}>
-          ERGEBNIS SCHLIESSEN
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function SideBySideResults({ duelId }: { duelId?: string }) {
-  const [rows, setRows] = useState<any[] | null>(null);
-  useEffect(() => {
-    (async () => {
-      if (!duelId) return;
-      const { data } = await getDuelResults(supabase as any, duelId);
-      setRows(data || null);
-    })();
-  }, [duelId]);
-  return (
-    <div className="rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
-      <div className="mb-2 grid grid-cols-2 gap-2 text-xs uppercase tracking-wide text-white/60">
-        <div>{rows?.[0]?.username || 'Runner A'}</div>
-        <div className="text-right">{rows?.[1]?.username || 'Runner B'}</div>
-      </div>
-      <div className="space-y-2 text-sm">
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-md bg-white/10 p-2">Time: {rows?.[0]?.time_ms ? (rows[0].time_ms/1000).toFixed(2)+'s' : '—'}</div>
-          <div className="rounded-md bg-white/10 p-2 text-right">Time: {rows?.[1]?.time_ms ? (rows[1].time_ms/1000).toFixed(2)+'s' : '—'}</div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-md bg-white/10 p-2">Max v: {rows?.[0]?.max_speed_mps ? rows[0].max_speed_mps.toFixed(2)+' m/s' : '—'}</div>
-          <div className="rounded-md bg-white/10 p-2 text-right">Max v: {rows?.[1]?.max_speed_mps ? rows[1].max_speed_mps.toFixed(2)+' m/s' : '—'}</div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-md bg-white/10 p-2">Max a: {rows?.[0]?.max_accel_mps2 ? rows[0].max_accel_mps2.toFixed(2)+' m/s²' : '—'}</div>
-          <div className="rounded-md bg-white/10 p-2 text-right">Max a: {rows?.[1]?.max_accel_mps2 ? rows[1].max_accel_mps2.toFixed(2)+' m/s²' : '—'}</div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-md bg-white/10 p-2">Steps: {rows?.[0]?.steps_count ?? '—'}</div>
-          <div className="rounded-md bg-white/10 p-2 text-right">Steps: {rows?.[1]?.steps_count ?? '—'}</div>
-        </div>
       </div>
     </div>
   );
