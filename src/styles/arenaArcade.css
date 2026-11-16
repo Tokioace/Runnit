@@ -28,7 +28,7 @@
   margin:0 -8px;overflow:hidden;
   background:
     linear-gradient(180deg,#050b2e5c 0%,#02071c16 55%,#080b29 100%),
-    url('/runnit-launch-portrait.avif') left bottom/auto 90% no-repeat,
+    url('/runnit-launch-hero.webp') left bottom/auto 90% no-repeat,
     url('/runnit-arcade-city.svg') center 46%/cover no-repeat;
 }
 .arena-hero::before{
