@@ -86,3 +86,7 @@ REVOKE ALL ON FUNCTION public.submit_duel_result(uuid,integer,integer,double pre
 FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.submit_duel_result(uuid,integer,integer,double precision,double precision,double precision,double precision,jsonb)
 TO authenticated;
+
+-- Players must use the checked RPC, never edit/inject individual result rows.
+-- SELECT remains available under existing participant-only result RLS and RPC.
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON TABLE public.duel_results FROM authenticated;
