@@ -57,7 +57,7 @@ test('Only BESTZEITEN has 50/75/100 m and content below never jumps', () => {
   assert.match(css, /\.arena-distance\{/);
   assert.match(css, /position:absolute;z-index:2/);
   assert.match(css, /\.arena-champion\{/);
-  assert.match(css, /flex:0 0 clamp\(73px,10\.1dvh,111px\)/);
+  assert.match(css, /flex:0 0 clamp\(64px,8\.9dvh,90px\)/);
   assert.match(css, /\.arena-board-list\{list-style:none;display:grid;grid-template-rows:repeat\(10/);
 });
 
@@ -98,4 +98,16 @@ test('Shared bottom navigation has three stable PLAY/MAP/ARENA destinations and 
   assert.match(css, /safe-area-inset-bottom/);
   assert.match(css, /height:100dvh/);
   assert.match(css, /overflow:hidden/);
+});
+
+
+test('iPhone preview rows never collapse into overlaid zero-height grid tracks', () => {
+  const css = read('src/styles/arenaArcade.css');
+  assert.match(css, /grid-template-rows:repeat\(10,minmax\(20px,1fr\)\)/);
+  assert.match(css, /min-height:200px;flex:1 0 auto/);
+  assert.match(css, /\.arena-content\{overflow-y:auto/);
+  assert.match(css, /\.arena-stage\{gap:3px\}/);
+  assert.match(css, /\.arena-next-rival\{flex:0 0 clamp/);
+  assert.match(css, /\.arena-showdown\{padding:5px 6px\}/);
+  assert.doesNotMatch(css, /url\('\/runnit-launch-hero\.webp'\)/);
 });
