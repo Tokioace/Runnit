@@ -28,7 +28,7 @@
   margin:0 -8px;overflow:hidden;
   background:
     linear-gradient(180deg,#050b2e5c 0%,#02071c16 55%,#080b29 100%),
-    url('/runnit-runner-mark.svg') 2% 76%/auto 65% no-repeat,
+    url('/runnit-arena-reference-runner.svg') left 62%/auto 105% no-repeat,
     url('/runnit-arcade-city.svg') center 46%/cover no-repeat;
 }
 .arena-hero::before{
@@ -478,3 +478,5 @@
 .arena-mini-row{min-height:22px;flex:1 0 22px}
 .arena-self-strip{flex-shrink:0}
 .arena-skill-card{overflow:hidden}
+
+/* Reference art replaces the generic stick-figure mark in Arena only. */
