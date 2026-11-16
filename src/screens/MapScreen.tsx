@@ -63,6 +63,16 @@ type CurrentUser = {
   location?: Coordinates;
 };
 
+type MatchedDuelState = {
+  id: string;
+  hostUserId: string;
+  challengerUserId: string;
+  targetDistanceM: number;
+  hostReady: boolean;
+  challengerReady: boolean;
+  startAt: string | null;
+};
+
 // German translations for Runnit
 type TranslationDict = Record<string, string>;
 const de: TranslationDict = {
@@ -779,6 +789,12 @@ export default function MapScreen() {
   const [discoveryRefreshTick, setDiscoveryRefreshTick] = useState(0);
   const [userTimes, setUserTimes] = useState<number[]>([]);
   const [matchOverlay, setMatchOverlay] = useState<{ duelId: string; startsAt: number; targetDistanceM: number } | null>(null);
+  const [matchedDuel, setMatchedDuel] = useState<MatchedDuelState | null>(null);
+  const [dismissedMatchId, setDismissedMatchId] = useState<string | null>(null);
+  const [readyBusy, setReadyBusy] = useState(false);
+  const [readyError, setReadyError] = useState<string | null>(null);
+  const joiningRunRef = useRef<string | null>(null);
+  const matchStartHandledRef = useRef<string | null>(null);
   const [race, setRace] = useState<
     | { status: 'idle' }
     | { status: 'countdown'; duelId: string; startsAt: number; targetDistanceM: number }
@@ -788,6 +804,44 @@ export default function MapScreen() {
   // Browser motion and GPS callbacks can be suspended when iOS locks the screen.
   // Keep it awake for the entire countdown and race, not just the step sampler.
   const wakeStatus = useScreenWakeLock(Boolean(matchOverlay) || race.status === 'countdown' || race.status === 'running');
+
+  // A DB-confirmed match is authoritative. Realtime, a join response and
+  // foreground recovery all use this same idempotent transition.
+  const applyMatchedDuel = React.useCallback((row: any) => {
+    if (!authUser || row?.status !== 'matched' || typeof row.id !== 'string' ||
+        (row.host_user_id !== authUser.id && row.challenger_user_id !== authUser.id)) return;
+    setOpenRuns(previous => previous.filter(run => run.id !== row.id));
+    setHostedOpenDuels(previous => previous.filter(run => run.id !== row.id));
+    setCancelConfirmation(previous => previous?.id === row.id ? null : previous);
+    setSelectedRunId(previous => previous === row.id ? null : previous);
+    const targetDistanceM = Number(row.target_distance_m) > 0 ? Number(row.target_distance_m) : 50;
+    const startAt = typeof row.start_at === 'string' ? row.start_at : null;
+    if (startAt) {
+      const serverStart = Date.parse(startAt);
+      const key = row.id + ':' + startAt;
+      if (Number.isFinite(serverStart) && serverStart > Date.now() - 10_000 &&
+          matchStartHandledRef.current !== key) {
+        matchStartHandledRef.current = key;
+        const startsAt = Math.max(Date.now() + 500, serverStart);
+        setMatchedDuel(null);
+        setMatchOverlay({ duelId: row.id, startsAt, targetDistanceM });
+        setRace({ status: 'countdown', duelId: row.id, startsAt, targetDistanceM });
+      } else if (matchStartHandledRef.current !== key) {
+        // Do not start an hours-old duel from a resumed Safari tab.
+        setMatchedDuel({
+          id: row.id, hostUserId: row.host_user_id,
+          challengerUserId: row.challenger_user_id, targetDistanceM,
+          hostReady: Boolean(row.host_ready), challengerReady: Boolean(row.challenger_ready), startAt,
+        });
+      }
+      return;
+    }
+    setMatchedDuel({
+      id: row.id, hostUserId: row.host_user_id,
+      challengerUserId: row.challenger_user_id, targetDistanceM,
+      hostReady: Boolean(row.host_ready), challengerReady: Boolean(row.challenger_ready), startAt: null,
+    });
+  }, [authUser?.id]);
 
   // Derive current user display - Demo mode with generated user
   useEffect(() => {
@@ -1101,6 +1155,46 @@ export default function MapScreen() {
     return () => { active = false; };
   }, [authUser?.id]);
 
+  // Mobile Safari may suspend Realtime while the tab is hidden or the screen
+  // locks. Recover existing confirmed matches on mount, on focus and during
+  // a waiting lobby without relying on a missed websocket message.
+  useEffect(() => {
+    if (!authUser) {
+      setMatchedDuel(null);
+      setDismissedMatchId(null);
+      return;
+    }
+    let active = true;
+    const refresh = async () => {
+      const { data, error } = await supabase.from('duels')
+        .select('id, status, host_user_id, challenger_user_id, target_distance_m, host_ready, challenger_ready, start_at')
+        .eq('status', 'matched')
+        .or(`host_user_id.eq.${authUser.id},challenger_user_id.eq.${authUser.id}`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!active || error) return;
+      if (data) applyMatchedDuel(data);
+      else setMatchedDuel(null);
+    };
+    const whenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void refresh();
+        setDiscoveryRefreshTick(tick => tick + 1);
+      }
+    };
+    void refresh();
+    const id = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, 4_000);
+    document.addEventListener('visibilitychange', whenVisible);
+    window.addEventListener('focus', whenVisible);
+    return () => {
+      active = false;
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', whenVisible);
+      window.removeEventListener('focus', whenVisible);
+    };
+  }, [authUser?.id, applyMatchedDuel]);
+
   // No Realtime subscription while exploring as an unauthenticated guest.
   // Realtime updates for duels
   useEffect(() => {
@@ -1124,18 +1218,10 @@ export default function MapScreen() {
             setHostedOpenDuels(previous => previous.filter(run => run.id !== row.id));
           }
 
-          // Show match overlay if this duel becomes matched and involves current user
-          if (
-            payload.eventType === 'UPDATE' &&
-            (row.status === 'matched' || (row.start_at && row.status === 'matched')) &&
-            authUser &&
-            (row.host_user_id === authUser.id || row.challenger_user_id === authUser.id)
-          ) {
-            const serverStart = row.start_at ? new Date(row.start_at).getTime() : Date.now() + 3000;
-            const startsAt = Math.max(Date.now() + 1000, serverStart); // ensure at least 1s buffer
-            const targetM = row.target_distance_m || 50;
-            setMatchOverlay({ duelId: row.id, startsAt, targetDistanceM: targetM });
-            setRace({ status: 'countdown', duelId: row.id, startsAt, targetDistanceM: targetM });
+          // Do not invent a 3-second countdown when the database is only
+          // matched. A real start_at is created after BOTH players confirm ready.
+          if (payload.eventType === 'UPDATE' && row.status === 'matched') {
+            applyMatchedDuel(row);
           }
 
           setOpenRuns((prev) => {
@@ -1185,7 +1271,7 @@ export default function MapScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [authUser?.id]);
+  }, [authUser?.id, applyMatchedDuel]);
 
   // The server is the authority for expiration. Client-side pruning only
   // keeps the map truthful until a cron/realtime update arrives, even after
@@ -1328,20 +1414,57 @@ export default function MapScreen() {
         // Do not remove a row unless the server actually returned cancellation.
         setCancelError(message);
         setRaceNotice(message);
-        // Refresh own lobby statuses after a possible concurrent challenger join.
-        void listHostedOpenDuels(supabase, authUser.id)
-          .then(runs => { setHostedOpenDuels(runs); setHostedDuelsLoadError(false); })
-          .catch(() => setHostedDuelsLoadError(true));
+        // A zero-row update can mean the opponent already joined. Query the
+        // authoritative row, close the stale cancel dialog and recover its match.
+        const { data: latest } = await supabase.from('duels')
+          .select('id, status, host_user_id, challenger_user_id, target_distance_m, host_ready, challenger_ready, start_at')
+          .eq('id', run.id).maybeSingle();
+        if (latest?.status === 'matched') {
+          applyMatchedDuel(latest);
+          setCancelError(null);
+          setRaceNotice('Dein Gegner ist bereits beigetreten. Das Rennen kann nicht mehr als offene Challenge abgesagt werden.');
+        } else if (latest && latest.status !== 'open') {
+          setHostedOpenDuels(previous => previous.filter(item => item.id !== run.id));
+          setOpenRuns(previous => previous.filter(item => item.id !== run.id));
+          setCancelConfirmation(null);
+          setCancelError(null);
+          setRaceNotice('Dieses Rennen ist nicht mehr offen und wurde von der Karte entfernt.');
+        } else {
+          void listHostedOpenDuels(supabase, authUser.id)
+            .then(runs => { setHostedOpenDuels(runs); setHostedDuelsLoadError(false); })
+            .catch(() => setHostedDuelsLoadError(true));
+        }
       }
     } finally {
       setCancellingRunId(null);
     }
   };
 
+  const confirmMatchReady = async () => {
+    if (!matchedDuel || !authUser || readyBusy || matchedDuel.startAt) return;
+    const mine = matchedDuel.hostUserId === authUser.id
+      ? matchedDuel.hostReady : matchedDuel.challengerReady;
+    if (mine) return;
+    setReadyBusy(true);
+    setReadyError(null);
+    try {
+      const { data, error } = await readyForDuel(supabase, matchedDuel.id);
+      if (error) throw error;
+      if (!data || data.id !== matchedDuel.id || data.status !== 'matched') {
+        throw new Error('Der Server hat den Bereitschaftsstatus nicht bestätigt.');
+      }
+      applyMatchedDuel(data);
+    } catch {
+      setReadyError('Bereitschaft konnte nicht gespeichert werden. Bitte erneut versuchen.');
+    } finally {
+      setReadyBusy(false);
+    }
+  };
+
   // Joining and starting races are exclusively for signed-in accounts.
   const handleJoinRun = async (run: OpenRun) => {
     if (!requireRaceAccount()) return;
-    if (!currentUser) return;
+    if (!currentUser || !authUser || joiningRunRef.current) return;
 
     // Signed-in runners may try explicitly labeled, non-scored sample races.
     if (run.id.startsWith('demo-run-')) {
@@ -1353,14 +1476,30 @@ export default function MapScreen() {
       return;
     }
     
+    joiningRunRef.current = run.id;
+    setRaceNotice('Beitritt wird geprüft …');
     try {
-      await joinDuel(supabase as any, run.id);
-      // Success will trigger realtime update (status -> matched) and remove from open list
+      // Inspect the RPC response, not just a Realtime event which iOS may miss.
+      const confirmed = await joinDuel(supabase, run.id);
+      if (confirmed.challenger_user_id !== authUser.id) {
+        throw new Error('Beitritt nicht für dieses Konto bestätigt.');
+      }
+      applyMatchedDuel(confirmed);
+      setRaceNotice(null);
     } catch (e) {
       const message = e instanceof Error ? e.message.toLowerCase() : '';
-      setRaceNotice(message.includes('expired') || message.includes('unavailable')
-        ? 'Dieses Event ist bereits abgelaufen oder nicht mehr frei.'
-        : 'Beitritt fehlgeschlagen. Bitte überprüfe die Verbindung oder versuche es erneut.');
+      if (message.includes('expired') || message.includes('unavailable') ||
+          message.includes('already joined') || message.includes('not found')) {
+        setOpenRuns(prev => prev.filter(r => r.id !== run.id));
+        setDiscoveryRefreshTick(tick => tick + 1);
+        setRaceNotice('Dieses Rennen ist bereits besetzt oder nicht mehr verfügbar.');
+      } else if (message.includes('login') || message.includes('permission') || message.includes('42501')) {
+        setRaceNotice('Bitte melde dich erneut an, um diesem Rennen beizutreten.');
+      } else {
+        setRaceNotice('Beitritt fehlgeschlagen. Bitte überprüfe die Verbindung und versuche es erneut.');
+      }
+    } finally {
+      joiningRunRef.current = null;
     }
   };
 
@@ -1596,20 +1735,63 @@ export default function MapScreen() {
         </div>
       )}
 
+      {/* Server-confirmed matched lobby: explicit readiness on both phones.
+          A matched duel is not a running race until the server supplies start_at. */}
+      {matchedDuel && !matchOverlay && race.status === 'idle' &&
+        dismissedMatchId !== matchedDuel.id && (
+        <div className="fixed inset-0 z-[1240] flex items-center justify-center bg-[#070913]/90 px-5 text-white backdrop-blur-xl">
+          <section role="dialog" aria-modal="true" aria-labelledby="matched-duel-title"
+            className="w-full max-w-sm rounded-3xl border border-cyan-400/50 bg-[#13204b] p-6 shadow-[0_16px_70px_rgba(0,0,0,.6)]">
+            <p className="text-xs font-black tracking-[0.25em] text-cyan-300">RUNNIT // RACE CONTROL</p>
+            <h2 id="matched-duel-title" className="mt-3 text-2xl font-black italic">GEGNER GEFUNDEN!</h2>
+            <p className="mt-2 text-sm text-white/80">1V1 DUELL · {matchedDuel.targetDistanceM} M</p>
+            <p className="mt-4 text-sm">
+              {matchedDuel.startAt
+                ? 'Die Startzeit ist bereits vergangen. Öffne die Karte, um den Rennstatus zu prüfen.'
+                : 'Beide Spieler müssen bereit sein. Erst dann beginnt der gemeinsame Countdown.'}
+            </p>
+            <div className="mt-4 rounded-xl bg-[#0e1935] p-3 text-sm">
+              <p>Veranstalter: {matchedDuel.hostReady ? 'BEREIT ✓' : 'WARTET'}</p>
+              <p className="mt-1">Herausforderer: {matchedDuel.challengerReady ? 'BEREIT ✓' : 'WARTET'}</p>
+            </div>
+            {!matchedDuel.startAt && (
+              <button type="button" onClick={() => { void confirmMatchReady(); }}
+                disabled={readyBusy || (matchedDuel.hostUserId === authUser?.id
+                  ? matchedDuel.hostReady : matchedDuel.challengerReady)}
+                className="mt-5 w-full rounded-xl bg-lime-300 px-4 py-3 font-extrabold text-slate-950 disabled:opacity-60">
+                {readyBusy ? 'WIRD GESPEICHERT …'
+                  : (matchedDuel.hostUserId === authUser?.id
+                      ? matchedDuel.hostReady : matchedDuel.challengerReady)
+                    ? 'BEREIT · WARTE AUF GEGNER' : 'ICH BIN BEREIT'}
+              </button>
+            )}
+            {readyError && <p role="alert" className="mt-3 text-sm text-rose-200">{readyError}</p>}
+            <button type="button" onClick={() => setDismissedMatchId(matchedDuel.id)}
+              className="mt-3 w-full rounded-xl border border-white/25 px-4 py-3 text-sm font-bold">
+              ZUR KARTE
+            </button>
+          </section>
+        </div>
+      )}
+      {matchedDuel && dismissedMatchId === matchedDuel.id && race.status === 'idle' && (
+        <button type="button" onClick={() => setDismissedMatchId(null)}
+          className="absolute inset-x-4 bottom-28 z-[1050] rounded-xl border border-cyan-300 bg-[#13204b] p-3 text-sm font-extrabold text-white shadow-xl">
+          DUELL GEFUNDEN · BEREITSCHAFT ÖFFNEN
+        </button>
+      )}
+
       {/* Match countdown overlay */}
       {matchOverlay && (
         <MatchCountdownOverlay
           wakeStatus={wakeStatus}
           startsAt={matchOverlay.startsAt}
-          onReady={async () => {
+          onReady={() => {
             if (!authUser) {
               setMatchOverlay(null);
               setRace({ status: 'idle' });
               navigate('/login?next=%2Fmap');
-              return;
             }
-            if (matchOverlay.duelId.startsWith('demo-run-')) return;
-            try { await readyForDuel(supabase as any, matchOverlay.duelId); } catch (_e) {}
+            // Real readiness was already confirmed before start_at.
           }}
           onDone={() => {
             setMatchOverlay(null);
