@@ -1,0 +1,78 @@
+import React from 'react';
+
+export type ReadyLobbyProps = {
+  hostName: string;
+  challengerName: string;
+  hostReady: boolean;
+  challengerReady: boolean;
+  isHost: boolean;
+  targetDistanceM: number;
+  readyBusy: boolean;
+  readyError: string | null;
+  soundEnabled: boolean;
+  onReady: () => void;
+  onSoundToggle: () => void;
+  onBack: () => void;
+};
+
+function RunnerCard({ name, role, ready, isMe, number }: {
+  name: string; role: string; ready: boolean; isMe: boolean; number: '01' | '02';
+}) {
+  return (
+    <div className={'race-arcade-player ' + (ready ? 'is-ready' : '')}>
+      <div className="race-arcade-avatar" aria-hidden="true">{name.trim().slice(0, 1).toUpperCase() || 'R'}</div>
+      <div className="race-arcade-player-info">
+        <span className="race-arcade-eyebrow">{role}{isMe ? ' · DU' : ''}</span>
+        <strong className="race-arcade-player-name">{name}</strong>
+        <span className={'race-arcade-status ' + (ready ? 'ready' : 'waiting')}>
+          <span aria-hidden="true">{ready ? '✓ ' : '◌ '}</span>{ready ? 'READY' : 'WARTET AUF READY'}
+        </span>
+      </div>
+      <span className="race-arcade-player-number" aria-hidden="true">{number}</span>
+    </div>
+  );
+}
+
+/** Fully optional presentation layer; readiness is still server-authoritative. */
+export default function ReadyLobby(props: ReadyLobbyProps) {
+  const { hostName, challengerName, hostReady, challengerReady, isHost, targetDistanceM,
+    readyBusy, readyError, soundEnabled, onReady, onSoundToggle, onBack } = props;
+  const mineReady = isHost ? hostReady : challengerReady;
+  return (
+    <div className="race-arcade-screen race-arcade-lobby" role="dialog" aria-modal="true"
+      aria-labelledby="arcade-lobby-title">
+      <div className="race-arcade-light race-arcade-light-a" aria-hidden="true" />
+      <div className="race-arcade-light race-arcade-light-b" aria-hidden="true" />
+      <div className="race-arcade-shell">
+        <div className="race-arcade-topline">
+          <span>RUNNIT // READY LOBBY</span>
+          <button className="race-arcade-sound" type="button" onClick={onSoundToggle}
+            aria-label={soundEnabled ? 'Ton ausschalten' : 'Ton einschalten'}
+            aria-pressed={soundEnabled}>{soundEnabled ? '♪ TON AN' : 'TON AUS'}</button>
+        </div>
+        <div className="race-arcade-headline">
+          <span className="race-arcade-flag" aria-hidden="true">▰ ▰ ▰</span>
+          <h2 id="arcade-lobby-title">GEGNER<br />GEFUNDEN!</h2>
+          <div className="race-arcade-duel-tag">1V1 DUELL <b>· {targetDistanceM} M</b></div>
+        </div>
+        <div className="race-arcade-versus">
+          <RunnerCard role="HOST" name={hostName} ready={hostReady} isMe={isHost} number="01" />
+          <div className="race-arcade-vs" aria-hidden="true">VS</div>
+          <RunnerCard role="CHALLENGER" name={challengerName} ready={challengerReady}
+            isMe={!isHost} number="02" />
+        </div>
+        <div className="race-arcade-lobby-footer">
+          <p className="race-arcade-help">
+            <span aria-hidden="true">◆</span> START ERST WENN <strong>BEIDE</strong> READY SIND
+          </p>
+          <button type="button" className="race-arcade-primary" onClick={onReady}
+            disabled={mineReady || readyBusy}>
+            {readyBusy ? 'READY WIRD BESTÄTIGT…' : mineReady ? '✓ DU BIST READY — WARTE AUF GEGNER' : 'ICH BIN READY »'}
+          </button>
+          {readyError && <p className="race-arcade-error" role="alert">{readyError}</p>}
+          <button className="race-arcade-link" type="button" onClick={onBack}>ZUR KARTE · LOBBY BLEIBT AKTIV</button>
+        </div>
+      </div>
+    </div>
+  );
+}

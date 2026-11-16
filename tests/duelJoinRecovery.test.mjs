@@ -52,9 +52,10 @@ test('match does not start until both players are server-ready', () => {
   assert.match(map, /const \{ data, error \} = await readyForDuel\(supabase, matchedDuel\.id\)/);
   assert.match(map, /const startAt = typeof row\.start_at === 'string'/);
   assert.match(map, /if \(startAt\) \{/);
-  assert.match(map, /Beide Spieler müssen bereit sein/);
-  assert.match(map, /onReady=\{\(\) => \{/);
-  assert.match(map, /Real readiness was already confirmed before start_at/);
+  assert.match(readFileSync(new URL('../src/components/race/ReadyLobby.tsx', import.meta.url), 'utf8'), /START ERST WENN/);
+  assert.match(map, /<ReadyLobby/);
+  assert.match(map, /<RaceCountdown/);
+  assert.match(map, /if \(race\.status === 'countdown'\)/);
   assert.match(backend, /CREATE OR REPLACE FUNCTION public\.join_duel/);
   assert.match(backend, /status = 'matched'/);
 });

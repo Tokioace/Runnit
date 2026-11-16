@@ -25,6 +25,10 @@ import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage, type ScreenWakeLockStatus } from '../lib/screenWakeLock';
 import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters } from '../lib/mapHostPlacement';
 import type { HotspotTestCity } from '../lib/mapHotspotSignals';
+import ReadyLobby from '../components/race/ReadyLobby';
+import RaceCountdown, { ARCADE_COUNTDOWN_SECONDS } from '../components/race/RaceCountdown';
+import { unlockRaceAudio, setRaceAudioMuted, playArcadeFinishSfx } from '../lib/arcadeRaceAudio';
+import '../styles/raceArcade.css';
 
 // Types
 type Coordinates = {
@@ -793,6 +797,9 @@ export default function MapScreen() {
   const [dismissedMatchId, setDismissedMatchId] = useState<string | null>(null);
   const [readyBusy, setReadyBusy] = useState(false);
   const [readyError, setReadyError] = useState<string | null>(null);
+  const [raceSoundEnabled, setRaceSoundEnabled] = useState(true);
+  useEffect(() => { setRaceAudioMuted(!raceSoundEnabled); }, [raceSoundEnabled]);
+  const [matchedNames, setMatchedNames] = useState<Record<string, string>>({});
   const joiningRunRef = useRef<string | null>(null);
   const matchStartHandledRef = useRef<string | null>(null);
   const [race, setRace] = useState<
@@ -822,7 +829,7 @@ export default function MapScreen() {
       if (Number.isFinite(serverStart) && serverStart > Date.now() - 10_000 &&
           matchStartHandledRef.current !== key) {
         matchStartHandledRef.current = key;
-        const startsAt = Math.max(Date.now() + 500, serverStart);
+        const startsAt = serverStart; // exact DB timestamp; late devices catch up instead of shifting GO
         setMatchedDuel(null);
         setMatchOverlay({ duelId: row.id, startsAt, targetDistanceM });
         setRace({ status: 'countdown', duelId: row.id, startsAt, targetDistanceM });
@@ -842,6 +849,26 @@ export default function MapScreen() {
       hostReady: Boolean(row.host_ready), challengerReady: Boolean(row.challenger_ready), startAt: null,
     });
   }, [authUser?.id]);
+
+  // Display only profile nicknames (never email addresses). Names are optional:
+  // the lobby still works when public.users is temporarily unavailable.
+  useEffect(() => {
+    if (!matchedDuel || !authUser) return;
+    let active = true;
+    void supabase.from('users').select('id, username')
+      .in('id', [matchedDuel.hostUserId, matchedDuel.challengerUserId])
+      .then(({ data }) => {
+        if (!active) return;
+        const resolved: Record<string, string> = {};
+        for (const row of data ?? []) {
+          if (typeof row.id === 'string' && typeof row.username === 'string' && row.username.trim()) {
+            resolved[row.id] = row.username.trim().slice(0, 36);
+          }
+        }
+        setMatchedNames(resolved);
+      });
+    return () => { active = false; };
+  }, [matchedDuel?.id, authUser?.id]);
 
   // Derive current user display - Demo mode with generated user
   useEffect(() => {
@@ -1468,7 +1495,7 @@ export default function MapScreen() {
 
     // Signed-in runners may try explicitly labeled, non-scored sample races.
     if (run.id.startsWith('demo-run-')) {
-      const startsAt = Date.now() + 3000; // 3 seconds countdown
+      const startsAt = Date.now() + ARCADE_COUNTDOWN_SECONDS * 1000; // local demo only; real time is stored by server
       setMatchOverlay({ duelId: run.id, startsAt, targetDistanceM: run.targetDistanceM || run.distanceMeters });
       setRace({ status: 'countdown', duelId: run.id, startsAt, targetDistanceM: run.targetDistanceM || run.distanceMeters });
       // Remove the run from open runs
@@ -1739,39 +1766,33 @@ export default function MapScreen() {
           A matched duel is not a running race until the server supplies start_at. */}
       {matchedDuel && !matchOverlay && race.status === 'idle' &&
         dismissedMatchId !== matchedDuel.id && (
-        <div className="fixed inset-0 z-[1240] flex items-center justify-center bg-[#070913]/90 px-5 text-white backdrop-blur-xl">
-          <section role="dialog" aria-modal="true" aria-labelledby="matched-duel-title"
-            className="w-full max-w-sm rounded-3xl border border-cyan-400/50 bg-[#13204b] p-6 shadow-[0_16px_70px_rgba(0,0,0,.6)]">
-            <p className="text-xs font-black tracking-[0.25em] text-cyan-300">RUNNIT // RACE CONTROL</p>
-            <h2 id="matched-duel-title" className="mt-3 text-2xl font-black italic">GEGNER GEFUNDEN!</h2>
-            <p className="mt-2 text-sm text-white/80">1V1 DUELL · {matchedDuel.targetDistanceM} M</p>
-            <p className="mt-4 text-sm">
-              {matchedDuel.startAt
-                ? 'Die Startzeit ist bereits vergangen. Öffne die Karte, um den Rennstatus zu prüfen.'
-                : 'Beide Spieler müssen bereit sein. Erst dann beginnt der gemeinsame Countdown.'}
-            </p>
-            <div className="mt-4 rounded-xl bg-[#0e1935] p-3 text-sm">
-              <p>Veranstalter: {matchedDuel.hostReady ? 'BEREIT ✓' : 'WARTET'}</p>
-              <p className="mt-1">Herausforderer: {matchedDuel.challengerReady ? 'BEREIT ✓' : 'WARTET'}</p>
-            </div>
-            {!matchedDuel.startAt && (
-              <button type="button" onClick={() => { void confirmMatchReady(); }}
-                disabled={readyBusy || (matchedDuel.hostUserId === authUser?.id
-                  ? matchedDuel.hostReady : matchedDuel.challengerReady)}
-                className="mt-5 w-full rounded-xl bg-lime-300 px-4 py-3 font-extrabold text-slate-950 disabled:opacity-60">
-                {readyBusy ? 'WIRD GESPEICHERT …'
-                  : (matchedDuel.hostUserId === authUser?.id
-                      ? matchedDuel.hostReady : matchedDuel.challengerReady)
-                    ? 'BEREIT · WARTE AUF GEGNER' : 'ICH BIN BEREIT'}
-              </button>
-            )}
-            {readyError && <p role="alert" className="mt-3 text-sm text-rose-200">{readyError}</p>}
-            <button type="button" onClick={() => setDismissedMatchId(matchedDuel.id)}
-              className="mt-3 w-full rounded-xl border border-white/25 px-4 py-3 text-sm font-bold">
-              ZUR KARTE
-            </button>
-          </section>
-        </div>
+        <ReadyLobby
+          hostName={matchedDuel.hostUserId === authUser?.id
+            ? (authUser?.displayName || 'HOST')
+            : (matchedNames[matchedDuel.hostUserId] || 'HOST')}
+          challengerName={matchedDuel.challengerUserId === authUser?.id
+            ? (authUser?.displayName || 'RUNNER')
+            : (matchedNames[matchedDuel.challengerUserId] || 'CHALLENGER')}
+          hostReady={matchedDuel.hostReady}
+          challengerReady={matchedDuel.challengerReady}
+          isHost={matchedDuel.hostUserId === authUser?.id}
+          targetDistanceM={matchedDuel.targetDistanceM}
+          readyBusy={readyBusy}
+          readyError={readyError}
+          soundEnabled={raceSoundEnabled}
+          onReady={() => {
+            // Unlock audio before the async Ready RPC (iOS user-gesture rule).
+            if (raceSoundEnabled) unlockRaceAudio();
+            void confirmMatchReady();
+          }}
+          onSoundToggle={() => {
+            const next = !raceSoundEnabled;
+            setRaceSoundEnabled(next);
+            setRaceAudioMuted(!next);
+            if (next) unlockRaceAudio();
+          }}
+          onBack={() => setDismissedMatchId(matchedDuel.id)}
+        />
       )}
       {matchedDuel && dismissedMatchId === matchedDuel.id && race.status === 'idle' && (
         <button type="button" onClick={() => setDismissedMatchId(null)}
@@ -1780,28 +1801,26 @@ export default function MapScreen() {
         </button>
       )}
 
-      {/* Match countdown overlay */}
+      {/* Server-synchronized countdown, never triggered before both READY. */}
       {matchOverlay && (
-        <MatchCountdownOverlay
+        <RaceCountdown
           wakeStatus={wakeStatus}
           startsAt={matchOverlay.startsAt}
-          onReady={() => {
+          targetDistanceM={matchOverlay.targetDistanceM}
+          soundEnabled={raceSoundEnabled}
+          onDone={() => {
             if (!authUser) {
               setMatchOverlay(null);
               setRace({ status: 'idle' });
               navigate('/login?next=%2Fmap');
-            }
-            // Real readiness was already confirmed before start_at.
-          }}
-          onDone={() => {
-            setMatchOverlay(null);
-            if (!authUser) {
-              setRace({ status: 'idle' });
-              navigate('/login?next=%2Fmap');
               return;
             }
+            setMatchOverlay(null);
             if (race.status === 'countdown') {
-              setRace({ status: 'running', duelId: race.duelId, startedAt: Date.now(), targetDistanceM: race.targetDistanceM });
+              // Use the exact server start timestamp rather than each phone's
+              // callback timestamp for a synchronized, fair elapsed time.
+              setRace({ status: 'running', duelId: race.duelId,
+                startedAt: race.startsAt, targetDistanceM: race.targetDistanceM });
             }
           }}
         />
@@ -1812,15 +1831,23 @@ export default function MapScreen() {
           wakeStatus={wakeStatus}
           startedAt={race.startedAt}
           targetDistanceM={race.targetDistanceM}
-          onFinish={async (endedAt, metrics) => {
-            const timeMs = endedAt - race.startedAt;
-            // try submit result; ignore failure for now
-            if (authUser && !race.duelId.startsWith('demo-run-')) {
-              try {
-                await submitDuelResult(supabase as any, race.duelId, timeMs, metrics);
-              } catch (_e) {}
+          onFinish={(endedAt, metrics, completed = true) => {
+            if (!completed) {
+              setRace({ status: 'idle' });
+              setRaceNotice('Testlauf manuell beendet. Kein Ergebnis als Zielankunft gespeichert.');
+              return;
             }
-            setRace({ status: 'finished', duelId: race.duelId, startedAt: race.startedAt, endedAt, targetDistanceM: race.targetDistanceM });
+            const timeMs = Math.max(1, endedAt - race.startedAt);
+            // Finish visuals and sound must fire without waiting on the network.
+            setRace({ status: 'finished', duelId: race.duelId,
+              startedAt: race.startedAt, endedAt, targetDistanceM: race.targetDistanceM });
+            if (!race.duelId.startsWith('demo-run-')) {
+              void submitDuelResult(supabase, race.duelId, timeMs, metrics)
+                .then(({ error }) => {
+                  if (error) setRaceNotice('Rennzeit konnte nicht gespeichert werden. Ergebnis bleibt ungeprüft.');
+                })
+                .catch(() => setRaceNotice('Verbindung unterbrochen. Ergebnis nicht bestätigt.'));
+            }
           }}
         />
       )}
@@ -1855,11 +1882,7 @@ export default function MapScreen() {
               });
             }
           }}
-          onClose={() => {
-            setRace({ status: 'idle' });
-            // Optionally open leaderboard after race
-            setTimeout(() => setGhostOpen(true), 500);
-          }}
+          onClose={() => { setRace({ status: 'idle' }); }}
         />
       )}
 
@@ -1949,63 +1972,7 @@ export default function MapScreen() {
   );
 }
 
-function MatchCountdownOverlay({ startsAt, wakeStatus, onReady, onDone }: { startsAt: number; wakeStatus: ScreenWakeLockStatus | 'idle'; onReady: () => void; onDone: () => void }) {
-  const [remainingMs, setRemainingMs] = useState(Math.max(0, startsAt - Date.now()));
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  useEffect(() => {
-    onReady();
-    // Simple audio sequence: 3,2,1, go
-    try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const playBeep = (t: number, freq: number, durMs: number, gain=0.2) => {
-        const osc = ctx.createOscillator();
-        const g = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        g.gain.value = gain;
-        osc.connect(g).connect(ctx.destination);
-        osc.start(ctx.currentTime + t);
-        osc.stop(ctx.currentTime + t + durMs / 1000);
-      };
-      const total = Math.max(0, (startsAt - Date.now()) / 1000);
-      // schedule beeps at 3,2,1,go within the remaining timeframe
-      // fallback if short: only final go
-      if (total > 2.5) {
-        playBeep(total - 3, 600, 120);
-        playBeep(total - 2, 650, 120);
-        playBeep(total - 1, 700, 120);
-        playBeep(total - 0.02, 900, 240, 0.25);
-      } else if (total > 0.8) {
-        playBeep(total - 1, 700, 120);
-        playBeep(total - 0.02, 900, 240, 0.25);
-      } else {
-        playBeep(0, 900, 200, 0.25);
-      }
-    } catch {}
-    const id = setInterval(() => {
-      const ms = Math.max(0, startsAt - Date.now());
-      setRemainingMs(ms);
-      if (ms <= 0) {
-        clearInterval(id);
-        onDone();
-      }
-    }, 50);
-    return () => clearInterval(id);
-  }, [startsAt, onDone]);
-  const seconds = Math.ceil(remainingMs / 1000);
-  return (
-    <div className="fixed inset-0 z-[1250] flex flex-col items-center justify-center bg-[#070913]/90 px-5 text-white backdrop-blur-xl">
-      <p className="mb-8 text-xs font-black uppercase tracking-[0.32em] text-emerald-300">RUNNIT · READY</p>
-      <div className="flex h-44 w-44 items-center justify-center rounded-[48px] border border-violet-300/40 bg-gradient-to-br from-violet-500/35 to-cyan-500/10 text-7xl font-black tabular-nums shadow-[0_0_90px_rgba(139,92,246,.24)]">
-        {seconds}
-      </div>
-      <p className="mt-8 text-sm font-semibold text-white/60">Mach dich bereit.</p>
-      {wakeStatus !== 'idle' && <p role="status" className={wakeStatus === 'held' ? 'mt-3 max-w-sm text-center text-xs text-emerald-200' : 'mt-3 max-w-sm text-center text-xs text-amber-200'}>{screenWakeLockMessage(wakeStatus)}</p>}
-    </div>
-  );
-}
-
-function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { startedAt: number; targetDistanceM: number; wakeStatus: ScreenWakeLockStatus | 'idle'; onFinish: (endedAt: number, metrics?: DuelMetrics) => void }) {
+function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { startedAt: number; targetDistanceM: number; wakeStatus: ScreenWakeLockStatus | 'idle'; onFinish: (endedAt: number, metrics?: DuelMetrics, completed?: boolean) => void }) {
   const [elapsedMs, setElapsedMs] = useState(Math.max(0, Date.now() - startedAt));
   const [acceptedDistanceM, setAcceptedDistanceM] = useState(0);
   const [displayDistanceM, setDisplayDistanceM] = useState(0);
@@ -2072,17 +2039,7 @@ function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { sta
           }
           if (overTargetStreakRef.current >= 2 && !finishedRef.current) {
             finishedRef.current = true;
-            try {
-              const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-              const osc = ctx.createOscillator();
-              const g = ctx.createGain();
-              osc.type = 'triangle';
-              osc.frequency.value = 950;
-              g.gain.value = 0.25;
-              osc.connect(g).connect(ctx.destination);
-              osc.start();
-              osc.stop(ctx.currentTime + 0.22);
-            } catch {}
+            // The finish screen plays the shared arcade beep and crowd SFX.
             const steps = liveStepCounter.current.count;
             const stepLen = steps > 0 ? nextDist / steps : undefined;
             onFinish(Date.now(), {
@@ -2132,43 +2089,53 @@ function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { sta
     return () => window.removeEventListener('devicemotion', handler);
   }, []);
 
-  // Auto-finish moved into GPS sampler for accuracy-stable detection
+  // GPS remains authoritative for measured distance. Live steps are diagnostics.
   const seconds = (elapsedMs / 1000).toFixed(2);
+  const progress = Math.max(0, Math.min(100, displayDistanceM / targetDistanceM * 100));
   return (
-    <div className="fixed inset-0 z-[1250] flex flex-col items-center justify-center gap-6 bg-[#070913]/90 px-5 text-white backdrop-blur-xl">
-      <p className="text-xs font-black uppercase tracking-[0.3em] text-emerald-300">RUNNIT · LIVE RACE</p>
-      {wakeStatus !== 'idle' && <p role="status" className={wakeStatus === 'held' ? 'max-w-sm text-center text-xs text-emerald-200' : 'max-w-sm text-center text-xs text-amber-200'}>{screenWakeLockMessage(wakeStatus)}</p>}
-      <div className="w-full max-w-sm rounded-[32px] border border-violet-300/25 bg-gradient-to-br from-violet-500/25 to-cyan-500/10 p-8 text-center shadow-[0_0_60px_rgba(139,92,246,.13)]">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/50">Laufzeit</p>
-        <p className="mt-3 text-6xl font-black tracking-[-0.07em] tabular-nums text-white">{seconds}<span className="ml-1 text-2xl text-emerald-300">s</span></p>
-        <p className="mt-5 text-sm font-semibold tabular-nums text-white/65">{displayDistanceM.toFixed(1)} / {targetDistanceM} m</p>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-          <div className="h-full rounded-full bg-gradient-to-r from-violet-400 via-cyan-300 to-emerald-300" style={{ width: `${Math.max(0, Math.min(100, displayDistanceM / targetDistanceM * 100))}%` }} />
+    <div className="race-arcade-screen race-arcade-live">
+      <div className="race-arcade-light race-arcade-light-a" aria-hidden="true" />
+      <div className="race-arcade-light race-arcade-light-b" aria-hidden="true" />
+      <div className="race-arcade-shell">
+        <div className="race-arcade-topline"><span>RUNNIT // LIVE RACE</span><span>● LIVE</span></div>
+        <div className="race-arcade-headline">
+          <h2>FULL SPEED!</h2>
+          <div className="race-arcade-duel-tag">1V1 DUELL <b>· {targetDistanceM} M</b></div>
         </div>
-        <div role="status" aria-live="polite" aria-atomic="true" className="mt-5 border-t border-white/15 pt-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-cyan-200">Live-Schrittspitzen · experimentell</p>
-          <p className="mt-1 text-4xl font-black tabular-nums text-white">{liveStepCount}</p>
+        <div className="race-arcade-live-panel">
+          <p className="race-arcade-eyebrow">LIVE TIMER</p>
+          <p className="race-arcade-live-big">{seconds}<span style={{ fontSize: '.38em', color: '#d0ff25' }}>s</span></p>
+          <p className="race-arcade-live-distance">{displayDistanceM.toFixed(1)} / {targetDistanceM} M</p>
+          <div className="race-arcade-live-meter" role="progressbar" aria-label="Gelaufene Distanz"
+            aria-valuemin={0} aria-valuemax={targetDistanceM}
+            aria-valuenow={Math.min(targetDistanceM, Math.round(displayDistanceM))}>
+            <span style={{ width: `${progress}%` }} />
+          </div>
+          <div className="race-arcade-mini-stat">
+            <span>LIVE STEPS · EXPERIMENTELL</span><strong>{liveStepCount}</strong>
+          </div>
+          <div className="race-arcade-mini-stat">
+            <span>GPS MAX SPEED</span><strong>{maxSpeed.toFixed(1)} m/s</strong>
+          </div>
+          <p className="race-arcade-wake">GPS-Bewertung experimentell · nicht verifiziert</p>
         </div>
+        {wakeStatus !== 'idle' && <p className="race-arcade-wake">{screenWakeLockMessage(wakeStatus)}</p>}
+        <button type="button" className="race-arcade-link"
+          onClick={() => {
+            if (finishedRef.current) return;
+            finishedRef.current = true;
+            // Manual stop is NOT proof the full distance was completed.
+            const steps = liveStepCounter.current.count;
+            const stepLen = steps > 0 ? acceptedDistanceM / steps : undefined;
+            onFinish(Date.now(), {
+              stepsCount: steps, stepLengthAvgM: stepLen,
+              maxSpeedMps: maxSpeed, maxAccelMps2: maxAccel, distanceM: acceptedDistanceM,
+              metricsJson: { interrupted: true, finishedBy: 'manual-stop' },
+            }, false);
+          }}>
+          TESTLAUF MANUELL BEENDEN
+        </button>
       </div>
-      <div className="rounded-2xl border border-white/10 bg-white/[0.05] px-5 py-3 text-center text-xs font-semibold tabular-nums text-white/55">
-        GPS Max. {maxSpeed.toFixed(2)} m/s · Beschleunigung {maxAccel.toFixed(2)} m/s²
-      </div>
-      <button
-        onClick={() => {
-          const steps = liveStepCounter.current.count;
-          const stepLen = steps > 0 ? acceptedDistanceM / steps : undefined;
-          onFinish(Date.now(), {
-            stepsCount: steps,
-            stepLengthAvgM: stepLen,
-            maxSpeedMps: maxSpeed,
-            maxAccelMps2: maxAccel,
-            distanceM: acceptedDistanceM,
-          });
-        }}
-        className="min-h-14 w-full max-w-sm rounded-2xl border border-rose-300/30 bg-rose-500/20 px-6 py-4 text-sm font-extrabold text-white transition hover:bg-rose-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-      >
-        Lauf beenden
-      </button>
     </div>
   );
 }
@@ -2194,6 +2161,12 @@ function RaceFinishedOverlay({
 }) {
   const seconds = ((endedAt - startedAt) / 1000).toFixed(2);
   const timeInSeconds = (endedAt - startedAt) / 1000;
+  const finishPlayed = useRef(false);
+  useEffect(() => {
+    if (finishPlayed.current) return;
+    finishPlayed.current = true;
+    playArcadeFinishSfx();
+  }, []);
   
   // Avoid repeatedly inserting a locally displayed result on parent re-renders.
   const recordedLocalResultRef = useRef(false);
@@ -2204,43 +2177,32 @@ function RaceFinishedOverlay({
   }, [currentUser, onAddToLeaderboard, timeInSeconds]);
 
   return (
-    <div className="fixed inset-0 z-[1250] flex items-center justify-center bg-[#050611]/90 px-4 text-white backdrop-blur-xl">
-      <div className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-[30px] border border-violet-300/20 bg-gradient-to-br from-[#1b1a32] to-[#101322] p-6 shadow-[0_20px_70px_rgba(0,0,0,.5)]">
-        <div className="mb-3 text-center text-[11px] font-extrabold uppercase tracking-[0.25em] text-emerald-300">RUNNIT · FINISH</div>
-        <h2 className="text-center text-xl font-extrabold">🏁 Rennen beendet!</h2>
-        <div className="mb-2 mt-4 text-center text-5xl font-black tracking-tight tabular-nums text-emerald-300">{seconds}<span className="ml-1 text-xl">s</span></div>
-        <div className="mb-4 text-center text-xs text-white/70">Zieldistanz: {targetDistanceM}m · Ergebnis nicht verifiziert</div>
-        
-        {/* Local display does not establish eligibility for any official ranking. */}
-        <div className="mb-4 rounded-lg border border-amber-300/30 bg-amber-400/10 p-3 text-center">
-          <div className="text-sm font-semibold text-amber-200">
-            Laufzeit noch nicht verifiziert
-          </div>
-          <div className="mt-1 text-xs leading-5 text-amber-100">
-            Das Ergebnis kann als lokale, ungeprüfte Zeit angezeigt werden.
-            Eine offizielle Stadt-, Deutschland- oder Weltplatzierung ist nicht bestätigt.
-          </div>
+    <div className="race-arcade-screen race-arcade-finish">
+      <div className="race-arcade-light race-arcade-light-a" aria-hidden="true" />
+      <div className="race-arcade-light race-arcade-light-b" aria-hidden="true" />
+      <div className="race-arcade-shell">
+        <div className="race-arcade-topline"><span>RUNNIT // RACE CONTROL</span><span>FINISH</span></div>
+        <div className="race-arcade-finish-flag" aria-hidden="true">🏁</div>
+        <h2 className="race-arcade-finish-title">ZIEL<br />ERREICHT!</h2>
+        <p className="race-arcade-sound-caption">♪ FINISH BEEP + CROWD CHEER</p>
+        <div className="race-arcade-finish-result">
+          <p className="race-arcade-finish-label">1V1 DUELL · {targetDistanceM} M</p>
+          <p className="race-arcade-finish-time">{seconds}s</p>
+          <p className="race-arcade-finish-label">DEINE GEMESSENE ZEIT</p>
+          <div className="race-arcade-mini-stat"><span>DISTANZ (ZIEL)</span><strong>{targetDistanceM} M</strong></div>
+          <div className="race-arcade-mini-stat"><span>WERTUNG</span><strong>OFFEN</strong></div>
         </div>
-
-        <SideBySideResults duelId={duelId} />
-        
-        <div className="mt-5 space-y-2">
-          <button
-            onClick={() => {
-              // Show leaderboards after race
-              onClose();
-            }}
-            className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(99,102,241,.20)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-          >
-            📊 Leaderboards anzeigen
-          </button>
-          <button
-            onClick={onClose}
-            className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-          >
-            Schließen
-          </button>
-        </div>
+        <p className="race-arcade-finish-note">
+          Zeit und GPS-Messung sind experimentell. Ein Sieg oder eine offizielle
+          Ranglistenplatzierung wird erst bei validierten Ergebnissen ausgewiesen.
+        </p>
+        <div className="race-arcade-finish-results"><SideBySideResults duelId={duelId} /></div>
+        <button type="button" className="race-arcade-primary" onClick={onClose}>
+          WEITER ZUR KARTE »
+        </button>
+        <button type="button" className="race-arcade-link" onClick={onClose}>
+          ERGEBNIS SCHLIESSEN
+        </button>
       </div>
     </div>
   );
