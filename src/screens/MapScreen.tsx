@@ -829,7 +829,7 @@ export default function MapScreen() {
       if (Number.isFinite(serverStart) && serverStart > Date.now() - 10_000 &&
           matchStartHandledRef.current !== key) {
         matchStartHandledRef.current = key;
-        const startsAt = Math.max(Date.now() + 500, serverStart);
+        const startsAt = serverStart; // exact DB timestamp; late devices catch up instead of shifting GO
         setMatchedDuel(null);
         setMatchOverlay({ duelId: row.id, startsAt, targetDistanceM });
         setRace({ status: 'countdown', duelId: row.id, startsAt, targetDistanceM });
