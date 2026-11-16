@@ -19,7 +19,7 @@ import { AUTH_CALLBACK_PATH } from './lib/authRedirect';
 import { useSupabaseUser } from './hooks/useSupabaseUser';
 
 const GUEST_SESSION_KEY = 'runnit:guest-mode';
-const APP_PATHS = new Set(['/', '/home', '/stats', '/map', '/leaderboard', '/profile', '/gps-lab', '/gps-field-test', '/calibration', '/fusion-lab', '/sprint-lab', '/ghost-run');
+const APP_PATHS = new Set(['/', '/home', '/stats', '/map', '/leaderboard', '/profile', '/gps-lab', '/gps-field-test', '/calibration', '/fusion-lab', '/sprint-lab', '/ghost-run']);
 
 /**
  * Guest mode is a local UI preference, NOT a Supabase authentication identity.
