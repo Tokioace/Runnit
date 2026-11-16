@@ -1,134 +1,85 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-const read = p => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
+const read = file => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 
-test('arcade dashboard sections follow the approved master order', () => {
-  const src = read('src/screens/DashboardScreen.tsx');
-  const sections = ['runnit-game-hero', 'runnit-game-ranks', 'runnit-game-hud', 'runnit-game-modes', 'id="aktivitaet"', 'runnit-game-duel', 'recent-races-title', 'ranking-title', 'runnit-game-start', '<BottomNav'];
-  let last = -1;
-  for (const section of sections) { const found = src.indexOf(section); assert.ok(found > last, section); last = found; }
-  assert.match(src, /DEIN LAUF\./);
-  assert.match(src, /displayName/);
-  assert.doesNotMatch(src, /from [\'"][^\'"]*supabase/i);
-  assert.doesNotMatch(src, /watchPosition|navigator\.geolocation|submitDuelResult/);
-});
-test('arcade dashboard uses no fictional verified activity or ranking values', () => {
-  const src = read('src/screens/DashboardScreen.tsx');
-  for (const v of ['76.420','38.420','TurboKai','Stergios_R','4.890','260.320']) assert.ok(!src.includes(v), v);
-  assert.match(src, /KEINE DATEN/);
-  assert.match(src, /XP NOCH NICHT VERFÜGBAR/);
-  assert.match(src, /NOCH KEINE/);
-});
-test('three arcade dock destinations remain real and accessible', () => {
-  const src = read('src/components/ui/BottomNav.tsx');
-  assert.match(src, /arena-global-dock/);
-  assert.match(src, /href: '\/home', label: 'PLAY'/);
-  assert.match(src, /href: '\/map', label: 'MAP'/);
-  assert.match(src, /href: '\/leaderboard', label: 'ARENA'/);
-  assert.match(src, /aria-current/);
-  assert.match(src, /aria-label=\{label\}/);
-  assert.match(read('src/styles/arenaArcade.css'), /\.arena-global-dock li\{min-width:0\}/);
-});
-test('dashboard theme is separate from preserved launch artwork', () => {
-  const css = read('src/index.css');
-  assert.match(css, /\.runnit-game-home/);
-  assert.match(css, /\.runnit-game-mode\.is-lime/);
-  assert.match(css, /\.runnit-game-dock/);
-  assert.match(css, /overflow-x: clip/);
-  assert.match(read('src/screens/HomeScreen.tsx'), /runnit-launch-portrait\.avif/);
-});
-
-test('Stats is a separate accessible route and does not reuse Home', () => {
-  const app = read('src/App.tsx');
-  const nav = read('src/components/ui/BottomNav.tsx');
+test('PLAY follows the agreed three-destination app structure instead of the old four-card dashboard', () => {
   const home = read('src/screens/DashboardScreen.tsx');
-  const stats = read('src/screens/StatsScreen.tsx');
-  assert.match(app, /<Route path="\/stats" element=\{<StatsScreen \/>\}/);
-  assert.match(app, /APP_PATHS.*'\/stats'/);
+  const nav = read('src/components/ui/BottomNav.tsx');
+  const css = read('src/styles/playArcade.css');
+  assert.match(home, /className="play-screen"/);
+  assert.match(home, /play-hero/);
+  assert.match(home, /runnit-metal-logo\.svg/);
+  assert.match(home, /runnit-arena-reference-runner\.svg/);
+  assert.match(home, /<BottomNav/);
+  assert.match(home, /RUN <em>NOW<\/em>/);
+  assert.match(home, /aria-haspopup="dialog"/);
+  assert.match(home, /role="dialog" aria-modal="true"/);
+  assert.match(home, /RIVAL <em>WANTED<\/em>/);
+  assert.match(home, /NEAR YOU/);
+  assert.match(home, /BUILD YOUR LEGACY/);
+  assert.doesNotMatch(home, /runnit-game-modes|runnit-game-mode|runnit-game-activity/);
+  for (const target of ["/home", "/map", "/leaderboard"]) assert.ok(nav.includes(target));
   assert.doesNotMatch(nav, /href: '\/stats'/);
-  assert.match(home, /to: '\/stats'/);
-  assert.doesNotMatch(nav, /home#aktivitaet/);
-  assert.match(stats, /WOCHENFORTSCHRITT/);
-  assert.match(stats, /BESTWERTE/);
-  assert.match(stats, /<BottomNav/);
-  assert.doesNotMatch(stats, /watchPosition|navigator\.geolocation|submitDuelResult/);
+  assert.match(css, /height:100dvh/);
+  assert.match(css, /play-run-button/);
+  assert.match(css, /play-rival/);
+  assert.match(css, /safe-area-inset-bottom/);
 });
 
-
-test('art pass uses separate illustration layers instead of embedding fake scores', () => {
+test('RUN NOW first asks 1v1 or GHOST, then a distance, then the real start location', () => {
   const home = read('src/screens/DashboardScreen.tsx');
-  const css = read('src/index.css');
-  for (const asset of ['runnit-metal-logo.svg','runnit-runner-mark.svg']) {
-    assert.ok(home.includes(asset));
-    assert.match(read('public/' + asset), /<svg/);
+  const map = read('src/screens/MapScreen.tsx');
+  assert.match(home, /type RaceMode = 'duel' \| 'ghost'/);
+  assert.match(home, /type RaceDistance = 50 \| 75 \| 100/);
+  assert.match(home, /onClick=\{\(\) => setMode\('ghost'\)\}/);
+  assert.match(home, /onClick=\{\(\) => setMode\('duel'\)\}/);
+  assert.match(home, /STARTPUNKT WÄHLEN/);
+  assert.match(home, /'\/map\?play=duel&distance=' \+ distance/);
+  assert.match(home, /500-m-Radius/);
+  assert.match(home, /GHOST RUN IST IN VORBEREITUNG/);
+  assert.doesNotMatch(home, /to="\/sprint-lab"|submitDuelResult|createDuel\(/);
+  assert.match(map, /startParams\.get\('play'\) === 'duel'/);
+  assert.match(map, /selectedStartDistance/);
+  assert.match(map, /defaultDistance=\{startFromPlay \? selectedStartDistance : 50\}/);
+  assert.match(map, /onHostAt=\{openHostRunAt\}/);
+  assert.match(map, /if \(!requireRaceAccount\(\)\) return/);
+  assert.match(map, /canHostAt\(userCoords, point\)/);
+});
+
+test('PLAY does not fake a rivalry, XP, user ratings or official ranks', () => {
+  const home = read('src/screens/DashboardScreen.tsx');
+  for (const value of ['TurboKai', 'AerofOx führt', '12.430', '15.000 XP', 'RATING 1250', 'LV. 24']) {
+    assert.ok(!home.includes(value),value);
   }
-  for (const asset of ['runnit-arcade-city.svg','runnit-duel-art.svg']) {
-    assert.ok(css.includes(asset));
-    assert.match(read('public/' + asset), /viewBox/);
-  }
-  assert.match(home, /runnit-hero-portrait/);
-  assert.match(home, /runnit-stat-glyph/);
-  assert.match(css, /20dvh/);
-  assert.doesNotMatch(read('public/runnit-duel-art.svg'), /76\.420|38\.420|TurboKai/);
-});
-
-
-test('real iPhone screenshot follow-up keeps full dock names and fixes artwork duplication', () => {
-  const nav = read('src/components/ui/BottomNav.tsx');
-  const home = read('src/screens/DashboardScreen.tsx');
-  const css = read('src/index.css');
-  assert.match(nav, /arena-global-dock/);
-  assert.doesNotMatch(nav, /className="block max-w-full truncate"/);
-  assert.match(nav, /label: 'ARENA'/);
-  assert.match(home, /KEINE DATEN/);
-  assert.match(css, /background-position: 63% 29%/);
-  assert.match(css, /\.runnit-stats-screen::before/);
-  assert.match(css, /url\('\/runnit-arcade-city\.svg'\)/);
-  assert.match(css, /\.runnit-stats-hero h1 span/);
-  assert.match(css, /\.runnit-stats-gauge \{/);
-  assert.match(css, /#46638d 0deg 360deg/);
-});
-
-
-test('master reference layout is compact without flattened UI and preserves safe controls', () => {
-  const main = read('src/main.tsx');
-  const css = read('src/styles/runnitMaster.css');
-  const home = read('src/screens/DashboardScreen.tsx');
-  const nav = read('src/components/ui/BottomNav.tsx');
-  assert.match(main, /import '\.\/styles\/runnitMaster\.css'/);
-  assert.match(home, /runnit-dash-master/);
-  assert.match(css, /max-width:540px/);
-  assert.match(css, /min-height: 126px/); // compact hero
-  assert.match(css, /min-height:64px/); // live player HUD
-  assert.match(css, /min-height:54px/); // real mode links
-  assert.match(css, /min-height:69px/); // stat instruments
-  assert.match(css, /min-height:72px/); // original art-backed duel
-  assert.match(css, /min-height:60px/); // real start CTA
-  assert.match(css, /min-height:55px/); // five-label dock
-  assert.match(nav, /label: 'ARENA'/);
-  assert.doesNotMatch(home, /<canvas|<map name=/);
-  assert.match(home, /runnit-game-start group/);
-  assert.match(home, /XP NOCH NICHT VERFÜGBAR/);
-});
-
-
-test('three preview slots preserve the master composition with no invented records', () => {
-  const home = read('src/screens/DashboardScreen.tsx');
-  const css = read('src/styles/runnitMaster.css');
-  assert.match(home, /type VerifiedRacePreview/);
-  assert.match(home, /type VerifiedRankPreview/);
-  assert.match(home, /recentRaces = \[\], rankings = \[\]/);
   assert.match(home, /source === 'verified'/);
-  assert.match(home, /runnit-arcade-races/);
-  assert.match(home, /runnit-arcade-ranking/);
-  assert.match(home, /NOCH KEINE VERIFIZIERTEN RENNEN/);
-  assert.match(home, /NOCH KEINE OFFIZIELLEN PLÄTZE/);
-  assert.match(home, /aria-hidden="true"/);
-  assert.match(css, /\.runnit-arcade-ghost/);
-  assert.match(css, /\.runnit-game-start::before/);
-  assert.match(css, /runnit-game-duel/);
-  assert.match(read('public/runnit-arcade-city.svg'), /<text/);
-  assert.match(read('public/runnit-duel-art.svg'), /<text/);
-  assert.doesNotMatch(home, /TurboKai|Stergios_R|76\.420|5\.420/);
+  assert.match(home, /verifiedRank \? '#' \+ verifiedRank\.position : '—'/);
+  assert.match(home, /Noch keine verifizierten Rennen oder Platzierungen/);
+  assert.match(home, /WER WIRD DEIN ERSTER RIVALE/);
+  assert.match(home, /displayName\?\.trim\(\) \|\| 'RUNNER'/);
+  assert.doesNotMatch(home, /navigator\.geolocation|watchPosition|supabase|fetch\(/);
+});
+
+test('PLAY keeps the welcome/auth launch screen unchanged', () => {
+  const launch = read('src/screens/HomeScreen.tsx');
+  const app = read('src/App.tsx');
+  assert.match(launch, /runnit-launch-portrait\.avif/);
+  assert.match(launch, /onClick=\{onStart\}/);
+  assert.match(app, /<Route path="\/" element=\{<HomeScreen/);
+  assert.match(app, /<Route path="\/home" element=\{<DashboardScreen displayName=\{auth\.user\?\.displayName\} \/>/);
+  assert.doesNotMatch(launch, /<BottomNav/);
+});
+
+test('PLAY preserves the four-part visual hierarchy without scroll traps', () => {
+  const css = read('src/styles/playArcade.css');
+  for (const section of ['play-hero','play-hud','play-start','play-rival','play-discovery','play-modal-backdrop']) {
+    assert.match(css,new RegExp('\\.' + section + '[\\{\\s:]'),section);
+  }
+  assert.match(css, /overflow-y:auto/);
+  assert.match(css, /overscroll-behavior:contain/);
+  assert.match(css, /@media\(max-height:735px\)/);
+  assert.match(css, /@media\(max-height:615px\)/);
+  assert.match(css, /prefers-reduced-motion:reduce/);
+  const navCss = read('src/styles/arenaArcade.css');
+  assert.match(navCss, /\.arena-global-dock\{[\s\S]*position:fixed;inset-inline:0;bottom:0/);
 });
