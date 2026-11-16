@@ -229,6 +229,19 @@ export default function GhostRunScreen() {
     } catch { motion = 'denied'; }
     motionPermissionRef.current = motion;
     setMotionPermission(motion);
+    const { data: activeDuels, error: duelsError } = await supabase.from('duels')
+      .select('id').or(`host_user_id.eq.${user.id},challenger_user_id.eq.${user.id}`)
+      .in('status', ['open', 'matched']).limit(1);
+    if (duelsError) {
+      setCurrentPhase('error');
+      setNotice('Aktive Rennen konnten nicht geprüft werden. Bitte erneut versuchen.');
+      return;
+    }
+    if (activeDuels?.length) {
+      setCurrentPhase('error');
+      setNotice('Du hast noch ein aktives 1v1-Duell. Beende oder storniere es vor deinem Solo-Test.');
+      return;
+    }
     readyRef.current = null;
     setCurrentPhase('acquiring');
     setNotice(motion === 'granted'
@@ -253,7 +266,7 @@ export default function GhostRunScreen() {
 
   const beginRun = () => {
     if (phaseRef.current !== 'countdown') return;
-    const startMs = countdownAt ?? Date.now();
+    const startMs = Date.now(); // actual clock when the countdown finishes, never a stale Safari timer
     const anchor = readyRef.current;
     // Countdown could have suspended in Safari. Do not silently start from stale GPS.
     if (!isFreshStartFix(anchor, Date.now())) {
@@ -345,12 +358,14 @@ export default function GhostRunScreen() {
     document.addEventListener('visibilitychange', hidden);
     window.addEventListener('pagehide', pageHide);
     return () => {
-      unmountedRef.current = true;
       document.removeEventListener('visibilitychange', hidden);
       window.removeEventListener('pagehide', pageHide);
-      stopGps();
     };
-  }, [stopRun, stopGps, setCurrentPhase]);
+  }, [stopRun, setCurrentPhase]);
+  useEffect(() => () => {
+    unmountedRef.current = true;
+    stopGps();
+  }, [stopGps]);
 
   const exportJson = () => {
     if (!summary) return;
@@ -435,6 +450,10 @@ export default function GhostRunScreen() {
                     <Play size={20} className="inline mr-2" /> GHOST RUN STARTEN »
                   </button>
                 )}
+                <button type="button" className="runnit-ghost-secondary"
+                  onClick={() => setSoundEnabled(value => !value)}>
+                  START- UND ZIELTON: {soundEnabled ? 'AN' : 'AUS'}
+                </button>
                 <label className="runnit-ghost-optin">
                   <input type="checkbox" checked={saveToAccount} onChange={event => setSaveToAccount(event.target.checked)} />
                   Private Messzusammenfassung nach Laufende in meinem Konto speichern.
