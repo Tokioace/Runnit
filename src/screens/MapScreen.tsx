@@ -798,6 +798,7 @@ export default function MapScreen() {
   const [readyBusy, setReadyBusy] = useState(false);
   const [readyError, setReadyError] = useState<string | null>(null);
   const [raceSoundEnabled, setRaceSoundEnabled] = useState(true);
+  useEffect(() => { setRaceAudioMuted(!raceSoundEnabled); }, [raceSoundEnabled]);
   const [matchedNames, setMatchedNames] = useState<Record<string, string>>({});
   const joiningRunRef = useRef<string | null>(null);
   const matchStartHandledRef = useRef<string | null>(null);
@@ -1808,12 +1809,13 @@ export default function MapScreen() {
           targetDistanceM={matchOverlay.targetDistanceM}
           soundEnabled={raceSoundEnabled}
           onDone={() => {
-            setMatchOverlay(null);
             if (!authUser) {
+              setMatchOverlay(null);
               setRace({ status: 'idle' });
               navigate('/login?next=%2Fmap');
               return;
             }
+            setMatchOverlay(null);
             if (race.status === 'countdown') {
               // Use the exact server start timestamp rather than each phone's
               // callback timestamp for a synchronized, fair elapsed time.
