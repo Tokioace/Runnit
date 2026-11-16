@@ -1850,6 +1850,7 @@ export default function MapScreen() {
             if (next) unlockRaceAudio();
           }}
           onBack={() => setDismissedMatchId(matchedDuel.id)}
+          onAbort={() => confirmAbortMatchedDuel(matchedDuel.id)}
         />
       )}
       {matchedDuel && dismissedMatchId === matchedDuel.id && race.status === 'idle' && (
@@ -1866,6 +1867,7 @@ export default function MapScreen() {
           startsAt={matchOverlay.startsAt}
           targetDistanceM={matchOverlay.targetDistanceM}
           soundEnabled={raceSoundEnabled}
+          onAbort={() => confirmAbortMatchedDuel(matchOverlay.duelId)}
           onDone={() => {
             if (!authUser) {
               setMatchOverlay(null);
@@ -1889,12 +1891,8 @@ export default function MapScreen() {
           wakeStatus={wakeStatus}
           startedAt={race.startedAt}
           targetDistanceM={race.targetDistanceM}
-          onFinish={(endedAt, metrics, completed = true) => {
-            if (!completed) {
-              setRace({ status: 'idle' });
-              setRaceNotice('Testlauf manuell beendet. Kein Ergebnis als Zielankunft gespeichert.');
-              return;
-            }
+          onAbort={() => confirmAbortMatchedDuel(race.duelId)}
+          onFinish={(endedAt, metrics) => {
             const timeMs = Math.max(1, endedAt - race.startedAt);
             // Finish visuals and sound must fire without waiting on the network.
             setRace({ status: 'finished', duelId: race.duelId,
@@ -2030,7 +2028,7 @@ export default function MapScreen() {
   );
 }
 
-function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { startedAt: number; targetDistanceM: number; wakeStatus: ScreenWakeLockStatus | 'idle'; onFinish: (endedAt: number, metrics?: DuelMetrics, completed?: boolean) => void }) {
+function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish, onAbort }: { startedAt: number; targetDistanceM: number; wakeStatus: ScreenWakeLockStatus | 'idle'; onFinish: (endedAt: number, metrics?: DuelMetrics) => void; onAbort: () => Promise<void> }) {
   const [elapsedMs, setElapsedMs] = useState(Math.max(0, Date.now() - startedAt));
   const [acceptedDistanceM, setAcceptedDistanceM] = useState(0);
   const [displayDistanceM, setDisplayDistanceM] = useState(0);
@@ -2043,6 +2041,25 @@ function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { sta
   const [liveStepCount, setLiveStepCount] = useState(0);
   const overTargetStreakRef = useRef(0);
   const finishedRef = useRef(false);
+  const [confirmAbort, setConfirmAbort] = useState(false);
+  const [abortBusy, setAbortBusy] = useState(false);
+  const [abortError, setAbortError] = useState<string | null>(null);
+  const abortBusyRef = useRef(false);
+  const doAbort = async () => {
+    if (abortBusyRef.current || finishedRef.current) return;
+    abortBusyRef.current = true;
+    finishedRef.current = true; // do not count GPS distance during termination
+    setAbortBusy(true);
+    setAbortError(null);
+    try {
+      await onAbort(); // the parent clears race UI only after Supabase confirms
+    } catch {
+      finishedRef.current = false;
+      abortBusyRef.current = false;
+      setAbortBusy(false);
+      setAbortError('Rennabbruch nicht bestätigt. Bitte Verbindung prüfen und erneut versuchen.');
+    }
+  };
   const watchIdRef = useRef<number | null>(null);
   useEffect(() => {
     const id = setInterval(() => {
@@ -2178,21 +2195,24 @@ function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { sta
           <p className="race-arcade-wake">GPS-Bewertung experimentell · nicht verifiziert</p>
         </div>
         {wakeStatus !== 'idle' && <p className="race-arcade-wake">{screenWakeLockMessage(wakeStatus)}</p>}
-        <button type="button" className="race-arcade-link"
-          onClick={() => {
-            if (finishedRef.current) return;
-            finishedRef.current = true;
-            // Manual stop is NOT proof the full distance was completed.
-            const steps = liveStepCounter.current.count;
-            const stepLen = steps > 0 ? acceptedDistanceM / steps : undefined;
-            onFinish(Date.now(), {
-              stepsCount: steps, stepLengthAvgM: stepLen,
-              maxSpeedMps: maxSpeed, maxAccelMps2: maxAccel, distanceM: acceptedDistanceM,
-              metricsJson: { interrupted: true, finishedBy: 'manual-stop' },
-            }, false);
-          }}>
-          TESTLAUF MANUELL BEENDEN
-        </button>
+        {confirmAbort ? (
+          <div className="race-arcade-confirm" role="alertdialog" aria-label="Rennen abbrechen">
+            <p>RENNEN WIRKLICH ABBRECHEN? Beide Spieler werden zurück zur Karte geschickt. Der Lauf zählt nicht.</p>
+            <div className="race-arcade-confirm-actions">
+              <button type="button" disabled={abortBusy} onClick={() => setConfirmAbort(false)}>
+                NEIN, WEITER RENNEN
+              </button>
+              <button type="button" disabled={abortBusy} onClick={() => { void doAbort(); }}>
+                {abortBusy ? 'WIRD ABGEBROCHEN…' : 'JA, FÜR BEIDE ABBRECHEN'}
+              </button>
+            </div>
+            {abortError && <p role="alert" className="race-arcade-error">{abortError}</p>}
+          </div>
+        ) : (
+          <button type="button" className="race-arcade-danger-link" onClick={() => setConfirmAbort(true)}>
+            RENNEN ABBRECHEN
+          </button>
+        )}
       </div>
     </div>
   );
