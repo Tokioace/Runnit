@@ -28,7 +28,7 @@ begin
         challenger_ready = case when not v_is_host then true else challenger_ready end,
         start_at = case when ( (case when v_is_host then true else host_ready end)
                           and (case when not v_is_host then true else challenger_ready end)
-                          and start_at is null ) then now() + interval '3 seconds' else start_at end
+                          and start_at is null ) then now() + interval '10 seconds' else start_at end
     where id = p_duel_id
     returning * into v_duel;
 
