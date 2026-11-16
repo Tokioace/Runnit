@@ -106,8 +106,33 @@ test('iPhone preview rows never collapse into overlaid zero-height grid tracks',
   assert.match(css, /grid-template-rows:repeat\(10,minmax\(20px,1fr\)\)/);
   assert.match(css, /min-height:200px;flex:1 0 auto/);
   assert.match(css, /\.arena-content\{overflow-y:auto/);
+  assert.match(css, /\.arena-global-dock\{[\s\S]*position:fixed;inset-inline:0;bottom:0/);
+  assert.match(css, /\.arena-screen\{[\s\S]*padding-bottom:var\(--arena-dock-reserve\)/);
   assert.match(css, /\.arena-stage\{gap:3px\}/);
   assert.match(css, /\.arena-next-rival\{flex:0 0 clamp/);
   assert.match(css, /\.arena-showdown\{padding:5px 6px\}/);
   assert.doesNotMatch(css, /url\('\/runnit-launch-hero\.webp'\)/);
+});
+
+
+test('switching Arena tabs and records resets stale scrolling instead of hiding new headers', () => {
+  const screen = read('src/screens/LeaderboardScreen.tsx');
+  assert.match(screen, /const contentRef = useRef<HTMLDivElement>\(null\)/);
+  assert.match(screen, /contentRef\.current\.scrollTop = 0/);
+  assert.match(screen, /onClick=\{\(\) => \{ setTab\(id\); resetScroll\(\); \}\}/);
+  assert.match(screen, /onClick=\{\(\) => \{ setMetric\(id\); resetScroll\(\); \}\}/);
+  assert.match(screen, /key=\{tab\} className="arena-content"/);
+});
+
+test('Arena uses approved illustrated reference runner instead of the stick-figure fallback', () => {
+  const css = read('src/styles/arenaArcade.css');
+  const art = read('public/runnit-arena-reference-runner.svg');
+  assert.match(css, /runnit-arena-reference-runner\.svg/);
+  assert.doesNotMatch(css, /runnit-runner-mark\.svg/);
+  assert.match(art, /viewBox="0 0 150 118"/);
+  const match = art.match(/data:image\/webp;base64,([A-Za-z0-9+/=]+)/);
+  assert.ok(match, 'embedded WebP illustration must be present');
+  const bytes = Buffer.from(match[1], 'base64');
+  assert.equal(bytes.toString('ascii', 0, 4), 'RIFF');
+  assert.equal(bytes.toString('ascii', 8, 12), 'WEBP');
 });
