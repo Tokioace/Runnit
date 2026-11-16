@@ -3,6 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { getDuelResults } from '../../db/getDuelResults';
 import { playArcadeFinishSfx } from '../../lib/arcadeRaceAudio';
 
+import { determineDuelOutcome } from '../../lib/duelOutcome';
+
 export type DuelResultRow = {
   user_id: string;
   username: string | null;
@@ -24,19 +26,6 @@ type Props = {
   onAbort: () => Promise<void>;
   onClose: () => void;
 };
-
-/** Time-based experimental race result; the value is not a verified leaderboard win. */
-export function determineDuelOutcome(rows: DuelResultRow[], userId: string, status: string):
-  'won' | 'lost' | 'tie' | 'pending' {
-  if (status !== 'completed' || rows.length !== 2 ||
-      rows[0].user_id === rows[1].user_id) return 'pending';
-  if (!rows.every(row => Number.isFinite(row.time_ms) && row.time_ms > 0)) return 'pending';
-  const mine = rows.find(row => row.user_id === userId);
-  const other = rows.find(row => row.user_id !== userId);
-  if (!mine || !other) return 'pending';
-  return mine.time_ms === other.time_ms ? 'tie'
-    : mine.time_ms < other.time_ms ? 'won' : 'lost';
-}
 
 function displayTime(ms: number | null | undefined) {
   return Number.isFinite(ms) && (ms ?? 0) > 0 ? ((ms as number) / 1000).toFixed(2) + 's' : '—';
