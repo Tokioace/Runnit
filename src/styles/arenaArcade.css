@@ -1,0 +1,398 @@
+/* RUNNIT / ARENA – all three approved 864×1536 reference states.
+   Dedicated HUD dimensions keep the full table and bottom dock within the
+   visible phone viewport. Numbers and portraits on this screen are DEMO. */
+.arena-screen{
+  --a-cyan:#23eaff;--a-lime:#d3ff18;--a-pink:#ff2eea;--a-blue:#08102d;
+  position:relative;isolation:isolate;display:flex;flex-direction:column;
+  height:100dvh;min-height:530px;max-width:100vw;overflow:hidden;color:#fff;
+  background:
+    radial-gradient(ellipse 50% 40% at 100% 28%,#9425bd44,transparent),
+    radial-gradient(ellipse 60% 30% at 0% 77%,#06adea24,transparent),
+    linear-gradient(150deg,#020923,#0b0a32 46%,#070c26);
+}
+.arena-screen::before{
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:repeating-linear-gradient(120deg,transparent 0 42px,#3fe4ff0b 44px 46px,transparent 48px 95px);
+}
+.arena-screen button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.arena-screen button:focus-visible,.arena-screen a:focus-visible{
+  outline:2px solid white;outline-offset:2px;z-index:5;
+}
+.arena-stage{
+  flex:1;min-height:0;display:flex;flex-direction:column;gap:clamp(4px,.65dvh,8px);
+  width:100%;max-width:630px;margin:0 auto;
+  padding: max(5px,env(safe-area-inset-top,0px)) 8px 0;
+}
+.arena-hero{
+  flex:none;position:relative;isolation:isolate;height:clamp(143px,22dvh,205px);
+  margin:0 -8px;overflow:hidden;
+  background:
+    linear-gradient(180deg,#050b2e5c 0%,#02071c16 55%,#080b29 100%),
+    url('/runnit-launch-portrait.avif') left bottom/auto 90% no-repeat,
+    url('/runnit-arcade-city.svg') center 46%/cover no-repeat;
+}
+.arena-hero::before{
+  content:"";position:absolute;z-index:-1;inset:0;
+  background:linear-gradient(155deg,#0aeafb20 0% 10%,transparent 12% 80%,#ff10e833 85% 88%,transparent 91%);
+}
+.arena-hero-top{
+  height:48%;position:relative;z-index:2;display:flex;align-items:start;
+  justify-content:center;padding:0 9px;
+}
+.arena-logo{display:block;width:min(71%,440px);height:100%;object-fit:contain;
+  filter:drop-shadow(0 0 5px #8ddaffc4);margin:0 auto}
+.arena-profile-button{
+  position:absolute;right:9px;top:5px;display:grid;place-items:center;
+  width:clamp(31px,8vw,49px);height:clamp(31px,8vw,49px);
+  border-radius:50%;border:2px solid var(--a-cyan);color:white;
+  background:linear-gradient(135deg,#1b2c68e8,#081233f8);
+  box-shadow:inset 0 1px #fff8,0 0 10px #29dcffad;
+}
+.arena-profile-button svg{width:65%;height:65%}
+.arena-motto{position:absolute;z-index:2;top:37%;left:34%;right:2%;margin:0;
+  text-align:center;white-space:nowrap;font:italic 1000 clamp(8px,2.55vw,16px)/1 system-ui,sans-serif;
+  text-shadow:0 2px 3px #03081f}
+.arena-motto em{color:#2defff}.arena-motto b{color:#ff3aec}
+.arena-hero h1{
+  position:absolute;z-index:2;bottom:12%;left:18%;right:9%;margin:0;text-align:center;
+  color:#f5fbff;transform:skewX(-8deg);
+  font:italic 1000 clamp(38px,11.5vw,72px)/1 system-ui,sans-serif;
+  letter-spacing:-.055em;
+  text-shadow:2px 2px 0 #1b3f87,4px 5px 0 #39125e,0 0 13px #a9f5ffb8;
+}
+.arena-hero-bottom{
+  position:absolute;bottom:0;left:20%;right:10%;z-index:2;
+  text-align:center;margin:0;white-space:nowrap;
+  font:italic 950 clamp(10px,3vw,18px)/1.1 system-ui,sans-serif;
+  text-shadow:0 2px #080e31,0 0 9px #3b0b5d;
+}
+.arena-hero-bottom em{color:var(--a-pink)}
+.arena-tabs{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;
+  flex:0 0 clamp(36px,5.1dvh,51px);margin:0 4px;
+}
+.arena-tabs button{
+  min-width:0;line-height:1;display:grid;place-items:center;
+  transform:skewX(-12deg);border:2px solid #55dfff;border-radius:13px 5px 13px 5px;
+  background:linear-gradient(160deg,#214675d9,#070e2deb);color:white;
+  font:italic 1000 clamp(13px,3.5vw,22px)/1 system-ui,sans-serif;
+  text-shadow:0 1px 2px #05102b;box-shadow:inset 0 2px #d8faff91,0 0 7px #1bd7fb96;
+}
+.arena-tabs button.is-active,.arena-scope-button.is-active,
+.arena-metric.is-active,.arena-distance button.is-active{
+  color:#0c1d0c;border-color:#caff21;background:linear-gradient(155deg,#f3ff4c,#b3fd0a 75%,#78d407);
+  text-shadow:0 1px #ffff91;box-shadow:inset 0 2px #fffbd4,0 0 13px #b9fd2fb8;
+}
+.arena-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.arena-panel-area{position:relative;min-height:0;height:100%;width:100%;display:flex;
+  flex-direction:column;gap:clamp(4px,.6dvh,8px)}
+.arena-section-bar{
+  position:relative;overflow:hidden;flex:0 0 clamp(39px,5.3dvh,57px);
+  display:flex;gap:10px;align-items:center;padding:3px 12px;
+  border:2px solid #42e8ff;border-radius:17px 6px 16px 6px;
+  background:linear-gradient(98deg,#09183b 15%,#171547 70%,#7a137bbd);
+  box-shadow:0 0 9px #14bafa88,inset 0 1px #def8ff98,inset 0 -2px #ff3bda66;
+}
+.arena-section-bar>span:first-child{display:grid;place-items:center;color:#ffe02a;flex:none}
+.arena-section-bar svg{height:clamp(22px,4dvh,34px);width:clamp(22px,4dvh,34px);filter:drop-shadow(0 0 3px #e9fb65)}
+.arena-section-bar strong{position:relative;z-index:1;white-space:nowrap;min-width:0;
+  font:italic 1000 clamp(18px,5.6vw,36px)/1 system-ui,sans-serif;
+  letter-spacing:-.04em;text-shadow:0 1px 2px #060d20}
+.arena-section-bar em{color:var(--a-lime);font-style:italic}
+.arena-section-sky{
+  position:absolute;inset:0 0 0 auto;width:42%;
+  background:url('/runnit-ranking-city.svg') center 55%/cover no-repeat;
+  opacity:.4;mask-image:linear-gradient(90deg,transparent,#000 50%);
+}
+.arena-scope{
+  flex:0 0 clamp(30px,4.4dvh,40px);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:3px;border:1.5px solid #41d7f9;border-radius:28px;padding:1px 2px;
+  background:linear-gradient(100deg,#071b3e,#17133b);
+  box-shadow:0 0 9px #16cbfc83;
+}
+.arena-scope-button{
+  min-width:0;border-radius:22px;background:transparent;border:1px solid transparent;
+  color:#f6f7fb;display:flex;align-items:center;justify-content:center;gap:5px;
+  font:italic 950 clamp(10px,3vw,16px)/1 system-ui,sans-serif;
+}
+.arena-scope-button svg{height:16px;width:16px;flex:none}
+.arena-metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:3px;
+  flex:0 0 clamp(53px,8dvh,75px)}
+.arena-metric{
+  min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  padding:3px 1px;color:#f5f9ff;
+  border:1.5px solid #cf6eff;border-radius:12px 5px 12px 5px;
+  background:linear-gradient(155deg,#21154c,#0a1434 70%);
+  box-shadow:0 0 9px #d236ed78,inset 0 1px #d9eeff94;
+}
+.arena-metric svg{height:clamp(15px,3.3dvh,28px);width:clamp(15px,3.3dvh,28px);flex:none}
+.arena-metric span{font:italic 1000 clamp(6px,1.7vw,12px)/1 system-ui,sans-serif;
+  letter-spacing:-.055em;overflow-wrap:anywhere;text-align:center;max-width:100%}
+.arena-champion{
+  flex:0 0 clamp(73px,10.1dvh,111px);min-height:0;position:relative;isolation:isolate;
+  border:2px solid #e23efe;border-radius:18px 5px 19px 5px;
+  background:
+    linear-gradient(110deg,#171047f5,#161348d9 53%,#561779dc),
+    url('/runnit-ranking-city.svg') center/cover;
+  box-shadow:inset 0 1px #ffcbff,0 0 12px #e928fb9c;
+}
+.arena-champion::before{
+  content:"";position:absolute;inset:0;z-index:-1;opacity:.22;
+  background:url('/runnit-ranking-city.svg') right center/60% auto no-repeat;
+}
+.arena-champion-main{height:100%;display:grid;grid-template-columns:19% minmax(0,1fr) 38%;
+  align-items:center;gap:4px;padding:5px 8px}
+.arena-champion-avatar{position:relative;align-self:center;justify-self:center;width:min(100%,66px)}
+.arena-champion-avatar .arena-avatar{width:100%;height:auto;aspect-ratio:1}
+.arena-champion-avatar>svg{position:absolute;width:30px;height:30px;top:-16px;left:1px;z-index:1;
+  color:#ffee00;fill:#ffd400;filter:drop-shadow(0 0 5px #ffc800)}
+.arena-champion-name{min-width:0;display:grid;justify-items:start;gap:5px}
+.arena-champion-name>strong{font:italic 950 clamp(16px,4.2vw,25px)/1 system-ui,sans-serif;white-space:nowrap;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.arena-champion-name>span{
+  display:inline-block;background:#29e4ef;color:#00192d;
+  padding:3px 6px;border-radius:7px 2px;
+  font:italic 1000 clamp(8px,2.1vw,13px)/1 system-ui,sans-serif;
+}
+.arena-champion-score{
+  min-width:0;text-align:center;color:#e8ff23;white-space:nowrap;
+  border:2px solid #c5ff39;border-radius:12px 4px;padding:8px 2px;
+  background:linear-gradient(#122315,#051b0c);box-shadow:0 0 10px #caff22, inset 0 1px #fff6;
+  font:italic 1000 clamp(18px,6.1vw,37px)/1 system-ui,sans-serif;
+  letter-spacing:-.05em;text-shadow:0 0 10px #f8ff34a8;
+}
+.arena-champion:has(.arena-distance) .arena-champion-main{padding-top:29px}
+.arena-champion:has(.arena-distance) .arena-champion-avatar{width:min(100%,48px)}
+.arena-champion:has(.arena-distance) .arena-champion-score{padding:4px 1px}
+.arena-distance{
+  position:absolute;z-index:2;top:2px;left:7px;right:7px;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;height:26px;
+}
+.arena-distance button{
+  border-radius:12px 3px 10px 3px;background:#0a2248;
+  border:1.5px solid #39e4ff;color:white;
+  font:italic 1000 clamp(11px,3vw,16px)/1 system-ui,sans-serif;
+}
+.arena-board{
+  flex:1;min-height:0;display:flex;flex-direction:column;gap:1px;
+  padding:5px 6px 7px;border:2px solid #49d8ff;
+  border-right-color:#ff41ed;border-bottom-color:#fb44fc;
+  border-radius:17px 5px 18px 5px;
+  background:linear-gradient(160deg,#081b3be8,#080c26ee 55%,#0b1839ec);
+  box-shadow:inset 0 1px #ccf9ff,0 0 12px #259cfa66;
+}
+.arena-board-title{
+  flex:none;display:flex;align-items:center;gap:5px;margin:0;white-space:nowrap;
+  font:italic 950 clamp(12px,3.5vw,20px)/1.1 system-ui,sans-serif;
+  border-bottom:1px solid #3ac5e5;padding-bottom:3px;
+  text-overflow:ellipsis;overflow:hidden;
+}
+.arena-board-title svg{width:19px;height:19px;flex:none}
+.arena-board-title em{color:#2ce4f6}
+.arena-board-head{display:grid;grid-template-columns:9% minmax(0,1fr) 13% 27%;
+  align-items:center;gap:3px;flex:none;height:19px;padding-left:3px;
+  color:#e4f2ff;font:italic 900 clamp(8px,2.2vw,12px)/1 system-ui,sans-serif;
+  border-bottom:1px solid #7396bf}
+.arena-board-head span:nth-child(4){text-align:right;padding-right:8px}
+.arena-board-list{list-style:none;display:grid;grid-template-rows:repeat(10,minmax(0,1fr));gap:0;
+  min-height:0;flex:1;padding:0;margin:0}
+.arena-board-row{
+  min-width:0;min-height:0;display:grid;grid-template-columns:9% 26px minmax(0,1fr) 13% 27%;
+  align-items:center;gap:3px;padding:1px 4px;
+  border-bottom:1px solid #6e819d78;
+}
+.arena-board-row.is-first{
+  background:linear-gradient(90deg,#1b3613,#113219b0,#153018);
+  border:1.5px solid #baff16;border-radius:19px;box-shadow:0 0 8px #8aff0aa8
+}
+.arena-board-rank{min-width:0;white-space:nowrap;display:grid;place-items:center;
+  font:italic 1000 clamp(11px,3.3vw,20px)/1 system-ui,sans-serif}
+.arena-board-rank svg{height:19px;width:19px;color:#ffdc22;fill:#ffd600}
+.arena-avatar{
+  display:block;flex:none;width:23px;height:23px;min-width:0;overflow:hidden;
+  border:1px solid #68eaff;border-radius:6px 2px 6px 2px;
+  background:#0e3a79;box-shadow:0 0 5px #1ee9ff91;
+}
+.arena-avatar--large{width:clamp(55px,14vw,115px);height:clamp(55px,14vw,115px);
+  border-width:2px;border-radius:15px 5px 15px 5px;
+  box-shadow:0 0 8px #1ee9ffca}
+.arena-board-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font:italic 950 clamp(9px,2.7vw,15px)/1 system-ui,sans-serif}
+.arena-board-level{white-space:nowrap;font:italic 800 clamp(8px,2.1vw,12px)/1 system-ui,sans-serif}
+.arena-board-value{min-width:0;white-space:nowrap;text-align:right;
+  font:italic 1000 clamp(10px,2.8vw,17px)/1 system-ui,sans-serif;letter-spacing:-.04em}
+.arena-board-row.is-first .arena-board-value,.arena-board-row.is-current .arena-board-value{color:#edfc31}
+.arena-board-row.is-current{
+  flex:none;min-height:30px;margin-top:5px;border:2px solid #c5ff1f;border-radius:16px 4px 16px 4px;
+  background:linear-gradient(95deg,#b5f514,#063718 25%,#07170d 81%,#23540d);
+  box-shadow:0 0 9px #befb16, inset 0 1px #f4ffc7;
+}
+.arena-board-row.is-current .arena-board-rank{color:#131d05}
+.arena-demo-note{
+  flex:none;min-height:12px;display:flex;align-items:center;justify-content:center;gap:4px;
+  color:#a9bfdf;letter-spacing:.02em;font:700 clamp(6px,1.65vw,10px)/1 system-ui,sans-serif;
+  text-align:center;opacity:.95;
+}
+.arena-demo-note svg{height:10px;width:10px;flex:none;color:#fadd84}
+/* LADDER: two panels in exactly the same horizontal split as the approved art. */
+.arena-ladder-grid{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,59fr) minmax(0,41fr);gap:7px}
+.arena-ladder .arena-board{padding-inline:4px}
+.arena-ladder .arena-board-title{font-size:clamp(10px,2.65vw,17px)}
+.arena-ladder .arena-board-row{grid-template-columns:10% 19px minmax(0,1fr) 15% 24%;gap:2px;padding-inline:2px}
+.arena-ladder .arena-avatar{width:19px;height:19px}
+.arena-ladder .arena-board-name{font-size:clamp(7px,2.05vw,12px)}
+.arena-ladder .arena-board-value{font-size:clamp(8px,2.4vw,15px)}
+.arena-ladder .arena-board-level{font-size:clamp(6px,1.7vw,11px)}
+.arena-ladder .arena-board-row.is-current{min-height:32px}
+.arena-skill-card{
+  min-height:0;display:flex;flex-direction:column;gap:clamp(4px,.8dvh,8px);
+  overflow:hidden;padding:5px;
+  border:2px solid #ef41f4;border-radius:16px 5px 17px 5px;
+  background:linear-gradient(160deg,#131548,#151043 80%,#401361);
+  box-shadow:0 0 11px #ea48fd90,inset 0 1px #ffb9ff;
+}
+.arena-skill-card h2{
+  flex:none;display:flex;align-items:center;gap:5px;border-bottom:1px solid #b65bd5;
+  margin:0;padding-bottom:4px;white-space:nowrap;
+  font:italic 1000 clamp(10px,2.6vw,17px)/1 system-ui,sans-serif;
+}
+.arena-skill-card h2 svg{height:19px;width:19px}
+.arena-skill-user{display:flex;align-items:center;flex-wrap:wrap;gap:4px;min-width:0;flex:none}
+.arena-skill-user .arena-avatar{width:clamp(40px,9vw,65px);height:clamp(40px,9vw,65px)}
+.arena-skill-user strong{font:italic 1000 clamp(10px,2.7vw,18px)/1 system-ui,sans-serif}
+.arena-skill-user>span:last-child{font:italic 950 9px/1 system-ui,sans-serif;color:#84efff}
+.arena-skill-rating{display:flex;flex-direction:column;align-items:center;
+  border:2px solid #c1ff26;background:#06220d;border-radius:12px 3px;
+  box-shadow:0 0 9px #caff21;min-height:60px}
+.arena-skill-rating small{font:italic 900 clamp(8px,2.3vw,13px)/1.5 system-ui,sans-serif}
+.arena-skill-rating strong{font:italic 1000 clamp(27px,8vw,54px)/1.1 system-ui,sans-serif;color:#f1ff27}
+.arena-skill-card p{display:flex;align-items:center;justify-content:space-between;gap:2px;margin:0;
+  border:1px solid #82d9ff;border-right-color:#ee3df9;border-radius:9px 3px;padding:3px 4px;
+  font:italic 850 clamp(7px,1.95vw,12px)/1.1 system-ui,sans-serif;white-space:nowrap}
+.arena-skill-card p svg{height:15px;width:15px;flex:none;color:#f9ef4b}
+.arena-skill-card p b{font-size:1.45em;color:#e9ff24}
+.arena-next-rival{flex:1;min-height:0;display:grid;grid-template-columns:25px minmax(0,1fr);
+  grid-template-rows:auto 1fr;align-items:center;gap:2px;padding:5px;
+  border:2px solid #ee2aef;border-radius:12px 3px;box-shadow:0 0 7px #fa38fa}
+.arena-next-rival>svg{color:#d9ff1b;height:22px;width:22px}
+.arena-next-rival small{font:italic 900 clamp(8px,1.9vw,12px)/1 system-ui,sans-serif}
+.arena-next-rival strong{font:italic 950 clamp(9px,2.45vw,16px)/1 system-ui,sans-serif}
+.arena-next-rival .arena-avatar{width:25px;height:25px}
+/* RIVALS: one central VS showdown, two compact equal-height lists. */
+.arena-showdown{
+  flex:0 0 42%;min-height:0;display:flex;flex-direction:column;justify-content:space-between;
+  border:2px solid #f141f8;border-left-color:#37e6ff;border-radius:17px 6px 17px 5px;
+  padding:8px;background:
+    linear-gradient(120deg,#13184f99,#15063ba9 60%,#261151ad),
+    url('/runnit-duel-art.svg') center center/cover no-repeat;
+  box-shadow:0 0 12px #f74dfb7c;
+}
+.arena-showdown-people{flex:1;min-height:0;display:grid;grid-template-columns:1fr 24% 1fr;align-items:center;gap:2px}
+.arena-showdown-person{min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px}
+.arena-showdown-person strong{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font:italic 1000 clamp(13px,3.7vw,23px)/1 system-ui,sans-serif}
+.arena-showdown-person>span:last-child{white-space:nowrap;
+  font:italic 900 clamp(10px,2.5vw,16px)/1 system-ui,sans-serif}
+.arena-showdown-person>span:last-child b{color:#e9ff28;font-size:1.3em}
+.arena-versus{display:flex;align-items:center;flex-direction:column;justify-content:center;gap:4px}
+.arena-versus strong{color:white;font:italic 1000 clamp(38px,10vw,68px)/1 system-ui,sans-serif;
+  text-shadow:4px 4px #d90be6,0 0 10px #ff4cf1}
+.arena-versus small{white-space:nowrap;font:italic 900 clamp(7px,2vw,13px)/1 system-ui,sans-serif}
+.arena-versus b{color:#faff20;font:italic 1000 clamp(23px,6vw,38px)/1 system-ui,sans-serif}
+.arena-rematch{
+  flex:none;align-self:center;display:grid;place-items:center;width:65%;height:clamp(35px,5dvh,53px);
+  border:2px solid #f7ff75;border-radius:14px 3px;transform:skewX(-9deg);
+  background:linear-gradient(150deg,#efff55,#a8f400 70%,#61b700);
+  color:#081809;font:italic 1000 clamp(17px,5vw,31px)/1 system-ui,sans-serif;
+  box-shadow:0 0 13px #d4ff0d;
+}
+.arena-duel-grid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.arena-duel-panel{
+  display:flex;flex-direction:column;min-height:0;gap:3px;padding:5px 4px;
+  border:2px solid #39dfff;border-radius:15px 4px 14px 4px;
+  background:linear-gradient(170deg,#101d42,#0b1330);
+  box-shadow:0 0 10px #12d9fc77;
+}
+.arena-duel-panel--magenta{border-color:#e62bfa;box-shadow:0 0 9px #ef30fb77}
+.arena-duel-panel h2{
+  flex:none;display:flex;align-items:center;gap:4px;min-height:26px;white-space:nowrap;
+  margin:0;font:italic 950 clamp(8px,2.4vw,15px)/1 system-ui,sans-serif}
+.arena-duel-panel h2 svg{width:18px;height:18px;flex:none}
+.arena-mini-row{
+  min-width:0;flex:1;min-height:0;display:flex;align-items:center;gap:4px;
+  padding:2px 3px;border:1px solid #5989a9;border-radius:7px 2px;
+  background:linear-gradient(90deg,#17284f,#09152e);color:#fff;
+  text-align:left;font:italic 850 clamp(8px,2.4vw,13px)/1.1 system-ui,sans-serif;
+}
+.arena-mini-row.is-selected{border-color:#caff27;box-shadow:0 0 7px #a3ff1d9c}
+.arena-mini-row .arena-avatar{width:22px;height:22px}
+.arena-mini-row>span:nth-child(2){min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arena-mini-row b{white-space:nowrap;color:#f2ff38}
+.arena-invite-status{border-radius:8px 2px;padding:3px;color:#07190b!important;
+  background:#d7fb23;text-align:center;font-size:clamp(6px,1.7vw,10px)}
+.arena-invite-1{background:#ff43eb;color:#14102b!important}
+.arena-invite-2{background:#27edfa;color:#071d2e!important}
+.arena-self-strip{
+  flex:0 0 clamp(33px,5.1dvh,48px);display:flex;align-items:center;gap:8px;
+  padding:3px 10px;border:2px solid #b9ff27;border-radius:15px 5px;
+  background:linear-gradient(92deg,#d3ff18,#174223 25%,#041a16 77%,#185214);
+  box-shadow:0 0 11px #b3ff28;color:#fff;
+}
+.arena-self-strip>b:first-child{font:italic 1000 clamp(16px,4.3vw,28px)/1 system-ui,sans-serif;color:#152610}
+.arena-self-strip>strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font:italic 950 clamp(12px,3.2vw,21px)/1 system-ui,sans-serif}
+.arena-self-strip>span:not(.arena-avatar),.arena-self-strip small{font:italic 850 clamp(8px,2.2vw,13px)/1 system-ui,sans-serif;white-space:nowrap}
+.arena-self-strip>b:last-child{color:#f3ff25;font:italic 1000 clamp(17px,4.4vw,26px)/1 system-ui,sans-serif}
+.arena-notice{
+  position:absolute;z-index:3;inset:auto 4px 35px;display:flex;gap:5px;align-items:center;
+  padding:8px;border:1px solid #eaff72;border-radius:10px;
+  background:#0b1735f5;color:#fff;font:700 11px/1.3 system-ui,sans-serif;box-shadow:0 0 12px #eeff5f;
+}
+.arena-notice button{margin-left:auto;flex:none;color:white}
+/* All pages share the three destination nav shown in the approved arena art. */
+.arena-global-dock{
+  flex:none;position:relative;z-index:950;width:100%;
+  background:linear-gradient(180deg,#080d27d0,#061128f5);
+  border-top:1px solid #50e5ff5e;
+  padding:4px 8px max(5px,env(safe-area-inset-bottom,0px));
+  box-shadow:0 -7px 21px #04051b;
+}
+.arena-global-dock ul{width:100%;max-width:614px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px;list-style:none;padding:0;margin:0 auto}
+.arena-global-dock li{min-width:0}
+.arena-global-dock a{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  min-height:clamp(43px,6.3dvh,64px);border:2px solid #2fe7ff;
+  border-radius:18px 5px 17px 5px;
+  background:linear-gradient(155deg,#142b55,#06122a 75%);color:white;
+  font:italic 1000 clamp(12px,3.3vw,18px)/1 system-ui,sans-serif;
+  box-shadow:inset 0 1px #effbffbd,0 0 7px #19d6fbbc;
+}
+.arena-global-dock a[aria-current="page"]{border-color:#c8ff25;color:#f6ff33;
+  background:linear-gradient(165deg,#193b13,#093a10 75%,#245a0d);
+  box-shadow:inset 0 1px #f0ffaf,0 0 13px #b5ff19a8}
+.arena-global-dock svg{height:clamp(18px,3dvh,26px);width:clamp(18px,3dvh,26px)}
+.arena-global-dock a:focus-visible{outline:2px solid white;outline-offset:2px}
+/* On smaller iPhone viewports trim decoration, not rows or actions. */
+@media(max-height:745px){
+  .arena-hero{height:clamp(126px,19dvh,164px)}
+  .arena-stage{gap:3px}
+  .arena-section-bar{flex-basis:34px}
+  .arena-scope{flex-basis:28px}
+  .arena-metrics{flex-basis:50px}
+  .arena-champion{flex-basis:67px}
+  .arena-board-row.is-current{min-height:27px}
+  .arena-tabs{flex-basis:33px}
+  .arena-global-dock a{min-height:42px}
+}
+@media(max-width:360px){
+  .arena-stage{padding-inline:5px}
+  .arena-metric span{font-size:6px}
+  .arena-ladder-grid{gap:3px;grid-template-columns:minmax(0,60fr) minmax(0,40fr)}
+  .arena-board-row{grid-template-columns:8% 19px minmax(0,1fr) 12% 26%;gap:2px}
+  .arena-board .arena-avatar{width:19px;height:19px}
+  .arena-ladder .arena-board-row{grid-template-columns:10% 17px minmax(0,1fr) 13% 24%}
+  .arena-ladder .arena-avatar{width:17px;height:17px}
+  .arena-board-name{font-size:8px}
+}
+@media(prefers-reduced-motion:reduce){.arena-tabs button,.arena-global-dock a{transition:none}}
