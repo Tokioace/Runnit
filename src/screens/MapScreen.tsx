@@ -1831,15 +1831,23 @@ export default function MapScreen() {
           wakeStatus={wakeStatus}
           startedAt={race.startedAt}
           targetDistanceM={race.targetDistanceM}
-          onFinish={async (endedAt, metrics) => {
-            const timeMs = endedAt - race.startedAt;
-            // try submit result; ignore failure for now
-            if (authUser && !race.duelId.startsWith('demo-run-')) {
-              try {
-                await submitDuelResult(supabase as any, race.duelId, timeMs, metrics);
-              } catch (_e) {}
+          onFinish={(endedAt, metrics, completed = true) => {
+            if (!completed) {
+              setRace({ status: 'idle' });
+              setRaceNotice('Testlauf manuell beendet. Kein Ergebnis als Zielankunft gespeichert.');
+              return;
             }
-            setRace({ status: 'finished', duelId: race.duelId, startedAt: race.startedAt, endedAt, targetDistanceM: race.targetDistanceM });
+            const timeMs = Math.max(1, endedAt - race.startedAt);
+            // Finish visuals and sound must fire without waiting on the network.
+            setRace({ status: 'finished', duelId: race.duelId,
+              startedAt: race.startedAt, endedAt, targetDistanceM: race.targetDistanceM });
+            if (!race.duelId.startsWith('demo-run-')) {
+              void submitDuelResult(supabase, race.duelId, timeMs, metrics)
+                .then(({ error }) => {
+                  if (error) setRaceNotice('Rennzeit konnte nicht gespeichert werden. Ergebnis bleibt ungeprüft.');
+                })
+                .catch(() => setRaceNotice('Verbindung unterbrochen. Ergebnis nicht bestätigt.'));
+            }
           }}
         />
       )}
@@ -1874,11 +1882,7 @@ export default function MapScreen() {
               });
             }
           }}
-          onClose={() => {
-            setRace({ status: 'idle' });
-            // Optionally open leaderboard after race
-            setTimeout(() => setGhostOpen(true), 500);
-          }}
+          onClose={() => { setRace({ status: 'idle' }); }}
         />
       )}
 
@@ -1968,7 +1972,7 @@ export default function MapScreen() {
   );
 }
 
-function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { startedAt: number; targetDistanceM: number; wakeStatus: ScreenWakeLockStatus | 'idle'; onFinish: (endedAt: number, metrics?: DuelMetrics) => void }) {
+function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { startedAt: number; targetDistanceM: number; wakeStatus: ScreenWakeLockStatus | 'idle'; onFinish: (endedAt: number, metrics?: DuelMetrics, completed?: boolean) => void }) {
   const [elapsedMs, setElapsedMs] = useState(Math.max(0, Date.now() - startedAt));
   const [acceptedDistanceM, setAcceptedDistanceM] = useState(0);
   const [displayDistanceM, setDisplayDistanceM] = useState(0);
@@ -2118,6 +2122,8 @@ function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { sta
         {wakeStatus !== 'idle' && <p className="race-arcade-wake">{screenWakeLockMessage(wakeStatus)}</p>}
         <button type="button" className="race-arcade-link"
           onClick={() => {
+            if (finishedRef.current) return;
+            finishedRef.current = true;
             // Manual stop is NOT proof the full distance was completed.
             const steps = liveStepCounter.current.count;
             const stepLen = steps > 0 ? acceptedDistanceM / steps : undefined;
@@ -2125,7 +2131,7 @@ function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish }: { sta
               stepsCount: steps, stepLengthAvgM: stepLen,
               maxSpeedMps: maxSpeed, maxAccelMps2: maxAccel, distanceM: acceptedDistanceM,
               metricsJson: { interrupted: true, finishedBy: 'manual-stop' },
-            });
+            }, false);
           }}>
           TESTLAUF MANUELL BEENDEN
         </button>
