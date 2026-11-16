@@ -37,8 +37,8 @@ test('page titles, navigation and map CTAs respect narrow mobile widths', () => 
   assert.match(css, /overflow-x: clip/);
   assert.match(frame, /break-normal/);
   assert.doesNotMatch(frame, /break-words/);
-  assert.match(nav, /max-w-full overflow-hidden/);
-  assert.match(nav, /min-w-0/);
+  assert.match(nav, /arena-global-dock/);
+  assert.match(read('src/styles/arenaArcade.css'), /\.arena-global-dock li\{min-width:0\}/);
   assert.match(map, /<ArcadeMapChrome/);
   assert.doesNotMatch(map, /runnit-arcade-controls/);
   assert.match(read('src/components/map/ArcadeMapChrome.tsx'), /runnit-arcade-map-switch/);

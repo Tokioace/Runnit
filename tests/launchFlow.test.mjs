@@ -64,7 +64,7 @@ test('STARTEN enters the original dashboard, never the map; guests can explore t
   assert.match(app, /setGuestAccess\(true\);\s*navigate\('\/home'\)/);
   assert.ok(app.includes('<Route path="/home" element={<DashboardScreen displayName={auth.user?.displayName} />} />'));
   assert.match(dashboard, /DEIN LAUF\./);
-  assert.match(nav, /href: '\/home', label: 'Start'/);
+  assert.match(nav, /href: '\/home', label: 'PLAY'/);
   assert.doesNotMatch(app, /const enterApp = \(\) => \{[\s\S]*?navigate\('\/map'\)/);
 });
 

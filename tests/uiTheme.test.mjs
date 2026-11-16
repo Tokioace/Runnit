@@ -22,7 +22,7 @@ test('main secondary pages share the same visual shell without modifying the app
   assert.match(gpsLab, /<PageFrame/);
   // Leaderboard now has its own user-reference Y2K shell and existing BottomNav.
   const leaderboard = read('src/screens/LeaderboardScreen.tsx');
-  assert.match(leaderboard, /runnit-ranking-screen/);
+  assert.match(leaderboard, /arena-screen/);
   assert.match(leaderboard, /<BottomNav/);
   assert.doesNotMatch(leaderboard, /<PageFrame/);
   // Profile now has its own reference-based Arcade shell, like Home/Stats.
@@ -60,10 +60,10 @@ test('restyling preserves demo provenance and does not invent real rankings', ()
   const leaderboard = read('src/screens/LeaderboardScreen.tsx');
   const profile = read('src/screens/ProfileScreen.tsx');
   const sheet = read('src/components/leaderboard/Sheet.tsx');
-  assert.match(leaderboard, /source: 'demo'/);
-  assert.match(leaderboard, /leaderboardSourceLabel\(entry\.source\)/);
-  assert.match(leaderboard, /Alle Namen, Level und Punkte unten sind fiktiv/);
-  assert.match(leaderboard, /Noch keine offiziellen Sprint-Ränge/);
+  assert.match(leaderboard, /FICTIONAL SHOWCASE/);
+  assert.match(leaderboard, /FIKTIVE NAMEN, RÄNGE UND REKORDE/);
+  assert.match(leaderboard, /NICHT VERIFIZIERT/);
+  assert.doesNotMatch(leaderboard, /\.from\('profiles'\)|submitDuelResult\(/);
   assert.match(profile, /useSupabaseUser\(\)/);
   assert.doesNotMatch(profile, /<AccountAuthPanel/);
   assert.match(profile, /<AccountDetailsPanel/);

@@ -13,11 +13,12 @@ test('launch splash and original app dashboard have separate routes', () => {
   assert.match(app, /navigate\('\/home'\)/);
 });
 
-test('original dashboard is preserved and remains independent of geolocation and Supabase', () => {
+test('PLAY remains distinct from MAP and Supabase backend', () => {
   const dashboard = read('src/screens/DashboardScreen.tsx');
   assert.match(dashboard, /DEIN LAUF\./);
-  assert.match(dashboard, /to="\/map"/);
-  assert.match(dashboard, /to="\/gps-lab"/);
+  assert.match(dashboard, /to="\/map\?view=list"/);
+  assert.match(dashboard, /to="\/leaderboard"/);
+  assert.match(dashboard, /play-mode-dialog/);
   assert.match(dashboard, /<BottomNav/);
   assert.doesNotMatch(dashboard, /navigator\.geolocation|watchPosition\s*\(|getCurrentPosition\s*\(/);
   assert.doesNotMatch(dashboard, /from ['"][^'"]*supabase/i);
@@ -32,10 +33,10 @@ test('launch screen has no extra feature buttons, geolocation or backend request
   assert.doesNotMatch(launch, /navigator\.geolocation|watchPosition|from ['"][^'"]*supabase/i);
 });
 
-test('bottom navigation Start leads to the old dashboard, Karte remains separate', () => {
+test('three bottom destinations point to PLAY, MAP and ARENA', () => {
   const nav = read('src/components/ui/BottomNav.tsx');
-  assert.match(nav, /href: '\/home', label: 'Start'/);
-  assert.match(nav, /href: '\/map', label: 'Karte'/);
+  assert.match(nav, /href: '\/home', label: 'PLAY'/);
+  assert.match(nav, /href: '\/map', label: 'MAP'/);
 });
 
 test('map has a neutral initial center and explicit tile failure handling', () => {
@@ -57,5 +58,6 @@ test('Home and Stats are independent full screens', () => {
   const nav = read('src/components/ui/BottomNav.tsx');
   assert.ok(app.includes('<Route path="/home" element={<DashboardScreen displayName={auth.user?.displayName} />} />'));
   assert.ok(app.includes('<Route path="/stats" element={<StatsScreen />} />'));
-  assert.match(nav, /href: '\/stats', label: 'Stats'/);
+  assert.doesNotMatch(nav, /href: '\/stats'/);
+  assert.match(nav, /href: '\/leaderboard', label: 'ARENA'/);
 });
