@@ -131,7 +131,7 @@ export default function LeaderboardScreen() {
         </div>
         <p className="sr-only">Erst unabhängig geprüfte Rennergebnisse dürfen später als echte Platzierungen erscheinen.</p>
       </div>
-      <BottomNav variant="ranking" />
+      <BottomNav />
     </main>
   );
 }

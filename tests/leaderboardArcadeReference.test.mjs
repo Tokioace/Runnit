@@ -10,7 +10,7 @@ test('Rangliste follows the user-supplied Y2K layout instead of the generic Page
   assert.match(screen, /className="runnit-ranking-screen"/);
   assert.match(screen, /<h1>RANGLISTE<\/h1>/);
   assert.match(screen, /<Trophy \/>/);
-  assert.match(screen, /<BottomNav variant="ranking" \/>/);
+  assert.match(screen, /<BottomNav \/>/);
   assert.doesNotMatch(screen, /<PageFrame/);
   for (const part of ['runnit-ranking-header', 'runnit-ranking-tabs',
     'runnit-ranking-row', 'runnit-ranking-avatar', 'runnit-ranking-points',
@@ -22,10 +22,10 @@ test('Rangliste follows the user-supplied Y2K layout instead of the generic Page
   assert.match(css, /#d9ff32/);
   assert.match(css, /--ranking-pink:#f524d9/);
   assert.match(css, /@media\(max-width:370px\)/);
-  assert.match(css, /min-height:69px/);
-  assert.match(css, /width:55px;height:55px/);
-  assert.match(css, /height:clamp\(112px,31vw,182px\)/);
-  assert.match(css, /runnit-ranking-dock/);
+  assert.match(css, /min-height:63px/);
+  assert.match(css, /width:49px;height:49px/);
+  assert.match(css, /height:clamp\(108px,30vw,160px\)/);
+  assert.doesNotMatch(css, /runnit-ranking-dock|runnit-ranking-screen \.runnit-dock-active/);
 });
 
 test('the five portrait and points entries are visibly fictional design references', () => {
@@ -92,19 +92,24 @@ test('avatar art and skyline are local static assets, no remote profile data or 
   assert.doesNotMatch(screen, /Date\.now\(\)|Math\.random\(\)/);
 });
 
-test('the reference-sized four-slot dock links to real destinations, including the existing race list', () => {
+test('all screens use one stable five-slot dock and one active-route rule', () => {
   const nav = read('src/components/ui/BottomNav.tsx');
-  const map = read('src/screens/MapScreen.tsx');
   const leaderboard = read('src/screens/LeaderboardScreen.tsx');
-  assert.match(leaderboard, /<BottomNav variant="ranking" \/>/);
-  assert.match(nav, /const rankingTabs = \[/);
-  assert.match(nav, /href: '\/home', label: 'Home'/);
-  assert.match(nav, /href: '\/map', label: 'Karte'/);
-  assert.match(nav, /href: '\/map\?view=list', label: 'Rennen'/);
-  assert.match(nav, /href: '\/leaderboard', label: 'Rangliste'/);
-  assert.match(nav, /ranking \? rankingTabs : tabs/);
-  assert.match(nav, /ranking \? 'grid-cols-4' : 'grid-cols-5'/);
-  assert.match(map, /new URLSearchParams\(window.location.search\).get\('view'\) === 'list'/);
-  assert.match(map, /\? 'list' : 'map'/);
-  assert.match(map, /if \(!requireRaceAccount\(\)\) return;/);
+  const css = read('src/styles/leaderboardArcade.css');
+  assert.match(leaderboard, /<BottomNav \/>/);
+  assert.doesNotMatch(leaderboard, /variant="ranking"/);
+  assert.doesNotMatch(nav, /rankingTabs|grid-cols-4|variant = 'ranking'|view=list/);
+  for (const [href, display] of [
+    ['/home', 'HOME'], ['/map', 'KARTE'], ['/stats', 'STATS'],
+    ['/leaderboard', 'RANGLISTE'], ['/profile', 'PROFIL'],
+  ]) {
+    assert.ok(nav.includes(`href: '${href}'`), href);
+    assert.ok(nav.includes(`display: '${display}'`), display);
+  }
+  assert.match(nav, /grid-cols-5/);
+  assert.match(nav, /const active = location\.pathname === href/);
+  assert.match(nav, /aria-current=\{active \? 'page' : undefined\}/);
+  assert.match(nav, /min-h-\[48px\]/);
+  assert.match(nav, /safe-area-inset-bottom/);
+  assert.doesNotMatch(css, /runnit-ranking-screen \.runnit-game-dock/);
 });

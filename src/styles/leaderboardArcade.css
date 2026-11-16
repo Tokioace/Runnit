@@ -25,7 +25,7 @@
 }
 .runnit-ranking-header{
   position:relative;display:flex;align-items:center;gap:9px;
-  min-height:78px;margin-bottom:10px;
+  min-height:66px;margin-bottom:6px;
 }
 .runnit-ranking-header::before{
   content:"";position:absolute;pointer-events:none;right:-19px;top:-12px;
@@ -66,12 +66,12 @@
 }
 .runnit-ranking-tabs{
   display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;
-  gap:3px;margin:12px 0 16px;padding:0;
+  gap:3px;margin:8px 0 12px;padding:0;
   background:none;border:0;box-shadow:none;
 }
 .runnit-ranking-tab{
   clip-path:polygon(13% 0,100% 0,87% 100%,0 100%);
-  min-height:53px;padding:9px 3px;display:flex;align-items:center;justify-content:center;
+  min-height:47px;padding:7px 3px;display:flex;align-items:center;justify-content:center;
   gap:3px;border:2px solid #9bd4ff;
   background:linear-gradient(166deg,#263c69,#07132e 75%);
   box-shadow:inset 0 2px #b2dcff9e,inset 0 -3px #0b254e;
@@ -98,13 +98,13 @@
 .runnit-ranking-demo-ribbon svg{height:13px;width:13px;flex:none;color:#ffdf78}
 .runnit-ranking-demo-ribbon strong{color:#ffe681}
 .runnit-ranking-list{
-  list-style:none;display:grid;gap:9px;margin:0;padding:0;
+  list-style:none;display:grid;gap:7px;margin:0;padding:0;
 }
 .runnit-ranking-row{
   --ranking-row-glow:rgba(38,211,255,.3);
   position:relative;display:grid;align-items:center;
-  grid-template-columns:33px 55px minmax(0,1fr) auto;
-  gap:7px;min-height:69px;padding:5px 9px 5px 6px;isolation:isolate;
+  grid-template-columns:31px 49px minmax(0,1fr) auto;
+  gap:6px;min-height:63px;padding:5px 8px 5px 6px;isolation:isolate;
   border:1.5px solid #5e9fe1;border-bottom:2px solid #4dcff7;
   border-radius:16px 5px 16px 5px;
   background:
@@ -146,7 +146,7 @@
   color:#0b1a11;font-size:36px;text-shadow:0 1px 0 #f3ffb7;
 }
 .runnit-ranking-avatar{
-  display:block;width:55px;height:55px;flex:none;overflow:hidden;
+  display:block;width:49px;height:49px;flex:none;overflow:hidden;
   border:2px solid #c8edff;border-radius:13px 4px 13px 4px;
   background:#144881;box-shadow:inset 0 1px #fff,0 0 0 2px #193c78,0 0 12px #30dcff8c;
 }
@@ -204,8 +204,8 @@
 .runnit-ranking-empty-stripes span:nth-child(2){width:84%}
 .runnit-ranking-empty-stripes span:nth-child(3){width:65%}
 .runnit-ranking-city{
-  position:relative;z-index:0;height:clamp(112px,31vw,182px);
-  margin:0 -14px;margin-top:8px;
+  position:relative;z-index:0;height:clamp(108px,30vw,160px);
+  margin:0 -14px;margin-top:4px;
   background:url('/runnit-ranking-city.svg') center bottom/cover no-repeat;
   filter:drop-shadow(0 -2px 8px #ff4cce3a);
   pointer-events:none;
@@ -215,28 +215,6 @@
   background:linear-gradient(90deg,#18dffc,#f03fff,#cdff22);
   box-shadow:0 0 10px #42e7ff;
 }
-.runnit-ranking-screen .runnit-game-dock{border-top:2px solid #49eafd;box-shadow:inset 0 2px #8f5dff73,0 -9px 20px #080f3cc4}
-.runnit-ranking-screen .runnit-ranking-dock{background:linear-gradient(180deg,#07162cf8,#060c27f8);border-top-color:#1ae9fc}
-.runnit-ranking-screen .runnit-ranking-dock .runnit-dock-item{
-  min-height:67px;border-radius:8px 2px 8px 2px;font-size:11px;
-}
-.runnit-ranking-screen .runnit-ranking-dock .runnit-dock-item svg{
-  width:26px;height:26px;stroke-width:2.4;
-}
-.runnit-ranking-screen .runnit-ranking-dock .runnit-dock-active{
-  border-radius:19px 4px 19px 4px;transform:skewX(-8deg);
-  background:linear-gradient(160deg,#1b3b0b,#071c0d 65%,#09151c)!important;
-}
-.runnit-ranking-screen .runnit-ranking-dock .runnit-dock-active svg,
-.runnit-ranking-screen .runnit-ranking-dock .runnit-dock-active .runnit-dock-caption{
-  transform:skewX(8deg);
-}
-.runnit-ranking-screen .runnit-dock-active{
-  background:linear-gradient(170deg,#a7ed07,#61a900 64%,#16280a)!important;
-  color:#eaffc9!important;border:2px solid #dfff52!important;
-  box-shadow:inset 0 2px #f7ffe0,0 0 17px #caff2899!important;
-}
-.runnit-ranking-screen .runnit-dock-active svg{color:#efff25!important;filter:drop-shadow(0 0 5px #f7fa27)}
 @media(min-width:600px){
   .runnit-ranking-stage{padding-inline:24px}
   .runnit-ranking-city{margin-inline:-24px}
@@ -249,9 +227,9 @@
   .runnit-ranking-back{width:37px;height:49px}
   .runnit-ranking-trophy{width:42px;height:53px}
   .runnit-ranking-trophy svg{width:37px;height:37px}
-  .runnit-ranking-tab{font-size:clamp(10px,3.05vw,12px);min-height:49px}
-  .runnit-ranking-row{grid-template-columns:27px 49px minmax(0,1fr) auto;gap:5px;min-height:63px;padding:5px 7px 5px 4px}
-  .runnit-ranking-avatar{width:49px;height:49px}
+  .runnit-ranking-tab{font-size:clamp(10px,3.05vw,12px);min-height:43px}
+  .runnit-ranking-row{grid-template-columns:27px 45px minmax(0,1fr) auto;gap:5px;min-height:59px;padding:5px 7px 5px 4px}
+  .runnit-ranking-avatar{width:45px;height:45px}
   .runnit-ranking-place strong{font-size:26px}
   .runnit-ranking-place.is-gold svg{height:22px;width:24px}
   .runnit-ranking-row.is-featured .runnit-ranking-place strong{font-size:29px}
