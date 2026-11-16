@@ -63,9 +63,13 @@ test('original synthesized sound and finish UI do not claim a fake race win', ()
   assert.match(audio, /if \(ctx\.state === 'suspended'\) void ctx.resume/);
   assert.match(audio, /\[\[3, 620\], \[2, 720\], \[1, 820\]\]/);
   assert.match(audio, /createBufferSource\(\)/);
-  assert.match(map, /playArcadeFinishSfx\(\)/);
-  assert.match(map, /ZIEL/);
-  assert.doesNotMatch(map, /DU GEWINNST!/);
+  const finish = read('src/components/race/DuelFinishScreen.tsx');
+  assert.match(finish, /playArcadeFinishSfx\(\)/);
+  assert.match(finish, /ZIEL ERREICHT!/);
+  assert.match(finish, /status === 'completed'/);
+  assert.match(finish, /GPS- und Zeitmessung sind experimentell/);
+  assert.match(map, /<DuelFinishScreen/);
+  assert.doesNotMatch(map, /setUserTimes\(/);
   assert.match(map, /RaceOverlay/);
   assert.match(css, /prefers-reduced-motion:reduce/);
   assert.match(css, /race-arcade-live/);
