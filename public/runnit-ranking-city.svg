@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 220" role="img" aria-label="Retro Neon Skyline bei Sonnenuntergang">
+<defs>
+  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+    <stop stop-color="#060d33"/><stop offset=".22" stop-color="#18225c"/>
+    <stop offset=".52" stop-color="#603078"/><stop offset=".73" stop-color="#df5e99"/>
+    <stop offset=".92" stop-color="#ffaf89"/><stop offset="1" stop-color="#39376f"/>
+  </linearGradient>
+  <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+    <stop stop-color="#151b4d"/><stop offset="1" stop-color="#050d2d"/>
+  </linearGradient>
+  <linearGradient id="neon" x1="0" y1="0" x2="1" y2="0">
+    <stop stop-color="#17ecff"/><stop offset=".52" stop-color="#9c44fa"/><stop offset="1" stop-color="#f52ce3"/>
+  </linearGradient>
+  <radialGradient id="sun"><stop stop-color="#ffe8b4"/><stop offset=".4" stop-color="#ffd2a3"/><stop offset="1" stop-color="#ffb6a5" stop-opacity="0"/></radialGradient>
+  <pattern id="windows" width="19" height="17" patternUnits="userSpaceOnUse">
+    <rect width="4" height="6" x="5" y="5" rx=".3" fill="#f3a58e" opacity=".7"/>
+    <rect width="3" height="5" x="12" y="7" fill="#85d9ff" opacity=".42"/>
+  </pattern>
+  <filter id="glow"><feGaussianBlur stdDeviation="6"/></filter>
+</defs>
+<rect width="820" height="220" fill="url(#sky)"/>
+<circle cx="467" cy="153" r="106" fill="url(#sun)" opacity=".65"/>
+<path d="M-20 140Q133 97 244 140T487 137T858 124" fill="none" stroke="#f39ddc" stroke-width="3" opacity=".18"/>
+<path d="M-20 152Q134 118 249 145T500 141T858 136" fill="none" stroke="#9d83e8" stroke-width="2" opacity=".24"/>
+<path d="M0 149 22 149 22 107 37 107 37 130 49 130 49 92 68 92 68 150 84 150 84 133 108 133 108 80 129 80 129 145 143 145 143 95 163 95 163 128 183 128 183 114 202 114 202 69 221 69 221 128 239 128 239 117 263 117 263 43 273 43 273 15 278 15 278 43 288 43 288 114 305 114 305 91 325 91 325 66 344 66 344 136 365 136 365 121 386 121 386 78 404 78 404 107 419 107 419 120 434 120 434 91 450 91 450 132 463 132 463 116 476 116 476 83 492 83 492 112 510 112 510 130 528 130 528 95 544 95 544 133 562 133 562 69 582 69 582 111 603 111 603 90 620 90 620 131 645 131 645 117 665 117 665 53 680 53 680 20 686 20 686 53 706 53 706 145 723 145 723 88 740 88 740 113 756 113 756 133 779 133 779 74 798 74 798 122 820 122 820 220 0 220Z" fill="url(#shade)"/>
+<path d="M0 149 22 149 22 107 37 107 37 130 49 130 49 92 68 92 68 150 84 150 84 133 108 133 108 80 129 80 129 145 143 145 143 95 163 95 163 128 183 128 183 114 202 114 202 69 221 69 221 128 239 128 239 117 263 117 263 43 288 43 288 114 305 114 305 91 325 91 325 66 344 66 344 136 365 136 365 121 386 121 386 78 404 78 404 107 419 107 419 120 434 120 434 91 450 91 450 132 463 132 463 116 476 116 476 83 492 83 492 112 510 112 510 130 528 130 528 95 544 95 544 133 562 133 562 69 582 69 582 111 603 111 603 90 620 90 620 131 645 131 645 117 665 117 665 53 706 53 706 145 723 145 723 88 740 88 740 113 756 113 756 133 779 133 779 74 798 74 798 122 820 122 820 220 0 220Z" fill="url(#windows)" opacity=".74"/>
+<path d="M0 167 60 160 102 181 128 172 171 185 210 166 262 182 295 174 320 184 368 165 416 183 476 165 540 188 581 171 620 183 681 159 725 180 773 164 820 172V220H0Z" fill="#050d2b" opacity=".95"/>
+<path d="M0 206Q130 197 231 204T430 203T820 201" stroke="#15dbf8" stroke-width="3" fill="none" filter="url(#glow)"/>
+<path d="M0 203Q130 194 231 201T430 200T820 198" stroke="url(#neon)" stroke-width="2" fill="none"/>
+<path d="M0 214H820" stroke="#fa41dd" stroke-width="3" opacity=".52"/>
+<path d="M37 17 148 8M615 13 809 33" stroke="#42dfff" stroke-width="2" opacity=".35"/>
+</svg>

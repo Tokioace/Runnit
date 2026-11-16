@@ -1,90 +1,137 @@
-import { useState } from 'react';
-import { Globe2, LockKeyhole, MapPinned, ShieldAlert, Trophy } from 'lucide-react';
-import { LeaderboardRow } from '../components/leaderboard/Row';
-import PageFrame from '../components/ui/PageFrame';
+import { useState, type KeyboardEvent } from 'react';
+import { ChevronLeft, Crown, MapPinned, ShieldAlert, Trophy, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import ArcadeAvatar, { type ArcadeAvatarVariant } from '../components/leaderboard/ArcadeAvatar';
+import { leaderboardSourceLabel } from '../lib/leaderboardProvenance';
+import BottomNav from '../components/ui/BottomNav';
+import '../styles/leaderboardArcade.css';
 
-// Fictional fixtures for the design preview; never represent real athletes.
-const demoEntries = [
-  { name: 'SpeedRunner23', time: '8.92s', distance: '100m' },
-  { name: 'FlashFeet', time: '9.33s', distance: '100m' },
-  { name: 'RocketRunner', time: '9.45s', distance: '100m' },
-  { name: 'TurboTom', time: '9.67s', distance: '100m' },
-  { name: 'LightningLisa', time: '9.89s', distance: '100m' },
+/** Explicitly fictional scene dressing matching the user-supplied arcade
+ * reference. No real users, verification, friends or player XP/points exist
+ * in this data source. Never merge these records with server results. */
+const showcase: ReadonlyArray<{
+  name: string; level: number; points: number; avatar: ArcadeAvatarVariant; source: 'demo'; featured?: boolean;
+}> = [
+  { name: 'SpeedKaze',   level: 36, points: 5420, avatar: 'speed', source: 'demo' },
+  { name: 'NightRunner', level: 34, points: 5210, avatar: 'night', source: 'demo' },
+  { name: 'AeroFox',     level: 33, points: 5080, avatar: 'aero', source: 'demo' },
+  { name: 'Stergios',    level: 24, points: 4920, avatar: 'player', source: 'demo', featured: true },
+  { name: 'RunHikari',   level: 28, points: 4760, avatar: 'hikari', source: 'demo' },
 ];
 
-type Tab = 'city' | 'national' | 'global';
-const tabs: { key: Tab; label: string; icon: typeof MapPinned }[] = [
-  { key: 'city', label: 'Stadt', icon: MapPinned },
-  { key: 'national', label: 'Land', icon: ShieldAlert },
-  { key: 'global', label: 'Welt', icon: Globe2 },
+type RankingTab = 'global' | 'region' | 'friends';
+const tabs: ReadonlyArray<{ id: RankingTab; label: string }> = [
+  { id: 'global', label: 'GLOBAL' },
+  { id: 'region', label: 'REGION' },
+  { id: 'friends', label: 'FREUNDE' },
 ];
+
+const points = new Intl.NumberFormat('de-DE');
+
+function ArcadeShowcaseRow({ entry, rank }: { entry: (typeof showcase)[number]; rank: number }) {
+  return (
+    <li className={'runnit-ranking-row' + (entry.featured ? ' is-featured' : '')}
+      aria-label={`Demo-Platz ${rank}: ${entry.name}, fiktives Level ${entry.level}, ${points.format(entry.points)} Demo-Punkte; ${leaderboardSourceLabel(entry.source)}`}>
+      <div className={'runnit-ranking-place' + (rank === 1 ? ' is-gold' : '')} aria-hidden="true">
+        {rank === 1 && <Crown />}
+        <strong>{rank}</strong>
+      </div>
+      <span className="runnit-ranking-avatar"><ArcadeAvatar variant={entry.avatar} /></span>
+      <div className="runnit-ranking-person">
+        <strong title={entry.name}>{entry.name}</strong>
+        <small>LV. {entry.level}</small>
+      </div>
+      <div className="runnit-ranking-points" aria-hidden="true">
+        <strong>{points.format(entry.points)}</strong><span>Pkt</span>
+      </div>
+    </li>
+  );
+}
+
+function NoVerifiedResults({ scope }: { scope: 'region' | 'friends' }) {
+  const isFriends = scope === 'friends';
+  return (
+    <section className="runnit-ranking-no-results" role="status" aria-label={isFriends ? 'Freundesrangliste ohne bestätigte Ergebnisse' : 'Regionale Rangliste ohne bestätigte Ergebnisse'}>
+      <span className="runnit-ranking-empty-emblem" aria-hidden="true">
+        {isFriends ? <Users size={37} /> : <MapPinned size={37} />}
+      </span>
+      <h2>{isFriends ? 'DEIN SQUAD. DEIN RIVAL.' : 'DEINE STRASSE. DEIN REVIER.'}</h2>
+      <p>{isFriends
+        ? 'Sobald Freundeslisten und geprüfte Sprint-Ergebnisse verfügbar sind, erscheinen hier echte Duelle zwischen deinen Kontakten.'
+        : 'Die regionale Bestenliste wird mit echten, geprüften Sprint-Ergebnissen gefüllt. Bis dahin zeigen wir keine erfundenen Platzierungen.'}</p>
+      <span className="runnit-ranking-empty-stripes" aria-hidden="true"><span /><span /><span /></span>
+    </section>
+  );
+}
 
 export default function LeaderboardScreen() {
-  const [activeTab, setActiveTab] = useState<Tab>('city');
+  const [activeTab, setActiveTab] = useState<RankingTab>('global');
+
+  // Tablist keyboard access: Arrow keys, Home and End select/focus a new tab.
+  // This keeps Region/Freunde reachable even with roving tabIndex=-1.
+  const selectTabFromKeyboard = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const key = event.key;
+    let next = index;
+    if (key === 'ArrowRight') next = (index + 1) % tabs.length;
+    else if (key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+    else if (key === 'Home') next = 0;
+    else if (key === 'End') next = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    setActiveTab(tabs[next].id);
+    const buttons = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+    buttons?.[next]?.focus();
+  };
 
   return (
-    <PageFrame
-      kicker="CHASE YOUR BEST"
-      title="Ranglisten."
-      description="Deine Konkurrenz im Blick. Echte Leistungen zählen erst, wenn die Messung zuverlässig überprüft ist."
-      icon={<Trophy className="h-7 w-7" aria-hidden="true" />}
-    >
-      <div className="grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-white/[0.045] p-1.5" role="group" aria-label="Ranglistenbereich">
-        {tabs.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            type="button"
-            aria-pressed={activeTab === key}
-            onClick={() => setActiveTab(key)}
-            className={`flex min-h-12 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-bold transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:text-sm ${
-              activeTab === key
-                ? 'bg-gradient-to-r from-violet-500 to-indigo-600 text-white shadow-[0_10px_25px_rgba(99,102,241,.18)]'
-                : 'text-white/55 hover:bg-white/5 hover:text-white'
-            }`}
-          >
-            <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />{label}
-          </button>
-        ))}
-      </div>
+    <main className="runnit-ranking-screen" aria-label="Runnit Ranglisten">
+      <div className="runnit-ranking-stage">
+        <header className="runnit-ranking-header">
+          <Link to="/home" className="runnit-ranking-back" aria-label="Zur Startseite">
+            <ChevronLeft size={32} strokeWidth={2.6} aria-hidden="true" />
+          </Link>
+          <span className="runnit-ranking-trophy" aria-hidden="true"><Trophy /></span>
+          <div className="runnit-ranking-header-copy">
+            <h1>RANGLISTE</h1>
+          </div>
+        </header>
 
-      <div role="note" className="flex gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/[0.075] p-4">
-        <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" aria-hidden="true" />
-        <div className="text-xs leading-6 text-amber-100/85">
-          <strong className="block text-sm text-amber-100">Vorschau ohne offizielle Wertung</strong>
-          Die dargestellten Zeiten und Namen sind erfunden. Aktuell gibt es keine bestätigten Sprint-Rekorde.
+        <div className="runnit-ranking-tabs" role="tablist" aria-label="Ranglistenbereich">
+          {tabs.map(({ id, label }, index) => (
+            <button key={id} id={'ranking-tab-' + id} type="button" role="tab"
+              className="runnit-ranking-tab"
+              aria-selected={activeTab === id}
+              aria-controls={'ranking-panel-' + id}
+              tabIndex={activeTab === id ? 0 : -1}
+              onClick={() => setActiveTab(id)}
+              onKeyDown={(event) => selectTabFromKeyboard(event, index)}>
+              {label}
+            </button>
+          ))}
         </div>
-      </div>
 
-      {activeTab === 'city' ? (
-        <section className="space-y-3" aria-label="Fiktive Demo-Rangliste">
-          <div className="flex items-end justify-between gap-2">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">SHOWCASE</p>
-              <h2 className="mt-1 text-xl font-extrabold tracking-tight">Beispiel-Ranking</h2>
-            </div>
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-white/50">100 m · Demo</span>
-          </div>
-          <div className="space-y-2.5">
-            {demoEntries.map((entry, index) => (
-              <LeaderboardRow key={entry.name} rank={index + 1} {...entry} source="demo" />
-            ))}
-          </div>
-        </section>
-      ) : (
-        <section role="status" className="flex min-h-64 flex-col items-center justify-center rounded-3xl border border-violet-300/15 bg-gradient-to-br from-violet-500/10 to-white/[0.025] px-6 py-9 text-center">
-          <span className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-            <LockKeyhole className="h-8 w-8 text-cyan-200" aria-hidden="true" />
-          </span>
-          <h2 className="text-xl font-extrabold">Hier entsteht der Wettbewerb.</h2>
-          <p className="mt-3 max-w-xs text-sm leading-6 text-white/55">
-            {activeTab === 'national' ? 'Deutschland' : 'Die Welt'} bekommt eine eigene Rangliste,
-            sobald echte Ergebnisse zuverlässig geprüft werden können.
+        <div role="tabpanel" id={'ranking-panel-' + activeTab}
+          aria-labelledby={'ranking-tab-' + activeTab}>
+          {activeTab === 'global' ? (
+            <ol className="runnit-ranking-list" aria-label="Fiktive globale Beispiel-Rangliste">
+              {showcase.map((entry, index) => (
+                <ArcadeShowcaseRow key={entry.name} entry={entry} rank={index + 1} />
+              ))}
+            </ol>
+          ) : (
+            <NoVerifiedResults scope={activeTab} />
+          )}
+        </div>
+
+        <div className="runnit-ranking-city">
+          <p className="runnit-ranking-demo-ribbon" role="note">
+            <ShieldAlert aria-hidden="true" />
+            <span><strong>DESIGNVORSCHAU / DEMO</strong> · Alle Namen, Level und Punkte unten sind fiktiv. Noch keine offiziellen Sprint-Ränge.</span>
           </p>
-          <p className="mt-5 rounded-full bg-emerald-300/10 px-3 py-1.5 text-xs font-bold text-emerald-200">
-            Fair Play hat Vorrang.
-          </p>
-        </section>
-      )}
-    </PageFrame>
+        </div>
+        <p className="sr-only">Erst unabhängig geprüfte Rennergebnisse dürfen später als echte Platzierungen erscheinen.</p>
+      </div>
+      <BottomNav variant="ranking" />
+    </main>
   );
 }

@@ -17,11 +17,14 @@ test('main secondary pages share the same visual shell without modifying the app
   for (const visualToken of ['--runnit-cyan', '--runnit-magenta', '--runnit-violet', '.runnit-panel', '.runnit-arcade-button']) {
     assert.ok(css.includes(visualToken), visualToken);
   }
-  for (const file of ['LeaderboardScreen.tsx', 'GpsLabScreen.tsx']) {
-    const page = read('src/screens/' + file);
-    assert.match(page, /import PageFrame from/);
-    assert.match(page, /<PageFrame/);
-  }
+  const gpsLab = read('src/screens/GpsLabScreen.tsx');
+  assert.match(gpsLab, /import PageFrame from/);
+  assert.match(gpsLab, /<PageFrame/);
+  // Leaderboard now has its own user-reference Y2K shell and existing BottomNav.
+  const leaderboard = read('src/screens/LeaderboardScreen.tsx');
+  assert.match(leaderboard, /runnit-ranking-screen/);
+  assert.match(leaderboard, /<BottomNav/);
+  assert.doesNotMatch(leaderboard, /<PageFrame/);
   // Profile now has its own reference-based Arcade shell, like Home/Stats.
   const profile = read('src/screens/ProfileScreen.tsx');
   assert.match(profile, /runnit-profile-master/);
@@ -57,8 +60,10 @@ test('restyling preserves demo provenance and does not invent real rankings', ()
   const leaderboard = read('src/screens/LeaderboardScreen.tsx');
   const profile = read('src/screens/ProfileScreen.tsx');
   const sheet = read('src/components/leaderboard/Sheet.tsx');
-  assert.match(leaderboard, /source="demo"/);
-  assert.match(leaderboard, /Die dargestellten Zeiten und Namen sind erfunden/);
+  assert.match(leaderboard, /source: 'demo'/);
+  assert.match(leaderboard, /leaderboardSourceLabel\(entry\.source\)/);
+  assert.match(leaderboard, /Alle Namen, Level und Punkte unten sind fiktiv/);
+  assert.match(leaderboard, /Noch keine offiziellen Sprint-Ränge/);
   assert.match(profile, /useSupabaseUser\(\)/);
   assert.doesNotMatch(profile, /<AccountAuthPanel/);
   assert.match(profile, /<AccountDetailsPanel/);
