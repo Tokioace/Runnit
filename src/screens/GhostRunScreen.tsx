@@ -461,18 +461,18 @@ export default function GhostRunScreen() {
 
             {showSummary && (
               <section className="runnit-ghost-card runnit-ghost-finish">
-                <p className="runnit-ghost-kicker">{summary.run_state === 'finished' ? 'RUN COMPLETED' : 'INCOMPLETE TEST'}</p>
-                <div className="runnit-ghost-timer">{summary.elapsed_ms === null ? '—' : (summary.elapsed_ms/1000).toFixed(2)}<small>s</small></div>
-                <div className="runnit-ghost-distance">{summary.observed_distance_m.toFixed(1)} <span>/ {target} M</span></div>
+                <p className="runnit-ghost-kicker">{showSummary.run_state === 'finished' ? 'RUN COMPLETED' : 'INCOMPLETE TEST'}</p>
+                <div className="runnit-ghost-timer">{showSummary.elapsed_ms === null ? '—' : (showSummary.elapsed_ms/1000).toFixed(2)}<small>s</small></div>
+                <div className="runnit-ghost-distance">{showSummary.observed_distance_m.toFixed(1)} <span>/ {target} M</span></div>
                 <div className="runnit-ghost-grid">
-                  <div><Footprints size={19}/><strong>{summary.steps_count}</strong><small>SCHRITTE</small></div>
-                  <div><Gauge size={19}/><strong>{summary.max_speed_mps.toFixed(1)}</strong><small>MAX M/S</small></div>
-                  <div><CheckCircle2 size={19}/><strong>{summary.gps_accepted}</strong><small>GPS OK</small></div>
-                  <div><WifiOff size={19}/><strong>{summary.gps_rejected}</strong><small>GPS VERWORFEN</small></div>
+                  <div><Footprints size={19}/><strong>{showSummary.steps_count}</strong><small>SCHRITTE</small></div>
+                  <div><Gauge size={19}/><strong>{showSummary.max_speed_mps.toFixed(1)}</strong><small>MAX M/S</small></div>
+                  <div><CheckCircle2 size={19}/><strong>{showSummary.gps_accepted}</strong><small>GPS OK</small></div>
+                  <div><WifiOff size={19}/><strong>{showSummary.gps_rejected}</strong><small>GPS VERWORFEN</small></div>
                 </div>
                 <p className="runnit-ghost-small" role="status">{savedMessage || (saveStatus === 'saving' ? 'Speichere private Zusammenfassung …' : 'Messung abgeschlossen.')}</p>
                 {interrupted && <p className="runnit-ghost-alert">Safari-Unterbrechung erkannt. Sensorwerte können fehlen.</p>}
-                {saveStatus === 'error' && <button type="button" className="race-arcade-danger-link" onClick={() => { void saveSummary(summary); }}>SPEICHERN ERNEUT VERSUCHEN</button>}
+                {saveStatus === 'error' && <button type="button" className="race-arcade-danger-link" onClick={() => { void saveSummary(showSummary); }}>SPEICHERN ERNEUT VERSUCHEN</button>}
                 <button type="button" className="race-arcade-primary" onClick={exportJson}><Download size={18} className="inline mr-2" /> DIAGNOSE-JSON EXPORTIEREN »</button>
                 <button type="button" className="runnit-ghost-secondary" onClick={reset}>NEUER GHOST RUN</button>
                 <Link to="/map" className="runnit-ghost-secondary">ZUR KARTE</Link>
