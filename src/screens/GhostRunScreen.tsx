@@ -452,7 +452,7 @@ export default function GhostRunScreen() {
                   <div><Flag size={19} /><strong>{gpsState?.acceptedSamples ?? 0}</strong><small>GPS FIXES</small></div>
                   <div><WifiOff size={19} /><strong>{motionGaps}</strong><small>IMU GAPS</small></div>
                 </div>
-                <p className="runnit-ghost-small">{screenWakeLockMessage(wakeStatus)}</p>
+                <p className="runnit-ghost-small">{wakeStatus === 'idle' ? 'Bildschirm bitte eingeschaltet lassen.' : screenWakeLockMessage(wakeStatus)}</p>
                 <button className="race-arcade-danger-link" type="button" onClick={() => stopRun('stopped','Manuell beendet. Kein bestätigter Zieleinlauf.')}>
                   <PauseCircle size={17} className="inline mr-2" /> TESTLAUF ABBRECHEN
                 </button>
