@@ -4,112 +4,98 @@ import { readFileSync } from 'node:fs';
 
 const read = file => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 
-test('Rangliste follows the user-supplied Y2K layout instead of the generic PageFrame panel', () => {
+test('Arena follows the three latest supplied reference screens', () => {
   const screen = read('src/screens/LeaderboardScreen.tsx');
-  const css = read('src/styles/leaderboardArcade.css');
-  assert.match(screen, /className="runnit-ranking-screen"/);
-  assert.match(screen, /<h1>RANGLISTE<\/h1>/);
-  assert.match(screen, /<Trophy \/>/);
-  assert.match(screen, /<BottomNav \/>/);
-  assert.doesNotMatch(screen, /<PageFrame/);
-  for (const part of ['runnit-ranking-header', 'runnit-ranking-tabs',
-    'runnit-ranking-row', 'runnit-ranking-avatar', 'runnit-ranking-points',
-    'runnit-ranking-city', 'runnit-ranking-demo-ribbon']) {
-    assert.match(css, new RegExp('\\.' + part + '(?:[\\s:{])'));
-  }
-  assert.match(css, /url\('\/runnit-ranking-city\.svg'\)/);
-  assert.match(css, /runnit-ranking-row\.is-featured/);
-  assert.match(css, /#d9ff32/);
-  assert.match(css, /--ranking-pink:#f524d9/);
-  assert.match(css, /@media\(max-width:370px\)/);
-  assert.match(css, /min-height:63px/);
-  assert.match(css, /width:49px;height:49px/);
-  assert.match(css, /height:clamp\(108px,30vw,160px\)/);
-  assert.doesNotMatch(css, /runnit-ranking-dock|runnit-ranking-screen \.runnit-dock-active/);
-});
-
-test('the five portrait and points entries are visibly fictional design references', () => {
-  const screen = read('src/screens/LeaderboardScreen.tsx');
-  const profile = read('src/components/leaderboard/ArcadeAvatar.tsx');
-  const city = read('public/runnit-ranking-city.svg');
-  for (const name of ['SpeedKaze', 'NightRunner', 'AeroFox', 'Stergios', 'RunHikari']) {
-    assert.match(screen, new RegExp(name));
-  }
-  for (const level of [36, 34, 33, 24, 28]) {
-    assert.match(screen, new RegExp('level: ' + level));
-  }
-  for (const point of [5420, 5210, 5080, 4920, 4760]) {
-    assert.match(screen, new RegExp('points: ' + point));
-  }
-  assert.match(screen, /featured: true/);
-  assert.match(screen, /DESIGNVORSCHAU/);
-  assert.match(screen, /Alle Namen, Level und Punkte unten sind fiktiv/);
-  assert.match(screen, /Demo-Platz/);
-  assert.match(screen, /Noch keine offiziellen Sprint-Ränge/);
-  assert.match(screen, /className="runnit-ranking-city"/);
-  assert.match(screen, /className="runnit-ranking-demo-ribbon" role="note"/);
-  assert.doesNotMatch(screen, /<p className="runnit-ranking-disclaimer">/);
-  assert.match(screen, /Erst unabhängig geprüfte Rennergebnisse/);
-  assert.doesNotMatch(screen, /\.from\('duel_results'\)|\.from\('profiles'\)|fetch\(/);
-  assert.match(profile, /Original, deterministic vector portraits/);
-  assert.match(profile, /aria-hidden="true"/);
-  assert.match(city, /<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
-  assert.doesNotMatch(city, /<script|javascript:|<image href="http/i);
-});
-
-test('GLOBAL, REGION and FREUNDE are functional semantic tabs, region/friends do not fabricate results', () => {
-  const screen = read('src/screens/LeaderboardScreen.tsx');
-  const css = read('src/styles/leaderboardArcade.css');
-  assert.match(screen, /'global', label: 'GLOBAL'/);
-  assert.match(screen, /'region', label: 'REGION'/);
-  assert.match(screen, /'friends', label: 'FREUNDE'/);
-  assert.match(screen, /useState<RankingTab>\('global'\)/);
+  const css = read('src/styles/arenaArcade.css');
+  assert.match(screen, /className="arena-screen"/);
+  assert.match(screen, /<h1>ARENA<\/h1>/);
+  assert.match(screen, /'rivals', label: 'RIVALS'/);
+  assert.match(screen, /'ladder', label: 'LADDER'/);
+  assert.match(screen, /'legends', label: 'LEGENDS'/);
   assert.match(screen, /role="tablist"/);
-  assert.match(screen, /role="tab"/);
-  assert.match(screen, /aria-selected=\{activeTab === id\}/);
-  assert.match(screen, /onKeyDown=\{\(event\) => selectTabFromKeyboard\(event, index\)\}/);
-  assert.match(screen, /key === 'ArrowRight'/);
-  assert.match(screen, /key === 'ArrowLeft'/);
-  assert.match(screen, /role="tabpanel"/);
-  assert.match(screen, /activeTab === 'global' \? \(/);
-  assert.match(screen, /<NoVerifiedResults scope=\{activeTab\} \/>/);
-  assert.match(screen, /Keine erfundenen Platzierungen|keine erfundenen Platzierungen/);
-  assert.match(css, /runnit-ranking-no-results/);
-  assert.match(css, /runnit-ranking-tab\[aria-selected="true"\]/);
-  assert.match(css, /runnit-ranking-tab:focus-visible/);
+  assert.match(screen, /aria-selected=\{tab === id\}/);
+  assert.match(screen, /onKeyDown=\{event => onTabKeyDown\(event, index\)\}/);
+  assert.match(screen, /<Rivals currentName=\{currentName\}\/>/);
+  assert.match(screen, /<Ladder scope=\{scope\} setScope=\{setScope\} currentName=\{currentName\}\/>/);
+  assert.match(screen, /<Legends scope=\{scope\} setScope=\{setScope\} currentName=\{currentName\}\/>/);
+  assert.match(screen, /<BottomNav\/>/);
+  assert.doesNotMatch(screen, /<PageFrame|RANGLISTE<\/h1>/);
+  for(const selector of ['arena-hero','arena-tabs','arena-section-bar','arena-showdown','arena-ladder-grid','arena-legends','arena-metrics','arena-board-list','arena-champion','arena-self-strip']) {
+    assert.match(css, new RegExp('\\.' + selector + '[\\{\\s\\.]'));
+  }
 });
 
-test('avatar art and skyline are local static assets, no remote profile data or photo permissions', () => {
-  const avatar = read('src/components/leaderboard/ArcadeAvatar.tsx');
+test('Arena showcases are explicitly fictional, never claimed as server-verified rankings', () => {
   const screen = read('src/screens/LeaderboardScreen.tsx');
-  const css = read('src/styles/leaderboardArcade.css');
-  for (const variant of ['speed','night','aero','player','hikari']) {
-    assert.match(avatar, new RegExp('\\b' + variant + ':'));
-  }
-  assert.match(avatar, /viewBox="0 0 88 88"/);
-  assert.match(css, /background:url\('\/runnit-ranking-city\.svg'\)/);
-  assert.doesNotMatch(avatar, /fetch\(|https?:\/\//);
-  assert.doesNotMatch(screen, /Date\.now\(\)|Math\.random\(\)/);
+  const provenance = read('src/lib/leaderboardProvenance.ts');
+  assert.match(screen, /FICTIONAL SHOWCASE/);
+  assert.match(screen, /FIKTIVE NAMEN, RÄNGE UND REKORDE/);
+  assert.match(screen, /NICHT VERIFIZIERT/);
+  assert.match(screen, /Diese Gegner und Herausforderungen sind fiktiv/);
+  assert.doesNotMatch(screen, /\.from\('profiles'\)|\.from\('duel_results'\)|fetch\(/);
+  assert.match(provenance, /'demo':|demo: 'Demo/);
 });
 
-test('all screens use one stable five-slot dock and one active-route rule', () => {
-  const nav = read('src/components/ui/BottomNav.tsx');
-  const leaderboard = read('src/screens/LeaderboardScreen.tsx');
-  const css = read('src/styles/leaderboardArcade.css');
-  assert.match(leaderboard, /<BottomNav \/>/);
-  assert.doesNotMatch(leaderboard, /variant="ranking"/);
-  assert.doesNotMatch(nav, /rankingTabs|grid-cols-4|variant = 'ranking'|view=list/);
-  for (const [href, display] of [
-    ['/home', 'HOME'], ['/map', 'KARTE'], ['/stats', 'STATS'],
-    ['/leaderboard', 'RANGLISTE'], ['/profile', 'PROFIL'],
-  ]) {
-    assert.ok(nav.includes(`href: '${href}'`), href);
-    assert.ok(nav.includes(`display: '${display}'`), display);
+test('Legends has exactly six metrics and always switches a single-metric ranking', () => {
+  const screen = read('src/screens/LeaderboardScreen.tsx');
+  for(const id of ['times','speed','acceleration','reaction','wins','streak']) {
+    assert.match(screen, new RegExp("id: '" + id + "'"));
   }
-  assert.match(nav, /grid-cols-5/);
-  assert.match(nav, /const active = location\.pathname === href/);
+  assert.match(screen, /onClick=\{\(\) => setMetric\(id\)\}/);
+  assert.match(screen, /recordText\(metric, distance, i\)/);
+  assert.match(screen, /LeaderboardList title=\{selected\.title/);
+  assert.match(screen, /aria-pressed=\{metric === id\}/);
+  assert.match(screen, /m\/s²/);
+});
+
+test('Only BESTZEITEN has 50/75/100 m and content below never jumps', () => {
+  const screen = read('src/screens/LeaderboardScreen.tsx');
+  const css = read('src/styles/arenaArcade.css');
+  assert.match(screen, /metric === 'times' && \(/);
+  assert.match(screen, /50, 75, 100/);
+  assert.match(screen, /className="arena-distance"/);
+  assert.match(css, /\.arena-distance\{/);
+  assert.match(css, /position:absolute;z-index:2/);
+  assert.match(css, /\.arena-champion\{/);
+  assert.match(css, /flex:0 0 clamp\(73px,10\.1dvh,111px\)/);
+  assert.match(css, /\.arena-board-list\{list-style:none;display:grid;grid-template-rows:repeat\(10/);
+});
+
+test('Ten placements plus one own placement are present; official result tables need integration', () => {
+  const screen = read('src/screens/LeaderboardScreen.tsx');
+  assert.match(screen, /runners\.map\(x => String\(x\.rating\)\)/);
+  assert.match(screen, /entries\.map\(\(entry, index\) =>/);
+  assert.match(screen, /<DemoRow rank=\{ownRank\}/);
+  assert.match(screen, /scope === 'city' \? 27 : scope === 'country' \? 132 : 247/);
+  assert.match(screen, /SpeedKaze/);
+  assert.match(screen, /AeroFox/);
+  assert.match(screen, /currentName/);
+  assert.match(screen, /displayName\?\.trim\(\)/);
+});
+
+test('Rivals actions are only a visual preview until verified challenge invitations exist', () => {
+  const screen = read('src/screens/LeaderboardScreen.tsx');
+  assert.match(screen, /HEAD-TO-HEAD/);
+  assert.match(screen, /REVANCHE/);
+  assert.match(screen, /DEINE RIVALEN/);
+  assert.match(screen, /HERAUSFORDERUNGEN/);
+  assert.match(screen, /onClick=\{notify\}/);
+  assert.match(screen, /DESIGNVORSCHAU: Diese Gegner und Herausforderungen sind fiktiv/);
+  assert.doesNotMatch(screen, /createChallenge\(|sendChallenge\(|submitDuelResult\(/);
+});
+
+test('Shared bottom navigation has three stable PLAY/MAP/ARENA destinations and real profile access', () => {
+  const nav = read('src/components/ui/BottomNav.tsx');
+  const screen = read('src/screens/LeaderboardScreen.tsx');
+  const css = read('src/styles/arenaArcade.css');
+  for(const expected of ["href: '/home', label: 'PLAY'","href: '/map', label: 'MAP'","href: '/leaderboard', label: 'ARENA'"]) {
+    assert.ok(nav.includes(expected),expected);
+  }
   assert.match(nav, /aria-current=\{active \? 'page' : undefined\}/);
-  assert.match(nav, /min-h-\[48px\]/);
-  assert.match(nav, /safe-area-inset-bottom/);
-  assert.doesNotMatch(css, /runnit-ranking-screen \.runnit-game-dock/);
+  assert.match(nav, /aria-label=\{label\}/);
+  assert.match(screen, /to="\/profile"/);
+  assert.match(css, /\.arena-global-dock ul\{width:100%;max-width:614px;display:grid;grid-template-columns:repeat\(3/);
+  assert.match(css, /safe-area-inset-bottom/);
+  assert.match(css, /height:100dvh/);
+  assert.match(css, /overflow:hidden/);
 });
