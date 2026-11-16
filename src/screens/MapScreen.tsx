@@ -1785,7 +1785,14 @@ export default function MapScreen() {
         <MatchCountdownOverlay
           wakeStatus={wakeStatus}
           startsAt={matchOverlay.startsAt}
-          onReady={() => { /* Real readiness is confirmed before start_at. */ }}
+          onReady={() => {
+            if (!authUser) {
+              setMatchOverlay(null);
+              setRace({ status: 'idle' });
+              navigate('/login?next=%2Fmap');
+            }
+            // Real readiness was already confirmed before start_at.
+          }}
           onDone={() => {
             setMatchOverlay(null);
             if (!authUser) {
