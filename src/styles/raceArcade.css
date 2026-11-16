@@ -153,3 +153,21 @@
  font-size:11px;font-weight:950;text-align:center}
 .race-arcade-confirm-actions button:last-child{border-color:#fface2;background:#d3348c;color:#fff}
 .race-arcade-confirm-actions button:disabled{opacity:.58}
+
+
+/* Two-competitor finish cards in the existing Y2K arcade palette. */
+.race-arcade-result-versus{display:grid;grid-template-columns:minmax(0,1fr) 34px minmax(0,1fr);align-items:center;gap:4px}
+.race-arcade-result-runner{min-width:0;display:flex;flex-direction:column;gap:7px;padding:13px 9px;
+ border:1.5px solid #62e9fb;background:linear-gradient(135deg,#174476,#121b49 82%);
+ border-radius:14px 4px 14px 4px;box-shadow:inset 0 1px #d9fcff6b,0 0 12px #43d4e96a}
+.race-arcade-result-runner.winner{border-color:#daff2d;background:linear-gradient(120deg,#315e85,#263c47 80%);
+ box-shadow:0 0 22px #d9ff3872,inset 0 1px #f8ffa9a8}
+.race-arcade-result-runner span{font-size:10px;color:#9df0ff;font-weight:900;letter-spacing:.03em;word-wrap:break-word}
+.race-arcade-result-runner strong{font-size:clamp(24px,6vw,37px);font-weight:1000;font-style:italic;
+ font-variant-numeric:tabular-nums;color:#fff;text-shadow:0 0 10px #6fddffa8}
+.race-arcade-result-runner.winner strong{color:#d4ff33;text-shadow:0 0 13px #d4ff33a3}
+.race-arcade-result-runner small{font-weight:900;letter-spacing:.05em;font-size:10px;color:#d5e9ff}
+.race-arcade-result-vs{text-align:center;color:#d8ff35;font-weight:1000;font-style:italic;font-size:21px;
+ text-shadow:0 0 9px #d2ff37b5}
+.race-arcade-result-retry,.race-arcade-finish-actions{display:grid;gap:9px}
+@media(max-width:350px){.race-arcade-result-versus{grid-template-columns:minmax(0,1fr) 25px minmax(0,1fr)}.race-arcade-result-runner{padding:10px 6px}}
