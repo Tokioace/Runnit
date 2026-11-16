@@ -793,7 +793,6 @@ export default function MapScreen() {
   const [dismissedMatchId, setDismissedMatchId] = useState<string | null>(null);
   const [readyBusy, setReadyBusy] = useState(false);
   const [readyError, setReadyError] = useState<string | null>(null);
-  const [joiningRunId, setJoiningRunId] = useState<string | null>(null);
   const joiningRunRef = useRef<string | null>(null);
   const matchStartHandledRef = useRef<string | null>(null);
   const [race, setRace] = useState<
@@ -1424,6 +1423,12 @@ export default function MapScreen() {
           applyMatchedDuel(latest);
           setCancelError(null);
           setRaceNotice('Dein Gegner ist bereits beigetreten. Das Rennen kann nicht mehr als offene Challenge abgesagt werden.');
+        } else if (latest && latest.status !== 'open') {
+          setHostedOpenDuels(previous => previous.filter(item => item.id !== run.id));
+          setOpenRuns(previous => previous.filter(item => item.id !== run.id));
+          setCancelConfirmation(null);
+          setCancelError(null);
+          setRaceNotice('Dieses Rennen ist nicht mehr offen und wurde von der Karte entfernt.');
         } else {
           void listHostedOpenDuels(supabase, authUser.id)
             .then(runs => { setHostedOpenDuels(runs); setHostedDuelsLoadError(false); })
@@ -1472,7 +1477,7 @@ export default function MapScreen() {
     }
     
     joiningRunRef.current = run.id;
-    setJoiningRunId(run.id);
+    setRaceNotice('Beitritt wird geprüft …');
     try {
       // Inspect the RPC response, not just a Realtime event which iOS may miss.
       const confirmed = await joinDuel(supabase, run.id);
@@ -1495,7 +1500,6 @@ export default function MapScreen() {
       }
     } finally {
       joiningRunRef.current = null;
-      setJoiningRunId(null);
     }
   };
 
