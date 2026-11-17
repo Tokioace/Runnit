@@ -6,6 +6,7 @@ import { useSupabaseUser } from '../hooks/useSupabaseUser';
 import { createGpsSprint, advanceGpsSprint, type GpsSprintState, type GpsSample } from '../lib/sprintGps';
 import { ghostSummary, safeNumber, type DiagnosticSummary, type MotionPermission } from '../lib/ghostRunSummary';
 import { isFreshStartFix, primeGpsSprint } from '../lib/gpsField';
+import { inspectGhostGpsFix, ghostGpsFixNotice, type GhostGpsFixIssue } from '../lib/ghostGpsReadiness';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage } from '../lib/screenWakeLock';
@@ -33,6 +34,8 @@ export default function GhostRunScreen() {
   const [target, setTarget] = useState<Target>(50);
   const [notice, setNotice] = useState('Ghost Run: allein laufen und echte Sensordaten sammeln.');
   const [accuracyM, setAccuracyM] = useState<number | null>(null);
+  const [fixTimestampMs, setFixTimestampMs] = useState<number | null>(null);
+  const [fixIssue, setFixIssue] = useState<GhostGpsFixIssue>('missing');
   const [motionPermission, setMotionPermission] = useState<MotionPermission>('unavailable');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [countdownAt, setCountdownAt] = useState<number | null>(null);
@@ -132,8 +135,14 @@ export default function GhostRunScreen() {
     const current = phaseRef.current;
     const observedNow = Date.now();
     if (current === 'acquiring' || current === 'ready' || current === 'countdown') {
+      // watchPosition and getCurrentPosition may return out of order. Do not
+      // replace a newer valid anchor with an older cached Safari callback.
+      if (readyRef.current && sample.timestampMs < readyRef.current.timestampMs) return;
+      const info = inspectGhostGpsFix(sample, observedNow);
       setAccuracyM(sample.accuracyM);
-      if (isFreshStartFix(sample, observedNow)) {
+      setFixTimestampMs(Number.isFinite(sample.timestampMs) ? sample.timestampMs : null);
+      setFixIssue(info.issue);
+      if (info.issue === 'ready' && isFreshStartFix(sample, observedNow)) {
         readyRef.current = sample;
         if (current === 'acquiring') {
           setCurrentPhase('ready');
@@ -142,7 +151,7 @@ export default function GhostRunScreen() {
       } else if (current !== 'countdown') {
         readyRef.current = null;
         setCurrentPhase('acquiring');
-        setNotice('Warte auf einen genauen GPS-Fix (max. 15 m), möglichst im Freien.');
+        setNotice(ghostGpsFixNotice(info));
       }
       return;
     }
@@ -216,6 +225,9 @@ export default function GhostRunScreen() {
       return;
     }
     readyRef.current = null;
+    setFixTimestampMs(null);
+    setFixIssue('missing');
+    setAccuracyM(null);
     setCurrentPhase('acquiring');
     setNotice(motion === 'granted'
       ? 'Sensormessung erlaubt. Warte auf einen aktuellen GPS-Fix.'
@@ -227,6 +239,45 @@ export default function GhostRunScreen() {
       setCurrentPhase('error');
       setNotice('GPS konnte nicht gestartet werden.');
     }
+  };
+
+  // iOS may keep reporting an accurate *old* fix when the runner is standing
+  // still. Request independent fresh fixes while acquiring, without bypassing
+  // isFreshStartFix or changing GPS timestamps.
+  useEffect(() => {
+    if (phase !== 'acquiring' || !navigator.geolocation) return;
+    let cancelled = false;
+    let pending = false;
+    const requestFreshFix = () => {
+      if (cancelled || pending || document.visibilityState !== 'visible') return;
+      pending = true;
+      try {
+        navigator.geolocation.getCurrentPosition(
+          pos => { pending = false; if (!cancelled) onGps(pos); },
+          () => { pending = false; },
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 7000 },
+        );
+      } catch { pending = false; }
+    };
+    requestFreshFix();
+    const interval = window.setInterval(requestFreshFix, 5000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, [phase, onGps]);
+
+  useEffect(() => {
+    if (phase !== 'acquiring' && phase !== 'ready' && phase !== 'countdown') return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [phase]);
+
+  const requestGpsRefresh = () => {
+    if (!navigator.geolocation) return;
+    setNotice('Fordere eine neue GPS-Position an. Ein alter 4-m-Fix reicht für einen Sprintstart nicht aus.');
+    navigator.geolocation.getCurrentPosition(
+      onGps,
+      () => setNotice('Noch kein frischer GPS-Fix. Bitte möglichst draußen erneut versuchen.'),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 },
+    );
   };
 
   const beginCountdown = () => {
@@ -438,10 +489,19 @@ export default function GhostRunScreen() {
                 </div>
                 <p className="runnit-ghost-kicker">02 // SENSOR-CHECK</p>
                 <div className="runnit-ghost-metric"><span>GPS GENAUIGKEIT</span><strong>{accuracyM === null ? '—' : safeNumber(accuracyM,1) + ' m'}</strong></div>
+                <div className="runnit-ghost-metric">
+                  <span>LETZTER GPS-FIX</span>
+                  <strong>{fixTimestampMs === null ? '—' : Math.max(0, (now - fixTimestampMs) / 1000).toFixed(1) + ' s alt'}</strong>
+                </div>
+                {fixIssue !== 'ready' && fixIssue !== 'missing' && (
+                  <p className="runnit-ghost-small" role="status">{ghostGpsFixNotice({ issue: fixIssue,
+                    ageMs: fixTimestampMs === null ? null : now - fixTimestampMs, accuracyM })}</p>
+                )}
                 <div className="runnit-ghost-metric"><span>BEWEGUNGSSENSOR</span><strong>{motionPermission.toUpperCase()}</strong></div>
                 {phase !== 'ready' ? (
-                  <button className="race-arcade-primary" type="button" onClick={() => { void prepare(); }} disabled={phase === 'acquiring'}>
-                    {phase === 'acquiring' ? 'GPS WIRD GESUCHT …' : 'SENSOREN FREIGEBEN »'}
+                  <button className="race-arcade-primary" type="button"
+                    onClick={() => { if (phase === 'acquiring') requestGpsRefresh(); else void prepare(); }}>
+                    {phase === 'acquiring' ? 'FRISCHEN GPS-FIX ANFORDERN »' : 'SENSOREN FREIGEBEN »'}
                   </button>
                 ) : (
                   <button className="race-arcade-primary" type="button" onClick={beginCountdown}>
