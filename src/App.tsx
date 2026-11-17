@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Footprints, LoaderCircle } from 'lucide-react';
 import MapScreen from './screens/MapScreen';
+import GhostRunScreen from './screens/GhostRunScreen';
 import HomeScreen from './screens/HomeScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import StatsScreen from './screens/StatsScreen';
@@ -18,7 +19,7 @@ import { AUTH_CALLBACK_PATH } from './lib/authRedirect';
 import { useSupabaseUser } from './hooks/useSupabaseUser';
 
 const GUEST_SESSION_KEY = 'runnit:guest-mode';
-const APP_PATHS = new Set(['/', '/home', '/stats', '/map', '/leaderboard', '/profile', '/gps-lab', '/gps-field-test', '/calibration', '/fusion-lab', '/sprint-lab']);
+const APP_PATHS = new Set(['/', '/home', '/stats', '/map', '/leaderboard', '/profile', '/gps-lab', '/gps-field-test', '/calibration', '/fusion-lab', '/sprint-lab', '/ghost-run']);
 
 /**
  * Guest mode is a local UI preference, NOT a Supabase authentication identity.
@@ -125,6 +126,7 @@ export default function App() {
         <Route path="/home" element={<DashboardScreen displayName={auth.user?.displayName} />} />
         <Route path="/stats" element={<StatsScreen />} />
         <Route path="/map" element={<MapScreen />} />
+        <Route path="/ghost-run" element={<GhostRunScreen />} />
         <Route path="/leaderboard" element={<LeaderboardScreen />} />
         <Route path="/profile" element={<ProfileScreen />} />
         <Route path="/gps-lab" element={<GpsLabScreen />} />

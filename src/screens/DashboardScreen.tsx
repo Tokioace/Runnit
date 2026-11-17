@@ -115,6 +115,10 @@ export default function DashboardScreen({ displayName, recentRaces = [], ranking
           <span className="runnit-duel-speedlines" aria-hidden="true" />
         </Link>
 
+        <Link to="/ghost-run" className="mt-3 flex min-h-16 items-center justify-between gap-2 rounded-2xl border-2 border-cyan-300 bg-gradient-to-r from-[#133d6f] via-[#17275a] to-[#3b174f] px-4 py-3 shadow-[0_0_17px_rgba(46,224,255,.35)]" aria-label="Ghost Run alleine starten und Messdaten sammeln">
+          <span className="flex flex-col gap-1"><strong className="text-xl font-black italic tracking-tight text-white">GHOST RUN <span className="text-lime-300">SOLO</span></strong><small className="text-[10px] font-black tracking-wide text-cyan-200">TRAINIEREN · GPS + IMU · JSON EXPORT</small></span>
+          <ArrowRight className="h-6 w-6 shrink-0 text-lime-300" />
+        </Link>
         <div className="runnit-game-lower mt-4 grid grid-cols-2 gap-2.5" aria-label="Letzte Rennen und Ranglistenplatzierungen">
           <section className="runnit-game-panel" aria-labelledby="recent-races-title">
             <h2 id="recent-races-title"><Timer className="h-4 w-4" aria-hidden="true" /> LETZTE RENNEN</h2>

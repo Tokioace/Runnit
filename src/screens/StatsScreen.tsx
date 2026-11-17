@@ -75,6 +75,7 @@ export default function StatsScreen() {
           <h2 id="tools-title" className="runnit-stats-heading">TRAINING <span>& TESTS</span></h2>
           <p className="mb-3 mt-2 text-xs leading-5 text-cyan-100/70">Echte Messungen getrennt von offiziellen Ergebnissen ausprobieren.</p>
           <div className="space-y-2">
+            <Link to="/ghost-run" className="runnit-stats-action"><Flag className="h-5 w-5" aria-hidden="true" /><span>GHOST RUN · SOLO</span><ArrowRight className="h-5 w-5" aria-hidden="true" /></Link>
             <Link to="/gps-lab" className="runnit-stats-action"><Footprints className="h-5 w-5" aria-hidden="true" /><span>GEH-EINZELLAUF</span><ArrowRight className="h-5 w-5" aria-hidden="true" /></Link>
             <Link to="/gps-field-test" className="runnit-stats-action"><Activity className="h-5 w-5" aria-hidden="true" /><span>GPS-FELDTEST</span><ArrowRight className="h-5 w-5" aria-hidden="true" /></Link>
             <Link to="/calibration" className="runnit-stats-action"><Ruler className="h-5 w-5" aria-hidden="true" /><span>SCHRITTLÄNGE KALIBRIEREN</span><ArrowRight className="h-5 w-5" aria-hidden="true" /></Link>
