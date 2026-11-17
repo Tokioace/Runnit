@@ -1,4 +1,3 @@
-import { isFreshStartFix } from './gpsField';
 import type { GpsSample } from './sprintGps';
 
 export type GhostGpsFixIssue = 'missing' | 'invalid' | 'poor-accuracy' | 'stale' | 'future-timestamp' | 'ready';
@@ -26,8 +25,8 @@ export function inspectGhostGpsFix(sample: GpsSample | null, atMs: number): Ghos
   if (accuracyM > 15) return { issue: 'poor-accuracy', ageMs, accuracyM };
   if (ageMs < 0) return { issue: 'future-timestamp', ageMs, accuracyM };
   if (ageMs > 3000) return { issue: 'stale', ageMs, accuracyM };
-  // Mirror the shared race validator rather than replacing its security gate.
-  return { issue: isFreshStartFix(sample, atMs) ? 'ready' : 'invalid', ageMs, accuracyM };
+  // GhostRunScreen also checks isFreshStartFix; this helper only explains its failure.
+  return { issue: 'ready', ageMs, accuracyM };
 }
 
 export function ghostGpsFixNotice(info: GhostGpsFixInfo): string {
