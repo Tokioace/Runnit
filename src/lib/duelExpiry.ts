@@ -4,9 +4,10 @@ export const OPEN_EVENT_LIFETIME_MINUTES = 60;
 export const OPEN_EVENT_LIFETIME_MS = OPEN_EVENT_LIFETIME_MINUTES * 60_000;
 
 export function openEventMsLeft(expiresAt: string | null | undefined, nowMs = Date.now()): number {
-  if (!expiresAt) return 0;
+  if (!expiresAt || !Number.isFinite(nowMs)) return 0;
   const endsAt = Date.parse(expiresAt);
-  return Number.isFinite(endsAt) ? Math.max(0, endsAt - nowMs) : 0;
+  if (!Number.isFinite(endsAt)) return 0;
+  return Math.max(0, endsAt - nowMs);
 }
 
 export function isOpenEventAvailable(expiresAt: string | null | undefined, nowMs = Date.now()): boolean {
