@@ -231,11 +231,31 @@ export default function GhostRunScreen() {
 
   const beginCountdown = () => {
     if (phaseRef.current !== 'ready') return;
+    if (!isFreshStartFix(readyRef.current, Date.now())) {
+      setCurrentPhase('acquiring');
+      setNotice('GPS-Fix ist nicht mehr aktuell. Bitte auf ein neues Signal warten.');
+      return;
+    }
     unlockRaceAudio(); // User gesture; do not require sound permission later.
     const start = Date.now() + ARCADE_COUNTDOWN_SECONDS * 1000;
     setCountdownAt(start);
     setCurrentPhase('countdown');
   };
+
+  // While stationary iOS may throttle watchPosition. Ask for a genuinely
+  // current GPS fix shortly before GO; never fabricate a newer timestamp.
+  useEffect(() => {
+    if (phase !== 'countdown' || countdownAt === null || !navigator.geolocation) return;
+    const timer = window.setTimeout(() => {
+      if (phaseRef.current !== 'countdown') return;
+      navigator.geolocation.getCurrentPosition(
+        onGps,
+        () => {}, // existing watch remains authoritative on error
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 2500 },
+      );
+    }, Math.max(0, countdownAt - Date.now() - 2300));
+    return () => window.clearTimeout(timer);
+  }, [phase, countdownAt, onGps]);
 
   const beginRun = () => {
     if (phaseRef.current !== 'countdown') return;
@@ -384,7 +404,9 @@ export default function GhostRunScreen() {
     <main className="runnit-ghost-page">
       <div className="runnit-ghost-wrap">
         <header className="runnit-ghost-top">
-          <Link to="/home" className="runnit-ghost-back" aria-label="Zur Startseite"><ArrowLeft size={20} /></Link>
+          {isActive
+            ? <span className="runnit-ghost-back" aria-label="Lauf aktiv, Zurück erst nach Abbruch"><Flag size={19} /></span>
+            : <Link to="/home" className="runnit-ghost-back" aria-label="Zur Startseite"><ArrowLeft size={20} /></Link>}
           <span>RUNNIT // SOLO LAB</span>
           <span className="runnit-ghost-beta">GHOST BETA</span>
         </header>
