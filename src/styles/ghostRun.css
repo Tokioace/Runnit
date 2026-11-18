@@ -59,3 +59,13 @@
 .runnit-ghost-alert{color:#ffc7d5;background:#5b154b7d;padding:10px;border-radius:7px}
 .runnit-ghost-page button:focus-visible,.runnit-ghost-page a:focus-visible{outline:3px solid #fff;outline-offset:3px}
 @media(prefers-reduced-motion:reduce){.runnit-ghost-page *{animation:none!important;transition:none!important}}
+
+/* Small iPhone portrait: intrinsic button text must not push the card outside viewport. */
+.runnit-ghost-page,.runnit-ghost-wrap,.runnit-ghost-card{box-sizing:border-box;min-width:0;max-width:100%}
+.runnit-ghost-targets{min-width:0;width:100%;gap:clamp(5px,1.7vw,8px)}
+.runnit-ghost-targets button{min-width:0;width:100%;box-sizing:border-box;white-space:nowrap;gap:2px;font-size:clamp(20px,7vw,29px)}
+.runnit-ghost-targets button small{font-size:clamp(10px,3vw,12px)}
+.runnit-ghost-top{min-width:0;gap:clamp(5px,2vw,12px)}
+.runnit-ghost-top>span:nth-child(2){min-width:0;flex:1;text-align:center;letter-spacing:.07em;white-space:nowrap;font-size:clamp(8px,2.4vw,10px)}
+.runnit-ghost-beta{flex-shrink:0;padding:6px 5px;font-size:clamp(8px,2.3vw,10px);letter-spacing:.02em}
+.runnit-ghost-hero h1{font-size:clamp(37px,11vw,66px);overflow-wrap:normal;white-space:nowrap}

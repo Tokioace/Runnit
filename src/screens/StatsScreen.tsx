@@ -9,7 +9,7 @@ function Metric({ label, value, note }: { label: string; value: string; note: st
   return (
     <div className="min-w-0 rounded-xl border border-cyan-300/20 bg-[#081c39]/80 p-3">
       <p className="text-[10px] font-black tracking-wide text-cyan-200">{label}</p>
-      <strong className="mt-1 block text-[clamp(1.1rem,5vw,1.7rem)] font-black text-white">{value}</strong>
+      <strong className="mt-1 block w-full min-w-0 whitespace-nowrap text-[clamp(0.85rem,3.65vw,1.45rem)] font-black tracking-[-0.035em] tabular-nums text-white">{value}</strong>
       <small className="text-[10px] leading-4 text-white/55">{note}</small>
     </div>
   );
@@ -47,7 +47,7 @@ export default function StatsScreen({ userId }: Props) {
             <p className="runnit-stats-kicker">DEIN PROTOKOLL · SERVERGESPEICHERT</p>
             <h1>DEINE <span>STATS.</span></h1>
             <p className="mt-2 max-w-sm text-xs leading-5 text-cyan-100/80">
-              Nur abgeschlossene Duelle und gespeicherte Ghost-Trainings. Keine Demo-Punkte oder erfundenen Kalorien.
+              Deine Duelle, Bestzeiten und Solo-Trainings – direkt aus deinem RUNNIT-Konto.
             </p>
           </div>
         </header>
@@ -84,11 +84,11 @@ export default function StatsScreen({ userId }: Props) {
                     <Trophy className="h-5 w-5 text-lime-300" aria-hidden="true" />
                   </div>
                   <div className="mt-4 grid grid-cols-3 gap-2">
-                    <Metric label="DUELLE" value={String(totals.completedDuels)} note="mit 2 Ergebnissen" />
-                    <Metric label="SIEGE" value={String(totals.wins)} note="gespeicherte Zeiten" />
+                    <Metric label="DUELLE" value={String(totals.completedDuels)} note="beidseitig erfasst" />
+                    <Metric label="SIEGE" value={String(totals.wins)} note="aus Duellen" />
                     <Metric label="NIEDERLAGEN" value={String(totals.losses)} note={'Remis: '+totals.ties} />
                   </div>
-                  <h3 className="mb-2 mt-5 text-xs font-black tracking-widest text-cyan-200">BESTZEITEN AUS ABGESCHLOSSENEN DUELLEN</h3>
+                  <h3 className="mb-2 mt-5 text-xs font-black tracking-widest text-cyan-200">PERSÖNLICHE BESTZEITEN</h3>
                   <div className="grid grid-cols-3 gap-2">
                     <Metric label="50 M" value={formatRaceTime(totals.best50Ms)} note="persönlich" />
                     <Metric label="75 M" value={formatRaceTime(totals.best75Ms)} note="persönlich" />

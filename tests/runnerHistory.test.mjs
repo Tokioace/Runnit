@@ -105,3 +105,11 @@ test('sensor denied ghost run never contributes invented steps',()=>{
  assert.equal(totals.weeklySteps,null);
  assert.equal(totals.weeklyDistanceM,53);
 });
+
+test('missing GPS distance never silently becomes the selected target distance',()=>{
+ const a = raceHistoryFromServer(owner,[{...own, distance_m:null}],[d],pair);
+ assert.equal(a[0].distanceM,50);
+ assert.equal(a[0].measuredDistanceM,null);
+ const totals=calculateActivityTotals(a,[],Date.parse('2026-11-16'));
+ assert.equal(totals.weeklyDistanceM,null);
+});

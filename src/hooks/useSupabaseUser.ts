@@ -138,8 +138,16 @@ export function useSupabaseUser() {
     if (validationError) throw new Error(validationError);
     const { data, error } = await supabase.auth.updateUser({ data: { display_name: nickname } });
     if (error) throw error;
+    // Keep the public leaderboard and private profile using the same nickname.
+    // RLS restricts the write to the authenticated user's own row.
+    const synced = await supabase.from('users')
+      .update({ username: nickname }).eq('id', data.user.id)
+      .select('username').single();
     // onAuthStateChange USER_UPDATED also updates all other mounted consumers.
     setUser(toAuthUser(data.user));
+    if (synced.error || synced.data?.username !== nickname) {
+      throw new Error('Profilname geändert, aber die Rangliste konnte nicht synchronisiert werden. Bitte erneut speichern.');
+    }
     return data;
   }, []);
 
