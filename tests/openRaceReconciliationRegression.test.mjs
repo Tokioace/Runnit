@@ -41,3 +41,23 @@ test('new races are appended in discovery order after existing visible races', (
     [other, newcomerA, newcomerB],
   );
 });
+
+
+test('duplicate previous markers collapse to one current server race', () => {
+  const staleDuplicate = { ...own, label: 'stale duplicate' };
+  const latest = { ...own, label: 'server truth' };
+  const result = reconcileOpenRaces([own, staleDuplicate, other], [latest], ownHostId);
+  assert.deepEqual(result, [latest]);
+  assert.equal(result[0], latest);
+});
+
+test('repeated server entries cannot create multiple markers for the same race', () => {
+  const first = { ...other, label: 'old payload' };
+  const last = { ...other, label: 'latest payload' };
+  assert.deepEqual(reconcileOpenRaces([], [first, last], ownHostId), [last]);
+});
+
+test('a locally hosted race survives duplicate previous entries during an empty refresh', () => {
+  const result = reconcileOpenRaces([own, { ...own }], [], ownHostId);
+  assert.deepEqual(result, [own]);
+});
