@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, ArrowRight, ChevronRight, Flag, Ruler, Settings, ShieldCheck, Trophy, UserRound } from 'lucide-react';
+import { Activity, ArrowRight, ChevronRight, Ruler, Settings, ShieldCheck, UserRound } from 'lucide-react';
 import BottomNav from '../components/ui/BottomNav';
 import AccountDetailsPanel from '../components/profile/AccountDetailsPanel';
 import { useSupabaseUser } from '../hooks/useSupabaseUser';
@@ -62,24 +62,32 @@ export default function ProfileScreen() {
           <div className="runnit-profile-hero-character" aria-hidden="true"/>
           <div className="runnit-profile-player">
             <UserRound className="runnit-profile-crown" aria-hidden="true"/>
-            <p className="runnit-profile-player-name">{displayName}</p>
+            <h1 className="runnit-profile-player-name">{displayName}</h1>
             <p className="mt-2 text-xs font-black tracking-[0.1em] text-cyan-200">{user ? 'ANGEMELDETER RUNNER' : 'GASTMODUS'}</p>
           </div>
         </header>
 
-        <section className="runnit-profile-panel space-y-3 p-4" aria-labelledby="profile-links">
-          <h1 id="profile-links" className="runnit-profile-extra-title"><Flag className="h-5 w-5"/> DEIN RUNNIT</h1>
-          <p className="text-xs leading-5 text-white/65">Persönliche Ergebnisse und Wettbewerb haben eigene Seiten, damit nichts doppelt erscheint.</p>
-          <Link to="/stats" className="runnit-profile-action"><Activity className="h-5 w-5"/> MEINE LÄUFE & BESTZEITEN <ArrowRight className="h-4 w-4"/></Link>
-          <Link to="/leaderboard" className="runnit-profile-action"><Trophy className="h-5 w-5"/> BETA-RANGLISTE <ArrowRight className="h-4 w-4"/></Link>
+        <section id="konto" className="runnit-profile-account-section" aria-labelledby="account-title">
+          <h2 id="account-title" className="runnit-profile-extra-title"><Settings className="h-5 w-5"/> KONTO & EINSTELLUNGEN</h2>
+          {loading ? (
+            <div role="status" className="runnit-profile-panel flex min-h-32 items-center justify-center text-sm text-white/70">Kontostatus wird geladen …</div>
+          ) : user ? (
+            <AccountDetailsPanel user={user} updateDisplayName={updateDisplayName} changePassword={changePassword} signOut={signOut}/>
+          ) : (
+            <div className="runnit-profile-panel space-y-3 p-5">
+              <p className="text-sm font-bold text-cyan-100">Du erkundest RUNNIT als Gast.</p>
+              {loadError && <p role="alert" className="text-xs text-amber-200">Dein Kontostatus konnte nicht geladen werden.</p>}
+              <Link to="/login?next=%2Fprofile" className="runnit-profile-action runnit-profile-action-lime">ANMELDEN / REGISTRIEREN <ArrowRight className="h-5 w-5"/></Link>
+            </div>
+          )}
         </section>
 
         <section className="runnit-profile-panel space-y-3 p-4" aria-labelledby="visibility-title">
           <h2 id="visibility-title" className="runnit-profile-extra-title"><ShieldCheck className="h-5 w-5"/> RANGLISTEN-DATENSCHUTZ</h2>
           <p className="text-xs leading-5 text-white/70">
-            Deine Zeiten werden privat in deinen Stats gespeichert. Nur wenn du zustimmst, werden
-            dein RUNNIT-Name, deine Bestzeit, Siege und Anzahl abgeschlossener Duelle öffentlich in der Beta-Rangliste angezeigt – auch für Gäste.
-            Die Rohdaten deiner GPS-/IMU-Messung werden nicht veröffentlicht.
+            Deine Ergebnisse gehören dir. Du entscheidest, ob Spielername, Bestzeiten und
+            Duellsiege öffentlich in der Beta-Rangliste erscheinen – auch für Gäste.
+            GPS- und IMU-Rohdaten bleiben privat.
           </p>
           {!user ? (
             <Link to="/login?next=%2Fprofile" className="runnit-profile-action">ANMELDEN FÜR RANGLISTEN-FREIGABE <ArrowRight className="h-4 w-4"/></Link>
@@ -97,24 +105,8 @@ export default function ProfileScreen() {
             <button type="button" className="ml-2 underline" onClick={() => setConsentReload(n => n + 1)}>ERNEUT VERSUCHEN</button>
           </div>}
           <p className="text-[11px] leading-5 text-cyan-100/60">
-            Der Vergleich verwendet ausschließlich vollständig gespeicherte Duelle.
-            Die Beta-Zeiten sind noch nicht unabhängig gegen Manipulation geprüft.
+            Nur abgeschlossene Duelle zählen. Die Beta-Zeiten sind noch nicht unabhängig gegen Manipulation geprüft.
           </p>
-        </section>
-
-        <section id="konto" className="runnit-profile-account-section" aria-labelledby="account-title">
-          <h2 id="account-title" className="runnit-profile-extra-title"><Settings className="h-5 w-5"/> KONTO & EINSTELLUNGEN</h2>
-          {loading ? (
-            <div role="status" className="runnit-profile-panel flex min-h-32 items-center justify-center text-sm text-white/70">Kontostatus wird geladen …</div>
-          ) : user ? (
-            <AccountDetailsPanel user={user} updateDisplayName={updateDisplayName} changePassword={changePassword} signOut={signOut}/>
-          ) : (
-            <div className="runnit-profile-panel space-y-3 p-5">
-              <p className="text-sm font-bold text-cyan-100">Du erkundest RUNNIT als Gast.</p>
-              {loadError && <p role="alert" className="text-xs text-amber-200">Dein Kontostatus konnte nicht geladen werden.</p>}
-              <Link to="/login?next=%2Fprofile" className="runnit-profile-action runnit-profile-action-lime">ANMELDEN / REGISTRIEREN <ArrowRight className="h-5 w-5"/></Link>
-            </div>
-          )}
         </section>
 
         <section className="runnit-profile-panel" aria-label="Schrittlängenkalibrierung">
