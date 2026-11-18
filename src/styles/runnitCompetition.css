@@ -600,3 +600,118 @@
   .runnit-competition .arena-metric span{font-size:7.5px}
   .runnit-competition .arena-beta-note{font-size:7px}
 }
+
+
+/* iPhone real-data layout review (2026-11-18).
+   Never grow one podium entry into a full-height neon rectangle.
+   Rows remain at a readable fixed height; only a truly long Top 10 list scrolls. */
+.runnit-competition .arena-live-board {
+  flex: 0 1 auto;
+  align-self: stretch;
+  min-height: 0;
+  max-height: min(58dvh, 465px);
+}
+.runnit-competition .arena-legends .arena-live-board {
+  max-height: min(43dvh, 370px);
+}
+.runnit-competition .arena-board-list {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.runnit-competition .arena-board-row,
+.runnit-competition .arena-board-row.is-current {
+  flex: 0 0 clamp(29px, 3.7dvh, 34px);
+  min-height: 29px;
+  margin-top: 0;
+}
+.runnit-competition .arena-board-row.is-first {
+  background: linear-gradient(90deg, #2b4b16e6 0%, #0e3423e8 36%, #0d3028de 100%);
+  box-shadow: inset 0 1px #d7ff6780, 0 0 7px #b5f91b68;
+}
+.runnit-competition .arena-live-board .arena-live-message {
+  flex: 0 0 auto;
+  min-height: 90px;
+  padding: 14px 10px;
+}
+
+/* Rival lists grow with actual opponents instead of two empty half-screen boxes. */
+.runnit-competition .arena-rivals .arena-duel-grid {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(40dvh, 260px);
+  align-items: stretch;
+}
+.runnit-competition .arena-rivals .arena-duel-panel {
+  height: auto;
+  min-height: 70px;
+  max-height: min(40dvh, 260px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.runnit-competition .arena-rivals .arena-mini-row {
+  flex: 0 0 24px;
+  min-height: 24px;
+}
+.runnit-competition .arena-rivals .arena-self-strip {
+  margin-top: 4px;
+}
+
+/* Prevent the VS CTA from covering the names and win/loss labels. */
+.runnit-competition .arena-rivals .arena-showdown {
+  flex: 0 0 clamp(162px, 20.5dvh, 180px);
+}
+.runnit-competition .arena-showdown-people {
+  min-height: 0;
+  padding-bottom: 5px;
+}
+.runnit-competition .arena-rematch {
+  flex: 0 0 clamp(30px, 4.2dvh, 35px);
+  margin-top: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+/* 50/75/100 m selector needs its own row above the champion avatar and score. */
+.runnit-competition .arena-champion:has(.arena-distance) {
+  flex: 0 0 clamp(97px, 12dvh, 108px);
+}
+.runnit-competition .arena-champion:has(.arena-distance) .arena-champion-main {
+  padding-top: 28px;
+  padding-bottom: 5px;
+  min-height: 0;
+}
+.runnit-competition .arena-champion-avatar > svg {
+  top: -5px;
+  width: 23px;
+  height: 23px;
+}
+.runnit-competition .arena-champion:has(.arena-distance) .arena-champion-avatar {
+  width: min(100%, 53px);
+}
+.runnit-competition .arena-champion:has(.arena-distance) .arena-champion-avatar .arena-avatar {
+  max-width: 53px;
+  max-height: 53px;
+}
+.runnit-competition .arena-champion .arena-champion-name,
+.runnit-competition .arena-champion .arena-champion-score {
+  align-self: center;
+}
+
+@media (max-height: 700px) {
+  .runnit-competition .arena-rivals .arena-showdown {
+    flex-basis: 150px;
+  }
+  .runnit-competition .arena-champion:has(.arena-distance) {
+    flex-basis: 96px;
+  }
+  .runnit-competition .arena-live-board {
+    max-height: 52dvh;
+  }
+  .runnit-competition .arena-legends .arena-live-board {
+    max-height: 36dvh;
+  }
+}

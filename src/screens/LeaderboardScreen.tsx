@@ -34,6 +34,9 @@ function valueText(value:number,metric:Metric):string {
  if(metric==='acceleration')return value.toFixed(2).replace('.',',')+' m/s²';
  return String(Math.round(value));
 }
+function countLabel(count:number,singular:string,plural:string):string {
+ return String(count)+' '+(count===1?singular:plural);
+}
 function Avatar({large=false}:{large?:boolean}) {
  return <span className={'arena-avatar'+(large?' arena-avatar--large':'')}><UserRound aria-hidden="true"/></span>;
 }
@@ -142,9 +145,9 @@ export default function LeaderboardScreen({userId,displayName}:{userId?:string|n
       <>
        <section className="arena-showdown" aria-label="Deine meistgespielte Rivalität">
         {rival?<div className="arena-showdown-people">
-         <div className="arena-showdown-person"><Avatar large/><strong>{currentName}</strong><span>{rival.wins} SIEGE</span></div>
+         <div className="arena-showdown-person"><Avatar large/><strong>{currentName}</strong><span>{countLabel(rival.wins,'SIEG','SIEGE')}</span></div>
          <div className="arena-versus"><strong>VS</strong><small>DUELL-BILANZ</small><b>{rival.wins} : {rival.losses}</b></div>
-         <div className="arena-showdown-person"><Avatar large/><strong>{rival.name}</strong><span>{rival.losses} SIEGE</span></div>
+         <div className="arena-showdown-person"><Avatar large/><strong>{rival.name}</strong><span>{countLabel(rival.losses,'SIEG','SIEGE')}</span></div>
         </div>:<div className="arena-rivals-empty">Noch keine vollständig gespeicherten Duelle gegen andere Spieler.</div>}
         <Link className="arena-rematch" to="/map">» NEUES DUELL</Link>
        </section>
@@ -163,8 +166,8 @@ export default function LeaderboardScreen({userId,displayName}:{userId?:string|n
         </section>
        </div>
        <div className="arena-self-strip"><Medal size={19} aria-hidden="true"/>
-        <strong>{history.totals.completedDuels} DUELLE</strong>
-        <span>{history.totals.wins} SIEGE</span><b>{history.totals.losses} NIED.</b>
+        <strong>{countLabel(history.totals.completedDuels,'DUELL','DUELLE')}</strong>
+        <span>{countLabel(history.totals.wins,'SIEG','SIEGE')}</span><b>{history.totals.losses} NIED.</b>
        </div>
       </>}
     </div>:tab==='ladder'?<div className="arena-ladder arena-panel-area">
@@ -174,7 +177,7 @@ export default function LeaderboardScreen({userId,displayName}:{userId?:string|n
       <Board title="DUELLSIEGE" rows={rows} metric="wins" userId={userId} loading={loading} error={error} refresh={refresh}/>
       <aside className="arena-live-personal" aria-label="Deine Wettkampfbilanz">
        <UserRound size={18} aria-hidden="true"/><strong>{userId?currentName:'GAST'}</strong>
-       <span>{userId?(String(history.totals.wins)+' SIEGE · '+String(history.totals.completedDuels)+' DUELLE'):'ANMELDEN FÜR DEINE BILANZ'}</span>
+       <span>{userId?(countLabel(history.totals.wins,'SIEG','SIEGE')+' · '+countLabel(history.totals.completedDuels,'DUELL','DUELLE')):'ANMELDEN FÜR DEINE BILANZ'}</span>
        {userId&&consent===true&&rows.some(r=>r.user_id===userId)&&<b>RANG #{rows.find(r=>r.user_id===userId)?.rank_position}</b>}
        {userId&&consent===false&&<Link to="/profile">RANGLISTE FREIGEBEN ›</Link>}
       </aside>
