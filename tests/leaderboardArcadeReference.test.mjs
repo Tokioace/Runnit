@@ -32,3 +32,12 @@ test('avatar art and skyline are local static assets, no remote profile data or 
 test('Leaderboard and Stats reuse the five-slot navigation dock', () => {
   const dock=read('src/components/ui/BottomNav.tsx');assert.match(dock,/grid-cols-5/);assert.match(dock,/aria-current/);for(const page of ['LeaderboardScreen','StatsScreen','ProfileScreen','DashboardScreen'])assert.match(read('src/screens/'+page+'.tsx'),/<BottomNav/);
 });
+
+test('guests can browse only opted-in public results without an account', () => {
+  const page=read('src/screens/LeaderboardScreen.tsx');
+  const sql=read('supabase/migrations/20261118092642_runnit_public_opt_in_beta_ranking_20261118.sql');
+  assert.match(page,/list_beta_duel_leaderboard/);
+  assert.doesNotMatch(page,/if \(!userId\) \{[^\n]*return;/);
+  assert.match(sql,/u\.leaderboard_opt_in IS TRUE/);
+  assert.match(sql,/TO authenticated, anon/);
+});

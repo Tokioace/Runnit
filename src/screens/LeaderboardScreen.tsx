@@ -30,7 +30,7 @@ export default function LeaderboardScreen({ userId }: Props) {
   const refresh = useCallback(() => setRevision(n => n + 1), []);
 
   useEffect(() => {
-    if (!userId) { setEntries([]); setConsent(null); setLoading(false); setError(null); return; }
+    if (!userId) setConsent(null);
     let mounted = true;
     setLoading(true);
     setError(null);
@@ -41,13 +41,13 @@ export default function LeaderboardScreen({ userId }: Props) {
             p_target_distance_m: mode === 'duels' ? null : Number(mode),
             p_limit: 50,
           }),
-          supabase.from('users').select('leaderboard_opt_in').eq('id',userId).maybeSingle(),
+          userId ? supabase.from('users').select('leaderboard_opt_in').eq('id',userId).maybeSingle() : Promise.resolve({ data: null, error: null }),
         ]);
         if (rankingResponse.error) throw rankingResponse.error;
         if (profileResponse.error) throw profileResponse.error;
         if (mounted) {
           setEntries((rankingResponse.data ?? []) as RankingEntry[]);
-          setConsent(profileResponse.data?.leaderboard_opt_in === true);
+          setConsent(userId ? profileResponse.data?.leaderboard_opt_in === true : null);
           setLoading(false);
         }
       } catch {
@@ -99,14 +99,7 @@ export default function LeaderboardScreen({ userId }: Props) {
 
         <div role="tabpanel" id="ranking-panel" aria-labelledby={'ranking-tab-'+mode} className="min-h-40">
           <p className="my-3 px-4 text-[10px] font-black tracking-widest text-lime-300">{selected.caption}</p>
-          {!userId ? (
-            <section className="runnit-ranking-no-results" role="status">
-              <UserRound className="mx-auto mb-3 h-10 w-10 text-cyan-200" aria-hidden="true"/>
-              <h2>RUNNER-ANMELDUNG</h2>
-              <p>Melde dich an, um die echte Beta-Rangliste anzusehen.</p>
-              <Link to="/login?next=%2Fleaderboard" className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-cyan-300/50 px-4 text-sm font-black text-cyan-100">ANMELDEN</Link>
-            </section>
-          ) : loading ? (
+          {loading ? (
             <p role="status" className="px-4 py-8 text-center text-sm text-cyan-100">GESPEICHERTE ERGEBNISSE WERDEN GELADEN …</p>
           ) : error ? (
             <section className="runnit-ranking-no-results" role="alert">
