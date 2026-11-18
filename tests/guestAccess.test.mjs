@@ -63,12 +63,8 @@ test('guest browsing does not query protected personal leaderboard or duel data'
   assert.doesNotMatch(map, /DEMO · BEISPIELRENNEN|generateDemoRuns|generateCityPlayers/);
 });
 
-test('guest profile provides sign-in instead of invented private statistics', () => {
-  const profile = read('src/screens/ProfileScreen.tsx');
-  assert.match(profile, /aria-label="Gastprofil"/);
-  assert.match(profile, /Du erkundest Runnit als Gast/);
-  assert.match(profile, /to="\/login\?next=%2Fprofile"/);
-  assert.match(profile, /<AccountDetailsPanel user=\{user\}/);
+test('Guest profile has a login CTA but no personal stats leak', () => {
+  const s=read('src/screens/ProfileScreen.tsx');assert.match(s,/GASTMODUS/);assert.match(s,/ANMELDEN \/ REGISTRIEREN/);assert.doesNotMatch(s,/runnit-profile-goal-grid|KALORIEN/);
 });
 
 test('guest navigation cannot be an open redirect through next parameter', () => {

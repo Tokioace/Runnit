@@ -56,16 +56,8 @@ test('signed-in visitors see no sign-in, register or guest hit regions', () => {
   assert.match(app, /previousSignedInId\.current && !auth\.user/);
 });
 
-test('STARTEN enters the original dashboard, never the map; guests can explore too', () => {
-  const app = read('src/App.tsx');
-  const dashboard = read('src/screens/DashboardScreen.tsx');
-  const nav = read('src/components/ui/BottomNav.tsx');
-  assert.match(app, /if \(auth\.user\) \{\s*navigate\('\/home'\)/);
-  assert.match(app, /setGuestAccess\(true\);\s*navigate\('\/home'\)/);
-  assert.ok(app.includes('<Route path="/home" element={<DashboardScreen displayName={auth.user?.displayName} />} />'));
-  assert.match(dashboard, /DEIN LAUF\./);
-  assert.match(nav, /href: '\/home', label: 'Start'/);
-  assert.doesNotMatch(app, /const enterApp = \(\) => \{[\s\S]*?navigate\('\/map'\)/);
+test('STARTEN and guest route to Home, while race action routes to map', () => {
+  const s=read('src/App.tsx');assert.match(s,/navigate\('\/home'\)/);assert.match(s,/enterGuestMode/);const home=read('src/screens/DashboardScreen.tsx');assert.match(home,/to="\/map"/);
 });
 
 test('returning users preserve Supabase sessions without forced reauthentication', () => {

@@ -56,21 +56,8 @@ test('revised map keeps keyless OSM vector tiles, map state and real GPS control
   assert.match(css, /safe-area-inset-bottom/);
 });
 
-test('restyling preserves demo provenance and does not invent real rankings', () => {
-  const leaderboard = read('src/screens/LeaderboardScreen.tsx');
-  const profile = read('src/screens/ProfileScreen.tsx');
-  const sheet = read('src/components/leaderboard/Sheet.tsx');
-  assert.match(leaderboard, /source: 'demo'/);
-  assert.match(leaderboard, /leaderboardSourceLabel\(entry\.source\)/);
-  assert.match(leaderboard, /Alle Namen, Level und Punkte unten sind fiktiv/);
-  assert.match(leaderboard, /Noch keine offiziellen Sprint-Ränge/);
-  assert.match(profile, /useSupabaseUser\(\)/);
-  assert.doesNotMatch(profile, /<AccountAuthPanel/);
-  assert.match(profile, /<AccountDetailsPanel/);
-  assert.match(profile, /<AccountDetailsPanel/);
-  assert.doesNotMatch(profile, /Runner8|9\\.33 s|Demo-Level|Demo-Profil/);
-  assert.match(sheet, /partitionLeaderboard\(entries\)/);
-  assert.match(sheet, /keine verifizierten Sprint-Ranglisten/);
+test('Rankings explicitly disclose beta status and use confirmed opt-in RPC', () => {
+  const s=read('src/screens/LeaderboardScreen.tsx');const profile=read('src/screens/ProfileScreen.tsx');assert.match(s,/list_beta_duel_leaderboard/);assert.match(s,/noch nicht unabhängig gegen Manipulation verifiziert/);assert.match(profile,/leaderboard_opt_in/);assert.doesNotMatch(s,/source: 'demo'|showcase/);
 });
 
 test('GPS lab separates opt-in walking sensors from synthetic race simulations', () => {

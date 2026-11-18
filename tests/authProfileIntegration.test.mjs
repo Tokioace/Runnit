@@ -14,13 +14,8 @@ test('app allows opt-in guests to browse and preserves explicit login route', ()
   assert.match(app, /<Route path="\/map" element=\{<MapScreen \/>\}/);
 });
 
-test('authenticated profiles never display fictional races, medals or guest registration forms', () => {
-  const profile = read('src/screens/ProfileScreen.tsx');
-  assert.match(profile, /useSupabaseUser\(\)/);
-  assert.match(profile, /loading \? \(/);
-  assert.match(profile, /<AccountDetailsPanel/);
-  assert.match(profile, /noch keine geprüften Laufdaten/);
-  assert.doesNotMatch(profile, /Runner8|9\.33\s?s|Demo-Profil|<AccountAuthPanel/);
+test('Authenticated profiles show live account details and safe ranking opt-in', () => {
+  const s=read('src/screens/ProfileScreen.tsx');assert.match(s,/useSupabaseUser\(\)/);assert.match(s,/<AccountDetailsPanel/);assert.match(s,/\.update\(\{ leaderboard_opt_in: next \}\)/);assert.doesNotMatch(s,/Runner8|9\.33\s?s|Demo-Profil|<AccountAuthPanel/);
 });
 
 test('account flows stay within Supabase Auth and never store passwords in custom browser storage', () => {

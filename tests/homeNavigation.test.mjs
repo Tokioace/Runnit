@@ -5,22 +5,12 @@ import { getMapLibreStyleUrls } from './helpers/mapLibreStyleUrls.mjs';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('launch splash and original app dashboard have separate routes', () => {
-  const app = read('src/App.tsx');
-  assert.ok(app.includes('<Route path="/" element={<HomeScreen'));
-  assert.ok(app.includes('<Route path="/home" element={<DashboardScreen displayName={auth.user?.displayName} />} />'));
-  assert.match(app, /<Route path="\/map" element=\{<MapScreen \/>\}/);
-  assert.match(app, /navigate\('\/home'\)/);
+test('Splash, Home, Stats and Leaderboard remain separate routes', () => {
+  const s=read('src/App.tsx');for(const p of ['/','/home','/stats','/leaderboard'])assert.ok(s.includes('path="'+p+'"'),p);assert.match(s,/<HomeScreen/);assert.match(s,/<DashboardScreen/);
 });
 
-test('original dashboard is preserved and remains independent of geolocation and Supabase', () => {
-  const dashboard = read('src/screens/DashboardScreen.tsx');
-  assert.match(dashboard, /DEIN LAUF\./);
-  assert.match(dashboard, /to="\/map"/);
-  assert.match(dashboard, /to="\/gps-lab"/);
-  assert.match(dashboard, /<BottomNav/);
-  assert.doesNotMatch(dashboard, /navigator\.geolocation|watchPosition\s*\(|getCurrentPosition\s*\(/);
-  assert.doesNotMatch(dashboard, /from ['"][^'"]*supabase/i);
+test('Home uses read-only persisted race history with no sensor or mutation side effects', () => {
+  const s=read('src/screens/DashboardScreen.tsx');assert.match(s,/useRunnerHistory/);assert.doesNotMatch(s,/watchPosition|navigator\.geolocation|submitDuelResult|\.insert\(/);
 });
 
 test('launch screen has no extra feature buttons, geolocation or backend requests', () => {
@@ -52,10 +42,6 @@ test('map has a neutral initial center and explicit tile failure handling', () =
 });
 
 
-test('Home and Stats are independent full screens', () => {
-  const app = read('src/App.tsx');
-  const nav = read('src/components/ui/BottomNav.tsx');
-  assert.ok(app.includes('<Route path="/home" element={<DashboardScreen displayName={auth.user?.displayName} />} />'));
-  assert.ok(app.includes('<Route path="/stats" element={<StatsScreen />} />'));
-  assert.match(nav, /href: '\/stats', label: 'Stats'/);
+test('Stats is the sole personal weekly steps and distance screen', () => {
+  const home=read('src/screens/DashboardScreen.tsx');const stats=read('src/screens/StatsScreen.tsx');assert.match(stats,/SCHRITTE/);assert.match(stats,/STRECKE/);assert.doesNotMatch(home,/SCHRITTE|KALORIEN|runnit-game-activity/);
 });
