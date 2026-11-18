@@ -35,3 +35,11 @@ test('the existing Supabase data sources and bottom navigation are unchanged', (
   assert.match(screen, /<BottomNav\/>/);
   assert.match(read('src/components/ui/BottomNav.tsx'), /grid-cols-5/);
 });
+
+test('single race and win use the correct singular German labels', () => {
+  assert.match(screen, /function countLabel\(count:number,singular:string,plural:string\)/);
+  assert.match(screen, /count===1\?singular:plural/);
+  assert.match(screen, /countLabel\(history\.totals\.completedDuels,'DUELL','DUELLE'\)/);
+  assert.match(screen, /countLabel\(history\.totals\.wins,'SIEG','SIEGE'\)/);
+  assert.match(screen, /countLabel\(rival\.wins,'SIEG','SIEGE'\)/);
+});
