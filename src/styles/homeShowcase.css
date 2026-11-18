@@ -160,3 +160,7 @@
   .runnit-showcase-hero { margin-left:-20px; margin-right:-20px; padding-left:25px; padding-right:25px; }
   .runnit-showcase-greeting { left:25px; }
 }
+
+/* Preserve solo training access without another redundant dashboard card. */
+.runnit-showcase-solo { display:block; width:max-content; margin:4px 3px -8px auto; color:#5cf2ff; font-size:10px; font-weight:900; font-style:italic; letter-spacing:.04em; text-decoration:none; }
+.runnit-showcase-solo span { font-size:16px; vertical-align:-1px; }

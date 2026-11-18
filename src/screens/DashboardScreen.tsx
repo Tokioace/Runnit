@@ -82,6 +82,7 @@ export default function DashboardScreen({ displayName, userId }: DashboardProps)
         <Link to="/map" className="runnit-showcase-cta" aria-label="Zur Karte, um ein Duell zu starten oder einem Duell beizutreten">
           <Play aria-hidden="true" fill="none" /><strong>DUELL STARTEN</strong><span aria-hidden="true">»</span>
         </Link>
+        <Link to="/ghost-run" className="runnit-showcase-solo" aria-label="Alleine einen Ghost Run trainieren">GHOST RUN SOLO <span aria-hidden="true">›</span></Link>
 
         <section className="runnit-showcase-recent" aria-labelledby="recent-race-title">
           <div className="runnit-showcase-section-head">
