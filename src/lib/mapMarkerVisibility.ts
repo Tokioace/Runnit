@@ -21,6 +21,10 @@ export function markerInViewport(
       !Number.isFinite(viewport.width) || !Number.isFinite(viewport.height)) return false;
   const left = viewport.left ?? 22;
   const right = viewport.right ?? 22;
+  if (![viewport.top, viewport.bottom, left, right].every(Number.isFinite) ||
+      viewport.width <= 0 || viewport.height <= 0 ||
+      viewport.top < 0 || viewport.bottom > viewport.height ||
+      left < 0 || right < 0) return false;
   return viewport.width > left + right &&
     viewport.bottom > viewport.top &&
     projected.x >= left && projected.x <= viewport.width - right &&
