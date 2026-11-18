@@ -29,7 +29,7 @@ test('dashboard theme is separate from preserved launch artwork', () => {
 });
 
 test('Stats owns personal recorded metrics while Home only shows the last race', () => {
-  const home=read('src/screens/DashboardScreen.tsx');const stats=read('src/screens/StatsScreen.tsx');const app=read('src/App.tsx');assert.match(home,/LETZTER LAUF/);assert.match(stats,/DIESE <span>WOCHE/);assert.match(stats,/DUELL-<span>BILANZ/);assert.match(app,/<StatsScreen userId=\{auth.user\?\.id\}/);
+  const home=read('src/screens/DashboardScreen.tsx');const stats=read('src/screens/StatsScreen.tsx');const app=read('src/App.tsx');assert.match(home,/LETZTES DUELL/);assert.match(stats,/DIESE <span>WOCHE/);assert.match(stats,/DUELL-<span>BILANZ/);assert.match(app,/<StatsScreen userId=\{auth.user\?\.id\}/);
 });
 
 

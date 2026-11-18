@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('Profile links to dedicated stats and leaderboard and retains account controls', () => {
-  const s=read('src/screens/ProfileScreen.tsx');assert.match(s,/runnit-profile-master/);assert.match(s,/to="\/stats"/);assert.match(s,/to="\/leaderboard"/);assert.match(s,/<AccountDetailsPanel/);
+test('Profile focuses on account controls without duplicating the persistent navigation', () => {
+  const s=read('src/screens/ProfileScreen.tsx');assert.match(s,/runnit-profile-master/);assert.doesNotMatch(s,/id="profile-links"|DEIN RUNNIT/);assert.match(s,/<BottomNav/);assert.match(s,/<AccountDetailsPanel/);
 });
 
 test('Profile has no fabricated XP, badges, steps, calories or rankings', () => {

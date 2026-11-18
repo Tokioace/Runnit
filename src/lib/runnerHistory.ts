@@ -49,12 +49,13 @@ export function raceHistoryFromServer(
     const outcome: RaceOutcome = !completed || !rival ? 'pending'
       : result.time_ms < rival.time_ms ? 'won'
         : result.time_ms > rival.time_ms ? 'lost' : 'tie';
-    const distanceM = nonnegative(result.distance_m) || nonnegative(duel.target_distance_m) || 0;
+    // A race target is not a sensor reading. Missing GPS distance remains unknown.
+    const measuredDistanceM = nonnegative(result.distance_m);
     return [{
       id: result.duel_id, occurredAt: result.created_at || duel.created_at,
       distanceM: nonnegative(duel.target_distance_m) ?? 0,
       timeMs: result.time_ms, stepsCount: nonnegative(result.steps_count),
-      measuredDistanceM: distanceM, completed, outcome,
+      measuredDistanceM, completed, outcome,
       opponentTimeMs: rival?.time_ms ?? null,
     }];
   }).sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt));

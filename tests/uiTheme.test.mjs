@@ -57,7 +57,7 @@ test('revised map keeps keyless OSM vector tiles, map state and real GPS control
 });
 
 test('Rankings explicitly disclose beta status and use confirmed opt-in RPC', () => {
-  const s=read('src/screens/LeaderboardScreen.tsx');const profile=read('src/screens/ProfileScreen.tsx');assert.match(s,/list_beta_duel_leaderboard/);assert.match(s,/noch nicht unabhängig gegen Manipulation verifiziert/);assert.match(profile,/leaderboard_opt_in/);assert.doesNotMatch(s,/source: 'demo'|showcase/);
+  const s=read('src/screens/LeaderboardScreen.tsx');const profile=read('src/screens/ProfileScreen.tsx');assert.match(s,/list_beta_duel_leaderboard/);assert.match(s,/Noch keine unabhängige Anti-Cheat-Verifizierung/);assert.match(profile,/leaderboard_opt_in/);assert.doesNotMatch(s,/source: 'demo'|showcase/);
 });
 
 test('GPS lab separates opt-in walking sensors from synthetic race simulations', () => {

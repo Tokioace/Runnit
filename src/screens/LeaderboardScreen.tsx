@@ -86,7 +86,7 @@ export default function LeaderboardScreen({ userId }: Props) {
         </header>
 
         <p className="mt-2 px-4 text-xs leading-5 text-white/70">
-          Keine Demo-Namen, keine erfundenen Punkte. Nur beidseitig gespeicherte und abgeschlossene Duelle.
+          Ergebnisse aus abgeschlossenen 1v1-Duellen.
         </p>
         <div className="runnit-ranking-tabs" role="tablist" aria-label="Wettbewerb wählen">
           {modes.map(({id,label},i) => <button key={id} id={'ranking-tab-'+id} type="button"
@@ -117,11 +117,11 @@ export default function LeaderboardScreen({ userId }: Props) {
                 <span className="runnit-ranking-avatar"><UserRound className="h-6 w-6 text-cyan-200" aria-hidden="true"/></span>
                 <span className="runnit-ranking-person">
                   <strong title={entry.username}>{entry.username}{entry.user_id===userId?' · DU':''}</strong>
-                  <small>{entry.races_count} abgeschlossene Duelle · {entry.wins_count} Siege</small>
+                  <small>{entry.races_count} {entry.races_count === 1 ? 'Duell' : 'Duelle'} · {entry.wins_count} {entry.wins_count === 1 ? 'Sieg' : 'Siege'}</small>
                 </span>
                 <span className="runnit-ranking-points">
                   <strong>{mode==='duels'?String(entry.wins_count):formatRaceTime(entry.best_time_ms)}</strong>
-                  <span>{mode==='duels'?'SIEGE':'ZEIT'}</span>
+                  <span>{mode==='duels'?(entry.wins_count===1?'SIEG':'SIEGE'):'ZEIT'}</span>
                 </span>
               </li>)}
             </ol>
@@ -143,7 +143,7 @@ export default function LeaderboardScreen({ userId }: Props) {
         <div className="runnit-ranking-panel-note">
           <p className="flex items-start gap-2 text-[11px] leading-5 text-white/65">
             <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-cyan-300" aria-hidden="true"/>
-            BETA-MESSUNGEN: Die Zeiten stammen aus gespeicherten 1v1-Ergebnissen und sind noch nicht unabhängig gegen Manipulation verifiziert. Ghost-Trainings und abgebrochene Rennen zählen nicht.
+            Beta-Wertung aus abgeschlossenen Duellen. Noch keine unabhängige Anti-Cheat-Verifizierung. Solo-Trainings und Abbrüche zählen nicht.
           </p>
         </div>
         <div className="runnit-ranking-city" aria-hidden="true" />

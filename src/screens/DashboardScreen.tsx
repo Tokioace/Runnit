@@ -74,7 +74,7 @@ export default function DashboardScreen({ displayName, userId }: DashboardProps)
 
         <section className="runnit-game-panel mt-4 p-4" aria-labelledby="recent-race-title">
           <div className="flex items-center justify-between gap-2">
-            <h2 id="recent-race-title"><Timer className="h-4 w-4" aria-hidden="true" /> LETZTER LAUF</h2>
+            <h2 id="recent-race-title"><Timer className="h-4 w-4" aria-hidden="true" /> LETZTES DUELL</h2>
             <Link to="/stats" className="text-[10px] font-black text-cyan-200">DEINE HISTORIE <ChevronRight className="inline h-4 w-4" /></Link>
           </div>
           {!userId ? (
