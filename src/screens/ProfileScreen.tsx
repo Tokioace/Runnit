@@ -14,6 +14,7 @@ export default function ProfileScreen() {
   const [consentLoading, setConsentLoading] = useState(false);
   const [consentSaving, setConsentSaving] = useState(false);
   const [consentError, setConsentError] = useState<string | null>(null);
+  const [consentReload, setConsentReload] = useState(0);
 
   useEffect(() => {
     if (!user?.id) {
@@ -30,7 +31,7 @@ export default function ProfileScreen() {
         setConsentLoading(false);
       });
     return () => { mounted = false; };
-  }, [user?.id]);
+  }, [user?.id, consentReload]);
 
   async function updateOptIn(next: boolean) {
     if (!user?.id || consentSaving || consentLoading) return;
@@ -77,7 +78,7 @@ export default function ProfileScreen() {
           <h2 id="visibility-title" className="runnit-profile-extra-title"><ShieldCheck className="h-5 w-5"/> RANGLISTEN-DATENSCHUTZ</h2>
           <p className="text-xs leading-5 text-white/70">
             Deine Zeiten werden privat in deinen Stats gespeichert. Nur wenn du zustimmst, werden
-            dein RUNNIT-Name, deine Bestzeit, Siege und Anzahl abgeschlossener Duelle in der Beta-Rangliste angezeigt.
+            dein RUNNIT-Name, deine Bestzeit, Siege und Anzahl abgeschlossener Duelle öffentlich in der Beta-Rangliste angezeigt – auch für Gäste.
             Die Rohdaten deiner GPS-/IMU-Messung werden nicht veröffentlicht.
           </p>
           {!user ? (
@@ -93,7 +94,7 @@ export default function ProfileScreen() {
           )}
           {consentSaving && <p role="status" className="text-xs text-cyan-100">ÄNDERUNG WIRD GESPEICHERT …</p>}
           {consentError && <div role="alert" className="text-xs text-amber-200">{consentError}
-            <button type="button" className="ml-2 underline" onClick={() => {setConsentError(null);setConsentLoading(false);}}>ERNEUT VERSUCHEN</button>
+            <button type="button" className="ml-2 underline" onClick={() => setConsentReload(n => n + 1)}>ERNEUT VERSUCHEN</button>
           </div>}
           <p className="text-[11px] leading-5 text-cyan-100/60">
             Der Vergleich verwendet ausschließlich vollständig gespeicherte Duelle.
