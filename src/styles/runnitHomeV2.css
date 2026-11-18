@@ -1,0 +1,440 @@
+/* RUNNIT HOME v2 - deliberately portrait-led, without duplicate navigation tiles.
+   Typography and all numbers are live elements; only the runner is a raster asset. */
+.runnit-home-v2 {
+  min-height: 100dvh;
+  width: 100%;
+  overflow-x: clip;
+  color: #f6fcff;
+  background:
+    radial-gradient(ellipse 70% 30% at 95% 30%, #3a0b58 0%, transparent 72%),
+    radial-gradient(ellipse 60% 24% at 6% 3%, #1a174a 0%, transparent 85%),
+    linear-gradient(160deg, #0e0a27 0%, #05122f 45%, #080a27 100%);
+  font-family: "Arial Narrow", "Arial", system-ui, sans-serif;
+}
+.runnit-home-v2 *, .runnit-home-v2 *::before, .runnit-home-v2 *::after { box-sizing: border-box; }
+.runnit-home-v2__content {
+  position: relative;
+  width: min(100%, 600px);
+  margin: 0 auto;
+  padding: 0 12px calc(112px + env(safe-area-inset-bottom,0px));
+}
+.runnit-home-v2__hero {
+  position: relative;
+  isolation: isolate;
+  height: clamp(246px, 35dvh, 338px);
+  margin: 0 -12px -4px;
+  overflow: hidden;
+}
+.runnit-home-v2__portrait {
+  position: absolute;
+  z-index: -2;
+  right: -15%;
+  top: -13%;
+  display: block;
+  height: 146%;
+  width: 90%;
+  object-fit: cover;
+  object-position: center 39%;
+  pointer-events: none;
+}
+.runnit-home-v2__hero-shade {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background:
+    linear-gradient(90deg, #090b2af2 0%, #080d2ae3 25%, #080f2b40 56%, transparent 80%),
+    linear-gradient(0deg, #07112ff2 0%, transparent 27%, #08051d44 100%);
+  pointer-events: none;
+}
+.runnit-home-v2__brand {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  position: relative;
+  padding: max(12px,env(safe-area-inset-top,0px)) 18px 0;
+  z-index: 1;
+  gap: 16px;
+}
+.runnit-home-v2__brandmark { min-width: 0; width: min(65%, 310px); }
+.runnit-home-v2__brandmark img {
+  display: block;
+  height: auto;
+  max-width: 100%;
+  width: 100%;
+  filter: drop-shadow(0 0 6px #4ed8fe55);
+}
+.runnit-home-v2__brandmark p {
+  margin: 0;
+  font-size: clamp(9px, 2.55vw, 15px);
+  font-weight: 950;
+  letter-spacing: .11em;
+  font-style: italic;
+  white-space: nowrap;
+  line-height: 1.15;
+}
+.runnit-home-v2__brandmark p em { color: #11e3ed; font-style: inherit; }
+.runnit-home-v2__brandmark p strong { color: #fa3bcc; }
+.runnit-home-v2__bell {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: clamp(36px, 9.5vw, 45px);
+  height: clamp(36px, 9.5vw, 45px);
+  color: #c4ecff;
+  background: #111c3bbb;
+  border: 1px solid #58d6fcaa;
+  border-radius: 12px;
+  box-shadow: inset 0 0 6px #04edff30, 0 0 9px #16bbf94c;
+  opacity: .8;
+}
+.runnit-home-v2__bell svg { width: 23px; height: 23px; }
+.runnit-home-v2__greeting {
+  position: absolute;
+  z-index: 1;
+  left: clamp(16px, 5vw, 28px);
+  top: clamp(112px, 15.5dvh, 146px);
+  max-width: 63%;
+  text-shadow: 0 0 12px #28127c99;
+}
+.runnit-home-v2__greeting>span {
+  display: block;
+  font-size: clamp(20px, 5.4vw, 31px);
+  font-weight: 300;
+  line-height: 1.06;
+  color: #c3f7ff;
+}
+.runnit-home-v2__greeting h1 {
+  margin: 1px 0 8px;
+  font-size: clamp(31px, 9.2vw, 61px);
+  font-weight: 1000;
+  font-style: italic;
+  line-height: .98;
+  letter-spacing: -.065em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 0 11px #1ee7ff69, 3px 2px 3px #cc22ff77;
+}
+.runnit-home-v2__greeting>i {
+  display: block;
+  width: 44px;
+  height: 2px;
+  margin: 9px 0;
+  background: #dfff17;
+  box-shadow: 0 0 7px #cbfa31;
+}
+.runnit-home-v2__greeting p {
+  margin: 0;
+  font-size: clamp(10px, 3vw, 16px);
+  font-style: italic;
+  font-weight: 1000;
+  letter-spacing: .11em;
+  line-height: 1.3;
+}
+.runnit-home-v2__score {
+  position: relative;
+  z-index: 2;
+  height: clamp(52px, 7.5dvh, 64px);
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.42fr;
+  align-items: center;
+  padding: 6px 8px;
+  margin: 0 1px;
+  border: 1.5px solid #15eff9;
+  border-radius: 15px;
+  background: linear-gradient(100deg, #071b32f5 0%, #080f26f5 55%, #061735ed);
+  box-shadow: 0 0 13px #06d9ee55, inset 0 0 11px #009fff1c;
+}
+.runnit-home-v2__score-item {
+  min-width: 0;
+  height: 36px;
+  padding: 1px 5px;
+  display: grid;
+  grid-template-columns: 30px minmax(0,1fr);
+  grid-template-rows: 20px 13px;
+  column-gap: 4px;
+  align-items: center;
+}
+.runnit-home-v2__score-item + .runnit-home-v2__score-item { border-left: 1px solid #6cbcdf66; padding-left: 9px; }
+.runnit-home-v2__score-item>svg { grid-row: 1/3; width: 27px; height: 27px; color: #02eeff; filter: drop-shadow(0 0 5px #05e5ff5c); }
+.runnit-home-v2__score-item strong {
+  font-size: clamp(15px, 4.5vw, 24px);
+  line-height: 1;
+  font-style: italic;
+  font-weight: 1000;
+  white-space: nowrap;
+  min-width: 0;
+  letter-spacing: -.04em;
+}
+.runnit-home-v2__score-item span {
+  display: block;
+  font-weight: 850;
+  font-size: clamp(8px, 2.2vw, 12px);
+  line-height: 1;
+  font-style: italic;
+  color: #b9e8f6;
+  white-space: nowrap;
+}
+.runnit-home-v2__score-item--time { grid-template-columns: 29px minmax(0,1fr); }
+.runnit-home-v2__score-item--time strong { font-size: clamp(13px, 3.6vw, 23px); }
+
+.runnit-home-v2__start {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(9px, 4vw, 26px);
+  height: clamp(56px, 8dvh, 72px);
+  margin: 16px 2px 14px;
+  padding: 0 14px;
+  text-decoration: none;
+  color: #04182c;
+  background: linear-gradient(103deg, #e5ff21 0%, #b9ff1d 42%, #30dcd6 75%, #b1ff18 100%);
+  clip-path: polygon(6% 0%,98% 0%,100% 22%,95% 100%,0% 100%,3% 57%);
+  filter: drop-shadow(0 0 8px #b4ff2799);
+  text-shadow: none;
+}
+.runnit-home-v2__start:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+.runnit-home-v2__start>svg { width: clamp(24px,6.7vw,35px); height: clamp(24px,6.7vw,35px); stroke-width: 2.3; }
+.runnit-home-v2__start strong {
+  font-weight: 1000;
+  font-style: italic;
+  white-space: nowrap;
+  letter-spacing: -.04em;
+  font-size: clamp(19px, 6.5vw, 37px);
+}
+.runnit-home-v2__start>span { font-size: clamp(31px, 9vw, 46px); line-height: 1; font-weight: 900; transform: translateY(-3px); }
+
+.runnit-home-v2__last {
+  min-height: clamp(79px, 10dvh, 93px);
+  padding: 11px 12px 9px;
+  margin: 0 1px 12px;
+  border: 1.5px solid transparent;
+  border-radius: 13px;
+  background: linear-gradient(#081a34ed,#08142df3) padding-box,
+    linear-gradient(110deg,#1cffff,#54baff 55%,#f233df) border-box;
+  box-shadow: 0 0 10px #03f5ff36, inset 0 0 8px #a018f527;
+}
+.runnit-home-v2__last-title, .runnit-home-v2__section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.runnit-home-v2__last-title h2,
+.runnit-home-v2__section-title h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  font-size: clamp(13px,3.6vw,22px);
+  font-weight: 1000;
+  font-style: italic;
+  white-space: nowrap;
+  letter-spacing: .005em;
+}
+.runnit-home-v2__last-title h2 svg { width: 20px; height: 20px; }
+.runnit-home-v2__last-title time {
+  flex-shrink: 0;
+  color: #b5d8ed;
+  font-style: italic;
+  font-size: 11px;
+}
+.runnit-home-v2__last-result {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  margin-top: 8px;
+}
+.runnit-home-v2__last-avatar {
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #05d9ef;
+  border-radius: 8px;
+  background: #11395e;
+  box-shadow: 0 0 5px #16ebec77;
+}
+.runnit-home-v2__last-avatar svg { width: 23px; height: 23px; color: #bcf6ff; }
+.runnit-home-v2__opponent {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 900;
+  font-size: clamp(12px, 3.4vw, 18px);
+  font-style: italic;
+}
+.runnit-home-v2__result-tag {
+  flex: 0 0 auto;
+  max-width: 26%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 5px 7px;
+  color: #c7eff6;
+  font-weight: 900;
+  font-size: clamp(9px, 2.7vw, 14px);
+  font-style: italic;
+  border-radius: 7px 2px 9px 2px;
+  background: #243e5f;
+}
+.runnit-home-v2__result-tag.is-win {
+  color: #071b29;
+  background: #baff15;
+  box-shadow: 0 0 8px #b6ff1c66;
+}
+.runnit-home-v2__last-time {
+  flex: 0 0 auto;
+  font-weight: 950;
+  font-size: clamp(13px, 3.6vw, 20px);
+  white-space: nowrap;
+  font-style: italic;
+  color: white;
+}
+.runnit-home-v2__last-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  margin: 6px 0 0;
+  color: #b8deed;
+  font-size: 12px;
+  line-height: 1.3;
+  text-decoration: none;
+}
+.runnit-home-v2__last-empty button {
+  font-size: 11px;
+  text-decoration: underline;
+  font-weight: 900;
+  color: #c5fbff;
+}
+
+.runnit-home-v2__goal { margin: 0 6px 13px; }
+.runnit-home-v2__section-title { min-height: 25px; }
+.runnit-home-v2__section-title h2 svg { width: 23px; height: 23px; color: #c7ff05; }
+.runnit-home-v2__section-title>span {
+  color: #b8e6ed;
+  font-size: clamp(9px, 2.4vw, 13px);
+  letter-spacing: .03em;
+  text-align: right;
+  white-space: nowrap;
+}
+.runnit-home-v2__goal p {
+  margin: 1px 0 7px;
+  font-size: clamp(11px,3.1vw,16px);
+  color: #b9e9f5;
+}
+.runnit-home-v2__progress-row { display: flex; align-items: center; gap: 12px; }
+.runnit-home-v2__progress {
+  height: 13px;
+  border: 1px solid #265a9c;
+  background: #0b1c3a;
+  box-shadow: inset 0 0 6px #00122c;
+  border-radius: 999px;
+  overflow: hidden;
+  flex: 1;
+}
+.runnit-home-v2__progress>span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg,#b2ff0f,#d3ff18);
+  box-shadow: 0 0 8px #ccff16;
+}
+.runnit-home-v2__progress-row>strong {
+  min-width: 43px;
+  font-size: 13px;
+  font-weight: 900;
+  font-style: italic;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.runnit-home-v2__records { margin: 0 3px 1px; padding-top: 8px; border-top: 1px solid #4b70a226; }
+.runnit-home-v2__records .runnit-home-v2__section-title>a {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  font-size: clamp(9px, 2.6vw, 13px);
+  font-weight: 900;
+  color: #04eaf7;
+  text-decoration: none;
+  font-style: italic;
+  white-space: nowrap;
+}
+.runnit-home-v2__records .runnit-home-v2__section-title>a svg { width: 14px; height: 14px; }
+.runnit-home-v2__record-grid {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 9px;
+  margin-top: 7px;
+}
+.runnit-home-v2__record {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: clamp(65px,8dvh,84px);
+  gap: 5px;
+  border: 1px solid #285783;
+  background: linear-gradient(145deg,#071a2c,#08112b);
+  border-radius: 13px;
+}
+.runnit-home-v2__record.is-highlighted {
+  border-color: #d1ff0d;
+  box-shadow: 0 0 11px #9fff1666;
+  background: linear-gradient(155deg,#102b28,#081c27 63%,#11152e);
+}
+.runnit-home-v2__record span {
+  font-size: clamp(11px, 3vw, 16px);
+  font-weight: 900;
+  font-style: italic;
+}
+.runnit-home-v2__record strong {
+  font-size: clamp(17px, 4.9vw, 27px);
+  white-space: nowrap;
+  letter-spacing: -.04em;
+  font-weight: 950;
+  font-style: italic;
+}
+.runnit-home-v2__solo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 26px;
+  margin-top: 3px;
+  color: #a5daed;
+  text-decoration: none;
+  font-weight: 950;
+  font-style: italic;
+  font-size: 10px;
+  letter-spacing: .14em;
+}
+.runnit-home-v2__solo svg { width: 13px; height: 13px; }
+
+@media (max-height: 720px) {
+  .runnit-home-v2__hero { height: 226px; }
+  .runnit-home-v2__greeting { top: 98px; }
+  .runnit-home-v2__start { margin-top: 11px; margin-bottom: 10px; height: 53px; }
+  .runnit-home-v2__last { margin-bottom: 8px; padding-block: 8px; min-height: 70px; }
+  .runnit-home-v2__record { min-height: 60px; }
+  .runnit-home-v2__goal { margin-bottom: 8px; }
+  .runnit-home-v2__solo { height: 19px; }
+}
+@media (max-width: 355px) {
+  .runnit-home-v2__score { padding-inline: 4px; }
+  .runnit-home-v2__score-item { grid-template-columns: 25px minmax(0,1fr); column-gap: 2px; padding-inline: 3px; }
+  .runnit-home-v2__score-item>svg { width: 23px; height: 23px; }
+  .runnit-home-v2__last-result { gap: 6px; }
+  .runnit-home-v2__result-tag { padding-inline: 4px; }
+  .runnit-home-v2__record-grid { gap: 5px; }
+}
