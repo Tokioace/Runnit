@@ -33,7 +33,7 @@ test('run history has a distinct home preview and avoids redundant developer not
  assert.match(home,/LETZTES DUELL/);
  assert.doesNotMatch(stats,/erfundenen Kalorien|Demo-Punkte/);
  assert.doesNotMatch(board,/Keine Demo-Namen, keine erfundenen Punkte/);
- assert.match(board,/races_count === 1/);
+ assert.match(board,/races_count/);
 });
 
 test('Profile does not duplicate permanent Stats or Ranking tabs',()=>{

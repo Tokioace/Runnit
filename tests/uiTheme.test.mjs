@@ -22,7 +22,7 @@ test('main secondary pages share the same visual shell without modifying the app
   assert.match(gpsLab, /<PageFrame/);
   // Leaderboard now has its own user-reference Y2K shell and existing BottomNav.
   const leaderboard = read('src/screens/LeaderboardScreen.tsx');
-  assert.match(leaderboard, /runnit-ranking-screen/);
+  assert.match(leaderboard, /arena-screen runnit-competition/);
   assert.match(leaderboard, /<BottomNav/);
   assert.doesNotMatch(leaderboard, /<PageFrame/);
   // Profile now has its own reference-based Arcade shell, like Home/Stats.
@@ -57,7 +57,7 @@ test('revised map keeps keyless OSM vector tiles, map state and real GPS control
 });
 
 test('Rankings explicitly disclose beta status and use confirmed opt-in RPC', () => {
-  const s=read('src/screens/LeaderboardScreen.tsx');const profile=read('src/screens/ProfileScreen.tsx');assert.match(s,/list_beta_duel_leaderboard/);assert.match(s,/Noch keine unabhängige Anti-Cheat-Verifizierung/);assert.match(profile,/leaderboard_opt_in/);assert.doesNotMatch(s,/source: 'demo'|showcase/);
+  const s=read('src/screens/LeaderboardScreen.tsx');const profile=read('src/screens/ProfileScreen.tsx');assert.match(s,/list_beta_duel_leaderboard/);assert.match(s,/NOCH NICHT MANIPULATIONSSICHER/);assert.match(profile,/leaderboard_opt_in/);assert.doesNotMatch(s,/source: 'demo'|showcase/);
 });
 
 test('GPS lab separates opt-in walking sensors from synthetic race simulations', () => {

@@ -17,6 +17,7 @@ export type RaceHistoryItem = {
   id: string; occurredAt: string; distanceM: number; timeMs: number;
   stepsCount: number | null; measuredDistanceM: number | null;
   completed: boolean; outcome: RaceOutcome; opponentTimeMs: number | null;
+  opponentUserId?: string | null; opponentName?: string | null;
 };
 export type ActivityTotals = {
   completedDuels: number; wins: number; losses: number; ties: number;
@@ -57,6 +58,8 @@ export function raceHistoryFromServer(
       timeMs: result.time_ms, stepsCount: nonnegative(result.steps_count),
       measuredDistanceM, completed, outcome,
       opponentTimeMs: rival?.time_ms ?? null,
+      opponentUserId: rival?.user_id ?? null,
+      opponentName: rival?.username?.trim() || null,
     }];
   }).sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt));
 }
