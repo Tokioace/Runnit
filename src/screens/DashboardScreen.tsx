@@ -1,110 +1,144 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, ArrowRight, ChevronRight, Flag, Settings, Swords, Timer, Trophy, UserRound } from 'lucide-react';
+import { Bell, ChevronRight, Flag, Play, RefreshCw, Swords, Target, Timer, Trophy, UserRound, X, Zap } from 'lucide-react';
 import BottomNav from '../components/ui/BottomNav';
 import { useRunnerHistory } from '../hooks/useRunnerHistory';
 import { formatRaceTime } from '../lib/runnerHistory';
-
-const modes = [
-  { label: 'AKTIVITÄT', to: '/stats', Icon: Activity, lime: true },
-  { label: 'RENNEN', to: '/map', Icon: Swords, lime: false },
-  { label: 'RANGLISTE', to: '/leaderboard', Icon: Trophy, lime: false },
-  { label: 'PROFIL', to: '/profile', Icon: UserRound, lime: false },
-] as const;
+import { nextWinMilestone } from '../lib/homeMilestones';
+import '../styles/homeShowcase.css';
 
 type DashboardProps = { displayName?: string | null; userId?: string | null };
 
+const RECORD_DISTANCES = [50, 75, 100] as const;
+const formatDate = (date: string) => {
+  const parsed = new Date(date);
+  return Number.isFinite(parsed.getTime()) ? parsed.toLocaleDateString('de-DE') : '—';
+};
+
 export default function DashboardScreen({ displayName, userId }: DashboardProps) {
-  const { races, loading, error, refresh } = useRunnerHistory(userId);
-  const last = races[0] ?? null;
-  const nickname = displayName || 'GAST';
-  const outcome = !last ? '' : !last.completed ? 'ZEIT GESPEICHERT · NICHT ABGESCHLOSSEN'
-    : last.outcome === 'won' ? 'SIEG' : last.outcome === 'lost' ? 'NIEDERLAGE'
-      : last.outcome === 'tie' ? 'UNENTSCHIEDEN' : 'DUELL ABGESCHLOSSEN';
+  const { races, totals, loading, error, refresh } = useRunnerHistory(userId);
+  const [messagesOpen, setMessagesOpen] = useState(false);
+  const name = displayName?.trim() || (userId ? 'RUNNER' : 'GAST');
+  const ready = Boolean(userId) && !loading && !error;
+  const completed = races.find(race => race.completed) ?? null;
+  const pendingCount = races.filter(race => !race.completed).length;
+  const wins = ready ? totals.wins : null;
+  const duels = ready ? totals.completedDuels : null;
+  const milestone = nextWinMilestone(totals.wins);
+  const bestTimes = {
+    50: ready ? totals.best50Ms : null,
+    75: ready ? totals.best75Ms : null,
+    100: ready ? totals.best100Ms : null,
+  };
+  const outcome = completed?.outcome === 'won' ? 'SIEG'
+    : completed?.outcome === 'lost' ? 'NIEDERLAGE'
+      : completed?.outcome === 'tie' ? 'REMIS' : 'ABGESCHLOSSEN';
 
   return (
-    <main className="runnit-game-home runnit-dash-master relative min-h-[100dvh] w-full max-w-full overflow-x-clip text-white">
-      <div className="runnit-game-content relative z-10 mx-auto w-full max-w-[680px] px-3 pb-[calc(8rem+env(safe-area-inset-bottom,0px))] pt-[max(1rem,env(safe-area-inset-top))] sm:px-5">
-        <header className="runnit-game-hero" aria-label="RUNNIT Arcade">
-          <div className="runnit-hero-portrait" aria-hidden="true" /><div className="runnit-hero-glow" aria-hidden="true" />
-          <div className="relative z-10 flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="runnit-game-logo"><img src="/runnit-metal-logo.svg" alt="RUNNIT" width={840} height={174}/></div>
-              <p className="runnit-game-motto">CHALLENGE. <em>RACE.</em> <strong>BEAT.</strong></p>
+    <main className="runnit-game-home runnit-showcase-home min-h-[100dvh] w-full overflow-x-clip text-white">
+      <div className="runnit-showcase-stage">
+        <header className="runnit-showcase-hero" aria-label="RUNNIT Home">
+          <div className="runnit-showcase-art" aria-hidden="true" />
+          <div className="runnit-showcase-top">
+            <div className="runnit-showcase-brand">
+              <img src="/runnit-metal-logo.svg" alt="RUNNIT" width={840} height={174} />
+              <p>CHALLENGE. <em>RACE.</em> <strong>BEAT.</strong></p>
             </div>
-            <Link className="runnit-game-settings" to="/profile" aria-label="Profil und Einstellungen"><Settings aria-hidden="true" /></Link>
+            <button type="button" className="runnit-showcase-bell"
+              aria-label="Meldungen anzeigen" aria-expanded={messagesOpen}
+              aria-controls="runnit-showcase-messages" onClick={() => setMessagesOpen(open => !open)}>
+              <Bell aria-hidden="true" />
+              {ready && pendingCount > 0 && <span className="runnit-showcase-alert" aria-hidden="true" />}
+            </button>
           </div>
-          <p className="relative z-10 mt-4 text-center text-xs font-black italic tracking-[0.3em] text-cyan-200/90">DEINE STADT. DEIN DUELL.</p>
+          <div className="runnit-showcase-greeting">
+            <p>Hallo</p>
+            <h1 title={name}>{name}</h1>
+            <span className="runnit-showcase-lime-line" aria-hidden="true" />
+            <p className="runnit-showcase-challenge">BEREIT FÜR DAS<br />NÄCHSTE DUELL?</p>
+          </div>
+          {messagesOpen && (
+            <div className="runnit-showcase-messages" id="runnit-showcase-messages" role="region" aria-label="Meldungen">
+              <div className="runnit-showcase-messages-title"><strong>DEINE MELDUNGEN</strong>
+                <button type="button" onClick={() => setMessagesOpen(false)} aria-label="Meldungen schließen"><X size={16} /></button>
+              </div>
+              {!userId ? <p>Melde dich an, um deine gespeicherten Duelle zu sehen.</p>
+                : loading ? <p>Ergebnisse werden geladen …</p>
+                  : error ? <p>Ergebnisse derzeit nicht verfügbar.</p>
+                    : pendingCount > 0 ? <p>{pendingCount} Duell{pendingCount === 1 ? '' : 'e'} noch nicht abgeschlossen.</p>
+                      : completed ? <p>Letztes Duell vom {formatDate(completed.occurredAt)}: {outcome.toLowerCase()}.</p>
+                        : <p>Noch keine gespeicherten Duelle.</p>}
+              <small>Keine Push-Benachrichtigungen aktiviert.</small>
+            </div>
+          )}
         </header>
 
-        <section className="runnit-game-hud" aria-label="Spieler">
-          <div className="runnit-game-avatar"><UserRound aria-hidden="true" /></div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-2">
-              <strong className="truncate text-[clamp(1.1rem,5.5vw,1.8rem)] font-black italic">{nickname}</strong>
-              <Link to="/profile" aria-label="Profil bearbeiten" className="text-cyan-200"><ChevronRight aria-hidden="true" /></Link>
-            </div>
-            <p className="mt-1 text-[10px] font-black tracking-wide text-cyan-200">{userId ? 'RUNNER-KONTO VERBUNDEN' : 'GASTMODUS · FÜR DUELLE ANMELDEN'}</p>
-          </div>
-          <span className="runnit-game-emblem" aria-hidden="true">R✦</span>
+        <section className="runnit-showcase-scoreboard" aria-label="Deine gespeicherte Duellbilanz" aria-busy={loading}>
+          <div><Trophy aria-hidden="true" /><span><strong>{wins ?? (loading && userId ? '…' : '—')}</strong><small>{wins === 1 ? 'SIEG' : 'SIEGE'}</small></span></div>
+          <div><Swords aria-hidden="true" /><span><strong>{duels ?? (loading && userId ? '…' : '—')}</strong><small>{duels === 1 ? 'DUELL' : 'DUELLE'}</small></span></div>
+          <div><Timer aria-hidden="true" /><span><strong>{formatRaceTime(bestTimes[50])}</strong><small>BESTZEIT · 50 M</small></span></div>
         </section>
 
-        <nav className="runnit-game-modes grid grid-cols-4 gap-1.5 sm:gap-3" aria-label="Hauptfunktionen">
-          {modes.map(({ label, to, Icon, lime }) => (
-            <Link key={label} to={to} className={lime ? 'runnit-game-mode is-lime' : 'runnit-game-mode'}>
-              <Icon className="h-7 w-7 sm:h-9 sm:w-9" strokeWidth={2.5} aria-hidden="true"/><span>{label}</span>
-            </Link>
-          ))}
-        </nav>
-
-        <Link to="/map" className="runnit-game-duel mt-4" aria-label="Auf der Karte ein 1v1 Duell suchen">
-          <div>
-            <h2>1v1 <span>DUELL</span> <b aria-hidden="true">»</b></h2>
-            <p>FORDERE JETZT JEMANDEN<br/>IN DEINER NÄHE HERAUS!</p>
-          </div>
-          <span className="runnit-duel-speedlines" aria-hidden="true" />
+        <Link to="/map" className="runnit-showcase-cta" aria-label="Zur Karte, um ein Duell zu starten oder einem Duell beizutreten">
+          <Play aria-hidden="true" fill="none" /><strong>DUELL STARTEN</strong><span aria-hidden="true">»</span>
         </Link>
+        <Link to="/ghost-run" className="runnit-showcase-solo" aria-label="Alleine einen Ghost Run trainieren">GHOST RUN SOLO <span aria-hidden="true">›</span></Link>
 
-        <Link to="/ghost-run" className="mt-3 flex min-h-16 items-center justify-between gap-2 rounded-2xl border-2 border-cyan-300 bg-gradient-to-r from-[#133d6f] via-[#17275a] to-[#3b174f] px-4 py-3 shadow-[0_0_17px_rgba(46,224,255,.35)]" aria-label="Ghost Run alleine starten">
-          <span className="flex flex-col gap-1">
-            <strong className="text-xl font-black italic tracking-tight text-white">GHOST RUN <span className="text-lime-300">SOLO</span></strong>
-            <small className="text-[10px] font-black tracking-wide text-cyan-200">TRAINING · GPS + SCHRITTZÄHLER</small>
-          </span>
-          <ArrowRight className="h-6 w-6 shrink-0 text-lime-300" aria-hidden="true" />
-        </Link>
-
-        <section className="runnit-game-panel mt-4 p-4" aria-labelledby="recent-race-title">
-          <div className="flex items-center justify-between gap-2">
-            <h2 id="recent-race-title"><Timer className="h-4 w-4" aria-hidden="true" /> LETZTES DUELL</h2>
-            <Link to="/stats" className="text-[10px] font-black text-cyan-200">DEINE HISTORIE <ChevronRight className="inline h-4 w-4" /></Link>
+        <section className="runnit-showcase-recent" aria-labelledby="recent-race-title">
+          <div className="runnit-showcase-section-head">
+            <h2 id="recent-race-title"><Flag aria-hidden="true" /> LETZTES DUELL</h2>
+            {completed && <time dateTime={completed.occurredAt}>{formatDate(completed.occurredAt)}</time>}
           </div>
-          {!userId ? (
-            <p className="mt-3 text-xs leading-5 text-white/70">Melde dich an, damit deine gespeicherten Zeiten hier erscheinen.</p>
-          ) : loading ? (
-            <p role="status" className="mt-3 text-xs text-cyan-100">ERGEBNIS WIRD GELADEN …</p>
-          ) : error ? (
-            <div className="mt-3 text-xs"><p role="alert" className="text-amber-200">{error}</p>
-              <button type="button" className="mt-2 font-black text-cyan-200" onClick={refresh}>NEU LADEN</button>
-            </div>
-          ) : last ? (
-            <div className="mt-3 flex items-center justify-between gap-3 border-t border-cyan-300/20 pt-3">
-              <div>
-                <p className="text-lg font-black italic text-white">1V1 · {last.distanceM} M</p>
-                <p className="text-[10px] font-black text-lime-200">{outcome}</p>
-                <p className="mt-1 text-[10px] text-white/60">{new Date(last.occurredAt).toLocaleDateString('de-DE')} · SERVERGESPEICHERT</p>
-              </div>
-              <strong className="shrink-0 text-xl font-black tabular-nums text-cyan-100">{formatRaceTime(last.timeMs)}</strong>
-            </div>
-          ) : (
-            <p className="mt-3 text-xs leading-5 text-white/65">Noch kein gespeichertes Duell. Nach dem Zieleinlauf findest du hier dein letztes Ergebnis.</p>
-          )}
+          {!userId ? <p className="runnit-showcase-placeholder">Melde dich an, um deine Ergebnisse zu sehen.</p>
+            : loading ? <p role="status" className="runnit-showcase-placeholder">Gespeicherte Duelle werden geladen …</p>
+              : error ? <div className="runnit-showcase-error" role="alert"><span>{error}</span>
+                  <button type="button" onClick={refresh}><RefreshCw size={16} /> Neu laden</button>
+                </div>
+                : completed ? <Link to="/stats" className="runnit-showcase-recent-race" aria-label="Duell in der Laufhistorie ansehen">
+                    <span className="runnit-showcase-opponent-icon"><UserRound aria-hidden="true" /></span>
+                    <span className="runnit-showcase-opponent">vs <strong>{completed.opponentName || 'Gegner'}</strong>
+                      <small>{completed.distanceM} M · SERVERGESPEICHERT</small></span>
+                    <span className={'runnit-showcase-result ' + (completed.outcome === 'won' ? 'is-win' : '')}>{outcome}</span>
+                    <strong className="runnit-showcase-time">{formatRaceTime(completed.timeMs)}</strong>
+                  </Link>
+                  : <Link to="/map" className="runnit-showcase-placeholder runnit-showcase-placeholder-link">Noch kein abgeschlossenes Duell. <ChevronRight aria-hidden="true" size={17} /></Link>}
         </section>
 
-        <Link to="/map" className="runnit-game-start group" aria-label="Zur Karte und Rennen starten">
-          <Flag aria-hidden="true" /><span>RENNEN ENTDECKEN</span><ArrowRight aria-hidden="true" className="transition-transform group-hover:translate-x-1" />
-        </Link>
+        <section className="runnit-showcase-goal" aria-label="Dein nächster Sieg-Meilenstein">
+          <div className="runnit-showcase-section-head">
+            <h2><Target aria-hidden="true" /> DEIN ZIEL</h2><small>NÄCHSTER MEILENSTEIN</small>
+          </div>
+          <p>{milestone.target} Siege erreichen</p>
+          <div className="runnit-showcase-goal-track">
+            <div role="progressbar" aria-label="Siege bis zum nächsten Meilenstein"
+              aria-valuemin={milestone.start} aria-valuemax={milestone.target}
+              aria-valuenow={ready ? totals.wins : undefined}
+              aria-valuetext={ready ? totals.wins + ' von ' + milestone.target + ' Siegen' : 'Nicht verfügbar'}
+              className="runnit-showcase-goal-progress">
+              <span style={{ width: ready ? milestone.percent + '%' : '0%' }} />
+            </div>
+            <strong>{ready ? totals.wins + ' / ' + milestone.target : '— / ' + milestone.target}</strong>
+          </div>
+        </section>
+
+        <section className="runnit-showcase-records" aria-labelledby="home-records-title">
+          <div className="runnit-showcase-section-head">
+            <h2 id="home-records-title"><Zap aria-hidden="true" /> DEINE BESTZEITEN</h2>
+            <Link to="/leaderboard?tab=records">ALLE REKORDE <span aria-hidden="true">»</span></Link>
+          </div>
+          <div className="runnit-showcase-record-grid">
+            {RECORD_DISTANCES.map(distance => (
+              <Link to="/leaderboard?tab=records" key={distance} className={'runnit-showcase-record ' + (bestTimes[distance] != null ? 'has-record' : '')}
+                aria-label={distance + ' Meter Bestzeit: ' + formatRaceTime(bestTimes[distance])}>
+                <small>{distance} M</small>
+                <strong>{formatRaceTime(bestTimes[distance])}</strong>
+              </Link>
+            ))}
+          </div>
+        </section>
+        <div className="runnit-showcase-note" aria-live="polite">{!userId ? 'GASTMODUS · DUELLE ERFORDERN EINE ANMELDUNG' : error ? 'DATENVERBINDUNG PRÜFEN' : ''}</div>
       </div>
       <BottomNav />
     </main>
   );
 }
-
