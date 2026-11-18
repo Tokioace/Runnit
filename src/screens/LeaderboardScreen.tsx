@@ -1,155 +1,210 @@
-import { useCallback, useEffect, useState, type KeyboardEvent } from 'react';
-import { ChevronLeft, Crown, Flag, RefreshCw, ShieldCheck, Trophy, UserRound } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRight, BarChart3, Crown, Flame, Gauge, Medal, RefreshCw, ShieldAlert, Swords, Timer, Trophy, UserRound, Users, Zap } from 'lucide-react';
 import BottomNav from '../components/ui/BottomNav';
-import { supabase } from '../lib/supabaseClient';
+import { useRunnerHistory } from '../hooks/useRunnerHistory';
 import { formatRaceTime } from '../lib/runnerHistory';
-import '../styles/leaderboardArcade.css';
+import { summarizeRivals } from '../lib/competition';
+import { supabase } from '../lib/supabaseClient';
+import '../styles/runnitCompetition.css';
 
-type RankingMode = 'duels' | '50' | '75' | '100';
-const modes: ReadonlyArray<{id: RankingMode; label: string; caption: string}> = [
-  { id: 'duels', label: 'DUELLE', caption: 'SORTIERT NACH SIEGEN' },
-  { id: '50', label: '50 M', caption: 'BESTZEIT 50 M' },
-  { id: '75', label: '75 M', caption: 'BESTZEIT 75 M' },
-  { id: '100', label: '100 M', caption: 'BESTZEIT 100 M' },
-];
+type PageTab = 'rivals' | 'ladder' | 'records';
+type Metric = 'times' | 'speed' | 'acceleration' | 'wins' | 'streak' | 'duels';
+type Distance = 50 | 75 | 100;
+type BoardRow = { rank_position:number; user_id:string; username:string; value:number; races_count:number; wins_count:number };
+type PublicRow = { rank_position:number; user_id:string; username:string; best_time_ms:number|null; races_count:number; wins_count:number };
+type RecordRow = { rank_position:number; user_id:string; username:string; metric_value:number|null; races_count:number; wins_count:number };
+const tabs = [
+ { id:'rivals',label:'RIVALEN' },{ id:'ladder',label:'RANGLISTE' },{ id:'records',label:'REKORDE' },
+] as const;
+const metrics = [
+ { id:'times',label:'BESTZEITEN',Icon:Timer },
+ { id:'speed',label:'TOP SPEED',Icon:Gauge },
+ { id:'acceleration',label:'BESCHLEUN.',Icon:Zap },
+ { id:'wins',label:'SIEGE',Icon:Trophy },
+ { id:'streak',label:'SIEGESSERIE',Icon:Flame },
+ { id:'duels',label:'DUELLE',Icon:Swords },
+] as const;
 
-type RankingEntry = {
-  rank_position: number; user_id: string; username: string;
-  best_time_ms: number | null; races_count: number; wins_count: number;
-};
-
-type Props = { userId?: string | null };
-export default function LeaderboardScreen({ userId }: Props) {
-  const [mode, setMode] = useState<RankingMode>('duels');
-  const [entries, setEntries] = useState<RankingEntry[]>([]);
-  const [consent, setConsent] = useState<boolean | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [revision, setRevision] = useState(0);
-  const refresh = useCallback(() => setRevision(n => n + 1), []);
-
-  useEffect(() => {
-    if (!userId) setConsent(null);
-    let mounted = true;
-    setLoading(true);
-    setError(null);
-    const run = async () => {
-      try {
-        const [rankingResponse, profileResponse] = await Promise.all([
-          supabase.rpc('list_beta_duel_leaderboard', {
-            p_target_distance_m: mode === 'duels' ? null : Number(mode),
-            p_limit: 50,
-          }),
-          userId ? supabase.from('users').select('leaderboard_opt_in').eq('id',userId).maybeSingle() : Promise.resolve({ data: null, error: null }),
-        ]);
-        if (rankingResponse.error) throw rankingResponse.error;
-        if (profileResponse.error) throw profileResponse.error;
-        if (mounted) {
-          setEntries((rankingResponse.data ?? []) as RankingEntry[]);
-          setConsent(userId ? profileResponse.data?.leaderboard_opt_in === true : null);
-          setLoading(false);
-        }
-      } catch {
-        if (mounted) {setEntries([]);setError('Rangliste konnte nicht vom Server geladen werden.');setLoading(false);}
-      }
-    };
-    void run();
-    const onFocus = () => { if (document.visibilityState === 'visible') refresh(); };
-    window.addEventListener('focus', onFocus);
-    return () => { mounted = false; window.removeEventListener('focus', onFocus); };
-  }, [userId,mode,revision,refresh]);
-
-  function handleKey(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    let next = index;
-    if (event.key === 'ArrowRight') next = (index+1)%modes.length;
-    else if (event.key === 'ArrowLeft') next = (index-1+modes.length)%modes.length;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = modes.length-1;
-    else return;
-    event.preventDefault();
-    setMode(modes[next].id);
-    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
-  }
-
-  const selected = modes.find(m => m.id===mode)!;
-  return (
-    <main className="runnit-ranking-screen" aria-label="Echte Runnit Beta-Rangliste">
-      <div className="runnit-ranking-stage">
-        <header className="runnit-ranking-header">
-          <Link to="/home" className="runnit-ranking-back" aria-label="Zur Startseite"><ChevronLeft size={32} strokeWidth={2.6}/></Link>
-          <span className="runnit-ranking-trophy"><Trophy aria-hidden="true"/></span>
-          <div className="runnit-ranking-header-copy">
-            <h1>RANGLISTE</h1>
-            <p className="mt-1 text-[10px] font-black tracking-widest text-cyan-200">RUNNIT // BETA</p>
-          </div>
-        </header>
-
-        <p className="mt-2 px-4 text-xs leading-5 text-white/70">
-          Ergebnisse aus abgeschlossenen 1v1-Duellen.
-        </p>
-        <div className="runnit-ranking-tabs" role="tablist" aria-label="Wettbewerb wählen">
-          {modes.map(({id,label},i) => <button key={id} id={'ranking-tab-'+id} type="button"
-            role="tab" aria-selected={mode===id} aria-controls="ranking-panel"
-            tabIndex={mode===id?0:-1} className="runnit-ranking-tab"
-            onClick={() => setMode(id)} onKeyDown={e => handleKey(e,i)}>
-            {label}
-          </button>)}
-        </div>
-
-        <div role="tabpanel" id="ranking-panel" aria-labelledby={'ranking-tab-'+mode} className="min-h-40">
-          <p className="my-3 px-4 text-[10px] font-black tracking-widest text-lime-300">{selected.caption}</p>
-          {loading ? (
-            <p role="status" className="px-4 py-8 text-center text-sm text-cyan-100">GESPEICHERTE ERGEBNISSE WERDEN GELADEN …</p>
-          ) : error ? (
-            <section className="runnit-ranking-no-results" role="alert">
-              <h2>VERBINDUNGSFEHLER</h2><p>{error}</p>
-              <button type="button" onClick={refresh} className="mt-4 inline-flex min-h-11 items-center gap-2 text-cyan-200"><RefreshCw className="h-4 w-4"/>ERNEUT LADEN</button>
-            </section>
-          ) : entries.length ? (
-            <ol className="runnit-ranking-list" aria-label={'Gespeicherte '+selected.label+'-Bestenliste'}>
-              {entries.map(entry => <li key={entry.user_id}
-                className={'runnit-ranking-row'+(entry.user_id===userId?' is-featured':'')}
-                aria-label={'Platz '+entry.rank_position+': '+entry.username}>
-                <span className={'runnit-ranking-place'+(entry.rank_position===1?' is-gold':'')}>
-                  {entry.rank_position===1&&<Crown aria-hidden="true"/>}<strong>{entry.rank_position}</strong>
-                </span>
-                <span className="runnit-ranking-avatar"><UserRound className="h-6 w-6 text-cyan-200" aria-hidden="true"/></span>
-                <span className="runnit-ranking-person">
-                  <strong title={entry.username}>{entry.username}{entry.user_id===userId?' · DU':''}</strong>
-                  <small>{entry.races_count} {entry.races_count === 1 ? 'Duell' : 'Duelle'} · {entry.wins_count} {entry.wins_count === 1 ? 'Sieg' : 'Siege'}</small>
-                </span>
-                <span className="runnit-ranking-points">
-                  <strong>{mode==='duels'?String(entry.wins_count):formatRaceTime(entry.best_time_ms)}</strong>
-                  <span>{mode==='duels'?(entry.wins_count===1?'SIEG':'SIEGE'):'ZEIT'}</span>
-                </span>
-              </li>)}
-            </ol>
-          ) : (
-            <section className="runnit-ranking-no-results" role="status">
-              <Flag className="mx-auto mb-3 h-10 w-10 text-cyan-200" aria-hidden="true"/>
-              <h2>NOCH KEINE EINTRÄGE</h2>
-              <p>Für {mode==='duels'?'die Duellwertung':selected.label} gibt es noch keine freigegebenen, vollständig gespeicherten Ergebnisse.</p>
-            </section>
-          )}
-        </div>
-
-        {userId && consent===false && (
-          <div className="runnit-ranking-panel-note">
-            <p className="text-xs leading-5 text-cyan-100/75">Deine Ergebnisse bleiben privat, bis du die Anzeige in der Bestenliste im Profil ausdrücklich freigibst.</p>
-            <Link to="/profile" className="mt-2 inline-flex min-h-10 items-center text-xs font-black text-lime-300">RANGLISTEN-FREIGABE ÖFFNEN ›</Link>
-          </div>
-        )}
-        <div className="runnit-ranking-panel-note">
-          <p className="flex items-start gap-2 text-[11px] leading-5 text-white/65">
-            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-cyan-300" aria-hidden="true"/>
-            Beta-Wertung aus abgeschlossenen Duellen. Noch keine unabhängige Anti-Cheat-Verifizierung. Solo-Trainings und Abbrüche zählen nicht.
-          </p>
-        </div>
-        <div className="runnit-ranking-city" aria-hidden="true" />
-      </div>
-      <BottomNav/>
-    </main>
-  );
+function metricLabel(metric:Metric):string { return metrics.find(m=>m.id===metric)?.label ?? 'REKORDE'; }
+function valueText(value:number,metric:Metric):string {
+ if(!Number.isFinite(value))return '—';
+ if(metric==='times')return formatRaceTime(value);
+ if(metric==='speed')return value.toFixed(2).replace('.',',')+' m/s';
+ if(metric==='acceleration')return value.toFixed(2).replace('.',',')+' m/s²';
+ return String(Math.round(value));
+}
+function Avatar({large=false}:{large?:boolean}) {
+ return <span className={'arena-avatar'+(large?' arena-avatar--large':'')}><UserRound aria-hidden="true"/></span>;
+}
+function SectionBar({icon,children}:{icon:ReactNode;children:ReactNode}) {
+ return <div className="arena-section-bar"><span aria-hidden="true">{icon}</span><strong>{children}</strong><span className="arena-section-sky" aria-hidden="true"/></div>;
+}
+function Board({title,rows,metric,userId,loading,error,refresh}:{title:string;rows:readonly BoardRow[];metric:Metric;userId?:string|null;loading:boolean;error:string|null;refresh:()=>void}) {
+ const own=userId?rows.find(r=>r.user_id===userId):undefined;
+ return <section className="arena-board arena-live-board" aria-label={'Echte Top 10: '+title} aria-busy={loading}>
+  <h2 className="arena-board-title"><BarChart3 aria-hidden="true"/> TOP 10 · {title} <em>GLOBAL</em></h2>
+  <div className="arena-board-head" aria-hidden="true"><span>#</span><span>SPIELER</span><span>DUELLE</span><span>WERT</span></div>
+  {loading?<p className="arena-live-message" role="status">ERGEBNISSE LADEN …</p>:
+   error?<div className="arena-live-message" role="alert"><p>{error}</p><button type="button" onClick={refresh}><RefreshCw size={15}/> NOCHMAL</button></div>:
+   rows.length===0?<p className="arena-live-message" role="status">Noch keine freigegebenen Ergebnisse in dieser Wertung.</p>:
+   <ol className="arena-board-list">{rows.slice(0,10).map(row=>
+    <li key={row.user_id} className={'arena-board-row'+(row.rank_position===1?' is-first':'')+(row.user_id===userId?' is-current':'')}>
+     <span className="arena-board-rank">{row.rank_position===1?<Crown aria-label="Platz 1"/>:'#'+row.rank_position}</span>
+     <Avatar/><strong className="arena-board-name" title={row.username}>{row.username}{row.user_id===userId?' · DU':''}</strong>
+     <span className="arena-board-level">{row.races_count}</span>
+     <strong className="arena-board-value">{valueText(row.value,metric)}</strong>
+    </li>)}</ol>}
+  {!loading&&!error&&own&&own.rank_position>10&&<div className="arena-own-overflow">DEIN RANG <b>#{own.rank_position}</b> · {valueText(own.value,metric)}</div>}
+ </section>;
 }
 
+export default function LeaderboardScreen({userId,displayName}:{userId?:string|null;displayName?:string|null}) {
+ const [tab,setTab]=useState<PageTab>('rivals');
+ const [metric,setMetric]=useState<Metric>('times');
+ const [distance,setDistance]=useState<Distance>(50);
+ const [rows,setRows]=useState<BoardRow[]>([]);
+ const [consent,setConsent]=useState<boolean|null>(null);
+ const [loading,setLoading]=useState(false);
+ const [error,setError]=useState<string|null>(null);
+ const [revision,setRevision]=useState(0);
+ const contentRef=useRef<HTMLDivElement>(null);
+ const history=useRunnerHistory(userId);
+ const rivals=useMemo(()=>summarizeRivals(history.races),[history.races]);
+ const finished=useMemo(()=>history.races.filter(r=>r.completed).slice(0,5),[history.races]);
+ const currentName=displayName?.trim()||'DU';
+ const refresh=useCallback(()=>setRevision(n=>n+1),[]);
+ const resetScroll=()=>{if(contentRef.current)contentRef.current.scrollTop=0;};
+
+ useEffect(()=>{
+  if(tab==='rivals'){setLoading(false);setError(null);return;}
+  let active=true;setLoading(true);setError(null);setRows([]);
+  async function load(){
+   try {
+    const response=tab==='ladder'
+     ?await supabase.rpc('list_beta_duel_leaderboard',{p_target_distance_m:null,p_limit:100})
+     :await supabase.rpc('list_beta_runnit_records',{p_metric:metric,p_distance_m:distance,p_limit:100});
+    if(response.error)throw response.error;
+    const normalized:BoardRow[]=tab==='ladder'
+      ?((response.data??[]) as PublicRow[]).map(r=>({rank_position:r.rank_position,user_id:r.user_id,username:r.username,value:r.wins_count,races_count:r.races_count,wins_count:r.wins_count}))
+      :((response.data??[]) as RecordRow[]).filter(r=>r.metric_value!==null).map(r=>({rank_position:r.rank_position,user_id:r.user_id,username:r.username,value:r.metric_value!,races_count:r.races_count,wins_count:r.wins_count}));
+    if(active){setRows(normalized);setLoading(false);}
+   }catch{if(active){setError('Wertung konnte nicht geladen werden.');setLoading(false);}}
+  }
+  void load();return()=>{active=false;};
+ },[tab,metric,distance,revision]);
+ useEffect(()=>{
+  if(!userId){setConsent(null);return;}
+  let active=true;
+  void supabase.from('users').select('leaderboard_opt_in').eq('id',userId).maybeSingle()
+   .then(({data,error})=>{if(active)setConsent(error?null:data?.leaderboard_opt_in===true);});
+  return()=>{active=false;};
+ },[userId,revision]);
+ useEffect(()=>{
+  const focus=()=>{if(document.visibilityState==='visible')refresh();};
+  window.addEventListener('focus',focus);document.addEventListener('visibilitychange',focus);
+  return()=>{window.removeEventListener('focus',focus);document.removeEventListener('visibilitychange',focus);};
+ },[refresh]);
+
+ const selectTab=(next:PageTab)=>{setTab(next);resetScroll();};
+ const onKey=(e:KeyboardEvent<HTMLButtonElement>,i:number)=>{
+  const index=e.key==='ArrowRight'?(i+1)%tabs.length:e.key==='ArrowLeft'?(i+tabs.length-1)%tabs.length:e.key==='Home'?0:e.key==='End'?tabs.length-1:-1;
+  if(index<0)return;e.preventDefault();selectTab(tabs[index].id);
+  e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[index]?.focus();
+ };
+ const rival=rivals[0],champ=rows[0];
+
+ return <main className="arena-screen runnit-competition" aria-label="RUNNIT Rangliste">
+  <div className="arena-stage">
+   <header className="arena-hero">
+    <div className="arena-hero-top">
+     <img src="/runnit-metal-logo.svg" alt="RUNNIT" className="arena-logo"/>
+     <Link to="/profile" className="arena-profile-button" aria-label="Profil öffnen"><UserRound aria-hidden="true"/></Link>
+    </div>
+    <p className="arena-motto">CHALLENGE. <em>RACE.</em> <b>BEAT.</b></p>
+    <h1>RANGLISTE</h1>
+    <p className="arena-hero-bottom">RIVALEN · WERTUNG · <em>REKORDE</em></p>
+   </header>
+   <nav className="arena-tabs" role="tablist" aria-label="Ranglistenbereiche">
+    {tabs.map(({id,label},i)=><button key={id} role="tab" id={'competition-tab-'+id}
+      type="button" aria-selected={tab===id} aria-controls="competition-panel"
+      tabIndex={tab===id?0:-1} className={tab===id?'is-active':''}
+      onClick={()=>selectTab(id)} onKeyDown={e=>onKey(e,i)}>{label}</button>)}
+   </nav>
+   <div ref={contentRef} className="arena-content" role="tabpanel" id="competition-panel" aria-labelledby={'competition-tab-'+tab}>
+    {tab==='rivals'?<div className="arena-rivals arena-panel-area">
+     <SectionBar icon={<Swords/>}>RIVALEN <em>// 1V1</em></SectionBar>
+     {!userId?<div className="arena-live-message"><Users size={30}/>
+       <p>Melde dich an, um echte Rivalen und eure Duellbilanz zu sehen.</p>
+       <Link to="/login?next=%2Fleaderboard">ANMELDEN <ArrowRight size={16}/></Link></div>:
+      history.loading?<div role="status" className="arena-live-message">DUELLE LADEN …</div>:
+      history.error?<div role="alert" className="arena-live-message">{history.error}<button onClick={history.refresh} type="button">NOCHMAL</button></div>:
+      <>
+       <section className="arena-showdown" aria-label="Deine meistgespielte Rivalität">
+        {rival?<div className="arena-showdown-people">
+         <div className="arena-showdown-person"><Avatar large/><strong>{currentName}</strong><span>{rival.wins} SIEGE</span></div>
+         <div className="arena-versus"><strong>VS</strong><small>DUELL-BILANZ</small><b>{rival.wins} : {rival.losses}</b></div>
+         <div className="arena-showdown-person"><Avatar large/><strong>{rival.name}</strong><span>{rival.losses} SIEGE</span></div>
+        </div>:<div className="arena-rivals-empty">Noch keine vollständig gespeicherten Duelle gegen andere Spieler.</div>}
+        <Link className="arena-rematch" to="/map">» NEUES DUELL</Link>
+       </section>
+       <div className="arena-duel-grid">
+        <section className="arena-duel-panel"><h2><Users aria-hidden="true"/> DEINE RIVALEN</h2>
+         {rivals.length?rivals.slice(0,5).map(r=>
+          <div key={r.userId} className="arena-mini-row"><Avatar/><span title={r.name}>{r.name}</span><b>{r.wins}:{r.losses}</b></div>
+         ):<p className="arena-mini-empty">Keine Rivalen erfasst.</p>}
+        </section>
+        <section className="arena-duel-panel arena-duel-panel--magenta"><h2><Trophy aria-hidden="true"/> LETZTE DUELLE</h2>
+         {finished.length?finished.map(r=>
+          <div key={r.id} className="arena-mini-row">
+           <span title={r.opponentName||'Runner'}>{r.opponentName||'RUNNER'}</span>
+           <b>{r.outcome==='won'?'SIEG':r.outcome==='lost'?'NIED.':'REMIS'}</b>
+          </div>):<p className="arena-mini-empty">Noch keine Ergebnisse.</p>}
+        </section>
+       </div>
+       <div className="arena-self-strip"><Medal size={19} aria-hidden="true"/>
+        <strong>{history.totals.completedDuels} DUELLE</strong>
+        <span>{history.totals.wins} SIEGE</span><b>{history.totals.losses} NIED.</b>
+       </div>
+      </>}
+    </div>:tab==='ladder'?<div className="arena-ladder arena-panel-area">
+     <SectionBar icon={<BarChart3/>}>RANGLISTE <em>// SIEGE</em></SectionBar>
+     <p className="arena-scope-note">GLOBAL · FREIGEGEBENE ERGEBNISSE</p>
+     <div className="arena-ladder-grid">
+      <Board title="DUELLSIEGE" rows={rows} metric="wins" userId={userId} loading={loading} error={error} refresh={refresh}/>
+      <aside className="arena-live-personal" aria-label="Deine Wettkampfbilanz">
+       <UserRound size={18} aria-hidden="true"/><strong>{userId?currentName:'GAST'}</strong>
+       <span>{userId?(String(history.totals.wins)+' SIEGE · '+String(history.totals.completedDuels)+' DUELLE'):'ANMELDEN FÜR DEINE BILANZ'}</span>
+       {userId&&consent===true&&rows.some(r=>r.user_id===userId)&&<b>RANG #{rows.find(r=>r.user_id===userId)?.rank_position}</b>}
+       {userId&&consent===false&&<Link to="/profile">RANGLISTE FREIGEBEN ›</Link>}
+      </aside>
+     </div>
+    </div>:<div className="arena-legends arena-panel-area">
+     <SectionBar icon={<Trophy/>}>REKORDE <em>// BETA</em></SectionBar>
+     <div className="arena-metrics" role="group" aria-label="Rekordkategorie">
+      {metrics.map(({id,label,Icon})=><button type="button" key={id}
+       aria-pressed={metric===id} className={'arena-metric'+(metric===id?' is-active':'')}
+       onClick={()=>{setMetric(id);resetScroll();}}><Icon aria-hidden="true"/><span>{label}</span></button>)}
+     </div>
+     <div className="arena-champion" aria-label="Bester öffentlich freigegebener Datensatz">
+      {metric==='times'&&<div className="arena-distance" role="group" aria-label="Renndistanz">
+       {([50,75,100] as const).map(d=><button key={d} type="button" aria-pressed={distance===d}
+        className={distance===d?'is-active':''} onClick={()=>{setDistance(d);resetScroll();}}>{d} M</button>)}
+      </div>}
+      <div className="arena-champion-main">
+       <div className="arena-champion-avatar"><Crown aria-hidden="true"/><Avatar large/></div>
+       <div className="arena-champion-name"><strong>{loading?'WIRD GELADEN':champ?.username||'NOCH OFFEN'}</strong><span>{metricLabel(metric)}</span></div>
+       <strong className="arena-champion-score">{!loading&&champ?valueText(champ.value,metric):'—'}</strong>
+      </div>
+     </div>
+     <Board title={metricLabel(metric)+(metric==='times'?' · '+distance+' M':'')}
+      rows={rows} metric={metric} userId={userId} loading={loading} error={error} refresh={refresh}/>
+    </div>}
+   </div>
+   <div className="arena-beta-note" role="note"><ShieldAlert size={12} aria-hidden="true"/>
+    BETA · DUELLE · NOCH NICHT MANIPULATIONSSICHER
+   </div>
+  </div>
+  <BottomNav/>
+ </main>;
+}

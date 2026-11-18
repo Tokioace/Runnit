@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 const read = file => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 
 test('Leaderboard keeps arcade shell and normal navigation, without generic PageFrame', () => {
-  const s=read('src/screens/LeaderboardScreen.tsx');assert.match(s,/runnit-ranking-screen/);assert.match(s,/runnit-ranking-list/);assert.match(s,/<BottomNav/);assert.doesNotMatch(s,/<PageFrame/);
+  const s=read('src/screens/LeaderboardScreen.tsx');assert.match(s,/arena-screen runnit-competition/);assert.match(s,/arena-board-list/);assert.match(s,/<BottomNav/);assert.doesNotMatch(s,/<PageFrame/);
 });
 
 test('Leaderboard removes all fictional names, levels and fantasy points', () => {
@@ -13,7 +13,7 @@ test('Leaderboard removes all fictional names, levels and fantasy points', () =>
 });
 
 test('Leaderboard uses meaningful wins and independent distance rankings', () => {
-  const s=read('src/screens/LeaderboardScreen.tsx');for(const x of ['DUELLE','50 M','75 M','100 M'])assert.ok(s.includes(x),x);assert.match(s,/role="tablist"/);assert.match(s,/aria-selected/);assert.doesNotMatch(s,/friends|region|Freunde|FRIENDS/);
+  const s=read('src/screens/LeaderboardScreen.tsx');for(const x of ['RIVALEN','RANGLISTE','REKORDE','50,75,100'])assert.ok(s.includes(x),x);assert.match(s,/role="tablist"/);assert.match(s,/aria-selected/);assert.doesNotMatch(s,/friends|region|Freunde|FRIENDS/);
 });
 
 test('avatar art and skyline are local static assets, no remote profile data or photo permissions', () => {
@@ -42,11 +42,14 @@ test('guests can browse only opted-in public results without an account', () => 
   assert.match(sql,/TO authenticated, anon/);
 });
 
-test('four real distance filters fit the dock and privacy links remain interactive', () => {
-  const css=read('src/styles/leaderboardArcade.css');
+test('three live competition tabs retain the five-slot dock without an internal Arena route', () => {
+  const css=read('src/styles/runnitCompetition.css');
   const screen=read('src/screens/LeaderboardScreen.tsx');
-  assert.match(css,/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
-  assert.match(screen,/runnit-ranking-panel-note/);
-  assert.match(screen,/RANGLISTEN-FREIGABE ÖFFNEN/);
-  assert.match(screen,/runnit-ranking-city" aria-hidden="true"/);
+  const app=read('src/App.tsx');
+  assert.match(screen,/RIVALEN/);assert.match(screen,/RANGLISTE/);assert.match(screen,/REKORDE/);
+  assert.match(screen,/list_beta_runnit_records/);assert.match(screen,/summarizeRivals/);
+  assert.match(css,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(screen,/aria-selected/);assert.match(screen,/<BottomNav/);
+  assert.doesNotMatch(screen,/>ARENA</);
+  assert.match(app,/displayName=\{auth.user\?\.displayName\}/);
 });
