@@ -11,7 +11,7 @@ export type PairedResult = { user_id: string; time_ms: number; username?: string
 export type StoredGhostSession = {
   id: string; created_at: string; target_distance_m: number;
   run_state: string; elapsed_ms: number | null;
-  observed_distance_m: number; steps_count: number;
+  observed_distance_m: number; steps_count: number; motion_permission?: string;
 };
 export type RaceHistoryItem = {
   id: string; occurredAt: string; distanceM: number; timeMs: number;
@@ -78,7 +78,7 @@ export function calculateActivityTotals(
   const weekGhosts = finishedGhosts.filter(g => isInWeek(g.created_at));
   const steps = [
     ...weekRaces.map(r => nonnegative(r.stepsCount)),
-    ...weekGhosts.map(g => nonnegative(g.steps_count)),
+    ...weekGhosts.map(g => g.motion_permission === 'granted' ? nonnegative(g.steps_count) : null),
   ].filter((value): value is number => value !== null);
   const distances = [
     ...weekRaces.map(r => nonnegative(r.measuredDistanceM)),

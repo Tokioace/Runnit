@@ -36,7 +36,7 @@ export function useRunnerHistory(userId: string | null | undefined) {
             .select('duel_id,user_id,time_ms,steps_count,distance_m,created_at')
             .eq('user_id', userId).order('created_at', { ascending: false }).limit(150),
           supabase.from('ghost_run_sessions')
-            .select('id,created_at,target_distance_m,run_state,elapsed_ms,observed_distance_m,steps_count')
+            .select('id,created_at,target_distance_m,run_state,elapsed_ms,observed_distance_m,steps_count,motion_permission')
             .eq('user_id', userId).order('created_at', { ascending: false }).limit(150),
         ]);
         if (ownResultResponse.error) throw ownResultResponse.error;

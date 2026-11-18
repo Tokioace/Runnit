@@ -71,10 +71,10 @@ test('weekly running values count actual completed runs and saved finished ghost
  const h=raceHistoryFromServer(owner,[own],[d],pair);
  const ghost=[{
   id:'ghost-1',created_at:'2026-11-16T23:10:00Z',target_distance_m:50,
-  run_state:'finished',elapsed_ms:30000,observed_distance_m:53,steps_count:40
+  run_state:'finished',elapsed_ms:30000,observed_distance_m:53,steps_count:40,motion_permission:'granted'
  },{
   id:'ghost-2',created_at:'2026-11-16T23:11:00Z',target_distance_m:50,
-  run_state:'stopped',elapsed_ms:10000,observed_distance_m:10,steps_count:12
+  run_state:'stopped',elapsed_ms:10000,observed_distance_m:10,steps_count:12,motion_permission:'unavailable'
  }];
  const stats=calculateActivityTotals(h,ghost,Date.parse('2026-11-16'));
  assert.equal(stats.weeklySteps,92);
@@ -97,3 +97,11 @@ test('local week begins on Monday and times are readable',()=>{
  assert.equal(formatRaceTime(null),'—');
 });
 
+
+test('sensor denied ghost run never contributes invented steps',()=>{
+ const run={id:'unmeasured',created_at:'2026-11-16T10:00:00Z',target_distance_m:50,
+ run_state:'finished',elapsed_ms:40000,observed_distance_m:53,steps_count:0,motion_permission:'unavailable'};
+ const totals=calculateActivityTotals([], [run], Date.parse('2026-11-16'));
+ assert.equal(totals.weeklySteps,null);
+ assert.equal(totals.weeklyDistanceM,53);
+});
