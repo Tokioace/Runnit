@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowRight, BarChart3, Crown, Flame, Gauge, Medal, RefreshCw, ShieldAlert, Swords, Timer, Trophy, UserRound, Users, Zap } from 'lucide-react';
 import BottomNav from '../components/ui/BottomNav';
 import { useRunnerHistory } from '../hooks/useRunnerHistory';
@@ -63,7 +63,10 @@ function Board({title,rows,metric,userId,loading,error,refresh}:{title:string;ro
 }
 
 export default function LeaderboardScreen({userId,displayName}:{userId?:string|null;displayName?:string|null}) {
- const [tab,setTab]=useState<PageTab>('rivals');
+ const [searchParams]=useSearchParams();
+ const requestedTab=searchParams.get('tab');
+ const [tab,setTab]=useState<PageTab>(()=>requestedTab==='records'?'records':requestedTab==='ladder'?'ladder':'rivals');
+ useEffect(()=>{ if(requestedTab==='records'||requestedTab==='ladder'||requestedTab==='rivals')setTab(requestedTab); },[requestedTab]);
  const [metric,setMetric]=useState<Metric>('times');
  const [distance,setDistance]=useState<Distance>(50);
  const [rows,setRows]=useState<BoardRow[]>([]);
