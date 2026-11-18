@@ -3,51 +3,57 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const read = p => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
-test('Home keeps a focused order: hero, account, actions, recent persisted race', () => {
-  const s=read('src/screens/DashboardScreen.tsx'); const a=['runnit-game-hero','runnit-game-hud','runnit-game-modes','runnit-game-duel','recent-race-title','runnit-game-start','<BottomNav']; let last=-1; for(const token of a){const n=s.indexOf(token);assert.ok(n>last,token);last=n;}
+test('Home has the exact reference-led hierarchy without duplicate navigation boxes', () => {
+ const s=read('src/screens/DashboardScreen.tsx');
+ const order=['runnit-showcase-hero','runnit-showcase-scoreboard','runnit-showcase-cta','recent-race-title','runnit-showcase-goal','home-records-title','<BottomNav'];
+ let last=-1;
+ for(const token of order){const n=s.indexOf(token);assert.ok(n>last,token);last=n;}
+ assert.doesNotMatch(s,/runnit-game-modes|modes\.map|AKTIVITÄT/);
 });
-test('Home displays no simulated scores, repeat steps, calories or XP', () => {
-  const s=read('src/screens/DashboardScreen.tsx'); assert.match(s,/useRunnerHistory\(userId\)/); assert.doesNotMatch(s,/KALORIEN|SCHRITTE|XP NOCH NICHT VERFÜGBAR|TurboKai|Stergios_R|SpeedKaze/);
+test('Home uses only persisted completed duels and no fake steps, calories or points', () => {
+ const s=read('src/screens/DashboardScreen.tsx');
+ assert.match(s,/useRunnerHistory\(userId\)/);
+ assert.match(s,/races\.find\(race => race\.completed\)/);
+ assert.match(s,/totals\.completedDuels/);
+ assert.match(s,/totals\.wins/);
+ assert.match(s,/totals\.best50Ms/);
+ assert.doesNotMatch(s,/KALORIEN|SCHRITTE|XP NOCH NICHT VERFÜGBAR|TurboKai|Stergios_R|SpeedKaze|Suiiilas|42,40/);
 });
-test('five arcade dock destinations remain real and accessible', () => {
-  const src = read('src/components/ui/BottomNav.tsx');
-  assert.match(src, /grid-cols-5/);
-  assert.match(src, /href: '\/home', label: 'Start'/);
-  assert.match(src, /href: '\/map', label: 'Karte'/);
-  assert.match(src, /href: '\/stats', label: 'Stats'/);
-  assert.match(src, /aria-current/);
-  assert.match(src, /aria-label=\{label\}/);
-  assert.match(src, /min-w-0/);
+test('Home shows error, loading, guest and real data states instead of fake zeros', () => {
+ const s=read('src/screens/DashboardScreen.tsx');
+ assert.match(s,/ready = Boolean\(userId\) && !loading && !error/);
+ assert.match(s,/onClick=\{refresh\}/);
+ assert.match(s,/!userId \?/);
+ assert.match(s,/SERVERGESPEICHERT/);
+ assert.match(s,/completed\.opponentName/);
+ assert.match(s,/completed\.timeMs/);
 });
-test('dashboard theme is separate from preserved launch artwork', () => {
-  const css = read('src/index.css');
-  assert.match(css, /\.runnit-game-home/);
-  assert.match(css, /\.runnit-game-mode\.is-lime/);
-  assert.match(css, /\.runnit-game-dock/);
-  assert.match(css, /overflow-x: clip/);
-  assert.match(read('src/screens/HomeScreen.tsx'), /runnit-launch-portrait\.avif/);
+test('The only primary CTA leads to the real map, and records opens the records tab', () => {
+ const s=read('src/screens/DashboardScreen.tsx');
+ const board=read('src/screens/LeaderboardScreen.tsx');
+ assert.match(s,/<Link to="\/map" className="runnit-showcase-cta"/);
+ assert.match(s,/\/leaderboard\?tab=records/);
+ assert.match(board,/new URLSearchParams\(location\.search\)\.get\('tab'\) === 'records'/);
+ assert.match(s,/<BottomNav/);
+ assert.match(read('src/components/ui/BottomNav.tsx'),/grid-cols-5/);
 });
-
-test('Stats owns personal recorded metrics while Home only shows the last race', () => {
-  const home=read('src/screens/DashboardScreen.tsx');const stats=read('src/screens/StatsScreen.tsx');const app=read('src/App.tsx');assert.match(home,/LETZTES DUELL/);assert.match(stats,/DIESE <span>WOCHE/);assert.match(stats,/DUELL-<span>BILANZ/);assert.match(app,/<StatsScreen userId=\{auth.user\?\.id\}/);
+test('The half-face hero is one decorative asset, with editable live DOM and safe-area spacing', () => {
+ const s=read('src/screens/DashboardScreen.tsx');
+ const css=read('src/styles/homeShowcase.css');
+ assert.match(s,/runnit-showcase-art/);
+ assert.match(s,/runnit-metal-logo\.svg/);
+ assert.match(css,/runnit-home-half-face\.avif/);
+ assert.match(css,/safe-area-inset-top/);
+ assert.match(css,/safe-area-inset-bottom/);
+ assert.match(s,/aria-expanded=\{messagesOpen\}/);
 });
-
-
-test('Home retains visual hero and artwork without fabricated rankings', () => {
-  const s=read('src/screens/DashboardScreen.tsx');assert.match(s,/runnit-hero-portrait/);assert.match(s,/runnit-hero-glow/);assert.match(s,/runnit-metal-logo.svg/);assert.doesNotMatch(s,/runnit-game-ranks/);
-});
-
-
-test('Home maintains five real destinations and safe-area mobile spacing', () => {
-  const s=read('src/screens/DashboardScreen.tsx');const dock=read('src/components/ui/BottomNav.tsx');assert.match(s,/safe-area-inset-top/);assert.match(s,/<BottomNav/);assert.match(dock,/grid-cols-5/);assert.doesNotMatch(s,/backgroundImage.*runnit-metal-logo/);
-});
-
-
-test('Home preserves an arcade layout with accessible race navigation', () => {
-  const s=read('src/screens/DashboardScreen.tsx');assert.match(s,/runnit-game-duel/);assert.match(s,/runnit-game-hero/);assert.match(s,/aria-label="Auf der Karte ein 1v1 Duell suchen"/);assert.match(s,/runnit-game-start/);
-});
-
-
-test('Home shows one real recent race instead of empty ghost rows or fake positions', () => {
-  const s=read('src/screens/DashboardScreen.tsx');assert.match(s,/last\.timeMs/);assert.match(s,/last\.completed/);assert.match(s,/SERVERGESPEICHERT/);assert.doesNotMatch(s,/runnit-arcade-ghost|verifiedRanks|verifiedRaces/);
+test('Stats still owns personal weekly steps, and five bottom navigation links remain', () => {
+ const home=read('src/screens/DashboardScreen.tsx');
+ const stats=read('src/screens/StatsScreen.tsx');
+ const app=read('src/App.tsx');
+ assert.match(home,/LETZTES DUELL/);
+ assert.match(stats,/DIESE <span>WOCHE/);
+ assert.match(stats,/DUELL-<span>BILANZ/);
+ assert.match(app,/<StatsScreen userId=\{auth.user\?\.id\}/);
+ assert.doesNotMatch(home,/SCHRITTE|KALORIEN|runnit-game-activity/);
 });
