@@ -164,3 +164,46 @@
 /* Preserve solo training access without another redundant dashboard card. */
 .runnit-showcase-solo { display:block; width:max-content; margin:4px 3px -8px auto; color:#5cf2ff; font-size:10px; font-weight:900; font-style:italic; letter-spacing:.04em; text-decoration:none; }
 .runnit-showcase-solo span { font-size:16px; vertical-align:-1px; }
+
+
+/* Screenshot correction: crisp reference-style portrait and compact iPhone proportions. */
+.runnit-showcase-art {
+  background-image:
+    linear-gradient(90deg,rgba(3,5,25,.10) 0%,rgba(3,5,25,.05) 36%,transparent 73%),
+    linear-gradient(180deg,transparent 80%,#06102c 100%),
+    url('/runnit-home-half-face-v2.avif');
+  background-size:100% 100%;
+  background-position:center center;
+  background-repeat:no-repeat;
+  filter:none;
+}
+.runnit-showcase-brand img { filter:none; }
+.runnit-showcase-hero { height:clamp(270px,35.3dvh,344px); }
+.runnit-showcase-greeting { top:43%; }
+.runnit-showcase-scoreboard { min-height:49px; padding:3px 4px; margin-top:-5px; }
+.runnit-showcase-scoreboard svg { width:clamp(21px,5.9vw,28px); height:clamp(21px,5.9vw,28px); }
+.runnit-showcase-cta { min-height:56px; margin-top:16px; padding-top:6px; padding-bottom:6px; }
+.runnit-showcase-recent { min-height:69px; margin-top:13px; padding:6px 12px; }
+.runnit-showcase-recent-race { margin-top:5px; }
+.runnit-showcase-opponent-icon { width:27px; height:27px; }
+.runnit-showcase-goal { margin-top:10px; }
+.runnit-showcase-goal>p { margin-top:1px; }
+.runnit-showcase-goal-track { margin-top:5px; }
+.runnit-showcase-records { margin-top:10px; }
+.runnit-showcase-record-grid { margin-top:5px; }
+.runnit-showcase-record { min-height:53px; gap:3px; padding:6px 2px; }
+.runnit-showcase-note { min-height:0; margin-top:2px; }
+.runnit-showcase-messages .runnit-showcase-solo {
+  display:block; width:fit-content; margin:9px 0 2px;
+  color:#42f6ff; font-size:11px; font-weight:900; text-decoration:none;
+}
+@media (max-height:740px) {
+  .runnit-showcase-hero { height:clamp(244px,34.4dvh,272px); }
+  .runnit-showcase-greeting { top:42%; }
+  .runnit-showcase-scoreboard { min-height:47px; }
+  .runnit-showcase-cta { min-height:53px; margin-top:11px; }
+  .runnit-showcase-recent { min-height:66px; margin-top:9px; }
+  .runnit-showcase-goal { margin-top:8px; }
+  .runnit-showcase-records { margin-top:8px; }
+  .runnit-showcase-record { min-height:49px; }
+}
