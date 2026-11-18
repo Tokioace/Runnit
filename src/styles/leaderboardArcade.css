@@ -65,7 +65,7 @@
   opacity:.74;
 }
 .runnit-ranking-tabs{
-  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:stretch;
   gap:3px;margin:8px 0 12px;padding:0;
   background:none;border:0;box-shadow:none;
 }
@@ -241,3 +241,14 @@
 @media(prefers-reduced-motion:reduce){
   .runnit-ranking-tab,.runnit-ranking-back{transition:none}
 }
+
+/* Four real competition filters; informative panels remain tappable.
+   The city illustration stays decorative rather than absorbing touch events. */
+.runnit-ranking-panel-note {
+  margin: 12px 0;
+  padding: 13px 15px;
+  border: 1px solid rgba(86, 207, 248, 0.36);
+  border-radius: 13px 5px;
+  background: linear-gradient(140deg,rgba(11,33,69,.98),rgba(17,19,61,.92));
+}
+.runnit-ranking-panel-note a { pointer-events:auto; }

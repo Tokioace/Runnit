@@ -41,3 +41,12 @@ test('guests can browse only opted-in public results without an account', () => 
   assert.match(sql,/u\.leaderboard_opt_in IS TRUE/);
   assert.match(sql,/TO authenticated, anon/);
 });
+
+test('four real distance filters fit the dock and privacy links remain interactive', () => {
+  const css=read('src/styles/leaderboardArcade.css');
+  const screen=read('src/screens/LeaderboardScreen.tsx');
+  assert.match(css,/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(screen,/runnit-ranking-panel-note/);
+  assert.match(screen,/RANGLISTEN-FREIGABE ÖFFNEN/);
+  assert.match(screen,/runnit-ranking-city" aria-hidden="true"/);
+});

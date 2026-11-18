@@ -135,17 +135,18 @@ export default function LeaderboardScreen({ userId }: Props) {
         </div>
 
         {userId && consent===false && (
-          <div className="runnit-ranking-city">
+          <div className="runnit-ranking-panel-note">
             <p className="text-xs leading-5 text-cyan-100/75">Deine Ergebnisse bleiben privat, bis du die Anzeige in der Bestenliste im Profil ausdrücklich freigibst.</p>
             <Link to="/profile" className="mt-2 inline-flex min-h-10 items-center text-xs font-black text-lime-300">RANGLISTEN-FREIGABE ÖFFNEN ›</Link>
           </div>
         )}
-        <div className="runnit-ranking-city">
+        <div className="runnit-ranking-panel-note">
           <p className="flex items-start gap-2 text-[11px] leading-5 text-white/65">
             <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-cyan-300" aria-hidden="true"/>
             BETA-MESSUNGEN: Die Zeiten stammen aus gespeicherten 1v1-Ergebnissen und sind noch nicht unabhängig gegen Manipulation verifiziert. Ghost-Trainings und abgebrochene Rennen zählen nicht.
           </p>
         </div>
+        <div className="runnit-ranking-city" aria-hidden="true" />
       </div>
       <BottomNav/>
     </main>
