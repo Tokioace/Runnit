@@ -25,5 +25,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Audit locked dependency tree
-        run: npm audit --audit-level=high
+      - name: Audit runtime dependencies (no exceptions)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Verify scoped, expiring exception for unpatched dev-only picomatch CVE
+        run: node scripts/dependency-audit.mjs
