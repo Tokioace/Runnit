@@ -1,154 +1,141 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Activity, ArrowRight, Award, ChevronRight, Crown, Flame, Flag, Footprints,
-  Ghost, MapPin, Medal, Ruler, Settings, ShieldCheck, Timer,
-  Trophy, UserRound, Zap,
-} from 'lucide-react';
+import { Activity, ArrowRight, ChevronRight, Flag, Ruler, Settings, ShieldCheck, Trophy, UserRound } from 'lucide-react';
 import BottomNav from '../components/ui/BottomNav';
 import AccountDetailsPanel from '../components/profile/AccountDetailsPanel';
 import { useSupabaseUser } from '../hooks/useSupabaseUser';
+import { supabase } from '../lib/supabaseClient';
 
-const resultCards = [
-  { title: 'RENNEN', subtitle: 'Verifizierte Läufe', Icon: Flag },
-  { title: 'SIEGE', subtitle: 'Bestätigte Duelle', Icon: Trophy },
-  { title: 'BESTZEIT', subtitle: '100 m · verifiziert', Icon: Timer },
-] as const;
-
-const goalCards = [
-  { title: 'SCHRITTE', unit: '', Icon: Footprints, hue: 'cyan' },
-  { title: 'DISTANZ', unit: 'km', Icon: MapPin, hue: 'lime' },
-  { title: 'KALORIEN', unit: 'kcal', Icon: Flame, hue: 'pink' },
-] as const;
-
-const futureBadges = [
-  { name: 'SPRINTER', label: 'Zeit noch nicht bestätigt', Icon: Zap, hue: 'cyan' },
-  { name: 'CITY RUNNER', label: 'Rennen noch nicht geprüft', Icon: MapPin, hue: 'blue' },
-  { name: 'SIEGESSERIE', label: 'Siege noch nicht geprüft', Icon: Crown, hue: 'gold' },
-  { name: 'GHOST MASTER', label: 'Ghost-Runs noch nicht geprüft', Icon: Ghost, hue: 'violet' },
-  { name: 'CHALLENGER', label: 'Challenges noch nicht geprüft', Icon: Award, hue: 'lime' },
-] as const;
-
+/** Profile owns identity, privacy, preferences and calibration.
+ * Competition metrics live in Stats, and the rankings live in Leaderboard. */
 export default function ProfileScreen() {
   const { user, loading, loadError, signOut, updateDisplayName, changePassword } = useSupabaseUser();
-  const displayName = loading ? 'WIRD GELADEN' : user?.displayName || 'GAST';
-  const [selectedTab, setSelectedTab] = useState<'profil' | 'ziele' | 'erfolge'>('profil');
+  const [optedIn, setOptedIn] = useState(false);
+  const [consentLoading, setConsentLoading] = useState(false);
+  const [consentSaving, setConsentSaving] = useState(false);
+  const [consentError, setConsentError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!user?.id) {
+      setOptedIn(false); setConsentLoading(false); return;
+    }
+    let mounted = true;
+    setConsentLoading(true);
+    setConsentError(null);
+    void supabase.from('users').select('leaderboard_opt_in')
+      .eq('id', user.id).maybeSingle().then(({ data, error }) => {
+        if (!mounted) return;
+        if (error) setConsentError('Deine Ranglisten-Einstellung konnte nicht geladen werden.');
+        else setOptedIn(data?.leaderboard_opt_in === true);
+        setConsentLoading(false);
+      });
+    return () => { mounted = false; };
+  }, [user?.id]);
+
+  async function updateOptIn(next: boolean) {
+    if (!user?.id || consentSaving || consentLoading) return;
+    setConsentSaving(true); setConsentError(null);
+    try {
+      const { data, error } = await supabase.from('users')
+        .update({ leaderboard_opt_in: next }).eq('id', user.id)
+        .select('leaderboard_opt_in').single();
+      if (error || !data || data.leaderboard_opt_in !== next) throw error || new Error('Update not confirmed');
+      setOptedIn(next);
+    } catch {
+      setConsentError('Ranglisten-Freigabe konnte nicht gespeichert werden. Bitte erneut versuchen.');
+    } finally {
+      setConsentSaving(false);
+    }
+  }
+
+  const displayName = loading ? 'WIRD GELADEN' : user?.displayName || 'GAST';
   return (
     <main className="runnit-game-home runnit-profile-master relative min-h-[100dvh] w-full max-w-full overflow-x-clip text-white">
       <div className="runnit-profile-content relative z-10 mx-auto w-full max-w-[620px] space-y-4 px-3 pb-[calc(8rem+env(safe-area-inset-bottom,0px))] pt-[max(10px,env(safe-area-inset-top,0px))] sm:px-5">
         <header className="runnit-profile-hero" aria-label="Dein RUNNIT Profil">
           <div className="runnit-profile-hero-head flex items-center justify-between gap-3">
-            <Link to="/home" aria-label="Zurück zu Home" className="runnit-profile-back"><ChevronRight className="h-6 w-6 rotate-180" aria-hidden="true" /></Link>
-            <img src="/runnit-metal-logo.svg" alt="RUNNIT" width={240} height={60} className="runnit-profile-logo" />
-            <a href="#konto" aria-label="Zu den Kontoeinstellungen" className="runnit-profile-settings"><Settings className="h-5 w-5" aria-hidden="true" /></a>
+            <Link to="/home" aria-label="Zurück zur Startseite" className="runnit-profile-back"><ChevronRight className="h-6 w-6 rotate-180"/></Link>
+            <img src="/runnit-metal-logo.svg" alt="RUNNIT" width={240} height={60} className="runnit-profile-logo"/>
+            <a href="#konto" aria-label="Zu den Kontoeinstellungen" className="runnit-profile-settings"><Settings className="h-5 w-5"/></a>
           </div>
-          <div className="runnit-profile-hero-character" aria-hidden="true" />
+          <div className="runnit-profile-hero-character" aria-hidden="true"/>
           <div className="runnit-profile-player">
-            <Crown className="runnit-profile-crown" aria-hidden="true" />
+            <UserRound className="runnit-profile-crown" aria-hidden="true"/>
             <p className="runnit-profile-player-name">{displayName}</p>
-            <p className="runnit-profile-level">LV. —</p>
-            <div className="runnit-profile-xp" role="img" aria-label="XP-Fortschritt noch nicht verfügbar"><span /></div>
-            <p className="runnit-profile-xp-label">XP NOCH NICHT VERFÜGBAR</p>
+            <p className="mt-2 text-xs font-black tracking-[0.1em] text-cyan-200">{user ? 'ANGEMELDETER RUNNER' : 'GASTMODUS'}</p>
           </div>
         </header>
 
-        <nav className="runnit-profile-tabs grid grid-cols-3 gap-1.5" aria-label="Profilbereiche">
-          <a href="#profil" onClick={() => setSelectedTab('profil')} aria-current={selectedTab === 'profil' ? 'location' : undefined} className={'runnit-profile-tab' + (selectedTab === 'profil' ? ' runnit-profile-tab-active' : '')}><UserRound aria-hidden="true" /><span>PROFIL</span></a>
-          <a href="#ziele" onClick={() => setSelectedTab('ziele')} aria-current={selectedTab === 'ziele' ? 'location' : undefined} className={'runnit-profile-tab' + (selectedTab === 'ziele' ? ' runnit-profile-tab-active' : '')}><Medal aria-hidden="true" /><span>ZIELE</span></a>
-          <a href="#erfolge" onClick={() => setSelectedTab('erfolge')} aria-current={selectedTab === 'erfolge' ? 'location' : undefined} className={'runnit-profile-tab' + (selectedTab === 'erfolge' ? ' runnit-profile-tab-active' : '')}><Trophy aria-hidden="true" /><span>ERFOLGE</span></a>
-        </nav>
-
-        <section id="profil" aria-labelledby="profile-stats-title">
-          <h1 id="profile-stats-title" className="sr-only">Spielerprofil und sportliche Leistungen</h1>
-          <div className="runnit-profile-result-grid grid grid-cols-3 gap-2">
-            {resultCards.map(({ title, subtitle, Icon }) => (
-              <div key={title} className="runnit-profile-result">
-                <Icon aria-hidden="true" />
-                <strong>—</strong>
-                <div><h2>{title}</h2><p>{subtitle}</p></div>
-              </div>
-            ))}
-          </div>
+        <section className="runnit-profile-panel space-y-3 p-4" aria-labelledby="profile-links">
+          <h1 id="profile-links" className="runnit-profile-extra-title"><Flag className="h-5 w-5"/> DEIN RUNNIT</h1>
+          <p className="text-xs leading-5 text-white/65">Persönliche Ergebnisse und Wettbewerb haben eigene Seiten, damit nichts doppelt erscheint.</p>
+          <Link to="/stats" className="runnit-profile-action"><Activity className="h-5 w-5"/> MEINE LÄUFE & BESTZEITEN <ArrowRight className="h-4 w-4"/></Link>
+          <Link to="/leaderboard" className="runnit-profile-action"><Trophy className="h-5 w-5"/> BETA-RANGLISTE <ArrowRight className="h-4 w-4"/></Link>
         </section>
 
-        <section id="ziele" className="runnit-profile-panel" aria-labelledby="profile-week-title">
-          <div className="runnit-profile-section-head">
-            <h2 id="profile-week-title">WOCHENFORTSCHRITT <span aria-hidden="true">///</span></h2>
-            <Link to="/stats" aria-label="Vollständige Statistiken ansehen" className="runnit-profile-section-link">DIESE WOCHE <ChevronRight aria-hidden="true" /></Link>
-          </div>
-          <div className="runnit-profile-goal-grid grid grid-cols-3 gap-2">
-            {goalCards.map(({ title, unit, Icon, hue }) => (
-              <div key={title} className="runnit-profile-goal">
-                <div className={'runnit-profile-goal-ring runnit-profile-ring-' + hue} role="img" aria-label={title + ': kein Fortschritt ermittelt'}>
-                  <Icon className="h-5 w-5" aria-hidden="true" />
-                  <strong>—</strong><small>{unit || 'SCHRITTE'}</small>
-                </div>
-                <strong>{title}</strong><span>KEINE DATEN</span>
-              </div>
-            ))}
-          </div>
-          <p className="runnit-profile-empty-note">Die Wochenwerte sind noch nicht mit einer verlässlichen Messdatenquelle verbunden.</p>
-        </section>
-
-        <section id="erfolge" className="runnit-profile-panel" aria-labelledby="achievements-title">
-          <div className="runnit-profile-section-head">
-            <h2 id="achievements-title"><Trophy className="h-5 w-5" aria-hidden="true" /> ERFOLGE</h2>
-            <span className="runnit-profile-section-label">VORSCHAU</span>
-          </div>
-          <div className="runnit-profile-badges grid grid-cols-5 gap-1.5">
-            {futureBadges.map(({ name, label, Icon, hue }) => (
-              <div key={name} className="runnit-profile-badge" aria-label={name + ': ' + label}>
-                <span className={'runnit-profile-badge-hex runnit-profile-badge-' + hue}><Icon aria-hidden="true" /></span>
-                <strong>{name}</strong><small>NOCH GESPERRT</small>
-              </div>
-            ))}
-          </div>
-          <p className="runnit-profile-empty-note">Abzeichen sind noch nicht vergeben. Die farbigen Symbole zeigen ausschließlich die geplante Darstellung.</p>
+        <section className="runnit-profile-panel space-y-3 p-4" aria-labelledby="visibility-title">
+          <h2 id="visibility-title" className="runnit-profile-extra-title"><ShieldCheck className="h-5 w-5"/> RANGLISTEN-DATENSCHUTZ</h2>
+          <p className="text-xs leading-5 text-white/70">
+            Deine Zeiten werden privat in deinen Stats gespeichert. Nur wenn du zustimmst, werden
+            dein RUNNIT-Name, deine Bestzeit, Siege und Anzahl abgeschlossener Duelle in der Beta-Rangliste angezeigt.
+            Die Rohdaten deiner GPS-/IMU-Messung werden nicht veröffentlicht.
+          </p>
+          {!user ? (
+            <Link to="/login?next=%2Fprofile" className="runnit-profile-action">ANMELDEN FÜR RANGLISTEN-FREIGABE <ArrowRight className="h-4 w-4"/></Link>
+          ) : (
+            <label className="flex min-h-12 items-center justify-between gap-4 rounded-xl border border-cyan-300/25 bg-[#091a36]/85 px-3 py-2 text-xs font-black">
+              <span>{consentLoading ? 'WIRD GELADEN …' : optedIn ? 'MEINE ZEITEN SIND SICHTBAR' : 'MEINE ZEITEN BLEIBEN PRIVAT'}</span>
+              <input type="checkbox" checked={optedIn} disabled={consentLoading || consentSaving || Boolean(consentError)}
+                onChange={e => { void updateOptIn(e.currentTarget.checked); }}
+                aria-label="Meine Rennleistungen in der Beta-Rangliste veröffentlichen"
+                className="h-6 w-6 accent-lime-400"/>
+            </label>
+          )}
+          {consentSaving && <p role="status" className="text-xs text-cyan-100">ÄNDERUNG WIRD GESPEICHERT …</p>}
+          {consentError && <div role="alert" className="text-xs text-amber-200">{consentError}
+            <button type="button" className="ml-2 underline" onClick={() => {setConsentError(null);setConsentLoading(false);}}>ERNEUT VERSUCHEN</button>
+          </div>}
+          <p className="text-[11px] leading-5 text-cyan-100/60">
+            Der Vergleich verwendet ausschließlich vollständig gespeicherte Duelle.
+            Die Beta-Zeiten sind noch nicht unabhängig gegen Manipulation geprüft.
+          </p>
         </section>
 
         <section id="konto" className="runnit-profile-account-section" aria-labelledby="account-title">
-          <h2 id="account-title" className="runnit-profile-extra-title"><Settings className="h-5 w-5" aria-hidden="true" /> KONTO & EINSTELLUNGEN</h2>
+          <h2 id="account-title" className="runnit-profile-extra-title"><Settings className="h-5 w-5"/> KONTO & EINSTELLUNGEN</h2>
           {loading ? (
             <div role="status" className="runnit-profile-panel flex min-h-32 items-center justify-center text-sm text-white/70">Kontostatus wird geladen …</div>
           ) : user ? (
-            <AccountDetailsPanel user={user} updateDisplayName={updateDisplayName} changePassword={changePassword} signOut={signOut} />
+            <AccountDetailsPanel user={user} updateDisplayName={updateDisplayName} changePassword={changePassword} signOut={signOut}/>
           ) : (
-            <div aria-label="Gastprofil" className="runnit-profile-panel space-y-3 p-5">
-              <p className="text-sm font-bold text-cyan-100">Du erkundest Runnit als Gast.</p>
-              <p className="text-xs leading-5 text-white/70">Karte, Rangliste und Testlabor kannst du ohne Konto erkunden. Für Rennen musst du dich anmelden.</p>
-              {loadError && <p role="status" className="text-xs text-amber-200">Dein Kontostatus konnte nicht geladen werden. Der Gastmodus bleibt verfügbar.</p>}
-              <Link to="/login?next=%2Fprofile" className="runnit-profile-action runnit-profile-action-lime">ANMELDEN / REGISTRIEREN <ArrowRight className="h-5 w-5" aria-hidden="true" /></Link>
+            <div className="runnit-profile-panel space-y-3 p-5">
+              <p className="text-sm font-bold text-cyan-100">Du erkundest RUNNIT als Gast.</p>
+              {loadError && <p role="alert" className="text-xs text-amber-200">Dein Kontostatus konnte nicht geladen werden.</p>}
+              <Link to="/login?next=%2Fprofile" className="runnit-profile-action runnit-profile-action-lime">ANMELDEN / REGISTRIEREN <ArrowRight className="h-5 w-5"/></Link>
             </div>
           )}
         </section>
 
-        <section className="runnit-profile-panel" aria-label="Individuelle Gehschrittlänge">
-          <h2 className="runnit-profile-extra-title"><Ruler className="h-5 w-5" aria-hidden="true" /> SCHRITTLÄNGE</h2>
+        <section className="runnit-profile-panel" aria-label="Schrittlängenkalibrierung">
+          <h2 className="runnit-profile-extra-title"><Ruler className="h-5 w-5"/> SCHRITTLÄNGE</h2>
           {user?.walkingCalibration ? (
-            <>
-              <p className="mt-3 text-2xl font-black italic text-cyan-200">{(user.walkingCalibration.walkingStrideM * 100).toFixed(1)} cm <span className="text-xs font-semibold text-white/60">pro Gehschritt</span></p>
-              <p className="mt-2 text-xs leading-5 text-white/60">Körpergröße: {user.walkingCalibration.heightCm} cm · {user.walkingCalibration.stepCount} Schritte · experimentelle GPS-Endpunktmessung. Nicht für Sprintwertungen verwendet.</p>
-            </>
-          ) : <p className="mt-3 text-xs leading-5 text-white/65">Noch keine persönliche Schrittlänge gespeichert.</p>}
-          <Link to="/calibration" className="runnit-profile-action">{user?.walkingCalibration ? 'KALIBRIERUNG WIEDERHOLEN' : 'SCHRITTLÄNGE KALIBRIEREN'} <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+            <p className="mt-3 text-xs leading-5 text-cyan-100/75">{(user.walkingCalibration.walkingStrideM*100).toFixed(1)} cm pro Gehschritt · experimentell, nicht für Wettkämpfe gewertet.</p>
+          ) : <p className="mt-3 text-xs text-white/65">Noch keine Schrittlänge kalibriert.</p>}
+          <Link to="/calibration" className="runnit-profile-action">KALIBRIERUNG ÖFFNEN <ArrowRight className="h-4 w-4"/></Link>
         </section>
 
         <section className="runnit-profile-panel" aria-label="Entwicklungslabore">
-          <h2 className="runnit-profile-extra-title"><Activity className="h-5 w-5" aria-hidden="true" /> RUNNIT ENGINEERING</h2>
-          <p className="mt-2 text-xs leading-5 text-white/65">Experimente sind keine offiziellen Wettkämpfe und beeinflussen keine Rangliste.</p>
-          <div className="runnit-profile-lab-links mt-3 space-y-2">
-            <Link to="/fusion-lab" className="runnit-profile-action"><ShieldCheck className="h-4 w-4" aria-hidden="true" /> GPS × IMU FUSION <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
-            <Link to="/sprint-lab" className="runnit-profile-action"><Flag className="h-4 w-4" aria-hidden="true" /> SPRINT ARENA · DEMO <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+          <h2 className="runnit-profile-extra-title"><Activity className="h-5 w-5"/> TESTLABORE</h2>
+          <p className="mt-2 text-xs text-white/65">Diagnosewerkzeuge werden nicht als Wettkampfergebnisse gewertet.</p>
+          <div className="mt-3 space-y-2">
+            <Link to="/gps-lab" className="runnit-profile-action">SCHRITTZÄHLER TEST <ArrowRight className="h-4 w-4"/></Link>
+            <Link to="/fusion-lab" className="runnit-profile-action">GPS × IMU FUSION <ArrowRight className="h-4 w-4"/></Link>
+            <Link to="/sprint-lab" className="runnit-profile-action">SPRINT-SIMULATION · DEMO <ArrowRight className="h-4 w-4"/></Link>
           </div>
         </section>
-
-        <div className="runnit-profile-trust flex gap-2">
-          <ShieldCheck className="h-5 w-5 shrink-0 text-cyan-200" aria-hidden="true" />
-          <p>Es gibt noch keine geprüften Laufdaten. Ein RUNNIT-Konto ist kein Identitäts- oder Leistungsnachweis. Verifizierte Rennleistungen werden erst nach zuverlässiger Prüfung berücksichtigt.</p>
-        </div>
       </div>
-      <BottomNav />
+      <BottomNav/>
     </main>
   );
 }
+

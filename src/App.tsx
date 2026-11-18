@@ -123,11 +123,11 @@ export default function App() {
     <div className="dark">
       <Routes>
         <Route path="/" element={<HomeScreen isSignedIn={Boolean(auth.user)} guestAccess={guestAccess} onStart={enterApp} onContinueAsGuest={enterGuestMode} />} />
-        <Route path="/home" element={<DashboardScreen displayName={auth.user?.displayName} />} />
-        <Route path="/stats" element={<StatsScreen />} />
+        <Route path="/home" element={<DashboardScreen displayName={auth.user?.displayName} userId={auth.user?.id} />} />
+        <Route path="/stats" element={<StatsScreen userId={auth.user?.id} />} />
         <Route path="/map" element={<MapScreen />} />
         <Route path="/ghost-run" element={<GhostRunScreen />} />
-        <Route path="/leaderboard" element={<LeaderboardScreen />} />
+        <Route path="/leaderboard" element={<LeaderboardScreen userId={auth.user?.id} />} />
         <Route path="/profile" element={<ProfileScreen />} />
         <Route path="/gps-lab" element={<GpsLabScreen />} />
         <Route path="/gps-field-test" element={<GpsFieldTestScreen />} />
