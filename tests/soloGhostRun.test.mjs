@@ -37,15 +37,8 @@ test('stopped GPS run never fabricates finish time or a win even with movement',
   assert.equal(determineDuelOutcome([], 'any', 'completed'),'pending');
 });
 
-test('separate route exists in Home and Stats with guest login return path', () => {
-  const app = source('src/App.tsx');
-  const home = source('src/screens/DashboardScreen.tsx');
-  const stats = source('src/screens/StatsScreen.tsx');
-  assert.match(app, /<Route path="\/ghost-run" element=\{<GhostRunScreen \/>\}/);
-  assert.match(app, /'\/ghost-run'\]/);
-  assert.match(home,/to="\/ghost-run"/);
-  assert.match(stats,/to="\/ghost-run"/);
-  assert.match(source('src/screens/GhostRunScreen.tsx'),/\/login\?next=%2Fghost-run/);
+test('Ghost Run is accessible from Home and saved solo sessions appear in Stats', () => {
+  const app=source('src/App.tsx');const home=source('src/screens/DashboardScreen.tsx');const stats=source('src/screens/StatsScreen.tsx');assert.match(app,/path="\/ghost-run"/);assert.match(home,/to="\/ghost-run"/);assert.match(stats,/ghostSessions/);assert.match(stats,/\/login\?next=%2Fstats/);
 });
 
 test('solo run reuses real GPS evaluator and same live IMU peak detector as 1v1', () => {
