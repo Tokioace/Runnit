@@ -72,11 +72,22 @@ test('LEGENDS final iPhone fix preserves complete totals above dock',()=>{
   assert.match(last,/\.arena-rivals \.arena-showdown \{[\s\S]*?15\.7dvh/);
   assert.match(last,/\.arena-rivals \.arena-duel-grid \{[\s\S]*?height: 42px/);
   assert.match(last,/\.arena-rivals \.arena-self-strip \{[\s\S]*?height: 40px/);
-  assert.match(last,/\.runnit-game-dock \{[\s\S]*?height: 58px/);
+  assert.doesNotMatch(last,/\.runnit-game-dock\s*\{/); // shared dock owns its own sizing
   assert.match(last,/safe-area-inset-bottom/);
   const screen=read('src/screens/LeaderboardScreen.tsx');
   assert.match(screen,/history\.totals\.completedDuels/);
   assert.match(screen,/history\.totals\.wins/);
   assert.match(screen,/history\.totals\.losses/);
   assert.doesNotMatch(last,/runnit-showcase|runnit-game-home/);
+});
+
+test('LEGENDS reuses the global bottom dock appearance without route-specific overrides',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ const nav=read('src/components/ui/BottomNav.tsx');
+ const screen=read('src/screens/LeaderboardScreen.tsx');
+ assert.doesNotMatch(css,/\.runnit-(?:competition\.runnit-)?legends\s+\.runnit-(?:game-dock|dock-item|dock-caption)/);
+ assert.match(screen,/<BottomNav\s*\/>/);
+ assert.match(nav,/runnit-game-dock fixed inset-x-0 bottom-0/);
+ assert.match(nav,/runnit-dock-active text-cyan-100/);
+ assert.match(nav,/active && href === '\/leaderboard' \? 'LEGENDS' : display/);
 });

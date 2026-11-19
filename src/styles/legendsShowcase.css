@@ -231,37 +231,7 @@
   font-size:clamp(8px,2.2vw,12px);
 }
 .runnit-legends .arena-beta-note svg {color:var(--l-lime)}
-/* Only the LEGENDS route gets the reference-style bottom dock.
-   Other routes keep their exact existing global navigation. */
-.runnit-legends .runnit-game-dock {
-  left:7px;right:7px;bottom:clamp(8px,2.5dvh,21px);
-  width:auto;max-width:none;height:70px;
-  padding:7px 6px;border:2px solid #d85dff;border-radius:25px;
-  background:linear-gradient(180deg,#061631ee,#060925f9);
-  box-shadow:inset 0 1px #fff8,0 0 0 2px #b13aff54,0 0 16px #df21f9b1;
-  backdrop-filter:blur(9px);
-}
-.runnit-legends .runnit-game-dock ul {
-  max-width:614px;height:100%;padding:0 2px;
-  align-items:stretch;gap:2px;
-}
-.runnit-legends .runnit-dock-item {
-  min-height:0;height:100%;gap:3px;padding:3px 0;
-  border-radius:12px;text-decoration:none;
-}
-.runnit-legends .runnit-dock-item svg {width:24px;height:24px}
-.runnit-legends .runnit-dock-caption {
-  font-size:clamp(8px,2.35vw,12px);line-height:1.05;
-  white-space:nowrap;letter-spacing:-.04em;
-}
-.runnit-legends .runnit-dock-item[aria-current="page"] {
-  border:2px solid #dcff28;border-radius:13px;
-  color:#d2ff13;background:linear-gradient(160deg,#4a6c03dd,#10300fdd 60%,#071324);
-  box-shadow:inset 0 1px #ffff8f9c,0 0 12px #b5ff04c9;
-}
-.runnit-legends .runnit-dock-item[aria-current="page"] svg {
-  color:#d5ff09;filter:drop-shadow(0 0 5px #baff00);
-}
+/* LEGENDS uses the same shared BottomNav appearance as every other page. */
 @media(max-height:700px) {
   .runnit-legends .arena-hero {
     flex-basis:clamp(228px,37dvh,270px);
@@ -279,10 +249,8 @@
   .runnit-legends .arena-tabs button {font-size:9px;gap:2px}
   .runnit-legends .arena-tabs button svg {width:13px;height:13px}
   .runnit-legends .arena-section-bar strong {font-size:17px}
-  .runnit-legends .runnit-dock-caption {font-size:7.5px}
 }
 @media(prefers-reduced-motion:reduce) {
-  .runnit-legends .runnit-dock-item {transition:none}
 }
 
 
@@ -413,13 +381,6 @@
 .runnit-legends .arena-rivals .arena-self-strip {
   flex:0 0 clamp(46px,6.4dvh,52px);margin-top:2px;
 }
-.runnit-legends .runnit-game-dock {
-  height:62px;bottom:24px;padding:6px 6px;
-  border-radius:26px;
-}
-.runnit-legends .runnit-dock-item[aria-current="page"] {
-  border-radius:13px;box-shadow:inset 0 1px #ffff8f9c,0 0 9px #b5ff04c9;
-}
 @media (max-height:700px) {
   .runnit-legends .arena-hero {
     flex-basis:clamp(260px,42dvh,302px);
@@ -427,7 +388,6 @@
   }
   .runnit-legends .arena-hero h1 {height:clamp(108px,18dvh,134px)}
   .runnit-legends .arena-rivals .arena-showdown {flex-basis:135px;height:135px}
-  .runnit-legends .runnit-game-dock {height:58px;bottom:15px}
 }
 @media (max-width:350px) {
   .runnit-legends .arena-hero-bottom {font-size:11px}
@@ -532,9 +492,6 @@
   min-height:19px;
   line-height:1.1;
 }
-.runnit-competition.runnit-legends .runnit-game-dock {
-  bottom:clamp(20px,3.8dvh,31px);
-}
 @media (max-height:720px) {
   .runnit-competition.runnit-legends .arena-hero {
     flex-basis:clamp(265px,41.5dvh,295px);
@@ -627,9 +584,4 @@
   min-height: 15px;
   font-size: clamp(7px, 1.9vw, 10px);
   line-height: 1.05;
-}
-.runnit-competition.runnit-legends .runnit-game-dock {
-  height: 58px;
-  bottom: max(8px, calc(env(safe-area-inset-bottom, 0px) - 18px));
-  padding: 5px 6px;
 }
