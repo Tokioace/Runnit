@@ -79,3 +79,30 @@ test('stats UI uses real image, dynamic Supabase data, and on-entry animated bar
  assert.match(migration,/using \(user_id=\(select auth\.uid\(\)\)\)/);
  assert.doesNotMatch(css,/runnit-dock|runnit-showcase-home|runnit-legends/);
 });
+
+test('iPhone-mini STATS uses compact image-backed cards without touching other screens or shared dock',()=>{
+ const css=read('src/styles/statsPerformance.css');
+ const screen=read('src/screens/StatsScreen.tsx');
+ const mobile=css.slice(css.lastIndexOf('iPhone mini / small-phone visual parity'));
+ assert.match(mobile,/@media \(max-width:480px\)/);
+ assert.match(mobile,/\.runnit-stats-v2 \.stats-v2-hero\s*\{[\s\S]*?17\.2dvh/);
+ assert.match(mobile,/\.runnit-stats-v2 \.stats-v2-chart\s*\{[\s\S]*?height:69px/);
+ assert.match(mobile,/\.runnit-stats-v2 \.stats-v2-tile\s*\{[\s\S]*?min-height:55px/);
+ assert.match(mobile,/\.runnit-stats-v2 \.stats-v2-speed\s*\{max-width:111px/);
+ assert.match(css,/runnit-stats-stadium\.webp/);
+ assert.match(screen,/stats-v2-bar-fill/);
+ assert.match(screen,/strokeDashoffset/);
+ assert.match(screen,/<BottomNav\/>/);
+ assert.doesNotMatch(mobile,/runnit-game-dock|runnit-dock-item|runnit-showcase-home|runnit-legends/);
+});
+test('goal editing and run archive remain accessible after compacting mobile STATS',()=>{
+ const screen=read('src/screens/StatsScreen.tsx');
+ assert.match(screen,/<details className="stats-v2-goal-details">/);
+ assert.match(screen,/<summary>WOCHENZIEL ANPASSEN/);
+ assert.match(screen,/await goal\.save\(goalDraft\)/);
+ assert.match(screen,/stats-v2-goal-controls/);
+ assert.match(screen,/<details className="stats-v2-panel stats-v2-history"/);
+ assert.match(screen,/entries\.map\(e=>/);
+ assert.match(screen,/useRunnerHistory\(userId\)/);
+ assert.match(screen,/useStatsGoal\(userId\)/);
+});

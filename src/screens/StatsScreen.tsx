@@ -204,24 +204,27 @@ export default function StatsScreen({userId}:Props) {
              </div>
            </div>
          </div>
-         <div className="stats-v2-goal-controls">
-           <label htmlFor="stats-goal-select">WOCHENZIEL ANPASSEN</label>
-           <select id="stats-goal-select" value={goalDraft} disabled={goal.saving||goal.loading}
-             onChange={e=>{setGoalDraft(Number(e.target.value));setSaved(false);}}>
-             {goals.map(m=><option key={m} value={m}>{(m/1000).toLocaleString('de-DE')} km</option>)}
-           </select>
-           <button type="button" disabled={goal.saving||goal.loading||goalDraft===goal.goalM} onClick={saveGoal}>
-             {goal.saving?'SPEICHERT …':saved?'GESPEICHERT':'SPEICHERN'} {saved?<Check size={15}/>:null}
-           </button>
-         </div>
-         <p className="stats-v2-caption">Dein Ziel wird in Supabase gespeichert. Der Tacho zählt bei jedem Öffnen neu hoch.</p>
+         <details className="stats-v2-goal-details">
+           <summary>WOCHENZIEL ANPASSEN <span aria-hidden="true">⌄</span></summary>
+           <div className="stats-v2-goal-controls">
+             <label htmlFor="stats-goal-select">ZIEL-DISTANZ</label>
+             <select id="stats-goal-select" value={goalDraft} disabled={goal.saving||goal.loading}
+               onChange={e=>{setGoalDraft(Number(e.target.value));setSaved(false);}}>
+               {goals.map(m=><option key={m} value={m}>{(m/1000).toLocaleString('de-DE')} km</option>)}
+             </select>
+             <button type="button" disabled={goal.saving||goal.loading||goalDraft===goal.goalM} onClick={saveGoal}>
+               {goal.saving?'SPEICHERT …':saved?'GESPEICHERT':'SPEICHERN'} {saved?<Check size={15}/>:null}
+             </button>
+           </div>
+           <p className="stats-v2-caption">Dein Wochenziel wird für dein Konto in Supabase gespeichert. Der Tacho startet bei jedem Öffnen neu.</p>
+         </details>
        </section>
 
-       <section className="stats-v2-panel stats-v2-history" aria-labelledby="stats-history">
-         <Headline id="stats-history" detail={entries.length+' EINTRÄGE'}>LETZTE <em>LÄUFE</em></Headline>
+       <details className="stats-v2-panel stats-v2-history" aria-labelledby="stats-history">
+         <summary><Headline id="stats-history" detail={entries.length+' EINTRÄGE'}>LETZTE <em>LÄUFE</em></Headline></summary>
          {entries.length===0?<p className="stats-v2-caption">Noch keine abgeschlossenen Läufe gespeichert.</p>:
          <ol>{entries.map(e=><li key={e.id}><span><strong>{e.title}</strong><small>{e.sub} · {Number.isFinite(Date.parse(e.at))?new Date(e.at).toLocaleDateString('de-DE'):''}</small></span><b>{e.time}</b></li>)}</ol>}
-       </section>
+       </details>
        <p className="stats-v2-safety"><ShieldCheck aria-hidden="true" size={18}/>
          Die Anzeige basiert auf gespeicherten Beta-Renndaten. GPS-/IMU-Messungen sind noch nicht unabhängig manipulationssicher.
        </p>
