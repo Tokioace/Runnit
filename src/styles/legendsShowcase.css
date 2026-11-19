@@ -435,3 +435,122 @@
   .runnit-legends .arena-showdown-person .arena-avatar--large {width:46px;height:46px}
   .runnit-legends .arena-showdown-person>span:last-child {font-size:9px}
 }
+
+
+/* iPhone 13 mini visual acceptance, 2026-11-19.
+   Match the approved screenshot without modifying any Home page component.
+   The compact heights guarantee the 3-value result strip is not below the
+   fixed dock on small phone viewports. */
+.runnit-competition.runnit-legends .arena-stage {
+  gap:1px;
+}
+.runnit-competition.runnit-legends .arena-hero {
+  flex:0 0 clamp(282px,43.4dvh,337px);
+  height:clamp(282px,43.4dvh,337px);
+  background:
+    linear-gradient(180deg,#080c2400 0%,#070c2400 74%,#070a22c4 92%,#070a24 100%),
+    url('/runnit-legends-hero.webp') center 16px/100% 75% no-repeat,
+    linear-gradient(155deg,#0b0925,#070a23 75%,#14103b);
+}
+/* The existing image is a composition, not another city overlay.
+   This prevents the empty synthetic road between the title and tabs. */
+.runnit-competition.runnit-legends .arena-hero h1 {
+  bottom:-28px;
+}
+.runnit-competition.runnit-legends .arena-hero-bottom {
+  bottom:-2px;
+}
+.runnit-competition.runnit-legends .arena-tabs {
+  margin:8px 4px 0;
+  flex-basis:clamp(34px,4.6dvh,39px);
+}
+.runnit-competition.runnit-legends .arena-panel-area {
+  gap:2px;
+}
+.runnit-competition.runnit-legends .arena-section-bar {
+  flex:0 0 30px;
+  height:30px;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-showdown {
+  flex:0 0 clamp(122px,17.2dvh,134px);
+  height:clamp(122px,17.2dvh,134px);
+}
+.runnit-competition.runnit-legends .arena-showdown-people {
+  inset:0 8px 35px;
+}
+ .runnit-competition.runnit-legends .arena-versus {
+  top:8px;
+}
+.runnit-competition.runnit-legends .arena-versus strong {
+  height:clamp(34px,5.2dvh,40px);
+}
+.runnit-competition.runnit-legends .arena-rematch {
+  width:68%;
+  height:clamp(27px,3.8dvh,32px);
+}
+.runnit-competition.runnit-legends .arena-showdown-person .arena-avatar--large {
+  width:46px;height:46px;max-width:46px;max-height:46px;
+}
+.runnit-competition.runnit-legends .arena-versus b {
+  font-size:clamp(21px,5.7vw,28px);
+}
+.runnit-competition.runnit-legends .arena-versus small {
+  font-size:clamp(7px,2.1vw,9px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-grid {
+  flex:0 0 auto;
+  height:46px;
+  min-height:46px;
+  max-height:46px;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-panel {
+  height:46px;
+  min-height:46px;
+  max-height:46px;
+  padding:1px 4px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+.runnit-competition.runnit-legends .arena-duel-panel h2 {
+  min-height:17px;
+  height:17px;
+  font-size:clamp(9px,2.35vw,13px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-mini-row {
+  flex:0 0 20px;
+  min-height:20px;
+  height:20px;
+  font-size:clamp(9px,2.4vw,13px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip {
+  flex:0 0 47px;
+  height:47px;
+  min-height:47px;
+  margin-top:2px;
+}
+.runnit-competition.runnit-legends .arena-beta-note {
+  min-height:19px;
+  line-height:1.1;
+}
+.runnit-competition.runnit-legends .runnit-game-dock {
+  bottom:clamp(20px,3.8dvh,31px);
+}
+@media (max-height:720px) {
+  .runnit-competition.runnit-legends .arena-hero {
+    flex-basis:clamp(265px,41.5dvh,295px);
+    height:clamp(265px,41.5dvh,295px);
+  }
+  .runnit-competition.runnit-legends .arena-hero h1 {
+    height:clamp(102px,17dvh,125px);
+    bottom:-25px;
+  }
+  .runnit-competition.runnit-legends .arena-rivals .arena-showdown {
+    flex-basis:124px;
+    height:124px;
+  }
+  .runnit-competition.runnit-legends .arena-rivals .arena-self-strip {
+    flex-basis:43px;
+    height:43px;
+    min-height:43px;
+  }
+}

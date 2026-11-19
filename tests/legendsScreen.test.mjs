@@ -56,3 +56,12 @@ test('LEGENDS changes do not import or style the Home screen',()=>{
  const css=read('src/styles/legendsShowcase.css');
  assert.doesNotMatch(css,/\.runnit-showcase-home|\.runnit-game-home/);
 });
+
+test('LEGENDS compact iPhone layout keeps the summary visible before the dock',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ assert.match(css,/iPhone 13 mini visual acceptance/);
+ assert.match(css,/\.arena-rivals \.arena-duel-grid \{[\s\S]*?height:46px/);
+ assert.match(css,/\.arena-rivals \.arena-self-strip \{[\s\S]*?height:47px/);
+ assert.match(css,/\.arena-rivals \.arena-showdown \{[\s\S]*?17\.2dvh/);
+ assert.match(css,/\.arena-hero h1 \{\s*bottom:-28px/);
+});
