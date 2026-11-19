@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="170" height="124" viewBox="0 0 170 124" role="img" aria-label="VS">
+<defs>
+<linearGradient id="a" x1=".12" y1="0" x2=".8" y2="1"><stop stop-color="#efff31"/><stop offset=".30" stop-color="#ddff08"/><stop offset=".74" stop-color="#cfff00"/><stop offset="1" stop-color="#aafa04"/></linearGradient>
+<filter id="shadow" x="-15%" y="-15%" width="135%" height="135%"><feGaussianBlur stdDeviation="1.2"/></filter>
+</defs>
+<!-- Two paint silhouettes traced from the approved reference rather than font-based VS lettering. -->
+<g fill="#061122" opacity=".98" transform="translate(2,3)" filter="url(#shadow)">
+<path d="M118 17L114 20L113 18L79 41L39 83L38 81L51 51L52 44L48 36L48 38L37 44L14 104L13 119L15 117L22 120L26 115L28 117L116 25L119 20L117 20Z"/>
+<path d="M149 41L147 39L127 40L91 57L82 65L79 71L80 76L84 80L117 81L68 103L66 106L55 111L58 111L58 113L36 122L59 118L58 121L70 116L73 117L110 102L127 91L129 92L134 88L138 80L133 70L125 68L100 68L115 59L123 59L142 52L140 51L146 48L144 47L147 46L145 44Z"/>
+</g>
+<g fill="url(#a)">
+<path d="M118 17L114 20L113 18L79 41L39 83L38 81L51 51L52 44L48 36L48 38L37 44L14 104L13 119L15 117L22 120L26 115L28 117L116 25L119 20L117 20Z"/>
+<path d="M149 41L147 39L127 40L91 57L82 65L79 71L80 76L84 80L117 81L68 103L66 106L55 111L58 111L58 113L36 122L59 118L58 121L70 116L73 117L110 102L127 91L129 92L134 88L138 80L133 70L125 68L100 68L115 59L123 59L142 52L140 51L146 48L144 47L147 46L145 44Z"/>
+</g>
+<path d="M18 110L39 78M69 101L132 72M67 115L118 94M100 35L143 23" fill="none" stroke="#efff44" stroke-width="1" stroke-linecap="round" opacity=".8"/>
+</svg>
