@@ -963,3 +963,107 @@
   display:none;
 }
 /* Dense iPhone layout stays intact; no controls or totals are repositioned. */
+
+
+/* LEGENDS FINAL GRAPHIC PARITY — maintain shared dock, Hero and all live state.
+ * Buttons/labels still use real DOM and respond to clicks.
+ * Source geometry traced from the user-approved image; no fake scores. */
+
+/* Replace the incorrect stylized VS type with the reference paint silhouettes.
+ * Use a taller image slot so the strokes are neither compressed nor skewed. */
+.runnit-competition.runnit-legends .arena-versus {
+  top:1px;
+  width:35%;
+  gap:0;
+}
+.runnit-competition.runnit-legends .arena-versus strong {
+  display:block;
+  width:100%;
+  height:clamp(48px,7.4dvh,59px);
+  background:url('/runnit-legends-vs-refined.svg') center top/auto 100% no-repeat;
+  transform:none;
+  filter:drop-shadow(1px 2px 1px #020819);
+}
+.runnit-competition.runnit-legends .arena-versus small {
+  margin-top:0;
+  font-size:clamp(8px,2.13vw,11px);
+  letter-spacing:-.015em;
+}
+.runnit-competition.runnit-legends .arena-versus b {
+  margin-top:0;
+  font-size:clamp(23px,6.35vw,32px);
+}
+
+/* Entire angled neon racing board is artwork. The clickable Link and its
+ * readable text are unchanged; the twin bars are rendered only once. */
+.runnit-competition.runnit-legends .arena-rematch {
+  width:81%;
+  height:clamp(30px,4.25dvh,35px);
+  bottom:3px;
+  padding:0 6px 0 1px;
+  border:0;
+  border-radius:0;
+  background:url('/runnit-legends-cta-plate.svg') center center/100% 100% no-repeat;
+  box-shadow:none;
+  transform:translateX(-50%);
+  color:#07140d;
+  font-size:clamp(16px,4.4vw,24px);
+  line-height:1;
+  letter-spacing:-.04em;
+  text-shadow:0 1px #efff75;
+}
+.runnit-competition.runnit-legends .arena-rematch::after {
+  content:none;
+  display:none;
+}
+.runnit-competition.runnit-legends .arena-rematch:focus-visible {
+  outline:2px solid #f5ffff;
+  outline-offset:2px;
+}
+
+/* Real reflective, diagonally engraved panel texture rather than a flat fill.
+ * Compact laurels are a separate upper image, kept outside the three columns. */
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip {
+  overflow:hidden;
+  background:
+    url('/runnit-legends-laurels-compact.svg') center center/100% 76% no-repeat,
+    url('/runnit-legends-stats-metal.svg') center center/100% 100% no-repeat,
+    linear-gradient(112deg,#071c27,#0b132c 54%,#321137);
+  border:2px solid #d7ff18;
+  border-right-color:#f6f7ff;
+  border-radius:12px 2px 12px 2px;
+  box-shadow:
+    inset 0 1px 0 #ffffff68,
+    inset 0 -1px 0 #011019,
+    0 0 9px #bdfb11a0,
+    0 0 5px #ef25ff22;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::before,
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::after {
+  content:none;
+  display:none;
+}
+.runnit-competition.runnit-legends .legends-summary {
+  z-index:2;
+}
+
+/* Extra reflective top plane and hairline diagonal engraving on the small
+ * panels, without affecting their content or scroll behavior. */
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-panel {
+  background:
+    linear-gradient(147deg,#d4f5ff24 0%,#ffffff05 17%,transparent 42%),
+    repeating-linear-gradient(146deg,transparent 0 14px,#a4bbd00d 15px 16px,transparent 17px 32px),
+    linear-gradient(165deg,#102443 0%,#07162d 53%,#071226 100%);
+  border-top-color:#9afdff;
+  box-shadow:
+    inset 0 1px 0 #d5eeff48,
+    0 0 8px #00e5ff88;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-panel--magenta {
+  background:
+    linear-gradient(147deg,#ffcaff1c 0%,transparent 29%),
+    repeating-linear-gradient(146deg,transparent 0 14px,#bda5e90e 15px 16px,transparent 17px 32px),
+    linear-gradient(165deg,#211a43 0%,#0c1431 55%,#140e32 100%);
+  border-top-color:#ffd4fb;
+  box-shadow:inset 0 1px 0 #ffdfff40,0 0 8px #fc39ff96;
+}

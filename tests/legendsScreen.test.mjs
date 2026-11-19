@@ -189,3 +189,40 @@ test('LEGENDS artwork polish cannot cover real VS results or change the shared d
  assert.doesNotMatch(pass,/\.runnit-(?:competition\.runnit-)?legends\s+\.runnit-(?:game-dock|dock-item|dock-caption)/);
  assert.doesNotMatch(pass,/runnit-showcase-home|runnit-game-home/);
 });
+
+test('LEGENDS final graphic pass uses reference-traced VS instead of skewed type',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ const layer=css.slice(css.lastIndexOf('LEGENDS FINAL GRAPHIC PARITY'));
+ const vs=read('public/runnit-legends-vs-refined.svg');
+ assert.match(layer,/runnit-legends-vs-refined\.svg/);
+ assert.match(vs,/Two paint silhouettes traced from the approved reference/);
+ assert.match(layer,/\.arena-versus strong\s*\{[\s\S]*?transform:none/);
+ assert.match(layer,/\.arena-versus b/);
+ const screen=read('src/screens/LeaderboardScreen.tsx');
+ assert.match(screen,/rival\.wins/);
+ assert.match(screen,/rival\.losses/);
+});
+test('LEGENDS NEUES DUELL remains an actual map link with the angled graphic CTA',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ const layer=css.slice(css.lastIndexOf('LEGENDS FINAL GRAPHIC PARITY'));
+ const art=read('public/runnit-legends-cta-plate.svg');
+ const screen=read('src/screens/LeaderboardScreen.tsx');
+ assert.match(art,/Entire angular|Correct angular board/);
+ assert.match(art,/<path d="M53 8L619 8L584 87L8 87Z"/);
+ assert.match(layer,/url\('\/runnit-legends-cta-plate\.svg'\)/);
+ assert.match(layer,/\.arena-rematch::after\s*\{\s*content:none/);
+ assert.match(screen,/<Link className="arena-rematch" to="\/map">/);
+});
+test('LEGENDS metallic scorecard keeps metrics live and excludes shared navigation',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ const layer=css.slice(css.lastIndexOf('LEGENDS FINAL GRAPHIC PARITY'));
+ const metal=read('public/runnit-legends-stats-metal.svg');
+ const screen=read('src/screens/LeaderboardScreen.tsx');
+ assert.match(layer,/url\('\/runnit-legends-stats-metal\.svg'\)/);
+ assert.match(layer,/url\('\/runnit-legends-laurels-compact\.svg'\)/);
+ assert.match(metal,/id="engrave"/);
+ assert.match(metal,/id="scratch"/);
+ for(const key of ['completedDuels','wins','losses'])assert.ok(screen.includes('history.totals.'+key));
+ assert.doesNotMatch(layer,/\.runnit-(?:competition\.runnit-)?legends\s+\.runnit-(?:game-dock|dock-item|dock-caption)/);
+ assert.doesNotMatch(layer,/runnit-showcase-home|runnit-game-home/);
+});
