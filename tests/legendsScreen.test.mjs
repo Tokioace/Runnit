@@ -247,3 +247,30 @@ test('LEGENDS single-edge laurel fix does not modify the shared bottom navigatio
  assert.doesNotMatch(pass,/\.runnit-(?:competition\.runnit-)?legends\s+\.runnit-(?:game-dock|dock-item|dock-caption)/);
  assert.doesNotMatch(pass,/runnit-showcase-home|runnit-game-home/);
 });
+
+test('LEGENDS micro-polish enlarges edge wreaths but keeps the score values in front',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ const pass=css.slice(css.lastIndexOf('LEGENDS screenshot micro-polish'));
+ const screen=read('src/screens/LeaderboardScreen.tsx');
+ assert.match(pass,/width:clamp\(19px,6\.5vw,26px\)/);
+ assert.match(pass,/height:clamp\(34px,12vw,43px\)/);
+ assert.match(pass,/left:clamp\(1px,\.5vw,4px\)/);
+ assert.match(pass,/right:clamp\(1px,\.5vw,4px\)/);
+ assert.match(css,/\.arena-rivals \.legends-summary\s*\{[\s\S]*?z-index:2/);
+ for(const field of ['completedDuels','wins','losses'])assert.ok(screen.includes('history.totals.'+field));
+});
+test('LEGENDS metallic gloss, VS and wedge remain image assets without shared nav edits',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ const pass=css.slice(css.lastIndexOf('LEGENDS screenshot micro-polish'));
+ const vs=read('public/runnit-legends-vs-refined.svg');
+ const cta=read('public/runnit-legends-cta-plate.svg');
+ const metal=read('public/runnit-legends-stats-metal.svg');
+ assert.match(pass,/runnit-legends-stats-metal\.svg/);
+ assert.match(pass,/background-image:url\('\/runnit-legends-vs-refined\.svg'\)/);
+ assert.match(pass,/\.arena-rematch/);
+ assert.match(vs,/Narrow trailing brush flecks/);
+ assert.match(cta,/M53 8L619 8L584 87L8 87Z/);
+ assert.match(metal,/id="engrave"/);
+ assert.doesNotMatch(pass,/\.runnit-(?:competition\.runnit-)?legends\s+\.runnit-(?:game-dock|dock-item|dock-caption)/);
+ assert.doesNotMatch(pass,/runnit-showcase-home|runnit-game-home/);
+});
