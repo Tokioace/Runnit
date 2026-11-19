@@ -24,7 +24,7 @@ function StatTile({icon:Icon,label,value,foot}:{
  return <div className="stats-v2-tile">
    <Icon className="stats-v2-tile-icon" aria-hidden="true"/>
    <div><span className="stats-v2-tile-label">{label}</span>
-    <strong className="stats-v2-tile-value">{value}</strong>
+    <strong className="stats-v2-tile-value whitespace-nowrap tabular-nums">{value}</strong>
     <small>{foot}</small></div>
  </div>;
 }
@@ -141,7 +141,7 @@ export default function StatsScreen({userId}:Props) {
       </div>}
       {!loading&&!error&&<>
        <section className="stats-v2-panel" aria-labelledby="stats-week">
-         <Headline id="stats-week" detail="NUR RUNNIT-LÄUFE">DIESE <em>WOCHE</em></Headline>
+         <Headline id="stats-week" detail="NUR RUNNIT-LÄUFE">DIESE <span>WOCHE</span></Headline>
          <div className="stats-v2-week-tiles">
            <StatTile icon={Footprints} label="LÄUFE" value={String(totals.weeklySessions)} foot="abgeschlossen"/>
            <StatTile icon={Activity} label="SCHRITTE" value={totals.weeklySteps===null?'—':totals.weeklySteps.toLocaleString('de-DE')} foot="aufgezeichnet"/>
@@ -158,7 +158,7 @@ export default function StatsScreen({userId}:Props) {
          <Headline id="stats-duel">DUELLE <em>VS</em> SOLO</Headline>
          <div className="stats-v2-compare">
            <div className="stats-v2-compare-card">
-             <h3><Flag size={22}/> DUELLE</h3>
+             <h3><Flag size={22}/> DUELL-<span>BILANZ</span></h3>
              <div className="stats-v2-compare-values">
                <div><strong>{stats.completedDuels}</strong><small>DUELLE</small></div>
                <div><strong>{stats.wins}</strong><small>SIEGE</small></div>
