@@ -137,3 +137,21 @@ test('STATS mini density preserves animated charts, server numbers, goal form, a
  assert.match(screen,/<details className="stats-v2-panel stats-v2-history"/);
  assert.match(screen,/<BottomNav\/>/);
 });
+
+test('STATS final iPhone mini pass keeps the form and animated gauge above the dock',()=>{
+ const css=read('src/styles/statsPerformance.css');
+ const pass=css.slice(css.lastIndexOf('FINAL MINI VERTICAL FIT'));
+ const screen=read('src/screens/StatsScreen.tsx');
+ assert.match(pass,/@media \(max-width:480px\) and \(max-height:900px\)/);
+ assert.match(pass,/\.stats-v2-hero\s*\{[\s\S]*?height:clamp\(78px,9\.95dvh,86px\)/);
+ assert.match(pass,/\.stats-v2-speed\s*\{\s*max-width:85px/);
+ assert.match(pass,/\.stats-v2-goal-details:not\(\[open\]\)\s*\{[\s\S]*?position:absolute/);
+ assert.match(pass,/\.stats-v2-goal-details\[open\]\s*\{[\s\S]*?position:static/);
+ assert.match(screen,/stats-v2-speed-needle/);
+ assert.match(screen,/strokeDashoffset/);
+ assert.match(screen,/stats-v2-progress/);
+ assert.match(screen,/<details className="stats-v2-goal-details">/);
+ assert.match(screen,/await goal\.save\(goalDraft\)/);
+ assert.match(screen,/<BottomNav\/>/);
+ assert.doesNotMatch(pass,/runnit-game-dock|runnit-dock-item|runnit-showcase-home|runnit-legends/);
+});
