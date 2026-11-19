@@ -34,3 +34,15 @@ test('LEGENDS dock caption appears only on leaderboard and other slots stay unch
  assert.match(dock,/active && href === '\/leaderboard' \? 'LEGENDS' : display/);
  for (const slot of ['HOME','KARTE','STATS','PROFIL']) assert.ok(dock.includes("display: '"+slot+"'"));
 });
+
+test('LEGENDS uses dedicated image layers without touching Home',()=>{
+ const source=read('src/screens/LeaderboardScreen.tsx');
+ const home=read('src/screens/DashboardScreen.tsx');
+ const css=read('src/styles/legendsShowcase.css');
+ assert.match(source,/<img className="legends-hero-image" src="\\/runnit-legends-hero\\.webp"/);
+ assert.match(source,/<img className="legends-showdown-art legends-showdown-art--left"/);
+ assert.match(source,/<img className="legends-showdown-art legends-showdown-art--right"/);
+ assert.match(css,/\.arena-versus \\{[\\s\\S]*grid-column:2/);
+ assert.match(css,/\.arena-showdown-person:last-child \\{grid-column:3/);
+ assert.match(home,/runnit-showcase-home/);
+});
