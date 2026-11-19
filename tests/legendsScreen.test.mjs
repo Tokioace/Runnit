@@ -16,3 +16,21 @@ test('LEGENDS keeps real Supabase data and the shared dock',()=>{
  assert.match(css,/runnit-legends-hero\.webp/);
  assert.doesNotMatch(source,/Math\.random\(|#482/);
 });
+test('LEGENDS screenshot art stays visible and the route keeps real data',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ const screen=read('src/screens/LeaderboardScreen.tsx');
+ assert.match(css,/url\('\/runnit-legends-hero\.webp'\)/);
+ assert.match(css,/background-size:100% 100%/);
+ assert.match(css,/runnit-legends-duel-left\.webp/);
+ assert.match(css,/runnit-legends-duel-right\.webp/);
+ assert.match(css,/mask-image:linear-gradient/);
+ assert.match(css,/\.arena-showdown-person \.arena-avatar--large/);
+ assert.match(css,/safe-area-inset-bottom|--arena-dock-reserve/);
+ assert.match(screen,/rival\.wins/);
+ assert.match(screen,/rival\.losses/);
+});
+test('LEGENDS dock caption appears only on leaderboard and other slots stay unchanged',()=>{
+ const dock=read('src/components/ui/BottomNav.tsx');
+ assert.match(dock,/active && href === '\/leaderboard' \? 'LEGENDS' : display/);
+ for (const slot of ['HOME','KARTE','STATS','PROFIL']) assert.ok(dock.includes("display: '"+slot+"'"));
+});
