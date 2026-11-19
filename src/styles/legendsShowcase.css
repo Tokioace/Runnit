@@ -476,16 +476,26 @@
   height:clamp(122px,17.2dvh,134px);
 }
 .runnit-competition.runnit-legends .arena-showdown-people {
-  inset:0 8px 27px;
+  inset:0 8px 35px;
 }
-.runnit-competition.runnit-legends .arena-versus {
-  top:14px;
+ .runnit-competition.runnit-legends .arena-versus {
+  top:8px;
 }
 .runnit-competition.runnit-legends .arena-versus strong {
-  height:clamp(37px,5.9dvh,45px);
+  height:clamp(34px,5.2dvh,40px);
 }
 .runnit-competition.runnit-legends .arena-rematch {
+  width:68%;
   height:clamp(27px,3.8dvh,32px);
+}
+.runnit-competition.runnit-legends .arena-showdown-person .arena-avatar--large {
+  width:46px;height:46px;max-width:46px;max-height:46px;
+}
+.runnit-competition.runnit-legends .arena-versus b {
+  font-size:clamp(21px,5.7vw,28px);
+}
+.runnit-competition.runnit-legends .arena-versus small {
+  font-size:clamp(7px,2.1vw,9px);
 }
 .runnit-competition.runnit-legends .arena-rivals .arena-duel-grid {
   flex:0 0 auto;
