@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="708" height="105" viewBox="0 0 708 105" aria-hidden="true">
+<defs>
+<linearGradient id="metal" x1="0" y1="0" x2="1" y2=".3">
+<stop stop-color="#061e27"/><stop offset=".22" stop-color="#081827"/><stop offset=".52" stop-color="#0a152a"/><stop offset=".76" stop-color="#151333"/><stop offset="1" stop-color="#34133b"/>
+</linearGradient>
+<linearGradient id="top" x1="0" y1="0" x2=".1" y2="1"><stop stop-color="#ffffff" stop-opacity=".20"/><stop offset=".18" stop-color="#b5f8ff" stop-opacity=".085"/><stop offset=".5" stop-color="#ffffff" stop-opacity="0"/><stop offset="1" stop-color="#010814" stop-opacity=".22"/></linearGradient>
+<linearGradient id="specular" x1="0" y1="0" x2="1" y2="0">
+<stop stop-color="#1befff" stop-opacity=".17"/><stop offset=".35" stop-color="#8be9ff" stop-opacity=".06"/><stop offset=".58" stop-color="#bdecff" stop-opacity=".03"/><stop offset=".82" stop-color="#e916ec" stop-opacity=".13"/><stop offset="1" stop-color="#f544fc" stop-opacity=".22"/></linearGradient>
+<pattern id="engrave" width="20" height="20" patternUnits="userSpaceOnUse" patternTransform="rotate(33)">
+<path d="M1 0V20" stroke="#b9d2e5" stroke-opacity=".13" stroke-width="1.1"/>
+<path d="M7 0V20" stroke="#04091a" stroke-opacity=".55" stroke-width="2"/>
+<path d="M14 0V20" stroke="#8caac4" stroke-opacity=".10" stroke-width=".8"/>
+</pattern>
+<pattern id="scratch" width="93" height="36" patternUnits="userSpaceOnUse">
+<path d="M8 20l29-10M18 27l46-17M68 31l19-7" stroke="#cdeeff" stroke-opacity=".11" stroke-width="1"/>
+<path d="M20 30l44-14M73 8l12-4" stroke="#020817" stroke-opacity=".34" stroke-width="2"/>
+</pattern>
+</defs>
+<path d="M0 0H708V105H0Z" fill="url(#metal)"/>
+<path d="M0 0H708V105H0Z" fill="url(#engrave)" opacity=".75"/>
+<path d="M0 0H708V105H0Z" fill="url(#scratch)" opacity=".67"/>
+<path d="M0 0H708V105H0Z" fill="url(#specular)"/>
+<path d="M0 0H708V105H0Z" fill="url(#top)"/>
+<path d="M0 24L230 0H310L20 106H0Z" fill="#bbe7ff" fill-opacity=".04"/>
+<path d="M520 0L708 27V75L600 105H564L708 38Z" fill="#f83bdf" fill-opacity=".06"/>
+<path d="M3 6H705" stroke="#e2fcff" stroke-opacity=".11" stroke-width="2"/>
+</svg>
