@@ -716,3 +716,186 @@
     text-shadow:0 1px 2px #02091c;
   }
 }
+
+
+/* REFERENCE IMAGE MATCH PASS (2026-11-19).
+ * Scoped artwork refinement for the user's chosen neon STATS mockup. All
+ * graphics are static decoration; live values, bars, gauge and buttons remain
+ * actual UI. Deliberately does NOT alter shared BottomNav or card dimensions. */
+
+/* Exact composition of the target logo: RUNNIT centred between three cyan
+ * speed-stripes, not the old text plus lone "≡" at the right. */
+.runnit-stats-v2 .stats-v2-brand {
+  left:50%;
+  right:auto;
+  top:0;
+  transform:translateX(-50%);
+  width:min(72vw,360px);
+  height:48px;
+  background:url('/runnit-stats-logo-speedlines.svg') center/contain no-repeat;
+  font-size:0;
+  line-height:0;
+  letter-spacing:0;
+  text-shadow:none;
+}
+
+/* The existing stadium photograph stays a single image, brighter and more
+ * recognizable through the header; all of the panel glazing is a separate
+ * transparent art layer, never a screenshot with baked-in demo numbers. */
+.runnit-stats-v2 .stats-v2-scene {
+  background:
+    linear-gradient(180deg,#04071f10 0%,#0307240d 150px,#07112c78 290px,#060d2bcc 470px,#070b26ee 720px,#080925 100%),
+    url('/runnit-stats-stadium.webp') center top/100% auto no-repeat;
+  background-color:#070b26;
+}
+.runnit-stats-v2 .stats-v2-hero h1 {
+  text-shadow:1px 2px 0 #33166b,0 0 12px #fefaff46;
+}
+.runnit-stats-v2 .stats-v2-hero h1 em {
+  color:#caff00;
+  text-shadow:0 0 12px #aaff1426,1px 2px #143020;
+}
+.runnit-stats-v2 .stats-v2-kicker {
+  color:#36f4ff;
+  text-shadow:0 0 7px #00e5ff9f;
+}
+
+/* The reference has bright rounded arcade borders with metallic reflections,
+ * cyan upper-left illumination and magenta lower-right edge glow. */
+.runnit-stats-v2 .stats-v2-panel {
+  background:
+    url('/runnit-stats-panel-sheen.svg') center/100% 100% no-repeat,
+    radial-gradient(ellipse at 0 0,#11b8fa16,transparent 54%),
+    linear-gradient(146deg,#11274bfa,#0b1a37f5 54%,#211037f9);
+  border:1.5px solid #55e9fa;
+  border-right-color:#a46cf4;
+  border-bottom-color:#ed33e2;
+  border-radius:19px;
+  box-shadow:
+    inset 0 1px 0 #f8ffff81,
+    inset 1px 0 0 #8df3ff30,
+    inset -1px 0 0 #e852f224,
+    0 0 9px #15edff67,
+    0 0 13px #b229ea3a,
+    0 2px 13px #02081ab0;
+}
+.runnit-stats-v2 .stats-v2-panel::after {
+  opacity:.55;
+}
+.runnit-stats-v2 .stats-v2-stripes {
+  display:inline-block;
+  flex:0 0 auto;
+  width:clamp(24px,6.6vw,40px);
+  height:clamp(16px,4vw,22px);
+  padding:0;
+  font-size:0;
+  letter-spacing:0;
+  background:url('/runnit-stats-diagonal-stripes.svg') left center/100% 100% no-repeat;
+  filter:drop-shadow(0 0 4px #09eaffb7);
+  transform:none;
+}
+.runnit-stats-v2 .stats-v2-section-head h2 {
+  color:#f9fcff;
+  text-shadow:0 1px 3px #00081c,0 0 8px #ffffff18;
+}
+.runnit-stats-v2 .stats-v2-head-detail svg {
+  color:#ceff0d;
+  filter:drop-shadow(0 0 5px #caff0a7d);
+}
+
+/* Each miniature data-tile uses the target's transparent neon glass instead
+ * of a flat navy rectangle. Keep their exact responsive heights unchanged. */
+.runnit-stats-v2 .stats-v2-tile {
+  background:
+    linear-gradient(150deg,#a5f8ff18 0%,transparent 21% 68%,#bb2aff0f),
+    linear-gradient(150deg,#0b3351fa,#081b35f9 69%,#0a1630f8);
+  border:1.35px solid #1ecbe8;
+  border-radius:14px;
+  box-shadow:inset 0 1px 0 #d3ffff58,0 0 7px #1cecff49;
+}
+.runnit-stats-v2 .stats-v2-tile-icon {
+  color:#10f1ff;
+  filter:drop-shadow(0 0 5px #00f7ffae);
+}
+.runnit-stats-v2 .stats-v2-chart {
+  background:
+    repeating-linear-gradient(90deg,transparent 0 51px,#89dafa12 52px 53px,transparent 54px 101px),
+    linear-gradient(180deg,#061c3854,#07142c10);
+}
+.runnit-stats-v2 .stats-v2-chart-lines i {
+  background:#54bcf95e;
+}
+.runnit-stats-v2 .stats-v2-bar-fill.is-peak {
+  background:linear-gradient(180deg,#e8ff50,#baff06 65%,#45a346);
+  box-shadow:inset 0 1px #f9ffdc,0 0 10px #bcff11c1;
+}
+.runnit-stats-v2 .stats-v2-compare-card {
+  background:
+    linear-gradient(148deg,#a6f4ff1b 0%,transparent 35%),
+    linear-gradient(142deg,#0e3c5ef7,#08172fef);
+  border-color:#18d9f9;
+  border-radius:15px;
+  box-shadow:inset 0 1px 0 #ddffff64,0 0 8px #00edff53;
+}
+.runnit-stats-v2 .stats-v2-compare-card--solo {
+  background:
+    linear-gradient(148deg,#cdff6812 0%,transparent 40%),
+    linear-gradient(142deg,#14412ce9,#061d2feb);
+  border-color:#caff05;
+  box-shadow:inset 0 1px 0 #edffbb48,0 0 8px #beff235b;
+}
+.runnit-stats-v2 .stats-v2-record {
+  border-radius:13px;
+  border-color:#17e6f6;
+  border-bottom-color:#ff27ec;
+  background:
+    linear-gradient(137deg,#93f5ff15 0%,transparent 33%),
+    radial-gradient(ellipse at 90% 100%,#e32ffa28,transparent 45%),
+    linear-gradient(150deg,#103052f5,#07172eef 54%,#201038f5);
+  box-shadow:inset 0 1px #d2ffff48,0 0 7px #15f3fa4c,0 2px 5px #9e26b423;
+}
+.runnit-stats-v2 .stats-v2-form-body {
+  position:relative;
+}
+.runnit-stats-v2 .stats-v2-form-body::before {
+  content:"";
+  position:absolute;
+  top:4px;
+  bottom:2px;
+  left:31.5%;
+  width:1px;
+  background:linear-gradient(180deg,transparent,#b4e9ff8c 25%,#c4dfff9c 80%,transparent);
+  pointer-events:none;
+}
+.runnit-stats-v2 .stats-v2-form-line,
+.runnit-stats-v2 .stats-v2-goal-copy {
+  border-bottom-color:#99d7ff55;
+}
+.runnit-stats-v2 .stats-v2-progress {
+  border-color:#87efffc9;
+  box-shadow:inset 0 1px 4px #010817,0 0 5px #15f4ff4c;
+}
+.runnit-stats-v2 .stats-v2-speed-progress-glow {
+  opacity:.56;
+}
+
+/* Screen ratio differs between the mockup (9:16) and iPhone 13 mini (~9:19).
+ * Move the art-only brand upward into the safe-area gap while preserving every
+ * readable content row and all existing compact panel heights. */
+@media (max-width:480px) and (max-height:900px) {
+  .runnit-stats-v2 .stats-v2-brand {
+    top:-20px;
+    width:min(72vw,300px);
+    height:40px;
+  }
+  .runnit-stats-v2 .stats-v2-hero h1 {
+    letter-spacing:-.064em;
+  }
+  .runnit-stats-v2 .stats-v2-panel {border-radius:16px;}
+  .runnit-stats-v2 .stats-v2-tile {border-radius:12px;}
+  .runnit-stats-v2 .stats-v2-record {border-radius:11px;}
+}
+@media (prefers-reduced-motion:reduce) {
+  .runnit-stats-v2 .stats-v2-panel,
+  .runnit-stats-v2 .stats-v2-tile {transition:none;}
+}
