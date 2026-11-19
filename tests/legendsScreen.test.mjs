@@ -65,3 +65,18 @@ test('LEGENDS compact iPhone layout keeps the summary visible before the dock',(
  assert.match(css,/\.arena-rivals \.arena-showdown \{[\s\S]*?17\.2dvh/);
  assert.match(css,/\.arena-hero h1 \{\s*bottom:-28px/);
 });
+
+test('LEGENDS final iPhone fix preserves complete totals above dock',()=>{
+  const css=read('src/styles/legendsShowcase.css');
+  const last=css.slice(css.lastIndexOf('Final LEGENDS iPhone layout fix'));
+  assert.match(last,/\.arena-rivals \.arena-showdown \{[\s\S]*?15\.7dvh/);
+  assert.match(last,/\.arena-rivals \.arena-duel-grid \{[\s\S]*?height: 42px/);
+  assert.match(last,/\.arena-rivals \.arena-self-strip \{[\s\S]*?height: 40px/);
+  assert.match(last,/\.runnit-game-dock \{[\s\S]*?height: 58px/);
+  assert.match(last,/safe-area-inset-bottom/);
+  const screen=read('src/screens/LeaderboardScreen.tsx');
+  assert.match(screen,/history\.totals\.completedDuels/);
+  assert.match(screen,/history\.totals\.wins/);
+  assert.match(screen,/history\.totals\.losses/);
+  assert.doesNotMatch(last,/runnit-showcase|runnit-game-home/);
+});

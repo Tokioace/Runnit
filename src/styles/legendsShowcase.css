@@ -554,3 +554,82 @@
     min-height:43px;
   }
 }
+
+
+/* Final LEGENDS iPhone layout fix (2026-11-19):
+ * Give the dynamic three-number summary room ABOVE the fixed 5-tab dock.
+ * The Home page, shared navigation implementation and Supabase data stay intact. */
+.runnit-competition.runnit-legends {
+  --arena-dock-reserve: calc(58px + max(8px, env(safe-area-inset-bottom, 0px)) + 9px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-showdown {
+  flex: 0 0 clamp(112px, 15.7dvh, 121px);
+  height: clamp(112px, 15.7dvh, 121px);
+}
+.runnit-competition.runnit-legends .arena-showdown-people {
+  inset: 0 8px 30px;
+}
+.runnit-competition.runnit-legends .arena-versus {
+  top: 5px;
+}
+.runnit-competition.runnit-legends .arena-versus strong {
+  height: clamp(29px, 4.4dvh, 35px);
+}
+.runnit-competition.runnit-legends .arena-showdown-person .arena-avatar--large {
+  width: 42px;
+  height: 42px;
+  max-width: 42px;
+  max-height: 42px;
+}
+.runnit-competition.runnit-legends .arena-rematch {
+  width: 67%;
+  height: 27px;
+  bottom: 3px;
+  font-size: clamp(14px, 4.2vw, 22px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-grid {
+  flex: 0 0 42px;
+  height: 42px;
+  min-height: 42px;
+  max-height: 42px;
+  gap: 4px;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-panel {
+  height: 42px;
+  min-height: 42px;
+  max-height: 42px;
+  padding: 1px 4px;
+}
+.runnit-competition.runnit-legends .arena-duel-panel h2 {
+  min-height: 15px;
+  height: 15px;
+  font-size: clamp(8px, 2.15vw, 12px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-mini-row {
+  flex: 0 0 18px;
+  min-height: 18px;
+  height: 18px;
+  font-size: clamp(8px, 2.2vw, 12px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip {
+  flex: 0 0 40px;
+  height: 40px;
+  min-height: 40px;
+  margin-top: 1px;
+}
+.runnit-competition.runnit-legends .legends-summary strong {
+  font-size: clamp(19px, 5.8vw, 28px);
+}
+.runnit-competition.runnit-legends .legends-summary small {
+  font-size: clamp(8px, 2.4vw, 12px);
+}
+.runnit-competition.runnit-legends .arena-beta-note {
+  min-height: 15px;
+  font-size: clamp(7px, 1.9vw, 10px);
+  line-height: 1.05;
+}
+.runnit-competition.runnit-legends .runnit-game-dock {
+  height: 58px;
+  bottom: max(8px, calc(env(safe-area-inset-bottom, 0px) - 18px));
+  padding: 5px 6px;
+}
