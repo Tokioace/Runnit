@@ -126,3 +126,37 @@ test('LEGENDS live match data and shared dock are not replaced by background art
  assert.match(dock,/runnit-dock-active text-cyan-100/);
  assert.doesNotMatch(css,/\.runnit-showcase-home|\.runnit-game-home/);
 });
+
+
+test('LEGENDS renders the approved wordmark, banner, Zak, Zoe and VS as real WebP artwork',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ const pass=css.slice(css.lastIndexOf('EXACT REFERENCE PHOTO PASS'));
+ const assets=[
+  'runnit-legends-wordmark-photo.webp',
+  'runnit-legends-rivals-photo.webp',
+  'runnit-legends-zak-photo.webp',
+  'runnit-legends-zoe-photo.webp',
+  'runnit-legends-versus-photo.webp'
+ ];
+ for(const asset of assets){
+  const binary=readFileSync(new URL('../public/'+asset,import.meta.url));
+  assert.equal(binary.toString('ascii',0,4),'RIFF');
+  assert.equal(binary.toString('ascii',8,12),'WEBP');
+  assert.ok(binary.length>1000,'real image bytes present: '+asset);
+  assert.ok(pass.includes("url('/"+asset+"')"),'actual photo crop used in final layer: '+asset);
+ }
+ assert.match(pass,/mask-image:none/);
+ assert.match(pass,/background-size:100% 100%/);
+});
+test('LEGENDS precise picture layers never change the shared menu or hardcode race scores',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ const pass=css.slice(css.lastIndexOf('EXACT REFERENCE PHOTO PASS'));
+ const screen=read('src/screens/LeaderboardScreen.tsx');
+ assert.doesNotMatch(pass,/\.runnit-(?:competition\.runnit-)?legends\s+\.runnit-(?:game-dock|dock-item|dock-caption)/);
+ assert.doesNotMatch(pass,/runnit-showcase-home|runnit-game-home/);
+ assert.match(screen,/rival\.wins/);
+ assert.match(screen,/rival\.losses/);
+ assert.match(screen,/history\.totals\.completedDuels/);
+ assert.match(screen,/<BottomNav\/>/);
+ assert.match(pass,/arena-rematch/);
+});
