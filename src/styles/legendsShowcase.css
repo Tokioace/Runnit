@@ -719,3 +719,174 @@
     height:43px;
   }
 }
+
+
+/* EXACT REFERENCE PHOTO PASS — 2026-11-19
+ * Every photo in this section is a lossily-compressed pixel crop of the
+ * user-approved 708×1536 concept image, not a redrawn CSS approximation.
+ * Scores, rivals, buttons and tabs stay live; shared BottomNav is untouched.
+ */
+.runnit-competition.runnit-legends .arena-hero h1 {
+  /* Includes the original brushstroke, silver lettering, crown and checkers. */
+  height:clamp(61px,18.5vw,78px);
+  bottom:17px;
+  background-image:url('/runnit-legends-wordmark-photo.webp');
+  background-position:center center;
+  background-size:100% 100%;
+  background-repeat:no-repeat;
+  transform:none;
+}
+.runnit-competition.runnit-legends .arena-hero-bottom {
+  bottom:1px;
+  font-size:clamp(11px,3.25vw,16px);
+  text-shadow:0 1px 4px #050616;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-section-bar {
+  /* Full exact banner: crossed swords, type, neon frame and skyline. */
+  height:clamp(32px,4.3dvh,36px);
+  flex-basis:clamp(32px,4.3dvh,36px);
+  background-image:url('/runnit-legends-rivals-photo.webp');
+  background-size:100% 100%;
+  background-repeat:no-repeat;
+  background-position:center;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-showdown {
+  isolation:isolate;
+  background:
+    radial-gradient(ellipse 56% 82% at 0% 21%,#064d69a8,transparent 94%),
+    radial-gradient(ellipse 54% 85% at 100% 18%,#a5167f8c,transparent 93%),
+    linear-gradient(100deg,#061426,#0b1026 50%,#2e0d3b);
+  border-left-color:#13efff;
+  border-right-color:#ff36ed;
+  border-top-color:#25e9ff;
+  border-bottom-color:#ed36e3;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-showdown::before {
+  background:linear-gradient(180deg,transparent 0%,transparent 46%,#07112c29 63%,#060b26a3 91%,#060a25f5 100%);
+  pointer-events:none;
+  z-index:0;
+}
+.runnit-competition.runnit-legends .legends-showdown-art {
+  /* Full-width original half-frame maps to 50% of the duel card. Use
+     original aspect ratio (339×156), never stretch into a tall portrait. */
+  width:50%;
+  height:clamp(72px,10.15dvh,83px);
+  top:0;
+  z-index:1;
+  background-size:100% 100%;
+  background-position:top center;
+  background-repeat:no-repeat;
+  opacity:1;
+  mask-image:none;
+  -webkit-mask-image:none;
+  pointer-events:none;
+}
+.runnit-competition.runnit-legends .legends-showdown-art--left {
+  background-image:url('/runnit-legends-zak-photo.webp');
+}
+.runnit-competition.runnit-legends .legends-showdown-art--right {
+  background-image:url('/runnit-legends-zoe-photo.webp');
+}
+.runnit-competition.runnit-legends .arena-showdown-people {
+  z-index:3;
+  inset:0 7px 36px;
+  grid-template-columns:29% 42% 29%;
+}
+.runnit-competition.runnit-legends .arena-showdown-person .arena-avatar--large {
+  /* Cover the original concept-art avatar placeholders without a second
+     surrounding picture-frame effect. The icon itself remains live DOM. */
+  visibility:visible;
+  width:54px;
+  height:46px;
+  max-width:54px;
+  max-height:46px;
+  border:2px solid #f4faff;
+  border-radius:8px 2px 8px 2px;
+  background:linear-gradient(145deg,#0a1c36ed,#070e27f7);
+  box-shadow:0 1px #ebfeff9e,0 0 6px #10f7ff9c;
+}
+.runnit-competition.runnit-legends .arena-showdown-person:last-child .arena-avatar--large {
+  box-shadow:0 1px #fff5ff9e,0 0 7px #ff26e8c8;
+}
+.runnit-competition.runnit-legends .arena-showdown-person>span:last-child {
+  height:18px;
+  font-size:clamp(9px,2.7vw,13px);
+}
+.runnit-competition.runnit-legends .arena-versus {
+  z-index:4;
+  top:2px;
+  width:35%;
+}
+.runnit-competition.runnit-legends .arena-versus strong {
+  /* Exact yellow VS brush from the user's reference image. */
+  display:block;
+  width:100%;
+  height:clamp(51px,7.2dvh,58px);
+  background-image:url('/runnit-legends-versus-photo.webp');
+  background-position:center top;
+  background-size:contain;
+  background-repeat:no-repeat;
+  filter:drop-shadow(1px 2px 1px #020819);
+}
+.runnit-competition.runnit-legends .arena-versus small {
+  font-size:clamp(8px,2.15vw,11px);
+  text-shadow:0 2px 4px #050b1c;
+}
+.runnit-competition.runnit-legends .arena-versus b {
+  font-size:clamp(22px,6vw,31px);
+  text-shadow:1px 2px #071021;
+}
+.runnit-competition.runnit-legends .arena-rematch {
+  width:72%;
+  height:clamp(28px,4.1dvh,33px);
+  bottom:4px;
+  border-radius:3px 2px 9px 1px;
+  background:linear-gradient(145deg,#e4ff4e,#c7ff00 66%,#87de11);
+  box-shadow:inset 0 1px #ffffa6,0 0 9px #b8ff02bb;
+}
+.runnit-competition.runnit-legends .arena-rematch::after {
+  right:-15px;
+  width:12px;
+  transform:skewX(-17deg);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip {
+  position:relative;
+  isolation:isolate;
+  background:linear-gradient(110deg,#071e25,#0b122a 55%,#2c1139);
+  border-color:#c8ff15;
+  border-right-color:#f7f8ff;
+  box-shadow:inset 0 1px #e7ff5e,0 0 8px #aeff0c8c;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::before,
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::after {
+  content:'';
+  position:absolute;
+  z-index:1;
+  pointer-events:none;
+  top:0;
+  left:0;
+  width:45px;
+  height:100%;
+  background:url('/runnit-legends-laurels.svg') -12px center/330px 100% no-repeat;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::after {
+  left:auto;
+  right:0;
+  transform:scaleX(-1);
+}
+.runnit-competition.runnit-legends .legends-summary {
+  position:relative;
+  z-index:2;
+}
+@media(max-width:350px) {
+  .runnit-competition.runnit-legends .arena-showdown-person .arena-avatar--large {
+    width:49px;
+    height:43px;
+  }
+  .runnit-competition.runnit-legends .arena-hero h1 {
+    height:clamp(58px,18.5vw,69px);
+  }
+}
