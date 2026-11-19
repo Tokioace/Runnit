@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="98" viewBox="0 0 700 98" role="img" aria-label="Neon Racing-Schaltfläche">
+<defs>
+<linearGradient id="plate" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#dfff48"/><stop offset=".22" stop-color="#eaff1f"/><stop offset=".68" stop-color="#cfff00"/><stop offset="1" stop-color="#a5ec0d"/></linearGradient>
+<linearGradient id="gloss" x1="0" y1="0" x2=".28" y2="1"><stop stop-color="#ffffff" stop-opacity=".55"/><stop offset=".23" stop-color="#fff" stop-opacity=".07"/><stop offset=".78" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#63ba12" stop-opacity=".3"/></linearGradient>
+<filter id="light" x="-12%" y="-35%" width="127%" height="170%"><feGaussianBlur stdDeviation="5"/></filter>
+</defs>
+<!-- Correct angular board: left side leans forward; twin slashes separate. -->
+<path d="M53 8L619 8L584 87L8 87Z" fill="#c6ff07" stroke="#dcff46" stroke-width="13" opacity=".6" filter="url(#light)"/>
+<path d="M53 8L619 8L584 87L8 87Z" fill="url(#plate)" stroke="#eaff65" stroke-width="5" stroke-linejoin="bevel"/>
+<path d="M55 11H612L603 31L43 31Z" fill="url(#gloss)" opacity=".9"/>
+<path d="M14 85L582 85L602 72L584 88L8 88Z" fill="#86d511" opacity=".65"/>
+<path d="M638 9L658 9L618 88L597 88Z" fill="#caff05"/>
+<path d="M670 9L681 9L644 88L632 88Z" fill="#caff05"/>
+<path d="M66 13L598 13" stroke="#ffffc1" stroke-opacity=".8" stroke-width="1.8"/>
+</svg>
