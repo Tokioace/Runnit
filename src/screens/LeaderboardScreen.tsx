@@ -122,6 +122,7 @@ export default function LeaderboardScreen({userId,displayName}:{userId?:string|n
  return <main className="arena-screen runnit-competition runnit-legends" aria-label="RUNNIT Legends">
   <div className="arena-stage">
    <header className="arena-hero" aria-label="RUNNIT LEGENDS">
+    <img className="legends-hero-image" src="/runnit-legends-hero.webp" alt="" aria-hidden="true" width={708} height={440} fetchPriority="high"/>
     <span className="legends-hero-crown" aria-hidden="true"><Crown /></span>
     <h1>LEGENDS</h1>
     <p className="arena-hero-bottom"><span>RIVALEN</span> · <b>WERTUNG</b> · <em>REKORDE</em></p>
@@ -142,8 +143,8 @@ export default function LeaderboardScreen({userId,displayName}:{userId?:string|n
       history.error?<div role="alert" className="arena-live-message">{history.error}<button onClick={history.refresh} type="button">NOCHMAL</button></div>:
       <>
        <section className="arena-showdown" aria-label="Deine meistgespielte Rivalität">
-        <span className="legends-showdown-art legends-showdown-art--left" aria-hidden="true"/>
-        <span className="legends-showdown-art legends-showdown-art--right" aria-hidden="true"/>
+        <img className="legends-showdown-art legends-showdown-art--left" src="/runnit-legends-duel-left.webp" width={360} height={145} alt="" aria-hidden="true"/>
+        <img className="legends-showdown-art legends-showdown-art--right" src="/runnit-legends-duel-right.webp" width={360} height={145} alt="" aria-hidden="true"/>
         {rival?<div className="arena-showdown-people">
          <div className="arena-showdown-person"><Avatar large/><strong>{currentName}</strong><span>{countLabel(rival.wins,'SIEG','SIEGE')}</span></div>
          <div className="arena-versus"><strong>VS</strong><small>DUELL-BILANZ</small><b>{rival.wins} : {rival.losses}</b></div>
