@@ -155,3 +155,21 @@ test('STATS final iPhone mini pass keeps the form and animated gauge above the d
  assert.match(screen,/<BottomNav\/>/);
  assert.doesNotMatch(pass,/runnit-game-dock|runnit-dock-item|runnit-showcase-home|runnit-legends/);
 });
+
+test('compact duel win-rate gains space without enlarging any STATS card',()=>{
+ const css=read('src/styles/statsPerformance.css');
+ const pass=css.slice(css.lastIndexOf('Mini STATS: read the four real duel results'));
+ const screen=read('src/screens/StatsScreen.tsx');
+ assert.match(pass,/@media \(max-width:480px\) and \(max-height:900px\)/);
+ assert.match(pass,/\.stats-v2-compare-card:not\(\.stats-v2-compare-card--solo\) \.stats-v2-compare-values/);
+ assert.match(pass,/minmax\(0,1\.49fr\)/);
+ assert.match(pass,/padding-left:3px/);
+ assert.match(pass,/font-size:clamp\(10px,2\.75vw,12px\)/);
+ assert.match(pass,/white-space:nowrap/);
+ assert.doesNotMatch(pass,/min-height|\.stats-v2-stage|\.stats-v2-panel\s*\{|\.stats-v2-hero\s*\{|\.stats-v2-speed\s*\{/);
+ assert.doesNotMatch(pass,/BottomNav|runnit-game-dock|runnit-dock-item|runnit-legends|runnit-showcase-home/);
+ assert.match(screen,/stats\.completedDuels/);
+ assert.match(screen,/stats\.wins/);
+ assert.match(screen,/stats\.losses/);
+ assert.match(screen,/winRate\+'%'/);
+});
