@@ -890,3 +890,76 @@
     height:clamp(58px,18.5vw,69px);
   }
 }
+
+
+/* FINAL REFERENCE CLEANUP (2026-11-19): six scoped corrections.
+ * Deliberately no BottomNav / shared dock / Home overrides.
+ * The original photographic wordmark, duo faces and LIVE data remain intact. */
+.runnit-competition.runnit-legends {
+  background-image:
+    url('/runnit-legends-street-brush.svg'),
+    radial-gradient(ellipse 48% 29% at 100% 47%,#8d0fb640,transparent),
+    radial-gradient(ellipse 58% 28% at 0 73%,#03c7ff26,transparent),
+    repeating-linear-gradient(154deg,transparent 0 76px,#16bfff09 77px 80px,transparent 81px 161px);
+  background-size:100% 29%,auto,auto,auto;
+  background-repeat:no-repeat,no-repeat,no-repeat,repeat;
+  background-position:center 85%,center,center,center;
+}
+/* Keep the supplied wordmark pixels, but align its baseline 2px lower. */
+.runnit-competition.runnit-legends .arena-hero h1 {
+  bottom:15px;
+}
+/* Fine diagonal halftone texture belongs BELOW real buttons and live avatars.
+   The transparent grid is deliberately masked off the faces above. */
+.runnit-competition.runnit-legends .arena-rivals .arena-showdown::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:2;
+  background:url('/runnit-legends-duel-grit.svg') center/100% 100% no-repeat;
+  -webkit-mask-image:linear-gradient(180deg,transparent 0 36%,#0008 57%,#000 100%);
+  mask-image:linear-gradient(180deg,transparent 0 36%,#0008 57%,#000 100%);
+  opacity:.36;
+  pointer-events:none;
+}
+/* The CTA is a hard-edged racing wedge, not a pill. It keeps its live Link. */
+.runnit-competition.runnit-legends .arena-rematch {
+  width:74%;
+  height:clamp(30px,4.35dvh,34px);
+  border-radius:2px 0 5px 0;
+  border-color:#f0ff81;
+  box-shadow:inset 0 1px #ffffbb,0 0 7px #c6ff04b3;
+}
+.runnit-competition.runnit-legends .arena-rematch::after {
+  right:-15px;
+  top:3px;
+  bottom:3px;
+  width:13px;
+  border-left:5px solid #caff00;
+  border-right:3px solid #caff00;
+  border-radius:0;
+  transform:skewX(-16deg);
+}
+/* Match the slightly sharper panel corners/glow from the reference artwork. */
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-panel {
+  border-radius:10px 2px 10px 2px;
+  padding:2px 5px;
+  box-shadow:0 0 7px #00e3fa72;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-panel--magenta {
+  box-shadow:0 0 7px #f32af286;
+}
+/* Smaller, edge-aligned laurels: do not cover any of the three LIVE metrics.
+   No giant duplicated pseudo-images on top of the numbers. */
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip {
+  background:
+    url('/runnit-legends-laurels-compact.svg') center/100% 100% no-repeat,
+    repeating-linear-gradient(145deg,transparent 0 24px,#b3d8f307 25px 28px,transparent 29px 54px),
+    linear-gradient(110deg,#071e25,#0b122a 55%,#2c1139);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::before,
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::after {
+  content:none;
+  display:none;
+}
+/* Dense iPhone layout stays intact; no controls or totals are repositioned. */
