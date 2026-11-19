@@ -72,7 +72,7 @@ test('LEGENDS final iPhone fix preserves complete totals above dock',()=>{
   assert.match(last,/\.arena-rivals \.arena-showdown \{[\s\S]*?15\.7dvh/);
   assert.match(last,/\.arena-rivals \.arena-duel-grid \{[\s\S]*?height: 42px/);
   assert.match(last,/\.arena-rivals \.arena-self-strip \{[\s\S]*?height: 40px/);
-  assert.match(last,/\.runnit-game-dock \{[\s\S]*?height: 58px/);
+  assert.doesNotMatch(last,/\.runnit-game-dock\s*\{/); // shared dock owns its own sizing
   assert.match(last,/safe-area-inset-bottom/);
   const screen=read('src/screens/LeaderboardScreen.tsx');
   assert.match(screen,/history\.totals\.completedDuels/);
