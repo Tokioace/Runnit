@@ -431,3 +431,184 @@
   .runnit-stats-v2 .stats-v2-goal-details>summary span,
   .runnit-stats-v2 .stats-v2-history>summary::after {transition:none;}
 }
+
+
+/* RUNNIT MINI DENSE PASS — 2026-11-19.
+   Refines PR #187 after direct comparison with the user's 18:21 iPhone-mini
+   screenshots. Restore the approved single-screen dashboard density:
+   five principal panels above the persistent dock on a 375x812 viewport.
+   Only STATS on short/mobile portrait viewports. No shared navigation edits,
+   no hidden race data, no new mock statistics, no change to animation timing.
+   Overflow remains scrollable for opened details, larger fonts & accessibility. */
+@media (max-width:480px) and (max-height:900px) {
+  .runnit-stats-v2 .stats-v2-stage {
+    gap:3px;
+    padding-left:8px;
+    padding-right:8px;
+  }
+  .runnit-stats-v2 .stats-v2-hero {
+    height:clamp(92px,12dvh,103px);
+    padding:0 6px 3px;
+  }
+  .runnit-stats-v2 .stats-v2-brand {
+    top:0;
+    font-size:clamp(11px,3.1vw,14px);
+    letter-spacing:.24em;
+  }
+  .runnit-stats-v2 .stats-v2-hero h1 {
+    font-size:clamp(27px,8.5vw,37px);
+    line-height:1;
+  }
+  .runnit-stats-v2 .stats-v2-kicker {
+    margin-top:2px;
+    font-size:clamp(8px,2.15vw,10px);
+    letter-spacing:.04em;
+  }
+  .runnit-stats-v2 .stats-v2-intro {
+    margin-top:2px;
+    font-size:clamp(8px,2.16vw,10px);
+    line-height:1.14;
+    max-width:310px;
+  }
+  .runnit-stats-v2 .stats-v2-panel {
+    padding:5px 7px;
+    border-radius:14px 5px 14px 5px;
+  }
+  .runnit-stats-v2 .stats-v2-section-head {
+    gap:4px;
+    min-height:17px;
+  }
+  .runnit-stats-v2 .stats-v2-section-head h2 {
+    font-size:clamp(12px,3.95vw,17px);
+    line-height:1;
+  }
+  .runnit-stats-v2 .stats-v2-stripes {
+    font-size:17px;
+    padding-right:3px;
+  }
+  .runnit-stats-v2 .stats-v2-head-detail {
+    font-size:clamp(7px,1.85vw,9px);
+  }
+  .runnit-stats-v2 .stats-v2-week-tiles {
+    gap:4px;
+    margin-top:3px;
+  }
+  .runnit-stats-v2 .stats-v2-tile {
+    min-height:46px;
+    padding:3px 4px;
+    gap:3px;
+    border-radius:11px 4px 11px 4px;
+  }
+  .runnit-stats-v2 .stats-v2-tile-icon {
+    width:16px;
+    height:16px;
+  }
+  .runnit-stats-v2 .stats-v2-tile-label {font-size:clamp(8px,2.25vw,10px);}
+  .runnit-stats-v2 .stats-v2-tile-value {
+    font-size:clamp(12px,3.65vw,16px);
+    line-height:1.05;
+  }
+  .runnit-stats-v2 .stats-v2-tile small {
+    margin-top:1px;
+    font-size:7px;
+  }
+  .runnit-stats-v2 .stats-v2-chart {
+    height:52px;
+    margin-top:2px;
+  }
+  .runnit-stats-v2 .stats-v2-bars {inset:7px 2px 0;gap:5px;}
+  .runnit-stats-v2 .stats-v2-bar-slot {gap:2px;}
+  .runnit-stats-v2 .stats-v2-bar-slot>strong {flex-basis:12px;font-size:9px;}
+  .runnit-stats-v2 .stats-v2-chart-lines {inset:0 0 12px;}
+  .runnit-stats-v2 .stats-v2-bar-label {font-size:8px;top:-12px;}
+  .runnit-stats-v2 .stats-v2-compare {
+    margin-top:3px;
+    gap:4px;
+  }
+  .runnit-stats-v2 .stats-v2-compare-card {
+    min-height:54px;
+    padding:4px 3px;
+    border-radius:11px 3px 11px 3px;
+  }
+  .runnit-stats-v2 .stats-v2-compare-card h3 {
+    gap:3px;
+    font-size:clamp(10px,2.75vw,12px);
+  }
+  .runnit-stats-v2 .stats-v2-compare-card h3 svg {
+    width:13px;height:13px;
+  }
+  .runnit-stats-v2 .stats-v2-compare-values {margin-top:5px;}
+  .runnit-stats-v2 .stats-v2-compare-values strong {
+    font-size:clamp(11px,2.9vw,13px);
+    line-height:1;
+  }
+  .runnit-stats-v2 .stats-v2-compare-values small {
+    font-size:clamp(6px,1.6vw,7px);
+    margin-top:2px;
+    line-height:1.08;
+  }
+  .runnit-stats-v2 .stats-v2-caption {
+    font-size:8px;
+    line-height:1.13;
+    margin-top:2px;
+  }
+  .runnit-stats-v2 .stats-v2-record-grid {
+    margin-top:3px;
+    gap:4px;
+  }
+  .runnit-stats-v2 .stats-v2-record {
+    min-height:38px;
+    padding:4px 4px;
+    border-radius:10px 4px 10px 4px;
+  }
+  .runnit-stats-v2 .stats-v2-record span {font-size:10px;}
+  .runnit-stats-v2 .stats-v2-record strong {
+    font-size:clamp(10px,2.9vw,13px);
+    margin-top:4px;
+  }
+  .runnit-stats-v2 .stats-v2-form-body {
+    grid-template-columns:minmax(83px,31%) minmax(0,1fr);
+    gap:4px;
+    margin-top:1px;
+  }
+  .runnit-stats-v2 .stats-v2-speed {max-width:92px;}
+  .runnit-stats-v2 .stats-v2-speed-center strong {font-size:18px;}
+  .runnit-stats-v2 .stats-v2-speed-center span {font-size:6px;}
+  .runnit-stats-v2 .stats-v2-form-line,
+  .runnit-stats-v2 .stats-v2-goal-copy {
+    gap:4px;
+    padding:2px 0;
+  }
+  .runnit-stats-v2 .stats-v2-form-line>svg,
+  .runnit-stats-v2 .stats-v2-goal-copy>svg {
+    width:15px;height:15px;
+  }
+  .runnit-stats-v2 .stats-v2-form-line span,
+  .runnit-stats-v2 .stats-v2-goal-copy span {font-size:7px;}
+  .runnit-stats-v2 .stats-v2-form-line strong,
+  .runnit-stats-v2 .stats-v2-goal-copy strong {
+    font-size:10px;
+    margin-top:1px;
+  }
+  .runnit-stats-v2 .stats-v2-progress {margin-top:3px;height:7px;}
+  .runnit-stats-v2 .stats-v2-goal-details {
+    margin-top:2px;
+  }
+  .runnit-stats-v2 .stats-v2-goal-details>summary {
+    min-height:15px;
+    font-size:9px;
+  }
+  .runnit-stats-v2 .stats-v2-history>summary {min-height:15px;}
+  .runnit-stats-v2 .stats-v2-history ol {margin-top:4px;}
+  .runnit-stats-v2 .stats-v2-safety {
+    font-size:8px;
+    line-height:1.2;
+    padding:1px 2px;
+  }
+  .runnit-stats-v2 .stats-v2-next {
+    padding:8px;
+    font-size:11px;
+  }
+}
+/* Short descriptions retain truthful context but are one readable line in
+   the default mini view. Longer records and settings remain expandable. */
