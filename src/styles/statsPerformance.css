@@ -229,3 +229,6 @@
 @media(prefers-reduced-motion:reduce) {
  .stats-v2-bar-fill,.stats-v2-speed-progress,.stats-v2-speed-progress-glow,.stats-v2-speed-needle,.stats-v2-progress span {transition:none!important;}
 }
+
+.stats-v2-section-head h2>span {color:#caff06;}
+.stats-v2-compare-card h3>span {color:#a3f7ff;}
