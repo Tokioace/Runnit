@@ -23,7 +23,7 @@ export default function BottomNav() {
               <Link to={href} aria-label={label} aria-current={active ? 'page' : undefined}
                 className={'runnit-dock-item flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 py-1 text-[9px] font-black italic transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ' + (active ? 'runnit-dock-active text-cyan-100' : 'text-white/80 hover:bg-white/10 hover:text-white')}>
                 <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-                <span className="runnit-dock-caption block w-full text-center">{display}</span>
+                <span className="runnit-dock-caption block w-full text-center">{active && href === '/leaderboard' ? 'LEGENDS' : display}</span>
               </Link>
             </li>
           );
