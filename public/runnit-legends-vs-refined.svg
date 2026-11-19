@@ -13,4 +13,8 @@
 <path d="M149 41L147 39L127 40L91 57L82 65L79 71L80 76L84 80L117 81L68 103L66 106L55 111L58 111L58 113L36 122L59 118L58 121L70 116L73 117L110 102L127 91L129 92L134 88L138 80L133 70L125 68L100 68L115 59L123 59L142 52L140 51L146 48L144 47L147 46L145 44Z"/>
 </g>
 <path d="M18 110L39 78M69 101L132 72M67 115L118 94M100 35L143 23" fill="none" stroke="#efff44" stroke-width="1" stroke-linecap="round" opacity=".8"/>
+<!-- Narrow trailing brush flecks complete the reference's diagonal motion. -->
+<path d="M28 112L10 119L22 117L16 124L49 116" fill="#bfff04" opacity=".92"/>
+<path d="M114 55L150 36L143 45L163 36L153 45L160 45L138 56" fill="#e4ff2f" opacity=".95"/>
+<path d="M53 114L83 100M120 94L146 81" fill="none" stroke="#d8ff0c" stroke-width="2.2" stroke-linecap="square" opacity=".9"/>
 </svg>
