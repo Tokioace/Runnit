@@ -160,3 +160,32 @@ test('LEGENDS precise picture layers never change the shared menu or hardcode ra
  assert.match(screen,/<BottomNav\/>/);
  assert.match(pass,/arena-rematch/);
 });
+
+test('LEGENDS polish places compact laurels outside live statistic labels',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ const pass=css.slice(css.lastIndexOf('FINAL REFERENCE CLEANUP'));
+ const laurels=read('public/runnit-legends-laurels-compact.svg');
+ assert.match(pass,/url\('\/runnit-legends-laurels-compact\.svg'\)/);
+ assert.match(pass,/\.arena-self-strip::before,[\s\S]*?\.arena-self-strip::after\s*\{\s*content:none;/);
+ assert.match(laurels,/viewBox="0 0 708 105"/);
+ assert.doesNotMatch(laurels,/<text\b/);
+ const screen=read('src/screens/LeaderboardScreen.tsx');
+ assert.match(screen,/history\.totals\.completedDuels/);
+ assert.match(screen,/history\.totals\.wins/);
+ assert.match(screen,/history\.totals\.losses/);
+});
+test('LEGENDS artwork polish cannot cover real VS results or change the shared dock',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ const pass=css.slice(css.lastIndexOf('FINAL REFERENCE CLEANUP'));
+ const grit=read('public/runnit-legends-duel-grit.svg');
+ const brush=read('public/runnit-legends-street-brush.svg');
+ assert.match(pass,/url\('\/runnit-legends-duel-grit\.svg'\)/);
+ assert.match(pass,/z-index:2/);
+ assert.match(pass,/pointer-events:none/);
+ assert.match(pass,/url\('\/runnit-legends-street-brush\.svg'\)/);
+ assert.match(pass,/\.arena-rematch/);
+ assert.match(grit,/<svg[\s\S]*<mask/);
+ assert.match(brush,/viewBox="0 0 708 390"/);
+ assert.doesNotMatch(pass,/\.runnit-(?:competition\.runnit-)?legends\s+\.runnit-(?:game-dock|dock-item|dock-caption)/);
+ assert.doesNotMatch(pass,/runnit-showcase-home|runnit-game-home/);
+});
