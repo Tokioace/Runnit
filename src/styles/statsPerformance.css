@@ -612,3 +612,79 @@
 }
 /* Short descriptions retain truthful context but are one readable line in
    the default mini view. Longer records and settings remain expandable. */
+
+
+/* FINAL MINI VERTICAL FIT — screenshot comparison 18:59 against the approved
+ * STATS layout. The first four panels already match; avoid shrinking them
+ * again. Give the fifth (AKTUELLE FORM) its full visible area above the fixed
+ * dock. All selectors are STATS-only, not BottomNav or other routes. */
+@media (max-width:480px) and (max-height:900px) {
+  /* Recover just enough height above the first card; the stadium stays intact.
+     The title and its two-line introduction still fit inside the hero. */
+  .runnit-stats-v2 .stats-v2-hero {
+    height:clamp(78px,9.95dvh,86px);
+    min-height:78px;
+  }
+  .runnit-stats-v2 .stats-v2-form {
+    position:relative;
+    padding-bottom:4px;
+  }
+  /* Keep the gauge prominent, but do not let it force the entire card tall. */
+  .runnit-stats-v2 .stats-v2-form-body {
+    grid-template-columns:minmax(78px,29%) minmax(0,1fr);
+    gap:3px;
+    margin-top:0;
+    align-items:center;
+  }
+  .runnit-stats-v2 .stats-v2-speed {
+    max-width:85px;
+  }
+  .runnit-stats-v2 .stats-v2-form-line,
+  .runnit-stats-v2 .stats-v2-goal-copy {
+    padding:1px 0;
+    gap:4px;
+  }
+  .runnit-stats-v2 .stats-v2-form-line strong,
+  .runnit-stats-v2 .stats-v2-goal-copy strong {
+    margin-top:0;
+  }
+  .runnit-stats-v2 .stats-v2-progress {
+    margin-top:2px;
+    height:7px;
+  }
+  /* In the collapsed state, edit-goal is a tiny action on the heading's
+     right, not an additional row that extends below the bottom dock.
+     Expanding restores normal flow so the Supabase form remains accessible. */
+  .runnit-stats-v2 .stats-v2-goal-details:not([open]) {
+    position:absolute;
+    top:5px;
+    right:8px;
+    margin:0;
+    border:0;
+    background:none;
+    z-index:3;
+  }
+  .runnit-stats-v2 .stats-v2-goal-details:not([open]) > summary {
+    min-height:16px;
+    white-space:nowrap;
+    font-size:clamp(7px,1.95vw,9px);
+    color:#bff8ff;
+    gap:2px;
+  }
+  .runnit-stats-v2 .stats-v2-goal-details:not([open]) > summary span {
+    font-size:13px;
+  }
+  .runnit-stats-v2 .stats-v2-goal-details[open] {
+    position:static;
+    margin-top:5px;
+    border-top:1px solid #55bfe65c;
+  }
+}
+/* On very narrow screens, prevent the top-right collapsed action from
+ * intruding into the form heading. It remains keyboard/touch accessible. */
+@media (max-width:345px) and (max-height:900px) {
+  .runnit-stats-v2 .stats-v2-goal-details:not([open]) > summary {
+    font-size:7px;
+    letter-spacing:-.04em;
+  }
+}
