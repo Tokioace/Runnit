@@ -106,3 +106,34 @@ test('goal editing and run archive remain accessible after compacting mobile STA
  assert.match(screen,/useRunnerHistory\(userId\)/);
  assert.match(screen,/useStatsGoal\(userId\)/);
 });
+
+test('STATS short mobile viewport keeps five dashboard panels in compact hierarchy',()=>{
+ const css=read('src/styles/statsPerformance.css');
+ const pass=css.slice(css.lastIndexOf('RUNNIT MINI DENSE PASS'));
+ const screen=read('src/screens/StatsScreen.tsx');
+ assert.match(pass,/@media \(max-width:480px\) and \(max-height:900px\)/);
+ assert.match(pass,/\.runnit-stats-v2 \.stats-v2-hero\s*\{[\s\S]*?height:clamp\(92px,12dvh,103px\)/);
+ assert.match(pass,/\.runnit-stats-v2 \.stats-v2-tile\s*\{[\s\S]*?min-height:46px/);
+ assert.match(pass,/\.runnit-stats-v2 \.stats-v2-chart\s*\{[\s\S]*?height:52px/);
+ assert.match(pass,/\.runnit-stats-v2 \.stats-v2-compare-card\s*\{[\s\S]*?min-height:54px/);
+ assert.match(pass,/\.runnit-stats-v2 \.stats-v2-record\s*\{[\s\S]*?min-height:38px/);
+ assert.match(pass,/\.runnit-stats-v2 \.stats-v2-speed\s*\{max-width:92px/);
+ for (const title of ['DIESE <span>WOCHE</span>','AKTIVITÄT','DUELLE <em>VS</em> SOLO','PERSÖNLICHE BESTZEITEN','AKTUELLE <em>FORM</em>']) {
+   assert.ok(screen.includes(title), title+' remains in the main dashboard');
+ }
+});
+test('STATS mini density preserves animated charts, server numbers, goal form, and shared dock',()=>{
+ const css=read('src/styles/statsPerformance.css');
+ const pass=css.slice(css.lastIndexOf('RUNNIT MINI DENSE PASS'));
+ const screen=read('src/screens/StatsScreen.tsx');
+ assert.doesNotMatch(pass,/runnit-(?:game-dock|dock-item|legends|showcase-home)/);
+ assert.match(css,/stats-v2-stage\[data-active="true"\] \.stats-v2-bar-fill/);
+ assert.match(css,/stats-v2-speed-needle[\s\S]*?transition:transform/);
+ assert.match(screen,/useRunnerHistory\(userId\)/);
+ assert.match(screen,/useStatsGoal\(userId\)/);
+ assert.match(screen,/requestAnimationFrame\(\(\)=>setActive\(true\)\)/);
+ assert.match(screen,/await goal\.save\(goalDraft\)/);
+ assert.match(screen,/<details className="stats-v2-goal-details">/);
+ assert.match(screen,/<details className="stats-v2-panel stats-v2-history"/);
+ assert.match(screen,/<BottomNav\/>/);
+});
