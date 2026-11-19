@@ -123,7 +123,7 @@ export default function StatsScreen({userId}:Props) {
        <div className="stats-v2-brand">RUNNIT <span aria-hidden="true">≡</span></div>
        <h1>DEINE <em>STATS.</em></h1>
        <p className="stats-v2-kicker">DEIN PROTOKOLL · SERVERGESPEICHERT</p>
-       <p className="stats-v2-intro">Deine Läufe, Bestzeiten und Trainingsdaten – direkt aus deinem RUNNIT-Konto.</p>
+       <p className="stats-v2-intro">Deine Läufe, Bestzeiten und Trainingsdaten – aus deinem RUNNIT-Konto.</p>
      </header>
 
      {!userId ? <section className="stats-v2-panel stats-v2-login" role="status">
@@ -175,7 +175,7 @@ export default function StatsScreen({userId}:Props) {
              </div>
            </div>
          </div>
-         <p className="stats-v2-caption">Ghost-Runs zählen als Solo-Trainings, nicht zusätzlich als Duelle. Remis: {stats.ties}.</p>
+         <p className="stats-v2-caption">Ghost zählt nur als Solo · Remis: {stats.ties}</p>
        </section>
 
        <section className="stats-v2-panel" aria-labelledby="stats-records">
@@ -186,7 +186,7 @@ export default function StatsScreen({userId}:Props) {
            </div>)}
            <div className="stats-v2-record is-future"><span>1 km</span><strong>—</strong></div>
          </div>
-         <p className="stats-v2-caption">Bestzeiten aus abgeschlossenen, beidseitig erfassten Duellen. 1 km ist noch nicht verfügbar.</p>
+         <p className="stats-v2-caption">Beidseitig erfasste Duelle · 1 km: noch nicht verfügbar.</p>
        </section>
 
        <section className="stats-v2-panel stats-v2-form" aria-labelledby="stats-form">
