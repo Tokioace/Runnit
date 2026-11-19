@@ -226,3 +226,24 @@ test('LEGENDS metallic scorecard keeps metrics live and excludes shared navigati
  assert.doesNotMatch(layer,/\.runnit-(?:competition\.runnit-)?legends\s+\.runnit-(?:game-dock|dock-item|dock-caption)/);
  assert.doesNotMatch(layer,/runnit-showcase-home|runnit-game-home/);
 });
+
+test('LEGENDS laurels render as two edge ornaments, not a full-width scorecard layer',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ const pass=css.slice(css.lastIndexOf('Fix: 2026-11-19'));
+ const laurel=read('public/runnit-legends-laurel-side.svg');
+ const screen=read('src/screens/LeaderboardScreen.tsx');
+ assert.match(pass,/\.arena-self-strip\s*\{[\s\S]*?runnit-legends-stats-metal\.svg/);
+ assert.match(pass,/\.arena-self-strip::before,[\s\S]*?\.arena-self-strip::after\s*\{[\s\S]*?runnit-legends-laurel-side\.svg/);
+ assert.match(pass,/\.arena-self-strip::before\s*\{[\s\S]*?left:clamp/);
+ assert.match(pass,/\.arena-self-strip::after\s*\{[\s\S]*?right:clamp/);
+ assert.match(pass,/transform:translateY\(-50%\) scaleX\(-1\)/);
+ assert.doesNotMatch(pass,/runnit-legends-laurels-compact\.svg/);
+ assert.match(laurel,/viewBox="30 3 65 95"/);
+ for(const field of ['completedDuels','wins','losses'])assert.ok(screen.includes('history.totals.'+field));
+});
+test('LEGENDS single-edge laurel fix does not modify the shared bottom navigation',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ const pass=css.slice(css.lastIndexOf('Fix: 2026-11-19'));
+ assert.doesNotMatch(pass,/\.runnit-(?:competition\.runnit-)?legends\s+\.runnit-(?:game-dock|dock-item|dock-caption)/);
+ assert.doesNotMatch(pass,/runnit-showcase-home|runnit-game-home/);
+});
