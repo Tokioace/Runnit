@@ -7,6 +7,7 @@ import { formatRaceTime } from '../lib/runnerHistory';
 import { summarizeRivals } from '../lib/competition';
 import { supabase } from '../lib/supabaseClient';
 import '../styles/runnitCompetition.css';
+import '../styles/legendsShowcase.css';
 
 type PageTab = 'rivals' | 'ladder' | 'records';
 type Metric = 'times' | 'speed' | 'acceleration' | 'wins' | 'streak' | 'duels';
@@ -15,7 +16,7 @@ type BoardRow = { rank_position:number; user_id:string; username:string; value:n
 type PublicRow = { rank_position:number; user_id:string; username:string; best_time_ms:number|null; races_count:number; wins_count:number };
 type RecordRow = { rank_position:number; user_id:string; username:string; metric_value:number|null; races_count:number; wins_count:number };
 const tabs = [
- { id:'rivals',label:'RIVALEN' },{ id:'ladder',label:'RANGLISTE' },{ id:'records',label:'REKORDE' },
+ { id:'rivals',label:'RIVALEN',Icon:Users },{ id:'ladder',label:'WERTUNG',Icon:BarChart3 },{ id:'records',label:'REKORDE',Icon:Trophy },
 ] as const;
 const metrics = [
  { id:'times',label:'BESTZEITEN',Icon:Timer },
@@ -118,22 +119,18 @@ export default function LeaderboardScreen({userId,displayName}:{userId?:string|n
  };
  const rival=rivals[0],champ=rows[0];
 
- return <main className="arena-screen runnit-competition" aria-label="RUNNIT Rangliste">
+ return <main className="arena-screen runnit-competition runnit-legends" aria-label="RUNNIT Legends">
   <div className="arena-stage">
-   <header className="arena-hero">
-    <div className="arena-hero-top">
-     <img src="/runnit-metal-logo.svg" alt="RUNNIT" className="arena-logo"/>
-     <Link to="/profile" className="arena-profile-button" aria-label="Profil öffnen"><UserRound aria-hidden="true"/></Link>
-    </div>
-    <p className="arena-motto">CHALLENGE. <em>RACE.</em> <b>BEAT.</b></p>
-    <h1>RANGLISTE</h1>
-    <p className="arena-hero-bottom">RIVALEN · WERTUNG · <em>REKORDE</em></p>
+   <header className="arena-hero" aria-label="RUNNIT LEGENDS">
+    <span className="legends-hero-crown" aria-hidden="true"><Crown /></span>
+    <h1>LEGENDS</h1>
+    <p className="arena-hero-bottom"><span>RIVALEN</span> · <b>WERTUNG</b> · <em>REKORDE</em></p>
    </header>
    <nav className="arena-tabs" role="tablist" aria-label="Ranglistenbereiche">
-    {tabs.map(({id,label},i)=><button key={id} role="tab" id={'competition-tab-'+id}
+    {tabs.map(({id,label,Icon},i)=><button key={id} role="tab" id={'competition-tab-'+id}
       type="button" aria-selected={tab===id} aria-controls="competition-panel"
       tabIndex={tab===id?0:-1} className={tab===id?'is-active':''}
-      onClick={()=>selectTab(id)} onKeyDown={e=>onKey(e,i)}>{label}</button>)}
+      onClick={()=>selectTab(id)} onKeyDown={e=>onKey(e,i)}><Icon aria-hidden="true"/><span>{label}</span></button>)}
    </nav>
    <div ref={contentRef} className="arena-content" role="tabpanel" id="competition-panel" aria-labelledby={'competition-tab-'+tab}>
     {tab==='rivals'?<div className="arena-rivals arena-panel-area">
@@ -145,6 +142,8 @@ export default function LeaderboardScreen({userId,displayName}:{userId?:string|n
       history.error?<div role="alert" className="arena-live-message">{history.error}<button onClick={history.refresh} type="button">NOCHMAL</button></div>:
       <>
        <section className="arena-showdown" aria-label="Deine meistgespielte Rivalität">
+        <span className="legends-showdown-art legends-showdown-art--left" aria-hidden="true"/>
+        <span className="legends-showdown-art legends-showdown-art--right" aria-hidden="true"/>
         {rival?<div className="arena-showdown-people">
          <div className="arena-showdown-person"><Avatar large/><strong>{currentName}</strong><span>{countLabel(rival.wins,'SIEG','SIEGE')}</span></div>
          <div className="arena-versus"><strong>VS</strong><small>DUELL-BILANZ</small><b>{rival.wins} : {rival.losses}</b></div>
@@ -166,9 +165,10 @@ export default function LeaderboardScreen({userId,displayName}:{userId?:string|n
           </div>):<p className="arena-mini-empty">Noch keine Ergebnisse.</p>}
         </section>
        </div>
-       <div className="arena-self-strip"><Medal size={19} aria-hidden="true"/>
-        <strong>{countLabel(history.totals.completedDuels,'DUELL','DUELLE')}</strong>
-        <span>{countLabel(history.totals.wins,'SIEG','SIEGE')}</span><b>{history.totals.losses} NIED.</b>
+       <div className="arena-self-strip" aria-label="Gespeicherte Duellbilanz">
+        <span className="legends-summary"><strong>{history.totals.completedDuels}</strong><small>DUELLE</small></span>
+        <span className="legends-summary"><strong>{history.totals.wins}</strong><small>SIEGE</small></span>
+        <span className="legends-summary"><strong>{history.totals.losses}</strong><small>NIED.</small></span>
        </div>
       </>}
     </div>:tab==='ladder'?<div className="arena-ladder arena-panel-area">
