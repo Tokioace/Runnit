@@ -158,7 +158,7 @@ test('STATS final iPhone mini pass keeps the form and animated gauge above the d
 
 test('compact duel win-rate gains space without enlarging any STATS card',()=>{
  const css=read('src/styles/statsPerformance.css');
- const pass=css.slice(css.lastIndexOf('Mini STATS: read the four real duel results'));
+ const pass=css.slice(css.lastIndexOf('Mini STATS: read the four real duel results'),css.indexOf('/* REFERENCE IMAGE MATCH PASS'));
  const screen=read('src/screens/StatsScreen.tsx');
  assert.match(pass,/@media \(max-width:480px\) and \(max-height:900px\)/);
  assert.match(pass,/\.stats-v2-compare-card:not\(\.stats-v2-compare-card--solo\) \.stats-v2-compare-values/);
@@ -172,4 +172,40 @@ test('compact duel win-rate gains space without enlarging any STATS card',()=>{
  assert.match(screen,/stats\.wins/);
  assert.match(screen,/stats\.losses/);
  assert.match(screen,/winRate\+'%'/);
+});
+
+test('STATS reference art is a distinct symmetric logo and photo-backed metallic panels',()=>{
+ const screen=read('src/screens/StatsScreen.tsx');
+ const css=read('src/styles/statsPerformance.css');
+ const logo=read('public/runnit-stats-logo-speedlines.svg');
+ const sheen=read('public/runnit-stats-panel-sheen.svg');
+ const stripes=read('public/runnit-stats-diagonal-stripes.svg');
+ const pass=css.slice(css.lastIndexOf('REFERENCE IMAGE MATCH PASS'));
+ assert.match(screen,/<div className="stats-v2-brand" role="img" aria-label="RUNNIT"\s*\/>/);
+ assert.match(pass,/runnit-stats-logo-speedlines\.svg/);
+ assert.match(pass,/runnit-stats-panel-sheen\.svg/);
+ assert.match(pass,/runnit-stats-diagonal-stripes\.svg/);
+ assert.match(logo,/viewBox="0 0 620 104"/);
+ assert.match(logo,/RUNNIT/);
+ assert.match(logo,/M11 44H174/);
+ assert.match(logo,/M609 44H446/);
+ assert.match(sheen,/id="grit"/);
+ assert.match(stripes,/viewBox="0 0 250 55"/);
+ assert.match(screen,/detail=\{<Trophy size=\{17\} aria-hidden="true" \/>\}/);
+});
+test('STATS screenshot refinement does not change dimensions, Supabase values or navigation',()=>{
+ const css=read('src/styles/statsPerformance.css');
+ const screen=read('src/screens/StatsScreen.tsx');
+ const pass=css.slice(css.lastIndexOf('REFERENCE IMAGE MATCH PASS'));
+ assert.doesNotMatch(pass,/\.stats-v2-tile\s*\{[^}]*min-height/);
+ assert.doesNotMatch(pass,/\.stats-v2-panel\s*\{[^}]*min-height/);
+ assert.doesNotMatch(pass,/runnit-game-dock|runnit-dock-item|runnit-showcase-home|runnit-legends/);
+ assert.match(screen,/useRunnerHistory\(userId\)/);
+ assert.match(screen,/useStatsGoal\(userId\)/);
+ assert.match(screen,/stats\.bestTimes\[d\]/);
+ assert.match(screen,/stats\.completedDuels/);
+ assert.match(screen,/await goal\.save\(goalDraft\)/);
+ assert.match(screen,/<BottomNav\/>/);
+ assert.match(screen,/stats-v2-speed-needle/);
+ assert.match(screen,/strokeDashoffset/);
 });
