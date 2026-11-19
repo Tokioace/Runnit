@@ -688,3 +688,31 @@
     letter-spacing:-.04em;
   }
 }
+
+
+/* Mini STATS: read the four real duel results without increasing the card.
+ * At 375 CSS px the equal-width fourth column clips/presses "100%" against
+ * the separator. Transfer a few pixels from the first three columns to the
+ * percentage column; do not change the panel height, fonts elsewhere or nav.
+ * Solo's three metrics retain their separate existing grid. */
+@media (max-width:480px) and (max-height:900px) {
+  .runnit-stats-v2 .stats-v2-compare-card:not(.stats-v2-compare-card--solo) .stats-v2-compare-values {
+    grid-template-columns:
+      minmax(0,.88fr) minmax(0,.83fr) minmax(0,.80fr) minmax(0,1.49fr);
+  }
+  .runnit-stats-v2 .stats-v2-compare-card:not(.stats-v2-compare-card--solo) .stats-v2-compare-values>div {
+    padding-inline:0;
+  }
+  .runnit-stats-v2 .stats-v2-compare-card:not(.stats-v2-compare-card--solo) .stats-v2-compare-values>div:last-child {
+    padding-left:3px;
+  }
+  .runnit-stats-v2 .stats-v2-compare-card:not(.stats-v2-compare-card--solo) .stats-v2-compare-values>div:last-child strong {
+    font-size:clamp(10px,2.75vw,12px);
+    letter-spacing:-.045em;
+  }
+  .runnit-stats-v2 .stats-v2-compare-values small {
+    white-space:nowrap;
+    color:#e5f3ff;
+    text-shadow:0 1px 2px #02091c;
+  }
+}
