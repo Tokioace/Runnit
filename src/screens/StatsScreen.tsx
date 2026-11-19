@@ -15,7 +15,7 @@ import '../styles/statsPerformance.css';
 type Props = { userId?: string | null };
 const goals = [1000,3000,5000,10000] as const;
 
-function Headline({children,detail,id}: {children:ReactNode,detail?:string,id?:string}){
+function Headline({children,detail,id}: {children:ReactNode,detail?:ReactNode,id?:string}){
   return <div className="stats-v2-section-head"><span aria-hidden="true" className="stats-v2-stripes">///</span><h2 id={id}>{children}</h2>{detail&&<span className="stats-v2-head-detail">{detail}</span>}</div>;
 }
 function StatTile({icon:Icon,label,value,foot}:{
