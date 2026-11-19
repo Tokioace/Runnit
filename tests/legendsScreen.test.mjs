@@ -91,3 +91,38 @@ test('LEGENDS reuses the global bottom dock appearance without route-specific ov
  assert.match(nav,/runnit-dock-active text-cyan-100/);
  assert.match(nav,/active && href === '\/leaderboard' \? 'LEGENDS' : display/);
 });
+
+
+test('LEGENDS approved imagery is sourced from image assets, not rebuilt CSS text',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ const last=css.slice(css.lastIndexOf('ARTWORK PARITY PASS'));
+ const wordmark=read('public/runnit-legends-reference-wordmark.svg');
+ const banner=read('public/runnit-legends-reference-rivals.svg');
+ const versus=read('public/runnit-legends-reference-versus.svg');
+ const laurels=read('public/runnit-legends-laurels.svg');
+ assert.match(last,/runnit-legends-reference-wordmark\.svg/);
+ assert.match(last,/runnit-legends-reference-rivals\.svg/);
+ assert.match(last,/runnit-legends-reference-versus\.svg/);
+ assert.match(last,/runnit-legends-duel-left\.webp/);
+ assert.match(last,/runnit-legends-duel-right\.webp/);
+ assert.match(last,/runnit-legends-laurels\.svg/);
+ assert.match(wordmark,/viewBox="0 0 708 142"/);
+ assert.match(banner,/viewBox="0 0 708 64"/);
+ assert.match(versus,/viewBox="0 0 175 119"/);
+ assert.match(laurels,/viewBox="0 0 708 105"/);
+ assert.doesNotMatch(last,/\.runnit-(?:competition\.runnit-)?legends\s+\.runnit-(?:game-dock|dock-item|dock-caption)/);
+});
+test('LEGENDS live match data and shared dock are not replaced by background artwork',()=>{
+ const screen=read('src/screens/LeaderboardScreen.tsx');
+ const dock=read('src/components/ui/BottomNav.tsx');
+ const css=read('src/styles/legendsShowcase.css');
+ assert.match(screen,/rival\.wins/);
+ assert.match(screen,/rival\.losses/);
+ assert.match(screen,/history\.totals\.completedDuels/);
+ assert.match(screen,/history\.totals\.wins/);
+ assert.match(screen,/history\.totals\.losses/);
+ assert.match(screen,/to="\/map"/);
+ assert.match(screen,/<BottomNav\/>/);
+ assert.match(dock,/runnit-dock-active text-cyan-100/);
+ assert.doesNotMatch(css,/\.runnit-showcase-home|\.runnit-game-home/);
+});
