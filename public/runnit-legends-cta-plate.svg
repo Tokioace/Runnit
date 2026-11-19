@@ -11,5 +11,7 @@
 <path d="M14 85L582 85L602 72L584 88L8 88Z" fill="#86d511" opacity=".65"/>
 <path d="M638 9L658 9L618 88L597 88Z" fill="#caff05"/>
 <path d="M670 9L681 9L644 88L632 88Z" fill="#caff05"/>
-<path d="M66 13L598 13" stroke="#ffffc1" stroke-opacity=".8" stroke-width="1.8"/>
+<path d="M66 13L598 13" stroke="#ffffc1" stroke-opacity=".86" stroke-width="1.8"/>
+<path d="M40 37L606 37M34 79L574 79" fill="none" stroke="#fffcb8" stroke-width="1" opacity=".25"/>
+<path d="M637 14L645 14L611 82L604 82Z" fill="#f3ff54" opacity=".42"/>
 </svg>
