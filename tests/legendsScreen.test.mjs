@@ -80,3 +80,14 @@ test('LEGENDS final iPhone fix preserves complete totals above dock',()=>{
   assert.match(screen,/history\.totals\.losses/);
   assert.doesNotMatch(last,/runnit-showcase|runnit-game-home/);
 });
+
+test('LEGENDS reuses the global bottom dock appearance without route-specific overrides',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ const nav=read('src/components/ui/BottomNav.tsx');
+ const screen=read('src/screens/LeaderboardScreen.tsx');
+ assert.doesNotMatch(css,/\.runnit-(?:competition\.runnit-)?legends\s+\.runnit-(?:game-dock|dock-item|dock-caption)/);
+ assert.match(screen,/<BottomNav\s*\/>/);
+ assert.match(nav,/runnit-game-dock fixed inset-x-0 bottom-0/);
+ assert.match(nav,/runnit-dock-active text-cyan-100/);
+ assert.match(nav,/active && href === '\/leaderboard' \? 'LEGENDS' : display/);
+});
