@@ -1,11 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 55" width="250" height="55" aria-hidden="true">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 48" width="120" height="48" aria-hidden="true">
 <defs>
- <linearGradient id="a" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#05aaf0" stop-opacity=".04"/><stop offset=".6" stop-color="#24eafb" stop-opacity=".65"/><stop offset="1" stop-color="#69faff"/></linearGradient>
- <filter id="blur"><feGaussianBlur stdDeviation="3"/></filter>
+  <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="0">
+    <stop stop-color="#00d9ef"/><stop offset=".55" stop-color="#23f5ff"/><stop offset="1" stop-color="#a0ffff"/>
+  </linearGradient>
+  <filter id="glow" x="-30%" y="-70%" width="160%" height="240%">
+    <feGaussianBlur stdDeviation="4"/>
+  </filter>
 </defs>
-<g transform="skewX(-21)">
- <path d="M26 47L72 8H87L41 47Z M69 47L114 8H126L83 47Z M109 47L156 8H165L121 47Z" fill="url(#a)" filter="url(#blur)" opacity=".55"/>
- <path d="M23 42L63 12H78L38 42Z M62 42L102 12H114L75 42Z M99 42L139 12H150L112 42Z" fill="url(#a)"/>
- <path d="M148 42L188 12H196L158 42Z M168 42L208 12H214L177 42Z" fill="#31e4fc" opacity=".18"/>
+<g fill="url(#cyan)">
+  <path id="bars" d="M8 39 32 9H48L24 39Z M42 39 66 9H82L58 39Z M76 39 100 9H116L92 39Z"/>
+  <use href="#bars" filter="url(#glow)" opacity=".8"/>
 </g>
 </svg>
