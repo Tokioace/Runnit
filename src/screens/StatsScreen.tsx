@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { Link } from 'react-router-dom';
 import {
   Activity, ArrowRight, CalendarDays, Check, Flag, Footprints, Gauge,
-  RefreshCw, Route, ShieldCheck, Target, Zap
+  RefreshCw, Route, ShieldCheck, Target, Trophy, Zap
 } from 'lucide-react';
 import BottomNav from '../components/ui/BottomNav';
 import { useRunnerHistory } from '../hooks/useRunnerHistory';
@@ -15,7 +15,7 @@ import '../styles/statsPerformance.css';
 type Props = { userId?: string | null };
 const goals = [1000,3000,5000,10000] as const;
 
-function Headline({children,detail,id}: {children:ReactNode,detail?:string,id?:string}){
+function Headline({children,detail,id}: {children:ReactNode,detail?:ReactNode,id?:string}){
   return <div className="stats-v2-section-head"><span aria-hidden="true" className="stats-v2-stripes">///</span><h2 id={id}>{children}</h2>{detail&&<span className="stats-v2-head-detail">{detail}</span>}</div>;
 }
 function StatTile({icon:Icon,label,value,foot}:{
@@ -120,7 +120,7 @@ export default function StatsScreen({userId}:Props) {
    <div className="stats-v2-scene" aria-hidden="true"/>
    <div className="stats-v2-stage" data-active={active?'true':'false'}>
      <header className="stats-v2-hero">
-       <div className="stats-v2-brand">RUNNIT <span aria-hidden="true">≡</span></div>
+       <div className="stats-v2-brand" role="img" aria-label="RUNNIT" />
        <h1>DEINE <em>STATS.</em></h1>
        <p className="stats-v2-kicker">DEIN PROTOKOLL · SERVERGESPEICHERT</p>
        <p className="stats-v2-intro">Deine Läufe, Bestzeiten und Trainingsdaten – aus deinem RUNNIT-Konto.</p>
@@ -179,7 +179,7 @@ export default function StatsScreen({userId}:Props) {
        </section>
 
        <section className="stats-v2-panel" aria-labelledby="stats-records">
-         <Headline id="stats-records">PERSÖNLICHE BESTZEITEN</Headline>
+         <Headline id="stats-records" detail={<Trophy size={17} aria-hidden="true" />}>PERSÖNLICHE BESTZEITEN</Headline>
          <div className="stats-v2-record-grid">
            {([50,75,100] as const).map(d=><div className="stats-v2-record" key={d}>
              <span>{d} m</span><strong>{formatStatsTime(stats.bestTimes[d])}</strong>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 104" width="620" height="104" role="img" aria-label="RUNNIT">
+ <defs>
+  <linearGradient id="s" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#00b8d7" stop-opacity="0"/><stop offset=".55" stop-color="#20edff" stop-opacity=".8"/><stop offset="1" stop-color="#9bffff"/></linearGradient>
+  <linearGradient id="r" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#91ffff"/><stop offset=".48" stop-color="#20edff" stop-opacity=".82"/><stop offset="1" stop-color="#00b8d7" stop-opacity="0"/></linearGradient>
+  <linearGradient id="letter" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#ecfaff"/><stop offset=".66" stop-color="#fff"/><stop offset="1" stop-color="#e7d4ff"/></linearGradient>
+  <filter id="soft" x="-20%" y="-130%" width="140%" height="360%"><feGaussianBlur stdDeviation="4"/></filter>
+  <filter id="glow" x="-20%" y="-100%" width="140%" height="300%"><feGaussianBlur stdDeviation="1.6"/></filter>
+ </defs>
+ <g fill="none">
+  <path d="M11 44H174L165 53H11Z M34 59H171L162 66H34Z M72 74H169L160 80H72Z" fill="url(#s)" opacity=".62" filter="url(#soft)"/>
+  <path d="M11 44H174L165 49H11Z M34 57H171L162 62H34Z M72 70H169L160 75H72Z" fill="url(#s)"/>
+  <path d="M609 44H446L455 53H609Z M586 59H449L458 66H586Z M548 74H451L460 80H548Z" fill="url(#r)" opacity=".62" filter="url(#soft)"/>
+  <path d="M609 44H446L455 49H609Z M586 57H449L458 62H586Z M548 70H451L460 75H548Z" fill="url(#r)"/>
+ </g>
+ <g text-anchor="middle" font-family="Arial Black,Impact,Arial,sans-serif" font-size="55" font-weight="900" font-style="italic" letter-spacing="11">
+   <text x="311" y="73" textLength="252" lengthAdjust="spacingAndGlyphs" fill="#f0f8ff" filter="url(#soft)" opacity=".64">RUNNIT</text>
+   <text x="311" y="70" textLength="252" lengthAdjust="spacingAndGlyphs" fill="url(#letter)" stroke="#ffffff" stroke-width=".65" paint-order="stroke">RUNNIT</text>
+ </g>
+</svg>
