@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 708 282" width="708" height="282" aria-hidden="true">
+<defs>
+ <pattern id="cross" patternUnits="userSpaceOnUse" width="16" height="16" patternTransform="rotate(-25)">
+  <path d="M0 0V16M8 0V16" stroke="#02081b" stroke-width="1.4" stroke-opacity=".70"/>
+  <path d="M0 0H16M0 8H16" stroke="#b7d8e9" stroke-width=".75" stroke-opacity=".25"/>
+ </pattern>
+ <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff" stop-opacity="0"/><stop offset=".45" stop-color="#fff" stop-opacity=".3"/><stop offset="1" stop-color="#fff"/></linearGradient>
+ <mask id="lower"><rect width="708" height="282" fill="url(#fade)"/></mask>
+</defs>
+<g mask="url(#lower)">
+ <rect width="708" height="282" fill="url(#cross)" opacity=".62"/>
+ <path d="M-20 221L207 112L214 121L-12 244ZM-15 256L272 117L277 123L-12 271ZM710 118L502 216L494 205L706 105ZM717 151L553 231L544 220L713 136" fill="#07071c" opacity=".58"/>
+ <path d="M0 255L154 187M18 277L223 175M490 210L708 122M555 267L708 190" stroke="#010514" stroke-width="5" stroke-opacity=".7"/>
+ <path d="M6 229L138 184M562 205L703 148" stroke="#a2bace" stroke-width="1.5" stroke-opacity=".35"/>
+</g></svg>
