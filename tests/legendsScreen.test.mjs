@@ -34,3 +34,25 @@ test('LEGENDS dock caption appears only on leaderboard and other slots stay unch
  assert.match(dock,/active && href === '\/leaderboard' \? 'LEGENDS' : display/);
  for (const slot of ['HOME','KARTE','STATS','PROFIL']) assert.ok(dock.includes("display: '"+slot+"'"));
 });
+
+test('LEGENDS image composition keeps the three-column VS and opponent in column 3',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ const screen=read('src/screens/LeaderboardScreen.tsx');
+ const title=read('public/runnit-legends-title.svg');
+ const vs=read('public/runnit-legends-vs.svg');
+ assert.match(css,/url\('\/runnit-legends-title\.svg'\)/);
+ assert.match(css,/url\('\/runnit-legends-vs\.svg'\)/);
+ assert.match(css,/\.arena-showdown-person:last-child\s*\{grid-column:3\}/);
+ assert.match(css,/grid-template-columns:29% 42% 29%/);
+ assert.match(css,/\.legends-showdown-art--left/);
+ assert.match(css,/\.legends-showdown-art--right/);
+ assert.match(title,/<svg[\s\S]*LEGENDS/);
+ assert.match(vs,/<svg[\s\S]*VS/);
+ assert.match(screen,/<strong>VS<\/strong>/);
+ assert.match(screen,/rival\.wins/);
+ assert.match(screen,/rival\.losses/);
+});
+test('LEGENDS changes do not import or style the Home screen',()=>{
+ const css=read('src/styles/legendsShowcase.css');
+ assert.doesNotMatch(css,/\.runnit-showcase-home|\.runnit-game-home/);
+});

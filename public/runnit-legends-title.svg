@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="708" height="152" viewBox="0 0 708 152" role="img" aria-label="LEGENDS">
+<defs>
+ <linearGradient id="steel" x1="0" y1="0" x2=".12" y2="1"><stop stop-color="#fff"/><stop offset=".3" stop-color="#f8faff"/><stop offset=".53" stop-color="#c5cfdf"/><stop offset=".7" stop-color="#fff"/><stop offset="1" stop-color="#b7c9dc"/></linearGradient>
+ <linearGradient id="lime" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#dcff09"/><stop offset=".8" stop-color="#bfff00"/><stop offset="1" stop-color="#e6ff18"/></linearGradient>
+ <filter id="glow" x="-20%" y="-60%" width="140%" height="230%"><feGaussianBlur stdDeviation="3"/></filter>
+</defs>
+<!-- hand-painted lime underlines and checker blocks from the approved title -->
+<path d="M-4 112L176 92L535 91L688 101L636 112L305 111L40 134L-4 128Z" fill="#baff05" opacity=".88"/>
+<path d="M-5 127L206 111L502 106L-5 145Z" fill="#c6ff09" opacity=".9"/>
+<path d="M120 133L558 125L558 131L145 139Z" fill="#080e22" opacity=".95"/>
+<g transform="translate(0 0) skewX(-9)">
+ <text x="125" y="120" font-family="Impact,'Arial Black',sans-serif" font-style="italic" font-weight="1000" font-size="101" textLength="477" lengthAdjust="spacingAndGlyphs" fill="#07071a" stroke="#050918" stroke-width="13" paint-order="stroke fill">LEGENDS</text>
+ <text x="125" y="116" font-family="Impact,'Arial Black',sans-serif" font-style="italic" font-weight="1000" font-size="101" textLength="477" lengthAdjust="spacingAndGlyphs" fill="#392766" stroke="#0a1032" stroke-width="7" paint-order="stroke fill">LEGENDS</text>
+ <text x="125" y="111" font-family="Impact,'Arial Black',sans-serif" font-style="italic" font-weight="1000" font-size="101" textLength="477" lengthAdjust="spacingAndGlyphs" fill="url(#steel)" stroke="#fff" stroke-width="1" paint-order="stroke fill">LEGENDS</text>
+</g>
+<!-- crown above the centre of the logo -->
+<path d="M340 40L331 17L346 24L356 8L368 25L386 15L379 43Z" fill="#caff08" stroke="#142307" stroke-width="4" stroke-linejoin="round"/>
+<path d="M340 40L331 17L346 24L356 8L368 25L386 15L379 43Z" fill="none" stroke="#eaff42" stroke-width="3" stroke-linejoin="round"/>
+<path d="M343 45L379 45" stroke="#cfff0d" stroke-width="7" stroke-linecap="round"/>
+<!-- racing chequer -->
+<g fill="#c6ff0c" transform="skewX(-14)">
+ <path d="M634 100h21v16h-21zM656 116h21v16h-21zM611 116h21v16h-21z"/>
+ <path d="M656 91h21v16h-21z" opacity=".85"/>
+</g>
+</svg>

@@ -284,3 +284,154 @@
 @media(prefers-reduced-motion:reduce) {
   .runnit-legends .runnit-dock-item {transition:none}
 }
+
+
+/* LEGENDS ART-DIRECTED COMPOSITION — reference 708x1536.
+ * Image assets drive the hero, title, portraits and VS. Only scores, names,
+ * controls and accessibility text are live DOM. No home-screen styles touched.
+ */
+.runnit-legends .arena-stage {
+  gap:3px;
+}
+.runnit-legends .arena-hero {
+  flex:0 0 clamp(300px,45dvh,355px);
+  height:clamp(300px,45dvh,355px);
+  background:
+    linear-gradient(180deg,transparent 0%,transparent 62%,#070a2400 71%,#070a24c9 91%,#070a24 100%),
+    url('/runnit-legends-hero.webp') center top/100% 75% no-repeat,
+    url('/runnit-arcade-city.svg') center top/cover no-repeat;
+}
+.runnit-legends .arena-hero::before {opacity:0;content:none}
+.runnit-legends .legends-hero-crown {display:none}
+.runnit-legends .arena-hero h1 {
+  position:absolute;left:0;right:0;bottom:18px;
+  width:100%;height:clamp(116px,18dvh,148px);
+  margin:0;transform:none;
+  color:transparent;font-size:0;line-height:0;letter-spacing:0;text-shadow:none;
+  background:url('/runnit-legends-title.svg') center bottom/100% 100% no-repeat;
+}
+.runnit-legends .arena-hero h1::before {display:none;content:none}
+.runnit-legends .arena-hero-bottom {
+  bottom:1px;left:4%;right:4%;
+  font-size:clamp(12px,3.25vw,17px);
+  letter-spacing:.01em;
+}
+.runnit-legends .arena-tabs {
+  flex-basis:clamp(34px,4.6dvh,39px);
+  margin:1px 4px 2px;
+  gap:6px;
+}
+.runnit-legends .arena-tabs button {
+  border-width:2px;
+  border-radius:16px 3px 16px 3px;
+  font-size:clamp(11px,3vw,17px);
+}
+.runnit-legends .arena-section-bar {
+  background:
+    linear-gradient(90deg,#0a1930 10%,#15133fdb 52%,#48184db0),
+    url('/runnit-ranking-city.svg') right center/auto 140% no-repeat;
+  border-radius:15px 3px 15px 3px;
+}
+.runnit-legends .arena-section-sky {opacity:.72}
+.runnit-legends .arena-rivals .arena-showdown {
+  flex:0 0 clamp(138px,18.3dvh,146px);
+  height:clamp(138px,18.3dvh,146px);
+  border-radius:14px 3px 14px 3px;
+  background:linear-gradient(110deg,#071d38,#090c29 54%,#291039);
+}
+.runnit-legends .arena-rivals .arena-showdown::before {
+  z-index:0;
+  background:linear-gradient(180deg,transparent 0 47%,#07152b1c 59%,#060b25cc 86%,#0a0d2be8 100%);
+}
+.runnit-legends .legends-showdown-art {
+  z-index:0;top:0;width:50%;height:74%;
+  mask-image:linear-gradient(#000 0%,#000 35%,transparent 57%);
+  -webkit-mask-image:linear-gradient(#000 0%,#000 35%,transparent 57%);
+}
+.runnit-legends .arena-showdown-people {
+  position:absolute;z-index:2;inset:0 8px 41px;
+  display:grid;grid-template-columns:29% 42% 29%;
+  gap:0;align-items:end;padding:0;
+}
+.runnit-legends .arena-showdown-person {
+  min-width:0;display:flex;flex-direction:column;align-items:center;
+  justify-self:center;align-self:end;gap:0;width:100%;
+}
+.runnit-legends .arena-showdown-person:first-child {grid-column:1}
+.runnit-legends .arena-showdown-person:last-child {grid-column:3}
+.runnit-legends .arena-showdown-person .arena-avatar--large {
+  visibility:visible;flex:none;width:52px;height:52px;
+  max-width:52px;max-height:52px;
+  border:2px solid #f3faff;border-radius:10px 2px 10px 2px;
+  background:linear-gradient(140deg,#0b2440e8,#081026f5);
+  box-shadow:0 0 0 2px #0b1a33a8,0 0 8px #12e6ffb0;
+}
+.runnit-legends .arena-showdown-person:last-child .arena-avatar--large {
+  border-color:#fff5ff;box-shadow:0 0 0 2px #280d3e,0 0 9px #ff34eead;
+}
+.runnit-legends .arena-showdown-person>span:last-child {
+  width:min(100%,83px);height:20px;margin:0 auto;
+  font-size:clamp(10px,2.7vw,14px);
+}
+.runnit-legends .arena-versus {
+  z-index:3;left:50%;top:9px;width:35%;
+  transform:translateX(-50%);gap:0;
+  pointer-events:none;
+}
+.runnit-legends .arena-versus strong {
+  display:block;flex:none;width:100%;height:46px;
+  font-size:0;line-height:0;color:transparent;text-shadow:none;transform:none;
+  background:url('/runnit-legends-vs.svg') center/contain no-repeat;
+}
+.runnit-legends .arena-versus small {
+  color:#fff;font-size:clamp(8px,2.1vw,11px);
+  text-shadow:0 2px 2px #030820,0 0 3px #030820;
+}
+.runnit-legends .arena-versus b {
+  color:#caff00;font-size:clamp(23px,6.3vw,33px);
+  text-shadow:0 2px #041023,0 0 6px #bfff047a;
+}
+.runnit-legends .arena-rematch {
+  z-index:4;bottom:4px;width:72%;
+  height:clamp(32px,4.4dvh,36px);
+  border-radius:5px 2px 11px 2px;
+}
+.runnit-legends .arena-rematch::after {
+  content:"";position:absolute;right:-14px;top:3px;bottom:3px;width:12px;
+  border-left:5px solid #caff05;border-right:3px solid #caff05;
+  transform:skewX(-17deg);
+}
+.runnit-legends .arena-rivals .arena-duel-grid {
+  flex:0 1 auto;min-height:46px;max-height:min(20dvh,140px);
+}
+.runnit-legends .arena-rivals .arena-duel-panel {
+  min-height:46px;max-height:min(20dvh,140px);
+  padding:3px 5px;gap:1px;
+}
+.runnit-legends .arena-duel-panel h2 {min-height:19px}
+.runnit-legends .arena-rivals .arena-mini-row {min-height:23px;flex-basis:23px}
+.runnit-legends .arena-rivals .arena-self-strip {
+  flex:0 0 clamp(46px,6.4dvh,52px);margin-top:2px;
+}
+.runnit-legends .runnit-game-dock {
+  height:62px;bottom:24px;padding:6px 6px;
+  border-radius:26px;
+}
+.runnit-legends .runnit-dock-item[aria-current="page"] {
+  border-radius:13px;box-shadow:inset 0 1px #ffff8f9c,0 0 9px #b5ff04c9;
+}
+@media (max-height:700px) {
+  .runnit-legends .arena-hero {
+    flex-basis:clamp(260px,42dvh,302px);
+    height:clamp(260px,42dvh,302px);
+  }
+  .runnit-legends .arena-hero h1 {height:clamp(108px,18dvh,134px)}
+  .runnit-legends .arena-rivals .arena-showdown {flex-basis:135px;height:135px}
+  .runnit-legends .runnit-game-dock {height:58px;bottom:15px}
+}
+@media (max-width:350px) {
+  .runnit-legends .arena-hero-bottom {font-size:11px}
+  .runnit-legends .arena-versus strong {height:39px}
+  .runnit-legends .arena-showdown-person .arena-avatar--large {width:46px;height:46px}
+  .runnit-legends .arena-showdown-person>span:last-child {font-size:9px}
+}

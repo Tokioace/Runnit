@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="188" height="102" viewBox="0 0 188 102">
+<defs><linearGradient id="acid" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#edff27"/><stop offset=".48" stop-color="#d3ff00"/><stop offset="1" stop-color="#b6f900"/></linearGradient></defs>
+<path d="M5 85L29 12L47 23L65 4L93 19L121 0L125 20L175 8L149 44L185 49L137 60L143 86L89 78L51 100Z" fill="#080b21" opacity=".88"/>
+<g transform="skewX(-12)">
+<text x="30" y="79" font-family="Impact,'Arial Black',sans-serif" font-style="italic" font-weight="1000" font-size="94" textLength="140" lengthAdjust="spacingAndGlyphs" fill="#070e1c" stroke="#080d20" stroke-width="10" paint-order="stroke fill">VS</text>
+<text x="28" y="73" font-family="Impact,'Arial Black',sans-serif" font-style="italic" font-weight="1000" font-size="94" textLength="140" lengthAdjust="spacingAndGlyphs" fill="url(#acid)" stroke="#cfff00" stroke-width="2" paint-order="stroke fill">VS</text>
+</g><path d="M16 90L78 78L63 91L3 98ZM111 88L178 73L150 92Z" fill="#caff08"/>
+</svg>
