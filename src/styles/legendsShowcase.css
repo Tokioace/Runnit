@@ -1067,3 +1067,42 @@
   border-top-color:#ffd4fb;
   box-shadow:inset 0 1px 0 #ffdfff40,0 0 8px #fc39ff96;
 }
+
+
+/* Fix: 2026-11-19 — never render the two-sided laurel graphic as a
+ * full-width background. On narrow iPhones that scaling put leaves on top of
+ * the values 1 and 0. Keep the separate metallic material and position the
+ * cropped single-sided SVG at the two outside edges only. */
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip {
+  position:relative;
+  isolation:isolate;
+  background:
+    url('/runnit-legends-stats-metal.svg') center center / 100% 100% no-repeat,
+    linear-gradient(112deg,#071c27,#0b132c 54%,#321137);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::before,
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::after {
+  content:"";
+  display:block;
+  position:absolute;
+  z-index:1;
+  top:50%;
+  left:auto;
+  right:auto;
+  width:clamp(15px,5.3vw,22px);
+  height:clamp(30px,10.5vw,40px);
+  background:url('/runnit-legends-laurel-side.svg') center center / contain no-repeat;
+  pointer-events:none;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::before {
+  left:clamp(3px,1vw,7px);
+  transform:translateY(-50%);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::after {
+  right:clamp(3px,1vw,7px);
+  transform:translateY(-50%) scaleX(-1);
+}
+.runnit-competition.runnit-legends .arena-rivals .legends-summary {
+  position:relative;
+  z-index:2;
+}

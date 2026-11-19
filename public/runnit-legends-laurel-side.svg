@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="30 3 65 95" width="65" height="95" aria-hidden="true">
+<!-- Single left-hand laurel, cropped independently. Mirror it in CSS on the right.
+     Do not scale the original two-sided full-width SVG to the statistics strip. -->
+<g fill="none" stroke="#d8ff11" stroke-width="2.5" stroke-linecap="round">
+  <path d="M66 90C43 71 45 40 57 15"/>
+</g>
+<g fill="#d8ff11">
+ <path d="M61 88Q42 85 44 69Q60 73 61 88ZM52 74Q36 70 39 56Q51 61 52 74ZM49 60Q33 50 42 39Q54 49 49 60ZM48 45Q39 31 50 24Q58 37 48 45ZM54 30Q48 16 59 10Q65 23 54 30ZM67 83Q84 73 77 63Q64 71 67 83ZM60 68Q75 56 66 44Q56 56 60 68ZM55 51Q68 40 58 29Q49 40 55 51Z"/>
+</g>
+</svg>
