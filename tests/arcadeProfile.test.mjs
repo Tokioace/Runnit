@@ -73,7 +73,9 @@ test('Runner hologram rotates volumetric torso, limbs and head instead of flat S
   const source = read('src/components/profile/RunnerHologram3D.tsx');
   assert.match(scene, /RunnerHologram3D/);
   assert.doesNotMatch(scene, /runnit-profile-hologram.svg/);
-  assert.match(source, /ellipsoid\(\[0,.79,-.018\], \[.48,.36,.30\]/);
+  assert.match(source, /function loft\(/);
+  assert.match(source, /function swept\(/);
+  assert.match(source, /contourLines/);
   assert.match(source, /Math\.cos\(angle\)/);
   assert.match(source, /Math\.sin\(angle\)/);
   assert.match(source, /requestAnimationFrame/);

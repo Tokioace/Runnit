@@ -129,3 +129,18 @@
   opacity:.83;
 }
 /* Keep scan centered with the actor; preserve existing safe-area docking. */
+
+/* Scan beam as a shallow holographic ellipse instead of a flat light bar. */
+.rp-hologram-wrap .rp-scan-line{
+  position:absolute;
+  left:9%;
+  width:82%;
+  height:clamp(7px,1.5dvh,13px);
+  border-radius:50%;
+  border:1.6px solid rgba(147,246,251,.88);
+  background:radial-gradient(ellipse at 50% 56%,rgba(117,229,240,.15),transparent 69%);
+  box-shadow:0 0 8px rgba(93,222,239,.65),inset 0 0 6px rgba(86,230,243,.3);
+  animation:rp-scan-human 5.8s ease-in-out infinite alternate;
+}
+@keyframes rp-scan-human{from{top:22%}to{top:83%}}
+@media(prefers-reduced-motion:reduce){.rp-hologram-wrap .rp-scan-line{animation:none;top:50%}}
