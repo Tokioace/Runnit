@@ -70,3 +70,18 @@ Camera orbit is 130% to leave modest headroom in the compact mobile scan.
 The auto-rotation, manual 45° controls, animated scan ring, private runner
 profile data and bottom nav remain unchanged. The external `model-viewer`
 script is still version-pinned; the GLB itself is self-hosted for reliability.
+
+## 2026-11-20 – Visual refinement (profile runner v2)
+
+The first deployed asset rendered correctly from every angle, but its straight-up
+hair spikes, protruding rectangular visor and oversized white shoes did not
+match the supplied RUNNIT runner design. Version 2 adjusts **the actual GLB
+geometry** (not a screenshot or CSS overlay): shortens and sweeps the hair
+backwards, narrows the visor and frame and brings the lens closer to the
+face, and reduces sneaker bulk. Shorts, their cyan seam and the dark
+leggings now have clearly separate vertex-color palettes.
+
+The compact profile layout, **130% camera orbit**, 360° controls, Supabase data
+and bottom navigation are untouched. This is still a stylized approximation
+rather than a one-to-one recreation of the illustration. Inspect the updated
+avatar on a real iPhone, front/side/back, before merging to `main`.
