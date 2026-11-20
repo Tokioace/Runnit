@@ -42,6 +42,8 @@ export function raceHistoryFromServer(
     if (duel.host_user_id !== userId && duel.challenger_user_id !== userId) return [];
     const paired = pairedResults.get(duel.id) ?? [];
     const correctParticipants = paired.length === 2 &&
+      // The authorized pair must agree with the player's stored result before ranking.
+      paired.some(row => row.user_id === userId && row.time_ms === result.time_ms) &&
       paired.some(row => row.user_id === duel.host_user_id) &&
       paired.some(row => row.user_id === duel.challenger_user_id) &&
       paired.every(row => Number.isFinite(row.time_ms) && row.time_ms > 0);
