@@ -10,7 +10,7 @@ test('Profile has its own compact, image-backed Y2K screen and keeps the shared 
   assert.match(screen, /<BottomNav/);
   assert.match(screen, /runnit-metal-logo.svg/);
   assert.match(screen, /runnit-profile-avatar.avif/);
-  assert.match(screen, /<RunnerHologram3D rotating=\{turning\} manualAngle=\{turnAngle\}/);
+  assert.match(screen, /<RunnerHologramModel rotating=\{turning\} manualAngle=\{turnAngle\}/);
   assert.match(css, /runnit-profile-race-scene.avif/);
   assert.match(css, /height:100dvh/);
   assert.match(css, /overflow:hidden/);
@@ -91,4 +91,20 @@ test('Human scan includes cranial profile, eyes, nose, jaw and integrated should
   assert.match(source, /contained within torso/);
   assert.match(source, /lighting=/);
   assert.match(source, /rotating model, never screen-fixed/);
+});
+
+test('Profile switches to CC0 rigged 3D runner while retaining a local hologram fallback', () => {
+  const screen = read('src/screens/ProfileScreen.tsx');
+  const model = read('src/components/profile/RunnerHologramModel.tsx');
+  assert.match(screen, /<RunnerHologramModel/);
+  assert.match(model, /model-viewer/);
+  assert.match(model, /character\.glb/);
+  assert.match(model, /a488723e3a93d73d5c562d88f8a85353c37bc721/);
+  assert.match(model, /setBaseColorFactor/);
+  assert.match(model, /setAlphaMode/);
+  assert.match(model, /auto-rotate/);
+  assert.match(model, /getCameraOrbit/);
+  assert.match(model, /RunnerHologram3D rotating=\{rotating\}/);
+  assert.match(model, /setStatus\('failed'\)/);
+  assert.match(read('docs/runner-model.md'), /CC0/);
 });
