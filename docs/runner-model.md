@@ -27,3 +27,16 @@ implicitly modify the 3D character measurements.
 Official author: Quaternius / @Quaternius.
 Source pack: https://quaternius.com/packs/universalbasecharacters.html
 License: https://creativecommons.org/publicdomain/zero/1.0/
+
+
+## 2026-11-20: neutral standing pose and framing
+The source model arrives in a horizontal-arm bind/T-pose. RUNNIT now
+downloads the pinned GLB and transforms its upper-arm and forearm skeleton
+**node rotations** in-browser, reconstructing a glTF/GLB Blob for model-viewer.
+Original vertex meshes, skin weights, inverse bind matrices and binary chunks
+are unchanged. The resulting relaxed posture has slightly separated, lowered
+arms, with hands around hip height. Posing failure falls back to the original
+local hologram; the unwanted T-pose is never presented as the intended result.
+The vertical model frame uses 65% camera orbit and 28° vertical field of view
+to use the available fixed scan panel more fully. Recheck visual framing in
+iPhone Safari before merging to main.
