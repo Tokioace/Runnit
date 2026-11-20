@@ -6,6 +6,11 @@ import { poseRunnerGlb } from '../../lib/poseRunnerGlb';
 export const MODEL_VIEWER_SCRIPT = 'https://ajax.googleapis.com/ajax/libs/model-viewer/4.1.0/model-viewer.min.js';
 export const RUNNER_MODEL_URL = 'https://cdn.jsdelivr.net/gh/programasweights/avatar@a488723e3a93d73d5c562d88f8a85353c37bc721/public/assets/character.glb';
 
+// Keep the complete head-to-shoes silhouette within the narrow mobile scan panel.
+// The previous 65% orbit clipped both ends of the model on iPhone.
+const RUNNER_CAMERA_DISTANCE = '88%';
+const RUNNER_CAMERA_FOV = '30deg';
+
 type RunnerMaterial = {
   setAlphaMode?: (mode: 'BLEND') => void;
   setDoubleSided?: (enabled: boolean) => void;
@@ -104,10 +109,10 @@ export default function RunnerHologramModel({ rotating, manualAngle }: {
       viewer.setAttribute('disable-pan', '');
       viewer.setAttribute('disable-zoom', '');
       viewer.setAttribute('interaction-prompt', 'none');
-      viewer.setAttribute('min-camera-orbit', 'auto auto 40%');
+      viewer.setAttribute('min-camera-orbit', 'auto auto 80%');
       viewer.setAttribute('max-camera-orbit', 'auto auto 150%');
-      viewer.setAttribute('camera-orbit', '0deg 90deg 65%');
-      viewer.setAttribute('field-of-view', '28deg');
+      viewer.setAttribute('camera-orbit', '0deg 90deg ' + RUNNER_CAMERA_DISTANCE);
+      viewer.setAttribute('field-of-view', RUNNER_CAMERA_FOV);
       viewer.setAttribute('shadow-intensity', '0');
       viewer.setAttribute('environment-image', 'neutral');
       viewer.setAttribute('exposure', '1.3');
@@ -154,7 +159,7 @@ export default function RunnerHologramModel({ rotating, manualAngle }: {
       const delta = manualAngle - lastManual.current;
       lastManual.current = manualAngle;
       const angle = (viewer.getCameraOrbit?.().theta ?? 0) * 180 / Math.PI + delta;
-      viewer.setAttribute('camera-orbit', String(angle) + 'deg 90deg 65%');
+      viewer.setAttribute('camera-orbit', String(angle) + 'deg 90deg ' + RUNNER_CAMERA_DISTANCE);
       viewer.jumpCameraToGoal?.();
     }
   }, [rotating, manualAngle, status]);
