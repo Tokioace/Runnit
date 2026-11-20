@@ -32,7 +32,9 @@ test('account flows stay within Supabase Auth and never store passwords in custo
 
 test('the real account page shows only current user details and edits current auth metadata', () => {
   const profile = read('src/screens/ProfileScreen.tsx');
-  assert.match(profile, /loading \? \([\s\S]*?\) : user \? \(/);
+  assert.match(profile, /const name = loading \? 'LADEN/);
+  assert.match(profile, /identity\.user\?\.id !== user\.id/);
+  assert.match(profile, /pane === 'account' && \(user \?/);
   const details = read('src/components/profile/AccountDetailsPanel.tsx');
   assert.match(details, /user\.email/);
   assert.match(details, /getAccountDisplayNameError/);
