@@ -40,3 +40,11 @@ local hologram; the unwanted T-pose is never presented as the intended result.
 The vertical model frame uses 65% camera orbit and 28° vertical field of view
 to use the available fixed scan panel more fully. Recheck visual framing in
 iPhone Safari before merging to main.
+
+
+## 2026-11-20: iPhone framing correction
+The 65% camera orbit used for the previous revision cut off the avatar's
+head and shoes in the fixed-height profile scan. The fixed mobile framing is
+now 88% orbit with 30° field of view, and the very same distance is used after
+manual rotation. This is a framing adjustment, not a geometry or layout change.
+Verify the entire head-to-shoe figure on the iPhone before merging to main.
