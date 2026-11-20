@@ -113,3 +113,26 @@ test('missing GPS distance never silently becomes the selected target distance',
  const totals=calculateActivityTotals(a,[],Date.parse('2026-11-16'));
  assert.equal(totals.weeklyDistanceM,null);
 });
+
+test('a paired RPC time inconsistent with the stored own result cannot award a win', () => {
+ const inconsistent = new Map([['duel-1', [
+  { user_id: owner, time_ms: 41000 },
+  { user_id: rival, time_ms: 42456 },
+ ]]]);
+ const history = raceHistoryFromServer(owner, [own], [d], inconsistent);
+ assert.equal(history.length, 1);
+ assert.equal(history[0].completed, false);
+ assert.equal(history[0].outcome, 'pending');
+ assert.equal(calculateActivityTotals(history, [], Date.parse('2026-11-16')).wins, 0);
+});
+
+test('consistent paired times still allow ties and losses', () => {
+ const tied = raceHistoryFromServer(owner, [own], [d],
+  new Map([['duel-1', [{user_id:owner,time_ms:42396},{user_id:rival,time_ms:42396}]]]));
+ assert.equal(tied[0].completed, true);
+ assert.equal(tied[0].outcome, 'tie');
+ const lost = raceHistoryFromServer(owner, [own], [d],
+  new Map([['duel-1', [{user_id:owner,time_ms:42396},{user_id:rival,time_ms:42000}]]]));
+ assert.equal(lost[0].completed, true);
+ assert.equal(lost[0].outcome, 'lost');
+});
