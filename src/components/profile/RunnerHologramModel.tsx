@@ -4,15 +4,18 @@ import { poseRunnerGlb } from '../../lib/poseRunnerGlb';
 
 /** CC0 Quaternius Superhero Male, pinned upstream copy. See docs/runner-model.md. */
 export const MODEL_VIEWER_SCRIPT = 'https://ajax.googleapis.com/ajax/libs/model-viewer/4.1.0/model-viewer.min.js';
-export const RUNNER_MODEL_URL = 'https://cdn.jsdelivr.net/gh/programasweights/avatar@a488723e3a93d73d5c562d88f8a85353c37bc721/public/assets/character.glb';
+// Self-hosted, customized RUNNIT runner. Real skinned 3D mesh with navy kit,
+// cyan accents, tan skin, spiked hair, visor and shoes. The model rotates.
+export const RUNNER_MODEL_URL = '/assets/runnit-runner-3d.glb';
 
 // Keep the complete head-to-shoes silhouette within the narrow mobile scan panel.
-// The earlier 65% and 88% distances clipped the head and shoes on iPhone.
-const RUNNER_CAMERA_DISTANCE = '116%';
+// 130% leaves a little more air above the hair and below the shoes.
+const RUNNER_CAMERA_DISTANCE = '130%';
 const RUNNER_CAMERA_FOV = '30deg';
 
 type RunnerMaterial = {
-  setAlphaMode?: (mode: 'BLEND') => void;
+  name?: string;
+  setAlphaMode?: (mode: 'OPAQUE') => void;
   setDoubleSided?: (enabled: boolean) => void;
   setEmissiveFactor?: (rgb: number[]) => void;
   pbrMetallicRoughness?: {
@@ -60,16 +63,18 @@ function loadViewerModule(): Promise<void> {
 }
 
 function hologramFinish(viewer: ModelViewerElement) {
+  // The imported GLB already has per-vertex RUNNIT uniform colors and separate
+  // materials for the face, navy kit, hair, cyan visor and sneakers.
+  // Never repaint the full model cyan: it would hide the runner's appearance.
   for (const material of viewer.model?.materials || []) {
     try {
-      material.setAlphaMode?.('BLEND');
       material.setDoubleSided?.(true);
-      material.pbrMetallicRoughness?.setBaseColorFactor?.([0.04, 0.78, 0.9, 0.42]);
-      material.pbrMetallicRoughness?.setMetallicFactor?.(0.22);
-      material.pbrMetallicRoughness?.setRoughnessFactor?.(0.36);
-      material.setEmissiveFactor?.([0.02, 0.18, 0.24]);
+      if (material.name?.includes('electric blue lenses')) {
+        material.setAlphaMode?.('OPAQUE');
+        material.setEmissiveFactor?.([0.006, 0.12, 0.18]);
+      }
     } catch {
-      // Model remains visible with its original material if customization fails.
+      // Keep baked material colors on older iOS WebGL implementations.
     }
   }
 }
@@ -88,7 +93,7 @@ export default function RunnerHologramModel({ rotating, manualAngle }: {
     let blobUrl: string | null = null;
     const controller = new AbortController();
     let modelTimeout: number | undefined;
-    // Download the pinned CC0 GLB, re-pose its real skeletal joints locally,
+    // Load the self-hosted, CC0-derived RUNNIT 3D avatar and pose its real skeletal joints,
     // then let model-viewer render it. Never modify the user's profile data.
     const abortTimer = window.setTimeout(() => controller.abort(), 16000);
     const prepared = fetch(RUNNER_MODEL_URL, { signal: controller.signal, mode: 'cors' })
@@ -103,19 +108,19 @@ export default function RunnerHologramModel({ rotating, manualAngle }: {
       viewerRef.current = viewer;
       viewer.className = 'rp-hologram-real-model';
       viewer.setAttribute('src', blobUrl);
-      viewer.setAttribute('alt', 'Dreidimensionaler cyanfarbener Läufer mit entspannt gesenkten Armen');
+      viewer.setAttribute('alt', 'RUNNIT Runner in dunklem Sportoutfit mit cyanfarbenen Akzenten, braunen Haaren, blauer Sportbrille und weißen Laufschuhen');
       viewer.setAttribute('loading', 'eager');
       viewer.setAttribute('camera-controls', '');
       viewer.setAttribute('disable-pan', '');
       viewer.setAttribute('disable-zoom', '');
       viewer.setAttribute('interaction-prompt', 'none');
-      viewer.setAttribute('min-camera-orbit', 'auto auto 105%');
+      viewer.setAttribute('min-camera-orbit', 'auto auto 115%');
       viewer.setAttribute('max-camera-orbit', 'auto auto 180%');
       viewer.setAttribute('camera-orbit', '0deg 90deg ' + RUNNER_CAMERA_DISTANCE);
       viewer.setAttribute('field-of-view', RUNNER_CAMERA_FOV);
       viewer.setAttribute('shadow-intensity', '0');
       viewer.setAttribute('environment-image', 'neutral');
-      viewer.setAttribute('exposure', '1.3');
+      viewer.setAttribute('exposure', '1.06');
       viewer.setAttribute('rotation-per-second', '13deg');
       viewer.setAttribute('touch-action', 'none');
       viewer.addEventListener('load', () => {
