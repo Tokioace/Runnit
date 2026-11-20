@@ -3,8 +3,12 @@
 export const OPEN_EVENT_LIFETIME_MINUTES = 60;
 export const OPEN_EVENT_LIFETIME_MS = OPEN_EVENT_LIFETIME_MINUTES * 60_000;
 
+// Reject timezone-free timestamps: Date.parse otherwise interprets them in the
+// viewer's local timezone, potentially showing an expired lobby as available.
+const EXPLICIT_TIMEZONE = /(?:Z|[+-](?:0\d|1[0-4]):[0-5]\d)$/i;
+
 export function openEventMsLeft(expiresAt: string | null | undefined, nowMs = Date.now()): number {
-  if (!expiresAt || !Number.isFinite(nowMs)) return 0;
+  if (!expiresAt || !Number.isFinite(nowMs) || !EXPLICIT_TIMEZONE.test(expiresAt)) return 0;
   const endsAt = Date.parse(expiresAt);
   if (!Number.isFinite(endsAt)) return 0;
   return Math.max(0, endsAt - nowMs);
