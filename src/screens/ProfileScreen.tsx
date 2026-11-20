@@ -370,8 +370,11 @@ export default function ProfileScreen() {
             <button type="button" className="rp-modal-secondary" aria-label="Dialog schließen" onClick={() => setPane(null)}>✕</button>
           </div>
           {pane === 'account' && (user ?
-            <AccountDetailsPanel user={user} updateDisplayName={updateDisplayName}
-              changePassword={changePassword} signOut={signOut} /> :
+            <><AccountDetailsPanel user={user} updateDisplayName={updateDisplayName}
+              changePassword={changePassword} signOut={signOut} />
+              <button type="button" className="rp-modal-save rp-account-privacy" onClick={() => open('privacy')}>
+                <ShieldCheck size={17} /> RANGLISTEN-DATENSCHUTZ
+              </button></> :
             <Link to="/login?next=%2Fprofile" className="rp-modal-save">ANMELDEN / REGISTRIEREN</Link>)}
           {pane === 'privacy' && <div className="rp-modal-form">
             <p className="rp-mini-note">Körperdaten, Profil-Bio und persönliche Einstellungen bleiben in deinem Konto. Nur freigegebene Ranglistenleistungen können öffentlich angezeigt werden.</p>
@@ -434,7 +437,14 @@ export default function ProfileScreen() {
                     <option value="Allround">Allround</option>
                   </select>
                 </label>
+                <p className="rp-mini-note">Kalibrierte Gehschrittlänge: {user.walkingCalibration ?
+                  (user.walkingCalibration.walkingStrideM * 100).toFixed(1).replace('.', ',') + ' cm' :
+                  'noch keine Messung'} · experimentell, keine Wettkampfwertung.</p>
                 <Link to="/calibration" className="rp-modal-secondary">SCHRITTLÄNGE KALIBRIEREN</Link>
+                <p className="rp-mini-note">ENTWICKLUNGSLABORE · nur Diagnostik und Simulation, keine Wettkampfergebnisse</p>
+                <Link to="/gps-lab" className="rp-modal-secondary">SCHRITTZÄHLER TEST</Link>
+                <Link to="/fusion-lab" className="rp-modal-secondary">GPS × IMU FUSION · DEMO</Link>
+                <Link to="/sprint-lab" className="rp-modal-secondary">SPRINT-SIMULATION · DEMO</Link>
               </>}
               {pane === 'goals' && <>
                 <label>Dein persönliches Ziel

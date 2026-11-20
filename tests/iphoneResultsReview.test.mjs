@@ -40,5 +40,6 @@ test('Profile does not duplicate permanent Stats or Ranking tabs',()=>{
  const p=read('src/screens/ProfileScreen.tsx');
  assert.doesNotMatch(p,/id="profile-links"|DEIN RUNNIT/);
  assert.match(p,/<AccountDetailsPanel/);
- assert.ok(p.indexOf('id="konto"') < p.indexOf('id="visibility-title"'));
+ assert.match(p, /RANGLISTEN-DATENSCHUTZ/);
+ assert.match(p, /aria-modal="true"/);
 });
