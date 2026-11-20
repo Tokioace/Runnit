@@ -147,7 +147,7 @@ test('Full-body scan framing leaves clear head and foot room at iPhone aspect ra
   const distance = Number(viewer.match(/const RUNNER_CAMERA_DISTANCE = '(\d+)%'/)?.[1]);
   assert.ok(distance >= 115 && distance <= 145,
     'Model viewer 100% is a tight frame; add at least 10% margin for head and shoes');
-  assert.match(viewer, /min-camera-orbit', 'auto auto 105%'/);
+  assert.match(viewer, /min-camera-orbit', 'auto auto 115%'/);
   assert.match(viewer, /max-camera-orbit', 'auto auto 180%'/);
   assert.match(viewer, /camera-orbit', '0deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
   assert.match(viewer, /String\(angle\) \+ 'deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
