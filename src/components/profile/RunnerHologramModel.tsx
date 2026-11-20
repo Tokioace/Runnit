@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import RunnerHologram3D from './RunnerHologram3D';
+import { poseRunnerGlb } from '../../lib/poseRunnerGlb';
 
 /** CC0 Quaternius Superhero Male, pinned upstream copy. See docs/runner-model.md. */
 export const MODEL_VIEWER_SCRIPT = 'https://ajax.googleapis.com/ajax/libs/model-viewer/4.1.0/model-viewer.min.js';
@@ -58,10 +59,10 @@ function hologramFinish(viewer: ModelViewerElement) {
     try {
       material.setAlphaMode?.('BLEND');
       material.setDoubleSided?.(true);
-      material.pbrMetallicRoughness?.setBaseColorFactor?.([0.04, 0.78, 0.9, 0.48]);
+      material.pbrMetallicRoughness?.setBaseColorFactor?.([0.04, 0.78, 0.9, 0.42]);
       material.pbrMetallicRoughness?.setMetallicFactor?.(0.22);
       material.pbrMetallicRoughness?.setRoughnessFactor?.(0.36);
-      material.setEmissiveFactor?.([0.015, 0.23, 0.30]);
+      material.setEmissiveFactor?.([0.02, 0.18, 0.24]);
     } catch {
       // Model remains visible with its original material if customization fails.
     }
@@ -79,21 +80,34 @@ export default function RunnerHologramModel({ rotating, manualAngle }: {
   useEffect(() => {
     let active = true;
     let viewer: ModelViewerElement | null = null;
-    let timeout: number | undefined;
-    void loadViewerModule().then(() => {
+    let blobUrl: string | null = null;
+    const controller = new AbortController();
+    let modelTimeout: number | undefined;
+    // Download the pinned CC0 GLB, re-pose its real skeletal joints locally,
+    // then let model-viewer render it. Never modify the user's profile data.
+    const abortTimer = window.setTimeout(() => controller.abort(), 16000);
+    const prepared = fetch(RUNNER_MODEL_URL, { signal: controller.signal, mode: 'cors' })
+      .then(async response => {
+        if (!response.ok) throw new Error('3D model download failed');
+        return poseRunnerGlb(await response.arrayBuffer());
+      });
+    void Promise.all([loadViewerModule(), prepared]).then(([, body]) => {
       if (!active || !mountRef.current) return;
+      blobUrl = URL.createObjectURL(new Blob([body], {type: 'model/gltf-binary'}));
       viewer = document.createElement('model-viewer') as ModelViewerElement;
       viewerRef.current = viewer;
       viewer.className = 'rp-hologram-real-model';
-      viewer.setAttribute('src', RUNNER_MODEL_URL);
-      viewer.setAttribute('alt', 'Dreidimensionaler cyanfarbener Läufer');
+      viewer.setAttribute('src', blobUrl);
+      viewer.setAttribute('alt', 'Dreidimensionaler cyanfarbener Läufer mit entspannt gesenkten Armen');
       viewer.setAttribute('loading', 'eager');
       viewer.setAttribute('camera-controls', '');
       viewer.setAttribute('disable-pan', '');
       viewer.setAttribute('disable-zoom', '');
       viewer.setAttribute('interaction-prompt', 'none');
-      viewer.setAttribute('camera-orbit', '0deg 90deg 120%');
-      viewer.setAttribute('field-of-view', '30deg');
+      viewer.setAttribute('min-camera-orbit', 'auto auto 40%');
+      viewer.setAttribute('max-camera-orbit', 'auto auto 150%');
+      viewer.setAttribute('camera-orbit', '0deg 90deg 65%');
+      viewer.setAttribute('field-of-view', '28deg');
       viewer.setAttribute('shadow-intensity', '0');
       viewer.setAttribute('environment-image', 'neutral');
       viewer.setAttribute('exposure', '1.3');
@@ -102,24 +116,29 @@ export default function RunnerHologramModel({ rotating, manualAngle }: {
       viewer.addEventListener('load', () => {
         if (!active || !viewer) return;
         hologramFinish(viewer);
-        if (timeout !== undefined) window.clearTimeout(timeout);
+        if (modelTimeout !== undefined) window.clearTimeout(modelTimeout);
         setStatus('ready');
       }, { once: true });
       viewer.addEventListener('error', () => {
         if (!active) return;
-        if (timeout !== undefined) window.clearTimeout(timeout);
+        if (modelTimeout !== undefined) window.clearTimeout(modelTimeout);
         setStatus('failed');
       }, { once: true });
       mountRef.current.appendChild(viewer);
-      timeout = window.setTimeout(() => {
+      modelTimeout = window.setTimeout(() => {
         if (active) setStatus(s => s === 'loading' ? 'failed' : s);
-      }, 18000);
-    }).catch(() => { if (active) setStatus('failed'); });
+      }, 12000);
+    }).catch(() => { if (active) setStatus('failed'); }).finally(() => {
+      window.clearTimeout(abortTimer);
+    });
     return () => {
       active = false;
-      if (timeout !== undefined) window.clearTimeout(timeout);
+      controller.abort();
+      window.clearTimeout(abortTimer);
+      if (modelTimeout !== undefined) window.clearTimeout(modelTimeout);
       viewer?.remove();
       viewerRef.current = null;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
     };
   }, []);
 
@@ -135,7 +154,7 @@ export default function RunnerHologramModel({ rotating, manualAngle }: {
       const delta = manualAngle - lastManual.current;
       lastManual.current = manualAngle;
       const angle = (viewer.getCameraOrbit?.().theta ?? 0) * 180 / Math.PI + delta;
-      viewer.setAttribute('camera-orbit', String(angle) + 'deg 90deg 120%');
+      viewer.setAttribute('camera-orbit', String(angle) + 'deg 90deg 65%');
       viewer.jumpCameraToGoal?.();
     }
   }, [rotating, manualAngle, status]);

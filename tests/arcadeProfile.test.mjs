@@ -110,3 +110,18 @@ test('Profile switches to CC0 rigged 3D runner while retaining a local hologram 
   assert.match(model, /setStatus\('failed'\)/);
   assert.match(read('docs/runner-model.md'), /CC0/);
 });
+
+test('runner 3D is skinned into relaxed stance before being enlarged in profile', () => {
+  const model=read('src/components/profile/RunnerHologramModel.tsx');
+  const pose=read('src/lib/poseRunnerGlb.ts');
+  assert.match(model,/poseRunnerGlb\(await response\.arrayBuffer\(\)\)/);
+  assert.match(model,/URL\.createObjectURL/);
+  assert.match(model,/URL\.revokeObjectURL/);
+  assert.match(model,/0deg 90deg 65%/);
+  assert.match(model,/String\(angle\) \+ 'deg 90deg 65%'/);
+  assert.match(pose,/upperarm_/);
+  assert.match(pose,/lowerarm_/);
+  assert.match(pose,/hand_/);
+  assert.match(pose,/inverse bind matrices are kept byte-for-byte/);
+  assert.match(model,/RunnerHologram3D rotating=\{rotating\}/);
+});
