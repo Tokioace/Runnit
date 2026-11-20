@@ -41,7 +41,12 @@ export function raceHistoryFromServer(
     if (!duel || result.user_id !== userId || !Number.isFinite(result.time_ms) || result.time_ms <= 0) return [];
     if (duel.host_user_id !== userId && duel.challenger_user_id !== userId) return [];
     const paired = pairedResults.get(duel.id) ?? [];
-    const correctParticipants = paired.length === 2 &&
+    // Require two distinct authorized participants, with no duplicate identities.
+    const correctParticipants = Boolean(duel.host_user_id) &&
+      Boolean(duel.challenger_user_id) &&
+      duel.host_user_id !== duel.challenger_user_id &&
+      paired.length === 2 &&
+      new Set(paired.map(row => row.user_id)).size === 2 &&
       // The authorized pair must agree with the player's stored result before ranking.
       paired.some(row => row.user_id === userId && row.time_ms === result.time_ms) &&
       paired.some(row => row.user_id === duel.host_user_id) &&
