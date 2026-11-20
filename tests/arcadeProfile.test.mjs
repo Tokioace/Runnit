@@ -10,11 +10,11 @@ test('Profile has its own compact, image-backed Y2K screen and keeps the shared 
   assert.match(screen, /<BottomNav/);
   assert.match(screen, /runnit-metal-logo.svg/);
   assert.match(screen, /runnit-profile-avatar.avif/);
-  assert.match(screen, /runnit-profile-hologram.svg/);
+  assert.match(screen, /<RunnerHologram3D rotating=\{turning\} manualAngle=\{turnAngle\}/);
   assert.match(css, /runnit-profile-race-scene.avif/);
   assert.match(css, /height:100dvh/);
   assert.match(css, /overflow:hidden/);
-  assert.match(css, /rp-holo-rotation/);
+  assert.match(css, /rp-hologram-canvas/);
   assert.doesNotMatch(screen, /id="profile-links"|DEIN RUNNIT/);
 });
 test('User information is private, optional and free of invented athlete achievements', () => {
@@ -66,4 +66,17 @@ test('Profile uses no-scroll body with accessible, internally scrollable dialogs
   assert.match(css, /\.rp-modal\{/);
   assert.match(css, /max-height:min\(78dvh,650px\);overflow:auto/);
   assert.match(css, /env\(safe-area-inset-bottom/);
+});
+
+test('Runner hologram rotates volumetric torso, limbs and head instead of flat SVG billboards', () => {
+  const scene = read('src/screens/ProfileScreen.tsx');
+  const source = read('src/components/profile/RunnerHologram3D.tsx');
+  assert.match(scene, /RunnerHologram3D/);
+  assert.doesNotMatch(scene, /runnit-profile-hologram.svg/);
+  assert.match(source, /ellipsoid\(\[0,.79,-.018\], \[.48,.36,.30\]/);
+  assert.match(source, /Math\.cos\(angle\)/);
+  assert.match(source, /Math\.sin\(angle\)/);
+  assert.match(source, /requestAnimationFrame/);
+  assert.match(source, /matchMedia/);
+  assert.match(source, /canvas/);
 });
