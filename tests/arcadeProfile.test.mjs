@@ -1,47 +1,69 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
-
-test('Profile focuses on account controls without duplicating the persistent navigation', () => {
-  const s=read('src/screens/ProfileScreen.tsx');assert.match(s,/runnit-profile-master/);assert.doesNotMatch(s,/id="profile-links"|DEIN RUNNIT/);assert.match(s,/<BottomNav/);assert.match(s,/<AccountDetailsPanel/);
+test('Profile has its own compact, image-backed Y2K screen and keeps the shared nav', () => {
+  const screen = read('src/screens/ProfileScreen.tsx');
+  const css = read('src/styles/profileY2k.css');
+  assert.match(screen, /className="rp-screen"/);
+  assert.match(screen, /<BottomNav/);
+  assert.match(screen, /runnit-metal-logo.svg/);
+  assert.match(screen, /runnit-profile-avatar.avif/);
+  assert.match(screen, /runnit-profile-hologram.svg/);
+  assert.match(css, /runnit-profile-race-scene.avif/);
+  assert.match(css, /height:100dvh/);
+  assert.match(css, /overflow:hidden/);
+  assert.match(css, /rp-holo-rotation/);
+  assert.doesNotMatch(screen, /id="profile-links"|DEIN RUNNIT/);
 });
-
-test('Profile has no fabricated XP, badges, steps, calories or rankings', () => {
-  const s=read('src/screens/ProfileScreen.tsx');assert.doesNotMatch(s,/LV\. —|XP NOCH NICHT VERFÜGBAR|KALORIEN|SCHRITTE.*kcal|futureBadges|goalCards|resultCards/);assert.match(s,/RANGLISTEN-DATENSCHUTZ/);
+test('User information is private, optional and free of invented athlete achievements', () => {
+  const s = read('src/screens/ProfileScreen.tsx');
+  assert.doesNotMatch(s, /2,98 s|34,7 km\/h|LVL 14|1\.482|KALORIEN|futureBadges|resultCards|goalCards/);
+  assert.match(s, /bmiFor\(profile\)/);
+  assert.match(s, /Noch keine vergebenen Badges/);
+  assert.match(s, /runnit_profile_v1/);
+  assert.match(s, /supabase.auth.updateUser/);
+  assert.match(s, /RANGLISTEN-DATENSCHUTZ/);
+  assert.match(s, /leaderboard_opt_in/);
+  assert.match(s, /select\('leaderboard_opt_in'\)\.single\(\)/);
 });
-
-test('existing profile security, calibration and user flows remain connected', () => {
-  const profile = read('src/screens/ProfileScreen.tsx');
-  const details = read('src/components/profile/AccountDetailsPanel.tsx');
-  assert.match(profile, /useSupabaseUser\(\)/);
-  assert.match(profile, /<AccountDetailsPanel/);
-  assert.match(profile, /updateDisplayName=\{updateDisplayName\}/);
-  assert.match(profile, /changePassword=\{changePassword\}/);
-  assert.match(profile, /signOut=\{signOut\}/);
-  assert.match(profile, /user\.walkingCalibration\.walkingStrideM/);
-  assert.match(profile, /to="\/calibration"/);
-  assert.match(profile, /to="\/fusion-lab"/);
-  assert.match(profile, /to="\/sprint-lab"/);
-  assert.match(profile, /to="\/login\?next=%2Fprofile"/);
-  assert.match(details, /signOut\(\)/);
+test('Profile retains editable account, privacy, calibration, diagnostics and guest links', () => {
+  const s = read('src/screens/ProfileScreen.tsx');
+  const account = read('src/components/profile/AccountDetailsPanel.tsx');
+  assert.match(s, /useSupabaseUser\(\)/);
+  assert.match(s, /<AccountDetailsPanel/);
+  assert.match(s, /updateDisplayName=\{updateDisplayName\}/);
+  assert.match(s, /changePassword=\{changePassword\}/);
+  assert.match(s, /signOut=\{signOut\}/);
+  assert.match(s, /user.walkingCalibration.walkingStrideM/);
+  for (const path of ['/calibration', '/fusion-lab', '/sprint-lab', '/gps-lab']) {
+    assert.ok(s.includes('to="' + path + '"'), path);
+  }
+  assert.match(s, /to="\/login\?next=%2Fprofile"/);
+  assert.match(account, /signOut\(\)/);
 });
-
-
-test('Profile removes dead achievements tabs and provides functional privacy setting', () => {
-  const s=read('src/screens/ProfileScreen.tsx');assert.doesNotMatch(s,/selectedTab|href="#ziele"|href="#erfolge"/);assert.match(s,/type="checkbox"/);assert.match(s,/onChange=\{e => \{ void updateOptIn/);
+test('Profile uses functional privacy toggle and not static achievements tabs', () => {
+  const s = read('src/screens/ProfileScreen.tsx');
+  assert.doesNotMatch(s, /selectedTab|href="#ziele"|href="#erfolge"/);
+  assert.match(s, /type="checkbox"/);
+  assert.match(s, /onChange=\{\(event\) => \{ void saveConsent\(event.currentTarget.checked\)/);
+  assert.match(s, /onChange=\{\(\) => \{ void toggleGoal\(\)/);
+  assert.match(s, /setPane\(null\)/);
 });
-
-test('editable account inputs prevent Safari focus zoom', () => {
-  const detail = read('src/components/profile/AccountDetailsPanel.tsx');
-  assert.equal(detail.match(/px-4 py-3 text-base text-white/g)?.length, 3);
-  assert.match(detail, /id="edit-display-name"/);
-  assert.match(detail, /id="new-account-password"/);
-  assert.match(detail, /id="confirm-account-password"/);
+test('Editable account inputs avoid Safari focus zoom', () => {
+  const s = read('src/components/profile/AccountDetailsPanel.tsx');
+  assert.equal(s.match(/px-4 py-3 text-base text-white/g)?.length, 3);
+  assert.match(s, /id="edit-display-name"/);
+  assert.match(s, /id="new-account-password"/);
+  assert.match(s, /id="confirm-account-password"/);
 });
-
-
-test('Profile preserves mobile artwork and clear account versus privacy hierarchy', () => {
-  const s=read('src/screens/ProfileScreen.tsx');assert.match(s,/runnit-profile-hero-character/);assert.match(s,/runnit-profile-player-name/);assert.match(s,/KONTO & EINSTELLUNGEN/);assert.match(s,/safe-area-inset-bottom/);
+test('Profile uses no-scroll body with accessible, internally scrollable dialogs', () => {
+  const s = read('src/screens/ProfileScreen.tsx');
+  const css = read('src/styles/profileY2k.css');
+  assert.match(s, /aria-modal="true"/);
+  assert.match(s, /aria-label="Dialog schließen"/);
+  assert.match(css, /\.rp-modal\{/);
+  assert.match(css, /max-height:min\(78dvh,650px\);overflow:auto/);
+  assert.match(css, /env\(safe-area-inset-bottom/);
 });
