@@ -136,3 +136,34 @@ test('consistent paired times still allow ties and losses', () => {
  assert.equal(lost[0].completed, true);
  assert.equal(lost[0].outcome, 'lost');
 });
+
+test('weekly activity excludes later-week and future-dated finished sessions',()=>{
+ const monday = currentLocalWeekStart(new Date(2026, 10, 16, 12));
+ const nextMonday = new Date(monday);
+ nextMonday.setDate(nextMonday.getDate() + 7);
+ const ghost = (id, date) => ({
+  id, created_at:date.toISOString(), target_distance_m:50,
+  run_state:'finished', elapsed_ms:30000, observed_distance_m:51,
+  steps_count:40, motion_permission:'granted'
+ });
+ const inside = ghost('inside',new Date(monday + 60_000));
+ const later = ghost('later',nextMonday);
+ const totals = calculateActivityTotals([], [inside,later], monday);
+ assert.equal(totals.recordedSessions,2);
+ assert.equal(totals.weeklySessions,1);
+ assert.equal(totals.weeklySteps,40);
+ assert.equal(totals.weeklyDistanceM,51);
+});
+
+test('weekly boundary uses local calendar days across daylight-saving changes',()=>{
+ const monday = currentLocalWeekStart(new Date(2026, 9, 19, 12));
+ const nextMonday = new Date(monday);
+ nextMonday.setDate(nextMonday.getDate() + 7);
+ const run = {
+  id:'next-week',created_at:nextMonday.toISOString(),target_distance_m:50,
+  run_state:'finished',elapsed_ms:30000,observed_distance_m:51,
+  steps_count:40,motion_permission:'granted'
+ };
+ const totals = calculateActivityTotals([], [run], monday);
+ assert.equal(totals.weeklySessions,0);
+});
