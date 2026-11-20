@@ -81,9 +81,13 @@ export function calculateActivityTotals(
   const finishedRaces = races.filter(r => r.completed);
   const finishedGhosts = ghosts.filter(g => g.run_state === 'finished' &&
     Number.isFinite(g.elapsed_ms) && (g.elapsed_ms ?? 0) > 0);
+  // Include exactly the selected local week, even across DST boundaries.
+  const weekEnd = new Date(weekStartMs);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+  const weekEndMs = weekEnd.getTime();
   const isInWeek = (date: string) => {
     const stamp = Date.parse(date);
-    return Number.isFinite(stamp) && stamp >= weekStartMs;
+    return Number.isFinite(stamp) && stamp >= weekStartMs && stamp < weekEndMs;
   };
   const weekRaces = finishedRaces.filter(r => isInWeek(r.occurredAt));
   const weekGhosts = finishedGhosts.filter(g => isInWeek(g.created_at));
