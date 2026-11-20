@@ -47,29 +47,109 @@ function limb(a: V, b: V, radius: number, depth: number, tint=0, rows=7, cols=12
   for(let i=0;i<rows;i++)for(let j=0;j<cols;j++)
     faces.push({corners:[v(i,j),v(i,j+1),v(i+1,j+1),v(i+1,j)],tint});
 }
-// Athletic neutral anatomical mannequin, with volume through all 360 degrees.
-ellipsoid([0,1.48,0], [.248,.32,.23], 2, 11, 16);  // skull
-ellipsoid([0,1.10,0], [.135,.15,.125], 1, 5, 10);  // neck
-ellipsoid([0,.79,-.018], [.48,.36,.30], 1, 12, 16); // chest
-ellipsoid([-.216,.83,.20],[.224,.21,.13], 3, 5, 9); // left pectoral
-ellipsoid([ .216,.83,.20],[.224,.21,.13], 3, 5, 9); // right pectoral
-ellipsoid([0,.35,-.01], [.345,.38,.24], 0, 10, 14); // abdomen
-for(const x of [-.116,.116])for(const y of [.47,.28,.09])
-  ellipsoid([x,y,.214],[.109,.078,.034],3,4,8); // abdominal bands
-ellipsoid([0,-.08,-.015], [.36,.255,.265], 1, 8, 14); // pelvis
-for(const sign of [-1,1] as const) {
-  ellipsoid([sign*.48,.92,-.018],[.205,.235,.214],1,7,12); // deltoids
-  limb([sign*.53,.86,.01],[sign*.70,.35,.015],.175,.155,2,7,12); // biceps
-  ellipsoid([sign*.71,.34,.013],[.112,.11,.12],0,5,10);
-  limb([sign*.70,.34,.015],[sign*.80,-.22,.105],.123,.121,1,6,12);
-  ellipsoid([sign*.80,-.29,.125],[.112,.18,.09],2,6,10); // hand
-  ellipsoid([sign*.21,-.26,-.02],[.245,.275,.245],1,9,14); // upper thigh
-  limb([sign*.23,-.31,-.016],[sign*.29,-1.01,.005],.215,.208,2,9,14);
-  ellipsoid([sign*.29,-1.01,.006],[.142,.16,.145],1,7,10);
-  limb([sign*.29,-1.04,.012],[sign*.32,-1.60,-.028],.147,.153,1,9,12);
-  ellipsoid([sign*.32,-1.58,.010],[.103,.12,.11],0,5,10);
-  ellipsoid([sign*.32,-1.70,.16],[.157,.098,.31],2,7,12); // shoe
+/**
+ * A continuous, anatomical loft rather than stacks of spherical joints.
+ * The tapering torso and articulated limbs retain volume in profile.
+ * Faces are static so all frames only project, sort and render the mesh.
+ */
+type Ring = { c: V; rx: number; rz: number };
+function loft(rings: readonly Ring[], columns=16, tint=1) {
+  const ordered=[...rings].sort((a,b)=>b.c[1]-a.c[1]);
+  const vertex=(ring:Ring, j:number):V=>{
+    const t=(2*Math.PI*j)/columns;
+    return [ring.c[0]+ring.rx*Math.cos(t),ring.c[1],ring.c[2]+ring.rz*Math.sin(t)];
+  };
+  for(let i=0;i<ordered.length-1;i++)for(let j=0;j<columns;j++)
+    faces.push({
+      corners:[vertex(ordered[i],j),vertex(ordered[i],j+1),
+        vertex(ordered[i+1],j+1),vertex(ordered[i+1],j)],
+      tint,
+    });
 }
+function swept(rings: readonly Ring[], columns=14, tint=1){
+  // Tangent-derived bases keep sections perpendicular as limbs change direction.
+  const vertex=(i:number,j:number):V=>{
+    const p=rings[i];
+    const near=rings[Math.max(0,i-1)].c;
+    const far=rings[Math.min(rings.length-1,i+1)].c;
+    const axis=unit(sub(far,near));
+    const across=unit(cross(axis,[0,0,1]));
+    const deep=unit(cross(across,axis));
+    const angle=j*2*Math.PI/columns;
+    return add(p.c,add(scale(across,p.rx*Math.cos(angle)),
+      scale(deep,p.rz*Math.sin(angle))));
+  };
+  for(let i=0;i<rings.length-1;i++)for(let j=0;j<columns;j++)
+    faces.push({
+      corners:[vertex(i,j),vertex(i,j+1),vertex(i+1,j+1),vertex(i+1,j)],
+      tint,
+    });
+}
+// Elliptical torso, narrowed waist and well-defined shoulder taper.
+loft([
+  {c:[0,1.19,0],rx:.135,rz:.125},
+  {c:[0,1.12,0],rx:.17,rz:.145},
+  {c:[0,1.05,-.006],rx:.29,rz:.195},
+  {c:[0,.97,-.01],rx:.42,rz:.225},
+  {c:[0,.86,-.016],rx:.455,rz:.275},
+  {c:[0,.74,-.025],rx:.438,rz:.285},
+  {c:[0,.61,-.023],rx:.392,rz:.258},
+  {c:[0,.47,-.014],rx:.326,rz:.227},
+  {c:[0,.31,0],rx:.292,rz:.214},
+  {c:[0,.16,0],rx:.286,rz:.215},
+  {c:[0,.025,-.003],rx:.326,rz:.235},
+  {c:[0,-.13,-.015],rx:.345,rz:.252},
+  {c:[0,-.26,-.01],rx:.29,rz:.205},
+],18,1);
+// A head with forehead, cheekbone and jaw — not a round floating egg.
+loft([
+  {c:[0,1.205,0],rx:.065,rz:.085},
+  {c:[0,1.26,.007],rx:.13,rz:.14},
+  {c:[0,1.36,.016],rx:.178,rz:.177},
+  {c:[0,1.49,.01],rx:.218,rz:.198},
+  {c:[0,1.62,0],rx:.224,rz:.202},
+  {c:[0,1.75,-.01],rx:.205,rz:.194},
+  {c:[0,1.84,-.015],rx:.145,rz:.14},
+  {c:[0,1.89,0],rx:.045,rz:.05},
+],18,2);
+for(const sign of [-1,1] as const){
+  // Smooth single surfaces connect each shoulder to a tapered wrist.
+  swept([
+    {c:[sign*.44,.96,0],rx:.18,rz:.175},
+    {c:[sign*.51,.88,0],rx:.19,rz:.177},
+    {c:[sign*.565,.76,.0],rx:.167,rz:.154},
+    {c:[sign*.605,.57,.015],rx:.146,rz:.135},
+    {c:[sign*.653,.39,.045],rx:.112,rz:.116},
+    {c:[sign*.695,.19,.065],rx:.13,rz:.117},
+    {c:[sign*.72,-.04,.086],rx:.113,rz:.104},
+    {c:[sign*.735,-.19,.103],rx:.076,rz:.080},
+    {c:[sign*.747,-.31,.11],rx:.089,rz:.081},
+    {c:[sign*.747,-.405,.11],rx:.058,rz:.055},
+  ],14,1);
+  // Legs use the same uninterrupted mesh from hips to ankles.
+  swept([
+    {c:[sign*.205,-.18,-.015],rx:.207,rz:.20},
+    {c:[sign*.214,-.38,.006],rx:.223,rz:.216},
+    {c:[sign*.238,-.59,.016],rx:.207,rz:.190},
+    {c:[sign*.263,-.78,.013],rx:.161,rz:.151},
+    {c:[sign*.277,-.98,0],rx:.124,rz:.127},
+    {c:[sign*.282,-1.14,-.014],rx:.156,rz:.144},
+    {c:[sign*.288,-1.34,-.02],rx:.139,rz:.133},
+    {c:[sign*.29,-1.53,.002],rx:.089,rz:.096},
+    {c:[sign*.29,-1.65,.055],rx:.087,rz:.094},
+  ],16,1);
+  // Shoes are elongated, with the toe pointing forward, not big sphere feet.
+  ellipsoid([sign*.29,-1.70,.14],[.153,.080,.24],2,7,12);
+}
+// Anatomical guide lines attach to the continuous surfaces, not extra spheres.
+const contourLines: V[][] = [
+  [[-.35,.82,.24],[-.18,.78,.28],[0,.76,.288],[.18,.78,.28],[.35,.82,.24]],
+  [[0,.98,.19],[0,.65,.266],[0,.43,.226],[0,.22,.215]],
+  [[-.22,.38,.16],[.22,.38,.16]],
+  [[-.22,.15,.18],[.22,.15,.18]],
+  [[-.19,-.08,.18],[.19,-.08,.18]],
+  [[-.28,.83,-.2],[0,.76,-.28],[.28,.83,-.2]],
+];
 function project(v: V, angle: number, w: number, h: number): P {
   const ca=Math.cos(angle), sa=Math.sin(angle);
   const x=v[0]*ca+v[2]*sa;
@@ -94,34 +174,28 @@ function paint(ctx:CanvasRenderingContext2D, width:number, height:number, angle:
   ctx.lineJoin='round';
   for(const {p,facing,tint} of rendered) {
     const front=facing<0;
-    const alpha=front?.28:.055;
+    const alpha=front ? .31 : .018;
     ctx.beginPath();
     ctx.moveTo(p[0].x,p[0].y);
     for(let k=1;k<4;k++)ctx.lineTo(p[k].x,p[k].y);
     ctx.closePath();
-    ctx.fillStyle=front ? 'rgba(25,143,179,.085)' : 'rgba(28,136,156,.02)';
+    ctx.fillStyle=front ? 'rgba(28,151,169,.12)' : 'rgba(22,104,144,.006)';
     ctx.fill();
     ctx.strokeStyle=tint===3 ? 'rgba(122,255,247,'+(alpha*.9)+')'
       : 'rgba(103,233,248,'+alpha+')';
-    ctx.lineWidth=front?.85:.45;
+    ctx.lineWidth=front ? .74 : .30;
     ctx.stroke();
   }
   // A handful of bright longitudinal outlines convey shape and musculature.
   ctx.globalCompositeOperation='screen';
   ctx.shadowColor='rgba(49,233,245,.65)';
   ctx.shadowBlur=5;
-  const outline=[
-    [[0,1.82,0],[0,1.70,.17]],
-    [[-.5,.97,0],[-.72,.34,.03],[-.81,-.3,.11]],
-    [[.5,.97,0],[.72,.34,.03],[.81,-.3,.11]],
-    [[-.34,.40,.18],[-.32,-.14,.20],[-.31,-.98,.13],[-.31,-1.68,.16]],
-    [[.34,.40,.18],[.32,-.14,.20],[.31,-.98,.13],[.31,-1.68,.16]],
-  ] as V[][];
+  const outline=contourLines;
   for(const path of outline){
     const coords=path.map(p=>project(p,angle,width,height));
     ctx.beginPath();ctx.moveTo(coords[0].x,coords[0].y);
     for(let j=1;j<coords.length;j++)ctx.lineTo(coords[j].x,coords[j].y);
-    ctx.strokeStyle='rgba(106,237,247,.25)';ctx.lineWidth=1.2;ctx.stroke();
+    ctx.strokeStyle='rgba(106,237,247,.32)';ctx.lineWidth=.9;ctx.stroke();
   }
   ctx.shadowBlur=0;
   ctx.globalCompositeOperation='source-over';
