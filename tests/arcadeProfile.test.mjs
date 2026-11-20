@@ -71,7 +71,9 @@ test('Profile uses no-scroll body with accessible, internally scrollable dialogs
 test('Runner hologram rotates volumetric torso, limbs and head instead of flat SVG billboards', () => {
   const scene = read('src/screens/ProfileScreen.tsx');
   const source = read('src/components/profile/RunnerHologram3D.tsx');
-  assert.match(scene, /RunnerHologram3D/);
+  const model = read('src/components/profile/RunnerHologramModel.tsx');
+  assert.match(scene, /RunnerHologramModel/);
+  assert.match(model, /RunnerHologram3D/); // Legacy geometry remains a working fallback.
   assert.doesNotMatch(scene, /runnit-profile-hologram.svg/);
   assert.match(source, /function loft\(/);
   assert.match(source, /function swept\(/);
