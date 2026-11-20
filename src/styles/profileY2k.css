@@ -144,3 +144,15 @@
 }
 @keyframes rp-scan-human{from{top:22%}to{top:83%}}
 @media(prefers-reduced-motion:reduce){.rp-hologram-wrap .rp-scan-line{animation:none;top:50%}}
+
+/* True model-viewer 3D asset, contained inside the existing profile scan slot. */
+.rp-holo-center{overflow:hidden}
+.rp-real-hologram{width:100%;height:100%;position:relative;isolation:isolate}
+.rp-real-hologram-mount,.rp-hologram-loading-fallback{position:absolute;inset:0}
+.rp-real-hologram-mount{opacity:0;transition:opacity .3s ease;z-index:2}
+.rp-real-hologram[data-renderer="ready"] .rp-real-hologram-mount{opacity:1}
+.rp-hologram-real-model{display:block;width:100%;height:100%;background:transparent;filter:drop-shadow(0 0 8px rgba(77,230,240,.55));--poster-color:transparent}
+.rp-hologram-loading-fallback{z-index:1;pointer-events:none}
+.rp-hologram-loading-fallback .rp-hologram-canvas{width:96%;height:100%;display:block}
+.rp-holo-pause{position:absolute;z-index:7;left:7%;top:2%;width:28px;height:28px;display:grid;place-items:center;border:1px solid rgba(113,223,232,.7);color:#bffaff;background:rgba(6,23,40,.75);border-radius:50%;box-shadow:0 0 8px rgba(53,191,205,.38)}
+.rp-holo-pause svg{width:13px;height:13px}

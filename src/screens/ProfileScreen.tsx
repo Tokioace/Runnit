@@ -7,7 +7,7 @@ import {
   Target, Trophy, UserRound, Weight, Zap,
 } from 'lucide-react';
 import BottomNav from '../components/ui/BottomNav';
-import RunnerHologram3D from '../components/profile/RunnerHologram3D';
+import RunnerHologramModel from '../components/profile/RunnerHologramModel';
 import AccountDetailsPanel from '../components/profile/AccountDetailsPanel';
 import { useSupabaseUser } from '../hooks/useSupabaseUser';
 import { supabase } from '../lib/supabaseClient';
@@ -291,9 +291,12 @@ export default function ProfileScreen() {
           <div className="rp-hologram-wrap">
             <div className="rp-holo-label">360° SCAN</div>
             <div className="rp-holo-stage">
-              <button type="button" aria-label={turning ? 'Rotation anhalten' : 'Rotation fortsetzen'} aria-pressed={turning}
-                className="rp-holo-center" onClick={() => setTurning(value => !value)}>
-                <RunnerHologram3D rotating={turning} manualAngle={turnAngle} />
+              <div className="rp-holo-center">
+                <RunnerHologramModel rotating={turning} manualAngle={turnAngle} />
+              </div>
+              <button type="button" className="rp-holo-pause" aria-label={turning ? 'Rotation anhalten' : 'Rotation fortsetzen'}
+                aria-pressed={turning} onClick={() => setTurning(value => !value)}>
+                {turning ? <Pause size={13} /> : <Play size={13} />}
               </button>
               <div className="rp-scan-line" aria-hidden="true" />
             </div>
