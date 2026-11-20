@@ -48,3 +48,25 @@ head and shoes in the fixed-height profile scan. The fixed mobile framing is
 now 88% orbit with 30° field of view, and the very same distance is used after
 manual rotation. This is a framing adjustment, not a geometry or layout change.
 Verify the entire head-to-shoe figure on the iPhone before merging to main.
+
+
+## 2026-11-20: customized RUNNIT avatar asset
+The app now hosts `public/assets/runnit-runner-3d.glb` locally rather than
+fetching a uniform-Cyan body from a third-party CDN. Built from the original
+Quaternius *Universal Base Characters – Superhero Male* GLB prepared by
+`programasweights/avatar` at commit
+`a488723e3a93d73d5c562d88f8a85353c37bc721` under CC0.
+
+The source mesh and bone weights are retained. The GLB has RUNNIT-specific
+vertex colors and **real skinned accessory geometry**: brown swept/spiked
+hair, electric blue wrap-around sports visor, hoodie collar, white chest R,
+cyan piping, and layered sneakers. Navy short-sleeved shirt and shorts, warm
+tan skin, black gloves and leggings, and shoes are colored directly on the
+3D model. All elements rotate together, not as a two-dimensional overlay.
+This is a stylized **approximation** of the supplied promotional character,
+not a pixel-exact 3D reconstruction of the 2D illustration.
+
+Camera orbit is 130% to leave modest headroom in the compact mobile scan.
+The auto-rotation, manual 45° controls, animated scan ring, private runner
+profile data and bottom nav remain unchanged. The external `model-viewer`
+script is still version-pinned; the GLB itself is self-hosted for reliability.

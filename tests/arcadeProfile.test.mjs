@@ -100,9 +100,9 @@ test('Profile switches to CC0 rigged 3D runner while retaining a local hologram 
   const model = read('src/components/profile/RunnerHologramModel.tsx');
   assert.match(screen, /<RunnerHologramModel/);
   assert.match(model, /model-viewer/);
-  assert.match(model, /character\.glb/);
-  assert.match(model, /a488723e3a93d73d5c562d88f8a85353c37bc721/);
-  assert.match(model, /setBaseColorFactor/);
+  assert.match(model, /runnit-runner-3d\.glb/);
+  assert.match(read('docs/runner-model.md'), /a488723e3a93d73d5c562d88f8a85353c37bc721/);
+  assert.doesNotMatch(model, /setBaseColorFactor\?\.\(\[/);
   assert.match(model, /setAlphaMode/);
   assert.match(model, /auto-rotate/);
   assert.match(model, /getCameraOrbit/);
@@ -117,11 +117,11 @@ test('runner 3D is skinned into relaxed stance before being enlarged in profile'
   assert.match(model,/poseRunnerGlb\(await response\.arrayBuffer\(\)\)/);
   assert.match(model,/URL\.createObjectURL/);
   assert.match(model,/URL\.revokeObjectURL/);
-  assert.match(model,/RUNNER_CAMERA_DISTANCE = '116%'/);
+  assert.match(model,/RUNNER_CAMERA_DISTANCE = '130%'/);
   assert.match(model,/RUNNER_CAMERA_FOV = '30deg'/);
   assert.match(model,/0deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
   assert.match(model,/String\(angle\) \+ 'deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
-  assert.match(model,/min-camera-orbit', 'auto auto 105%'/);
+  assert.match(model,/min-camera-orbit', 'auto auto 115%'/);
   assert.doesNotMatch(model,/90deg 65%/);
   assert.match(pose,/upperarm_/);
   assert.match(pose,/lowerarm_/);
@@ -135,7 +135,7 @@ test('Runner stays completely framed through both continuous and manual rotation
   const distance = viewer.match(/const RUNNER_CAMERA_DISTANCE = '(\d+)%'/)?.[1];
   const fov = viewer.match(/const RUNNER_CAMERA_FOV = '(\d+)deg'/)?.[1];
   assert.ok(distance, 'A single source of truth for camera distance is required');
-  assert.ok(Number(distance) >= 110 && Number(distance) <= 140, 'Camera orbit must give full body headroom and footroom on mobile');
+  assert.ok(Number(distance) >= 115 && Number(distance) <= 145, 'Camera orbit must give full body headroom and footroom on mobile');
   assert.ok(Number(fov) >= 28 && Number(fov) <= 36, 'Mobile camera FOV must remain legible');
   assert.equal(viewer.match(/RUNNER_CAMERA_DISTANCE/g)?.length, 3);
   assert.match(viewer, /camera-orbit', '0deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
@@ -145,7 +145,7 @@ test('Runner stays completely framed through both continuous and manual rotation
 test('Full-body scan framing leaves clear head and foot room at iPhone aspect ratios', () => {
   const viewer = read('src/components/profile/RunnerHologramModel.tsx');
   const distance = Number(viewer.match(/const RUNNER_CAMERA_DISTANCE = '(\d+)%'/)?.[1]);
-  assert.ok(distance >= 110 && distance <= 140,
+  assert.ok(distance >= 115 && distance <= 145,
     'Model viewer 100% is a tight frame; add at least 10% margin for head and shoes');
   assert.match(viewer, /min-camera-orbit', 'auto auto 105%'/);
   assert.match(viewer, /max-camera-orbit', 'auto auto 180%'/);
