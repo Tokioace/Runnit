@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { mapWithConcurrency } from '../lib/mapWithConcurrency';
 import {
   calculateActivityTotals, currentLocalWeekStart, raceHistoryFromServer,
   type PairedResult, type RaceHistoryItem, type StoredDuel,
@@ -53,8 +54,9 @@ export function useRunnerHistory(userId: string | null | undefined) {
         }
         const pairedResults = new Map<string, readonly PairedResult[]>();
         const completed = duels.filter(duel => duel.status === 'completed');
-        const pairResponses = await Promise.all(completed.map(duel =>
-          supabase.rpc('get_duel_results', { p_duel_id: duel.id })));
+        // Cap simultaneous RPCs to avoid a burst of up to 150 requests on focus/reload.
+        const pairResponses = await mapWithConcurrency(completed, 4, duel =>
+          supabase.rpc('get_duel_results', { p_duel_id: duel.id }));
         for (let i = 0; i < completed.length; i++) {
           const response = pairResponses[i];
           if (response.error) throw response.error;
