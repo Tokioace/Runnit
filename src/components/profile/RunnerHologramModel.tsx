@@ -7,8 +7,8 @@ export const MODEL_VIEWER_SCRIPT = 'https://ajax.googleapis.com/ajax/libs/model-
 export const RUNNER_MODEL_URL = 'https://cdn.jsdelivr.net/gh/programasweights/avatar@a488723e3a93d73d5c562d88f8a85353c37bc721/public/assets/character.glb';
 
 // Keep the complete head-to-shoes silhouette within the narrow mobile scan panel.
-// The previous 65% orbit clipped both ends of the model on iPhone.
-const RUNNER_CAMERA_DISTANCE = '88%';
+// The earlier 65% and 88% distances clipped the head and shoes on iPhone.
+const RUNNER_CAMERA_DISTANCE = '116%';
 const RUNNER_CAMERA_FOV = '30deg';
 
 type RunnerMaterial = {
@@ -109,8 +109,8 @@ export default function RunnerHologramModel({ rotating, manualAngle }: {
       viewer.setAttribute('disable-pan', '');
       viewer.setAttribute('disable-zoom', '');
       viewer.setAttribute('interaction-prompt', 'none');
-      viewer.setAttribute('min-camera-orbit', 'auto auto 80%');
-      viewer.setAttribute('max-camera-orbit', 'auto auto 150%');
+      viewer.setAttribute('min-camera-orbit', 'auto auto 105%');
+      viewer.setAttribute('max-camera-orbit', 'auto auto 180%');
       viewer.setAttribute('camera-orbit', '0deg 90deg ' + RUNNER_CAMERA_DISTANCE);
       viewer.setAttribute('field-of-view', RUNNER_CAMERA_FOV);
       viewer.setAttribute('shadow-intensity', '0');
