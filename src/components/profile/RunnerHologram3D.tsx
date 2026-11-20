@@ -103,22 +103,23 @@ loft([
 ],18,1);
 // A head with forehead, cheekbone and jaw — not a round floating egg.
 loft([
-  {c:[0,1.205,0],rx:.065,rz:.085},
-  {c:[0,1.26,.007],rx:.13,rz:.14},
-  {c:[0,1.36,.016],rx:.178,rz:.177},
-  {c:[0,1.49,.01],rx:.218,rz:.198},
-  {c:[0,1.62,0],rx:.224,rz:.202},
-  {c:[0,1.75,-.01],rx:.205,rz:.194},
-  {c:[0,1.84,-.015],rx:.145,rz:.14},
-  {c:[0,1.89,0],rx:.045,rz:.05},
+  {c:[0,1.205,0],rx:.076,rz:.094}, // neck junction
+  {c:[0,1.255,.012],rx:.112,rz:.125}, // chin
+  {c:[0,1.31,.021],rx:.145,rz:.142}, // tapered jaw
+  {c:[0,1.41,.011],rx:.198,rz:.176}, // cheekbones
+  {c:[0,1.50,.010],rx:.218,rz:.195}, // ears and temples
+  {c:[0,1.62,-.002],rx:.226,rz:.204}, // eyebrows/forehead
+  {c:[0,1.73,-.015],rx:.216,rz:.198}, // upper cranium
+  {c:[0,1.83,-.024],rx:.17,rz:.155},
+  {c:[0,1.885,-.012],rx:.055,rz:.065},
 ],18,2);
 for(const sign of [-1,1] as const){
   // Smooth single surfaces connect each shoulder to a tapered wrist.
   swept([
-    {c:[sign*.44,.96,0],rx:.18,rz:.175},
-    {c:[sign*.51,.88,0],rx:.19,rz:.177},
-    {c:[sign*.565,.76,.0],rx:.167,rz:.154},
-    {c:[sign*.605,.57,.015],rx:.146,rz:.135},
+    {c:[sign*.458,.872,-.014],rx:.120,rz:.122}, // contained within torso
+    {c:[sign*.493,.845,-.012],rx:.159,rz:.150}, // deltoid blend
+    {c:[sign*.548,.758,-.003],rx:.177,rz:.160}, // shoulder cap
+    {c:[sign*.601,.578,.015],rx:.146,rz:.135},
     {c:[sign*.653,.39,.045],rx:.112,rz:.116},
     {c:[sign*.695,.19,.065],rx:.13,rz:.117},
     {c:[sign*.72,-.04,.086],rx:.113,rz:.104},
@@ -141,6 +142,23 @@ for(const sign of [-1,1] as const){
   // Shoes are elongated, with the toe pointing forward, not big sphere feet.
   ellipsoid([sign*.29,-1.70,.14],[.153,.080,.24],2,7,12);
 }
+// Head relief adds recognizable human facial structure in the 3D side view.
+for (const side of [-1,1] as const) {
+  ellipsoid([side*.219,1.48,-.012],[.046,.085,.072],2,7,10); // ears
+}
+faces.push({ // low-poly bridge and nasal tip (front is +Z)
+  corners:[[-.049,1.56,.188],[.049,1.56,.188],[0,1.44,.307],[0,1.48,.25]],
+  tint:2,
+});
+const facialTraces: V[][] = [
+  [[-.161,1.585,.176],[-.088,1.594,.202],[-.038,1.585,.206]], // left brow
+  [[.038,1.585,.206],[.088,1.594,.202],[.161,1.585,.176]], // right brow
+  [[-.143,1.542,.193],[-.099,1.533,.211],[-.059,1.542,.217]], // left eye
+  [[.059,1.542,.217],[.099,1.533,.211],[.143,1.542,.193]], // right eye
+  [[0,1.562,.208],[0,1.477,.30],[.025,1.459,.258]], // nose profile
+  [[-.065,1.365,.155],[0,1.358,.173],[.065,1.365,.155]], // mouth
+  [[-.10,1.295,.104],[0,1.273,.154],[.10,1.295,.104]], // jaw
+];
 // Anatomical guide lines attach to the continuous surfaces, not extra spheres.
 const contourLines: V[][] = [
   [[-.35,.82,.24],[-.18,.78,.28],[0,.76,.288],[.18,.78,.28],[.35,.82,.24]],
@@ -169,21 +187,29 @@ function paint(ctx:CanvasRenderingContext2D, width:number, height:number, angle:
     const p=face.corners.map(x=>project(x,angle,width,height)) as [P,P,P,P];
     const z=p.reduce((n,x)=>n+x.z,0)/4;
     const facing=normalDepth(p[0],p[1],p[2]);
-    return {p,z,facing,tint:face.tint};
+    // Lit face response gives the hologram a solid human silhouette.
+    const a=unit(sub(face.corners[1],face.corners[0]));
+    const b=unit(sub(face.corners[2],face.corners[0]));
+    const normal=unit(cross(a,b));
+    const litNormal=normal[2]*Math.cos(angle)-normal[0]*Math.sin(angle);
+    const lighting=Math.max(.15,Math.min(1,.48+.32*litNormal+.21*normal[1]));
+    return {p,z,facing,tint:face.tint,lighting,edge:Math.abs(litNormal)<.24};
   }).sort((a,b)=>a.z-b.z);
   ctx.lineJoin='round';
-  for(const {p,facing,tint} of rendered) {
+  for(const {p,facing,tint,lighting,edge} of rendered) {
     const front=facing<0;
-    const alpha=front ? .31 : .018;
+    const alpha=front ? .13+.24*lighting : .012;
     ctx.beginPath();
     ctx.moveTo(p[0].x,p[0].y);
     for(let k=1;k<4;k++)ctx.lineTo(p[k].x,p[k].y);
     ctx.closePath();
-    ctx.fillStyle=front ? 'rgba(28,151,169,.12)' : 'rgba(22,104,144,.006)';
+    ctx.fillStyle=front
+      ? 'rgba(29,166,187,'+(.09+.18*lighting)+')'
+      : 'rgba(15,78,103,.004)';
     ctx.fill();
     ctx.strokeStyle=tint===3 ? 'rgba(122,255,247,'+(alpha*.9)+')'
       : 'rgba(103,233,248,'+alpha+')';
-    ctx.lineWidth=front ? .74 : .30;
+    ctx.lineWidth=front ? (edge ? 1.04 : .65) : .22;
     ctx.stroke();
   }
   // A handful of bright longitudinal outlines convey shape and musculature.
@@ -196,6 +222,20 @@ function paint(ctx:CanvasRenderingContext2D, width:number, height:number, angle:
     ctx.beginPath();ctx.moveTo(coords[0].x,coords[0].y);
     for(let j=1;j<coords.length;j++)ctx.lineTo(coords[j].x,coords[j].y);
     ctx.strokeStyle='rgba(106,237,247,.32)';ctx.lineWidth=.9;ctx.stroke();
+  }
+  // Facial strokes are attached to the same rotating model, never screen-fixed.
+  const visible=Math.max(0,Math.cos(angle));
+  if(visible>.09){
+    ctx.shadowBlur=3;
+    ctx.lineWidth=.83;
+    ctx.strokeStyle='rgba(147,251,255,'+(visible*.67)+')';
+    for(const path of facialTraces){
+      const points=path.map(v=>project(v,angle,width,height));
+      ctx.beginPath();
+      ctx.moveTo(points[0].x,points[0].y);
+      for(let k=1;k<points.length;k++)ctx.lineTo(points[k].x,points[k].y);
+      ctx.stroke();
+    }
   }
   ctx.shadowBlur=0;
   ctx.globalCompositeOperation='source-over';

@@ -82,3 +82,13 @@ test('Runner hologram rotates volumetric torso, limbs and head instead of flat S
   assert.match(source, /matchMedia/);
   assert.match(source, /canvas/);
 });
+
+test('Human scan includes cranial profile, eyes, nose, jaw and integrated shoulders', () => {
+  const source=read('src/components/profile/RunnerHologram3D.tsx');
+  assert.match(source, /facialTraces/);
+  assert.match(source, /nose profile/);
+  assert.match(source, /cheekbones/);
+  assert.match(source, /contained within torso/);
+  assert.match(source, /lighting=/);
+  assert.match(source, /rotating model, never screen-fixed/);
+});
