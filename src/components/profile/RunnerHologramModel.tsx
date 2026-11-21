@@ -86,6 +86,7 @@ export default function RunnerHologramModel({ rotating, manualAngle }: {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<ModelViewerElement | null>(null);
   const lastManual = useRef(manualAngle);
+  const firstAngle = useRef(manualAngle);
   const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
   useEffect(() => {
     let active = true;
@@ -116,7 +117,7 @@ export default function RunnerHologramModel({ rotating, manualAngle }: {
       viewer.setAttribute('interaction-prompt', 'none');
       viewer.setAttribute('min-camera-orbit', 'auto auto 115%');
       viewer.setAttribute('max-camera-orbit', 'auto auto 180%');
-      viewer.setAttribute('camera-orbit', '0deg 90deg ' + RUNNER_CAMERA_DISTANCE);
+      viewer.setAttribute('camera-orbit', String(firstAngle.current) + 'deg 90deg ' + RUNNER_CAMERA_DISTANCE);
       viewer.setAttribute('field-of-view', RUNNER_CAMERA_FOV);
       viewer.setAttribute('shadow-intensity', '0');
       viewer.setAttribute('environment-image', 'neutral');

@@ -144,6 +144,9 @@ export default function ProfileScreen() {
   const [consentError, setConsentError] = useState('');
   const [turnAngle, setTurnAngle] = useState(0);
   const [turning, setTurning] = useState(true);
+  // Exact illustration is the profile hero. The existing rigged model is opened
+  // deliberately for genuine 360-degree inspection; do not fake 3D from a sprite.
+  const [runnerView, setRunnerView] = useState<'art' | '3d'>('art');
 
   useEffect(() => {
     let active = true;
@@ -288,11 +291,19 @@ export default function ProfileScreen() {
               </button>
             ))}
           </nav>
-          <div className="rp-hologram-wrap">
-            <div className="rp-holo-label">360° SCAN</div>
+          <div className={"rp-hologram-wrap" + (turning ? "" : " is-paused") + (runnerView === "art" ? " rp-art-mode" : " rp-three-mode")}>
+            <button type="button" className="rp-holo-label" onClick={() => { setRunnerView(view => view === 'art' ? '3d' : 'art'); setTurning(true); setTurnAngle(0); }}
+              aria-label={runnerView === 'art' ? 'Echte 360-Grad-Ansicht starten' : 'Zur originalen Runner-Illustration wechseln'} aria-pressed={runnerView === '3d'}>
+              360° SCAN
+            </button>
             <div className="rp-holo-stage">
               <div className="rp-holo-center">
-                <RunnerHologramModel rotating={turning} manualAngle={turnAngle} />
+                {runnerView === 'art' ? (
+                  <img className="rp-runner-reference-art" src="/assets/runnit-reference-runner.webp"
+                    alt="RUNNIT-Läufer aus dem freigegebenen Design: braune Haare, blaue Sportbrille, dunkles Shirt, Shorts, Handschuhe und Laufschuhe" />
+                ) : (
+                  <RunnerHologramModel rotating={turning} manualAngle={turnAngle} />
+                )}
               </div>
               <button type="button" className="rp-holo-pause" aria-label={turning ? 'Rotation anhalten' : 'Rotation fortsetzen'}
                 aria-pressed={turning} onClick={() => setTurning(value => !value)}>
@@ -302,8 +313,8 @@ export default function ProfileScreen() {
             </div>
             <div className="rp-plinth" aria-hidden="true" />
             <div className="rp-holo-controls">
-              <button type="button" aria-label="Runner links drehen" onClick={() => { setTurning(false); setTurnAngle(angle => angle - 45); }}><ChevronLeft /></button>
-              <button type="button" aria-label="Runner rechts drehen" onClick={() => { setTurning(false); setTurnAngle(angle => angle + 45); }}><ChevronRight /></button>
+              <button type="button" aria-label="Runner links drehen" onClick={() => { setRunnerView('3d'); setTurning(false); setTurnAngle(angle => angle - 45); }}><ChevronLeft /></button>
+              <button type="button" aria-label="Runner rechts drehen" onClick={() => { setRunnerView('3d'); setTurning(false); setTurnAngle(angle => angle + 45); }}><ChevronRight /></button>
             </div>
           </div>
           <section className="rp-info" aria-label="Private Runner-Daten">
