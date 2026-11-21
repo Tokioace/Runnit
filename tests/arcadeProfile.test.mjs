@@ -138,7 +138,7 @@ test('Runner stays completely framed through both continuous and manual rotation
   assert.ok(Number(distance) >= 115 && Number(distance) <= 145, 'Camera orbit must give full body headroom and footroom on mobile');
   assert.ok(Number(fov) >= 28 && Number(fov) <= 36, 'Mobile camera FOV must remain legible');
   assert.equal(viewer.match(/RUNNER_CAMERA_DISTANCE/g)?.length, 3);
-  assert.match(viewer, /camera-orbit', '0deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
+  assert.match(viewer, /camera-orbit', String\(firstAngle\.current\) \+ 'deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
   assert.match(viewer, /camera-orbit', String\(angle\) \+ 'deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
 });
 
@@ -149,7 +149,7 @@ test('Full-body scan framing leaves clear head and foot room at iPhone aspect ra
     'Model viewer 100% is a tight frame; add at least 10% margin for head and shoes');
   assert.match(viewer, /min-camera-orbit', 'auto auto 115%'/);
   assert.match(viewer, /max-camera-orbit', 'auto auto 180%'/);
-  assert.match(viewer, /camera-orbit', '0deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
+  assert.match(viewer, /camera-orbit', String\(firstAngle\.current\) \+ 'deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
   assert.match(viewer, /String\(angle\) \+ 'deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
 });
 
