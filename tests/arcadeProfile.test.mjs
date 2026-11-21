@@ -119,7 +119,7 @@ test('runner 3D is skinned into relaxed stance before being enlarged in profile'
   assert.match(model,/URL\.revokeObjectURL/);
   assert.match(model,/RUNNER_CAMERA_DISTANCE = '130%'/);
   assert.match(model,/RUNNER_CAMERA_FOV = '30deg'/);
-  assert.match(model,/0deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
+  assert.match(model,/String\(firstAngle\.current\) \+ 'deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
   assert.match(model,/String\(angle\) \+ 'deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
   assert.match(model,/min-camera-orbit', 'auto auto 115%'/);
   assert.doesNotMatch(model,/90deg 65%/);
@@ -151,4 +151,26 @@ test('Full-body scan framing leaves clear head and foot room at iPhone aspect ra
   assert.match(viewer, /max-camera-orbit', 'auto auto 180%'/);
   assert.match(viewer, /camera-orbit', '0deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
   assert.match(viewer, /String\(angle\) \+ 'deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
+});
+
+
+test('Profile reference artwork is a real imported image; data and controls stay live', () => {
+  const source = read('src/screens/ProfileScreen.tsx');
+  const styles = read('src/styles/profileY2k.css');
+  const model = read('src/components/profile/RunnerHologramModel.tsx');
+  const image = readFileSync(new URL('../public/assets/runnit-reference-runner.webp', import.meta.url));
+  assert.equal(image.subarray(0,4).toString('ascii'),'RIFF');
+  assert.equal(image.subarray(8,12).toString('ascii'),'WEBP');
+  assert.match(source, /rp-runner-reference-art/);
+  assert.match(source, /runnit-reference-runner\.webp/);
+  assert.match(source, /runnerView === 'art'/);
+  assert.match(source, /setRunnerView\('3d'\)/);
+  assert.match(source, /<RunnerHologramModel rotating=\{turning\} manualAngle=\{turnAngle\}/);
+  assert.match(source, /supabase\.auth\.updateUser/);
+  assert.match(source, /<BottomNav/);
+  assert.match(styles,/\.rp-runner-reference-art/);
+  assert.match(styles,/height:100dvh/);
+  assert.match(styles,/\.rp-hologram-wrap\.is-paused \.rp-scan-line/);
+  assert.match(model,/String\(firstAngle\.current\) \+ 'deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
+  assert.doesNotMatch(source,/LVL 14|34,7 km/);
 });
