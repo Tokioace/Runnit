@@ -18,7 +18,8 @@ export function rememberActiveDuelId(userId: string, duelId: string): void {
 export function forgetActiveDuelId(userId: string, duelId: string): void {
   if (!UUID.test(userId) || typeof window === 'undefined') return;
   try {
-    if (window.localStorage.getItem(PREFIX + userId) === duelId) {
+    const storedId = window.localStorage.getItem(PREFIX + userId);
+    if (storedId && UUID.test(storedId) && storedId.toLowerCase() === duelId.toLowerCase()) {
       window.localStorage.removeItem(PREFIX + userId);
     }
   } catch { /* no-op */ }
