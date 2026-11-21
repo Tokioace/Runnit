@@ -43,7 +43,7 @@ test('Runnit shorts and leggings have distinct vertex color groups',()=>{
   const at=offset+i*stride;
   swatches.add([payload[at],payload[at+1],payload[at+2]].join(','));
  }
- for(const color of ['12,23,42','11,15,27','12,123,158']){
+ for(const color of ['12,23,42','11,15,27','13,88,116']){
   assert.ok(swatches.has(color),'Missing clothing swatch '+color);
  }
 });
@@ -53,4 +53,20 @@ test('Runnit appearance remains a skinned, rotatable GLB',()=>{
  assert.equal(json.skins[0].joints.length,65);
  assert.ok(json.meshes.length>=4);
  assert.ok(json.nodes.some(n=>n.name?.includes('RUNNIT runner accessories')));
+});
+
+test('3D shoe lace geometry follows the leg skeleton and platform offset remains local',()=>{
+ const {json}=read(file);
+ const parts=json.meshes[3].primitives;
+ assert.ok(parts.length>=12,'Laces and side panels should be real 3D shoe geometry');
+ const details=parts.slice(10);
+ const names=details.map(p=>json.materials[p.material]?.name);
+ assert.ok(names.includes('Blue-gray shoe plate'));
+ assert.ok(names.includes('RUNNIT team cyan'));
+ for(const primitive of details){
+  assert.ok(primitive.attributes.JOINTS_0!==undefined);
+  assert.ok(primitive.attributes.WEIGHTS_0!==undefined);
+ }
+ const css=readFileSync(new URL('../src/styles/profileY2k.css',import.meta.url),'utf8');
+ assert.match(css,/\.rp-real-hologram\[data-renderer="ready"\] \.rp-hologram-real-model\s*\{\s*transform:translateY\(11%\)/);
 });

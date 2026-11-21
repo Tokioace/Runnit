@@ -85,3 +85,19 @@ The compact profile layout, **130% camera orbit**, 360° controls, Supabase data
 and bottom navigation are untouched. This is still a stylized approximation
 rather than a one-to-one recreation of the illustration. Inspect the updated
 avatar on a real iPhone, front/side/back, before merging to `main`.
+
+
+## 2026-11-20 – Runner/platform alignment and shoe details (v3)
+
+The iPhone screenshots showed the model's shoes clearly floating above the
+scanner pedestal. Only the rendered model element is shifted downward by
+11% of its own canvas (8% on short screens), while the scan ring, fixed
+layout and shared navigation remain untouched. No camera orbit or pose changes.
+
+The local GLB receives additional bone-skinned shoe-lace ribbons, thin cyan
+side panels and subtle outsole accents, plus a less saturated shorts hem.
+These accessories rotate with the runner. The original geometry and
+skeletal bindings stay intact.
+
+The physical iPhone still needs a visual check that the feet meet the
+platform through the full rotation.

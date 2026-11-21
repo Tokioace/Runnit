@@ -156,3 +156,14 @@
 .rp-hologram-loading-fallback .rp-hologram-canvas{width:96%;height:100%;display:block}
 .rp-holo-pause{position:absolute;z-index:7;left:7%;top:2%;width:28px;height:28px;display:grid;place-items:center;border:1px solid rgba(113,223,232,.7);color:#bffaff;background:rgba(6,23,40,.75);border-radius:50%;box-shadow:0 0 8px rgba(53,191,205,.38)}
 .rp-holo-pause svg{width:13px;height:13px}
+
+/* Align the visible 3D runner's shoes with the plinth inside 9:16 scan area.
+   Affect only the loaded model; leave controls and scanner ring unmoved. */
+.rp-real-hologram[data-renderer="ready"] .rp-hologram-real-model{
+  transform:translateY(11%);
+}
+@media(max-height:690px){
+  .rp-real-hologram[data-renderer="ready"] .rp-hologram-real-model{
+    transform:translateY(8%);
+  }
+}
