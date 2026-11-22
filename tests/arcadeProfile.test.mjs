@@ -203,7 +203,7 @@ test('Profile hub reads real results and does not invent badges, XP or editable 
   assert.match(screen, /formatMetric\(performance\.stride/);
   assert.match(screen, /formatMetric\(performance\.cadence/);
   assert.match(screen, /Noch keine vergebenen Badges/);
-  assert.match(screen, /frei wechselbare 3D-Kleidung ist noch nicht verfügbar/);
+  assert.match(screen, /3D-Kleidung ist derzeit nicht wechselbar/);
   assert.doesNotMatch(screen, /LVL 14|3\.420 \/ 5\.000|128 spm|1,24 m\/s²/);
 });
 
@@ -220,4 +220,42 @@ test('Profile redesign retains editable inputs, guest, calibration, privacy and 
   assert.match(screen, /to="\/login\?next=%2Fprofile"/);
   assert.match(screen, /supabase\.auth\.updateUser/);
   assert.match(screen, /<AccountDetailsPanel/);
+});
+
+test('Fidelity HUD uses six precise SVG connectors and preserves drag-to-rotate controls', () => {
+  const screen = read('src/screens/ProfileScreen.tsx');
+  const css = read('src/styles/profileHub.css');
+  assert.match(screen, /viewBox="0 0 360 400"/);
+  assert.equal((screen.match(/<polyline points=/g) ?? []).length, 6);
+  assert.match(screen, /rp-hub-lines/);
+  assert.match(screen, /onPointerDown=\{\(\) =>/);
+  assert.match(screen, /onPointerUp=\{\(\) => setRunnerInteracting\(false\)\}/);
+  assert.match(screen, /onPointerCancel=\{\(\) => setRunnerInteracting\(false\)\}/);
+  assert.match(screen, /setRunnerView\('3d'\)/);
+  assert.match(css, /\.rp-hub-hero\.is-interacting \.rp-hub-lines,\.rp-hub-hero\.is-interacting \.rp-hub-anchors\{opacity:0\}/);
+  assert.match(screen, /className="rp-hub-anchors"/);
+  assert.match(css, /\.rp-hub-anchors\{z-index:5\}/);
+  assert.match(css, /left:21%;top:0;bottom:0;width:58%/);
+  assert.doesNotMatch(css, /rp-hub-callout:after\{\s*content:''/);
+});
+
+test('Fidelity tabs have real-content actions, avatar images, keyboard navigation and runner ID copy', () => {
+  const screen = read('src/screens/ProfileScreen.tsx');
+  for (const name of ['identity','style','dna','training','badges']) {
+    assert.match(screen, new RegExp("activeSection === '" + name + "'"));
+  }
+  assert.match(screen, /tabIndex=\{activeSection === id \? 0 : -1\}/);
+  assert.match(screen, /event\.key === 'ArrowRight'/);
+  assert.match(screen, /event\.key === 'ArrowLeft'/);
+  assert.match(screen, /event\.key === 'Home'/);
+  assert.match(screen, /event\.key === 'End'/);
+  assert.match(screen, /navigator\.clipboard\.writeText\(user\.id\)/);
+  assert.match(screen, /avatarImages\[item\]/);
+  assert.match(screen, /onClick=\{\(\) => open\('editor'\)\}/);
+  assert.match(screen, /onClick=\{\(\) => open\('equipment'\)\}/);
+  assert.match(screen, /onClick=\{\(\) => open\('dna'\)\}/);
+  assert.match(screen, /onClick=\{\(\) => open\('training'\)\}/);
+  assert.match(screen, /onClick=\{\(\) => open\('privacy'\)\}/);
+  assert.match(screen, /Noch keine vergebenen Badges/);
+  assert.match(screen, /<BottomNav \/>/);
 });
