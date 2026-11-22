@@ -373,38 +373,69 @@ export default function ProfileScreen() {
           <small className="rp-hub-beta">GEMESSENE WERTE · BETA</small>
         </section>
 
+
         <nav className="rp-hub-tabs" role="tablist" aria-label="Profilbereiche">
-          {hubSections.map(({ id, label, Icon }) => (
+          {hubSections.map(({ id, label, Icon }, index) => (
             <button id={'rp-hub-tab-' + id} key={id} role="tab" type="button"
               aria-controls="rp-hub-panel" aria-selected={activeSection === id}
+              tabIndex={activeSection === id ? 0 : -1}
               className={activeSection === id ? 'is-active' : ''}
-              onClick={() => setActiveSection(id)}>
+              onClick={() => setActiveSection(id)}
+              onKeyDown={(event) => {
+                const direction = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+                const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? hubSections.length - 1 :
+                  direction ? (index + direction + hubSections.length) % hubSections.length : -1;
+                if (nextIndex >= 0) {
+                  event.preventDefault();
+                  const next = hubSections[nextIndex].id;
+                  setActiveSection(next);
+                  document.getElementById('rp-hub-tab-' + next)?.focus();
+                }
+              }}>
               <Icon aria-hidden="true" /><span>{label}</span>
             </button>
           ))}
         </nav>
 
         <section id="rp-hub-panel" className="rp-hub-detail" role="tabpanel"
-          aria-labelledby={'rp-hub-tab-' + activeSection}>
+          tabIndex={0} aria-labelledby={'rp-hub-tab-' + activeSection}>
           {activeSection === 'identity' && <>
-            <div className="rp-hub-detail-head"><h2>RUNNER-ID & BIO</h2><button type="button" onClick={() => open('account')}><Settings size={14} /> KONTO</button></div>
-            <div className="rp-hub-detail-inline"><span>RUNNER-ID</span><strong>{user?.id ? user.id.slice(0, 8).toUpperCase() : '—'}</strong></div>
-            <div className="rp-hub-detail-copy"><p>{profileLoading ? 'Lädt …' : profile.bio || 'Noch keine Bio hinterlegt.'}</p>
-              <button type="button" onClick={() => open('bio')} aria-label="Runner-Bio bearbeiten"><Pencil size={15} /></button>
+            <div className="rp-hub-detail-head">
+              <h2>RUNNER-ID</h2>
+              <button type="button" onClick={() => open('account')}><Settings size={15} /> KONTO</button>
+            </div>
+            <div className="rp-hub-id-strip">
+              <span>{user?.id ? 'R-' + user.id.slice(0, 8).toUpperCase() : 'ALS GAST NICHT VERFÜGBAR'}</span>
+              <button type="button" disabled={!user} onClick={() => { void copyRunnerId(); }}
+                aria-label="Vollständige Runner-ID kopieren"><Copy size={14} /> KOPIEREN</button>
+            </div>
+            <div className="rp-hub-detail-copy rp-hub-bio-display">
+              <div><strong>RUNNER-BIO</strong><p>{profileLoading ? 'Lädt …' : profile.bio || 'Noch keine Bio hinterlegt.'}</p></div>
+              <button type="button" onClick={() => open('bio')} aria-label="Runner-Bio bearbeiten"><Pencil size={16} /></button>
             </div>
             <button type="button" className="rp-hub-text-action" onClick={() => open('privacy')}><ShieldCheck size={15} /> RANGLISTEN-DATENSCHUTZ</button>
           </>}
           {activeSection === 'style' && <>
-            <div className="rp-hub-detail-head"><h2>RUNNER STYLE</h2><span>ORIGINAL-OUTFIT</span></div>
-            <p className="rp-hub-detail-note">Dein 3D-Runner bleibt wie bisher. Profilbild und Laufschuh-Präferenz sind bearbeitbar; frei wechselbare 3D-Kleidung ist noch nicht verfügbar.</p>
-            <div className="rp-hub-detail-actions">
-              <button type="button" onClick={() => open('editor')}><Picture size={17} /> PROFILBILD WÄHLEN</button>
-              <button type="button" onClick={() => open('equipment')}><Footprints size={17} /> AUSRÜSTUNG</button>
+            <div className="rp-hub-detail-head"><h2>RUNNER STYLE</h2><span>DEIN LOOK</span></div>
+            <div className="rp-hub-style-layout">
+              <div className="rp-hub-style-avatars" aria-label="Vorhandene Profilbilder">
+                {(['original', 'arcade', 'classic'] as Avatar[]).map(item =>
+                  <button key={item} type="button" onClick={() => open('editor')}
+                    aria-label={'Profilbild ' + avatarNames[item] + ' im Editor auswählen'}
+                    className={profile.avatar === item ? 'is-current' : ''}>
+                    <img src={avatarImages[item]} alt="" /><span>{avatarNames[item]}</span>
+                  </button>)}
+              </div>
+              <div className="rp-hub-style-details">
+                <span>AKTUELLES OUTFIT</span><strong>RUNNIT ORIGINAL</strong>
+                <button type="button" onClick={() => open('equipment')}><Footprints size={15} /> AUSRÜSTUNG</button>
+                <small>SCHUHE: {profile.shoeType || 'Keine Angabe'}</small>
+              </div>
             </div>
-            <small>Schuhtyp: {profile.shoeType || 'Keine Angabe'}</small>
+            <p className="rp-hub-mininote">3D-Kleidung ist derzeit nicht wechselbar; Profilbilder und Schuhdaten bleiben bearbeitbar.</p>
           </>}
           {activeSection === 'dna' && <>
-            <div className="rp-hub-detail-head"><h2>RUNNER-DNA</h2><button type="button" onClick={() => open('dna')}><Pencil size={14} /> BEARBEITEN</button></div>
+            <div className="rp-hub-detail-head"><h2>RUNNER-DNA</h2><button type="button" onClick={() => open('dna')}><Pencil size={15} /> BEARBEITEN</button></div>
             <div className="rp-hub-data-grid">
               <span>GEBURTSJAHR <strong>{profile.birthYear || '—'}</strong></span>
               <span>GESCHLECHT <strong>{profile.gender || '—'}</strong></span>
@@ -412,25 +443,28 @@ export default function ProfileScreen() {
               <span>GEWICHT <strong>{profile.weightKg ? profile.weightKg + ' kg' : '—'}</strong></span>
               <span>BMI <strong>{bmi === null ? '—' : bmi.toFixed(1).replace('.', ',')}</strong></span>
             </div>
-            <small>Freiwillige Angaben · BMI rechnerisch, kein Körperscan.</small>
+            <p className="rp-hub-mininote">Freiwillige Körperdaten · BMI rechnerisch, kein Körperscan.</p>
           </>}
           {activeSection === 'training' && <>
-            <div className="rp-hub-detail-head"><h2>TRAINING & ZIELE</h2><button type="button" onClick={() => open('training')}><Dumbbell size={14} /> TRAINING</button></div>
+            <div className="rp-hub-detail-head"><h2>TRAINING & ZIELE</h2><button type="button" onClick={() => open('training')}><Dumbbell size={15} /> TRAINING</button></div>
             <div className="rp-hub-detail-inline"><span>LAUFSTIL</span><strong>{profile.runningStyle || 'Keine Angabe'}</strong></div>
             <div className="rp-hub-detail-copy">
               <label><input type="checkbox" checked={profile.focusDone} disabled={isGuest || !profile.focus || saving}
                 aria-label="Persönliches Ziel als erledigt markieren" onChange={() => { void toggleGoal(); }} />
                 <span>{profile.focus || 'Noch kein Ziel gesetzt'}</span></label>
-              <button type="button" onClick={() => open('goals')} aria-label="Ziel bearbeiten"><Pencil size={15} /></button>
+              <button type="button" onClick={() => open('goals')} aria-label="Ziel bearbeiten"><Pencil size={16} /></button>
             </div>
             <div className="rp-hub-detail-actions">
-              <Link to="/calibration"><Footprints size={17} /> KALIBRIERUNG</Link>
-              <button type="button" onClick={() => open('training')}><Gauge size={17} /> GPS-LABOR & TESTS</button>
+              <Link to="/calibration"><Footprints size={16} /> SCHRITTLÄNGE KALIBRIEREN</Link>
+              <button type="button" onClick={() => open('training')}><Gauge size={16} /> LABORE & TESTS</button>
             </div>
           </>}
           {activeSection === 'badges' && <>
             <div className="rp-hub-detail-head"><h2>BADGES</h2><span>ECHTE AUSZEICHNUNGEN</span></div>
-            <div className="rp-hub-badges-empty"><Trophy aria-hidden="true" /><p>Noch keine vergebenen Badges. Hier erscheinen nur tatsächlich freigeschaltete Auszeichnungen.</p></div>
+            <div className="rp-hub-badges-empty"><Trophy aria-hidden="true" />
+              <div><strong>DEIN TROPHÄENREGAL</strong>
+                <p>Noch keine vergebenen Badges. Hier erscheinen nur tatsächlich freigeschaltete Auszeichnungen.</p></div>
+            </div>
           </>}
           {!user && <Link className="rp-login-inline rp-hub-login" to="/login?next=%2Fprofile">ANMELDEN, UM DEIN PROFIL ZU SPEICHERN</Link>}
         </section>
