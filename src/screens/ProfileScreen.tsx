@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Activity, ArrowLeft, ChevronLeft, ChevronRight, Dna,
+  Activity, ArrowLeft, ChevronLeft, ChevronRight, Copy, Dna,
   Dumbbell, Footprints, Gauge, Image as Picture,
   Pencil, Play, Pause, RotateCw, Settings, ShieldCheck, Shirt,
   Target, Trophy, UserRound, Zap,
@@ -139,6 +139,7 @@ export default function ProfileScreen() {
   const [performanceError, setPerformanceError] = useState(false);
   const [pane, setPane] = useState<Pane>(null);
   const [activeSection, setActiveSection] = useState<HubSection>('identity');
+  const [runnerInteracting, setRunnerInteracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(false);
@@ -274,6 +275,15 @@ export default function ProfileScreen() {
   const name = loading ? 'LADEN …' : user?.displayName || 'GAST';
   const avatar = avatarImages[profile.avatar];
   const isGuest = !user;
+  const copyRunnerId = async () => {
+    if (!user?.id) return;
+    try {
+      await navigator.clipboard.writeText(user.id);
+      setNotice('Runner-ID kopiert.');
+    } catch {
+      setNotice('Kopieren nicht möglich. Bitte nutze die Kontoeinstellungen.');
+    }
+  };
   const historyAvailable = Boolean(user) && !history.loading && !history.error;
   const completedDuels = historyAvailable ? String(history.totals.completedDuels) : '—';
   const best50 = historyAvailable ? formatRaceTime(history.totals.best50Ms) : '—';
@@ -302,16 +312,32 @@ export default function ProfileScreen() {
           <button type="button" className="rp-hub-icon-button" onClick={() => open('editor')} aria-label="Profilbild bearbeiten"><Pencil aria-hidden="true" /></button>
         </section>
 
-        <section className="rp-hub-hero" aria-label="Dein Runner mit gemessenen Leistungswerten">
-          <div className="rp-hub-callouts rp-hub-callouts-left">
+
+        <section className={'rp-hub-hero' + (runnerInteracting ? ' is-interacting' : '')}
+          aria-label="Interaktiver Runner-Scan mit sechs echten Leistungswerten">
+          <svg className="rp-hub-lines" viewBox="0 0 360 400" preserveAspectRatio="none"
+            focusable="false" aria-hidden="true">
+            <polyline points="89,77 121,77 159,113" />
+            <polyline points="89,192 128,192 157,222" />
+            <polyline points="89,315 125,315 157,318" />
+            <polyline points="271,77 239,77 204,113" />
+            <polyline points="271,192 234,192 207,222" />
+            <polyline points="271,315 239,315 204,318" />
+            {[[159,113],[157,222],[157,318],[204,113],[207,222],[204,318]].map(([cx,cy],index) =>
+              <circle key={index} cx={cx} cy={cy} r="3.2" />)}
+          </svg>
+          <div className="rp-hub-callouts rp-hub-callouts-left" aria-label="Leistung links">
             <div className="rp-hub-callout"><Gauge aria-hidden="true" /><span>TOP-SPEED</span><strong>{speedLabel}</strong></div>
             <div className="rp-hub-callout"><Footprints aria-hidden="true" /><span>SCHRITTLÄNGE</span><strong>{strideLabel}</strong></div>
             <div className="rp-hub-callout"><Trophy aria-hidden="true" /><span>BESTZEIT 50 M</span><strong>{best50}</strong></div>
           </div>
-
           <div className={"rp-hologram-wrap rp-hub-runner" + (turning ? "" : " is-paused") + (runnerView === "art" ? " rp-art-mode" : " rp-three-mode")}>
             <div className="rp-hub-ring" aria-hidden="true" />
-            <div className="rp-holo-stage">
+            <div className="rp-holo-stage"
+              onPointerDown={() => { if (runnerView === '3d') { setRunnerInteracting(true); setTurning(false); } }}
+              onPointerUp={() => setRunnerInteracting(false)}
+              onPointerCancel={() => setRunnerInteracting(false)}
+              onPointerLeave={() => setRunnerInteracting(false)}>
               <div className="rp-holo-center">
                 {runnerView === 'art' ? (
                   <img className="rp-runner-reference-art" src="/assets/runnit-reference-runner.webp"
@@ -338,8 +364,7 @@ export default function ProfileScreen() {
               </button>
             </div>
           </div>
-
-          <div className="rp-hub-callouts rp-hub-callouts-right">
+          <div className="rp-hub-callouts rp-hub-callouts-right" aria-label="Leistung rechts">
             <div className="rp-hub-callout"><Zap aria-hidden="true" /><span>TOP-BESCHL.</span><strong>{accelerationLabel}</strong></div>
             <div className="rp-hub-callout"><Activity aria-hidden="true" /><span>SCHRITTFREQ.</span><strong>{cadenceLabel}</strong></div>
             <div className="rp-hub-callout"><Target aria-hidden="true" /><span>DUELLE</span><strong>{completedDuels}</strong></div>
