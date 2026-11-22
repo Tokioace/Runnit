@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Activity, ArrowLeft, CalendarDays, Check, ChevronLeft, ChevronRight, Dna,
-  Dumbbell, Footprints, Gauge, Image as Picture, LockKeyhole, Mars,
-  Pencil, Play, Pause, RotateCw, Ruler, Settings, ShieldCheck, Shirt,
-  Target, Trophy, UserRound, Weight, Zap,
+  Activity, ArrowLeft, ChevronLeft, ChevronRight, Dna,
+  Dumbbell, Footprints, Gauge, Image as Picture,
+  Pencil, Play, Pause, RotateCw, Settings, ShieldCheck, Shirt,
+  Target, Trophy, UserRound, Zap,
 } from 'lucide-react';
 import BottomNav from '../components/ui/BottomNav';
 import RunnerHologramModel from '../components/profile/RunnerHologramModel';
@@ -148,8 +148,8 @@ export default function ProfileScreen() {
   const [consentError, setConsentError] = useState('');
   const [turnAngle, setTurnAngle] = useState(0);
   const [turning, setTurning] = useState(true);
-  // Exact illustration is the profile hero. The existing rigged model is opened
-  // deliberately for genuine 360-degree inspection; do not fake 3D from a sprite.
+  // Use the real locally served 3D runner by default. Keep the original
+  // illustration as a voluntary 2D fallback, never rotate a flat image.
   const [runnerView, setRunnerView] = useState<'art' | '3d'>('3d');
 
   useEffect(() => {
@@ -158,9 +158,20 @@ export default function ProfileScreen() {
       setProfile({ ...EMPTY_PROFILE });
       setDraft({ ...EMPTY_PROFILE });
       setPerformance(EMPTY_PERFORMANCE);
+      setPerformanceError(false);
       setOptedIn(false);
+      setProfileLoading(false);
+      setConsentLoading(false);
+      setConsentError('');
       return;
     }
+    // Never show the previous signed-in runner's private information while
+    // a newly authenticated session is loading.
+    setProfile({ ...EMPTY_PROFILE });
+    setDraft({ ...EMPTY_PROFILE });
+    setPerformance(EMPTY_PERFORMANCE);
+    setOptedIn(false);
+    setConsentError('');
     setProfileLoading(true);
     setConsentLoading(true);
     setPerformanceError(false);
