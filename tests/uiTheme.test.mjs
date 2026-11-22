@@ -27,7 +27,7 @@ test('main secondary pages share the same visual shell without modifying the app
   assert.doesNotMatch(leaderboard, /<PageFrame/);
   // Profile now has its own reference-based Arcade shell, like Home/Stats.
   const profile = read('src/screens/ProfileScreen.tsx');
-  assert.match(profile, /className="rp-screen"/);
+  assert.match(profile, /className="rp-screen rp-hub"/);
   assert.match(profile, /<BottomNav/);
   const home = read('src/screens/HomeScreen.tsx');
   assert.match(home, /RUNNIT – Challenge/);
