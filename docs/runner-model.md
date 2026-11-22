@@ -1,33 +1,18 @@
-# Runner profile – third-party 3D character (experimental)
+# RUNNIT runner – current profile rendering and asset provenance
 
-The 360° avatar tries to load the rigged **Superhero Male** character from
-[Quaternius Universal Base Characters](https://quaternius.com/packs/universalbasecharacters.html)
-under **CC0 1.0 Universal**, including commercial use.
+## Current implementation (verified on develop 84313dbec41f; 2026-11-22)
 
-The prepared GLB is distributed by
-[programasweights/avatar](https://github.com/programasweights/avatar/blob/main/ASSETS.md)
-at the immutable commit \`a488723e3a93d73d5c562d88f8a85353c37bc721\`.
-It preserves original geometry and skeletal data, replaces materials with a
-single jade material, and contains no external images. RUNNIT overrides its
-material to translucent cyan during rendering.
+The profile initially displays the local reference illustration `/assets/runnit-reference-runner.webp`. The `360° SCAN` control switches to a genuine rotatable 3D viewer, and can switch back to the illustration. **The 2D artwork itself does not rotate**; the stylized 3D mesh is an approximation rather than an identical reconstruction.
 
-The custom element renderer is Google's [model-viewer](https://modelviewer.dev/),
-version **4.1.0** (Apache-2.0).
+The 3D asset is served locally at `/assets/runnit-runner-3d.glb`. `src/components/profile/RunnerHologramModel.tsx` fetches this GLB, adjusts its skeletal pose in memory, and renders it using Google's `model-viewer` version **4.1.0**, currently loaded at runtime from `https://ajax.googleapis.com/ajax/libs/model-viewer/4.1.0/model-viewer.min.js`. The GLB is **not** fetched from jsDelivr in the current implementation. The renderer's executable script **is** a third-party runtime dependency and is not guaranteed to work offline. No SRI attribute is set by the loader; CDN availability, CSP, privacy implications and iPhone performance require independent review.
 
-**Current prototype limitation:** the viewer and GLB are fetched at runtime
-from Google and jsDelivr. No third-party script, GLB, or dependency was added to
-the npm lockfile. The local 3D canvas is retained as the fallback when remote
-loading fails. This is not guaranteed offline; self-hosting and runtime smoke
-testing are required before a production release.
+On loading failure or timeout, the component shows the existing local `RunnerHologram3D` fallback. This fallback is **not** proof that the full rigged 3D asset works offline. The viewer respects `prefers-reduced-motion` for automatic rotation; manual controls and actual mobile accessibility still require device testing.
 
-The mesh is an **illustration** and does not show the user's real appearance,
-body dimensions or medical measurements. Editing profile data must never
-implicitly modify the 3D character measurements.
+The source model derives from Quaternius **Universal Base Characters – Superhero Male** (CC0 1.0 Universal), with a prepared upstream copy documented by [programasweights/avatar](https://github.com/programasweights/avatar/blob/main/ASSETS.md) at commit `a488723e3a93d73d5c562d88f8a85353c37bc721`. RUNNIT's local customized GLB includes runner-specific hair, visor, clothing, and shoes. These are artistic assets, **not** measurements or representations of a user's real body. Profile data is not used to deform the model.
 
-Official author: Quaternius / @Quaternius.
-Source pack: https://quaternius.com/packs/universalbasecharacters.html
-License: https://creativecommons.org/publicdomain/zero/1.0/
+Author: [Quaternius](https://quaternius.com/packs/universalbasecharacters.html) · [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) · Renderer: [model-viewer](https://modelviewer.dev/) (Apache-2.0).
 
+## Historical implementation notes (superseded where they conflict with the current section)
 
 ## 2026-11-20: neutral standing pose and framing
 The source model arrives in a horizontal-arm bind/T-pose. RUNNIT now
