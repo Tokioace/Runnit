@@ -385,3 +385,42 @@
  .rp-hub-lines{transition:none}
  .rp-hub .rp-scan-line{animation:none}
 }
+
+/* iPhone verification 2026-11-22: reference screenshot showed a tiny
+   sideways-turning model (~60% stage height). Keep the GLB, increase only
+   its visual framing and start it at a stable front view from React. */
+.rp-hub .rp-hub-runner .rp-real-hologram[data-renderer="ready"] .rp-hologram-real-model{
+  transform:translateY(8%) scale(1.36);
+  transform-origin:50% 50%;
+}
+.rp-hub .rp-hub-layout{
+  grid-template-rows:
+    clamp(38px,5.4dvh,50px)
+    clamp(55px,8.1dvh,70px)
+    minmax(205px,1fr)
+    clamp(46px,6.7dvh,57px)
+    minmax(115px,18dvh);
+}
+.rp-hub .rp-hub-guest{display:flex;flex-direction:column;gap:5px}
+.rp-hub .rp-hub-guest .rp-hub-detail-head{margin-bottom:0}
+.rp-hub .rp-hub-guest>p{font-size:11px;line-height:1.35;margin:2px 0;color:#badde7}
+.rp-hub .rp-hub-guest-login{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  align-self:flex-start;min-height:34px;padding:5px 11px;
+  border:1px solid #63f5fd;border-radius:8px 2px 8px 2px;
+  background:linear-gradient(110deg,#066275,#0b3454);
+  box-shadow:0 0 8px #35cadd53;
+  color:#f1ffff;font-size:11px;font-weight:950;font-style:italic;
+}
+.rp-hub .rp-hub-guest-login svg{width:16px;height:16px}
+@media(max-height:730px){
+  .rp-hub .rp-hub-layout{
+    grid-template-rows:37px 52px minmax(182px,1fr) 46px minmax(106px,17dvh);
+  }
+  .rp-hub .rp-hub-runner .rp-real-hologram[data-renderer="ready"] .rp-hologram-real-model{
+    transform:translateY(7%) scale(1.33);
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .rp-hub .rp-hub-runner .rp-hologram-real-model{transition:none}
+}
