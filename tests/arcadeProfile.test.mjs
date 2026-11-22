@@ -203,7 +203,7 @@ test('Profile hub reads real results and does not invent badges, XP or editable 
   assert.match(screen, /formatMetric\(performance\.stride/);
   assert.match(screen, /formatMetric\(performance\.cadence/);
   assert.match(screen, /Noch keine vergebenen Badges/);
-  assert.match(screen, /3D-Kleidung ist derzeit nicht wechselbar/);
+  assert.match(screen, /Das Original-Outfit ist aktuell fest/);
   assert.doesNotMatch(screen, /LVL 14|3\.420 \/ 5\.000|128 spm|1,24 m\/s²/);
 });
 
