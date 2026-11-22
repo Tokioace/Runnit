@@ -417,7 +417,7 @@ export default function ProfileScreen() {
                 <small>SCHUHE: {profile.shoeType || 'Keine Angabe'}</small>
               </div>
             </div>
-            <p className="rp-hub-mininote">3D-Kleidung ist derzeit nicht wechselbar; Profilbilder und Schuhdaten bleiben bearbeitbar.</p>
+            <p className="rp-hub-mininote">Das Original-Outfit ist aktuell fest. Profilbilder und Schuhdaten kannst du bearbeiten.</p>
           </>}
           {activeSection === 'dna' && <>
             <div className="rp-hub-detail-head"><h2>RUNNER-DNA</h2><button type="button" onClick={() => open('dna')}><Pencil size={15} /> BEARBEITEN</button></div>
