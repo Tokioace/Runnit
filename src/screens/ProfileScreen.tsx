@@ -148,7 +148,9 @@ export default function ProfileScreen() {
   const [consentSaving, setConsentSaving] = useState(false);
   const [consentError, setConsentError] = useState('');
   const [turnAngle, setTurnAngle] = useState(0);
-  const [turning, setTurning] = useState(true);
+  // Start facing the runner, without automatic spin, so profile screenshots and
+  // first paint show the same stable silhouette. The play control still rotates.
+  const [turning, setTurning] = useState(false);
   // Use the real locally served 3D runner by default. Keep the original
   // illustration as a voluntary 2D fallback, never rotate a flat image.
   const [runnerView, setRunnerView] = useState<'art' | '3d'>('3d');
@@ -402,14 +404,22 @@ export default function ProfileScreen() {
 
         <section id="rp-hub-panel" className="rp-hub-detail" role="tabpanel"
           tabIndex={0} aria-labelledby={'rp-hub-tab-' + activeSection}>
-          {activeSection === 'identity' && <>
+          {activeSection === 'identity' && (!user ? (
+            <div className="rp-hub-guest">
+              <div className="rp-hub-detail-head"><h2>RUNNER-ID</h2><span>GASTMODUS</span></div>
+              <p>Deine Runner-ID, Bio und Kontodaten erscheinen hier nach der Anmeldung.</p>
+              <Link to="/login?next=%2Fprofile" className="rp-hub-guest-login">
+                <UserRound size={15} /> ANMELDEN / REGISTRIEREN
+              </Link>
+            </div>
+          ) : <>
             <div className="rp-hub-detail-head">
               <h2>RUNNER-ID</h2>
               <button type="button" onClick={() => open('account')}><Settings size={15} /> KONTO</button>
             </div>
             <div className="rp-hub-id-strip">
-              <span>{user?.id ? 'R-' + user.id.slice(0, 8).toUpperCase() : 'ALS GAST NICHT VERFÜGBAR'}</span>
-              <button type="button" disabled={!user} onClick={() => { void copyRunnerId(); }}
+              <span>{'R-' + user.id.slice(0, 8).toUpperCase()}</span>
+              <button type="button" onClick={() => { void copyRunnerId(); }}
                 aria-label="Vollständige Runner-ID kopieren"><Copy size={14} /> KOPIEREN</button>
             </div>
             <div className="rp-hub-detail-copy rp-hub-bio-display">
@@ -417,7 +427,7 @@ export default function ProfileScreen() {
               <button type="button" onClick={() => open('bio')} aria-label="Runner-Bio bearbeiten"><Pencil size={16} /></button>
             </div>
             <button type="button" className="rp-hub-text-action" onClick={() => open('privacy')}><ShieldCheck size={15} /> RANGLISTEN-DATENSCHUTZ</button>
-          </>}
+          </>)}
           {activeSection === 'style' && <>
             <div className="rp-hub-detail-head"><h2>RUNNER STYLE</h2><span>DEIN LOOK</span></div>
             <div className="rp-hub-style-layout">
@@ -469,7 +479,7 @@ export default function ProfileScreen() {
                 <p>Noch keine vergebenen Badges. Hier erscheinen nur tatsächlich freigeschaltete Auszeichnungen.</p></div>
             </div>
           </>}
-          {!user && <Link className="rp-login-inline rp-hub-login" to="/login?next=%2Fprofile">ANMELDEN, UM DEIN PROFIL ZU SPEICHERN</Link>}
+          {!user && activeSection !== 'identity' && <Link className="rp-login-inline rp-hub-login" to="/login?next=%2Fprofile">ANMELDEN, UM DEIN PROFIL ZU SPEICHERN</Link>}
         </section>
       </div>
       {notice && <div className="rp-notice" role="status">{notice}</div>}

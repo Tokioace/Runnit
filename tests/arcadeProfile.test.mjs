@@ -259,3 +259,30 @@ test('Fidelity tabs have real-content actions, avatar images, keyboard navigatio
   assert.match(screen, /Noch keine vergebenen Badges/);
   assert.match(screen, /<BottomNav \/>/);
 });
+
+test('Profile screenshot regression: bigger stationary 3D runner framed on small iPhones', () => {
+  const source = read('src/screens/ProfileScreen.tsx');
+  const styles = read('src/styles/profileHub.css');
+  assert.match(source, /const \[turning, setTurning\] = useState\(false\)/);
+  assert.match(source, /onPointerDown=\{\(\) =>/);
+  assert.match(source, /<RunnerHologramModel rotating=\{turning\} manualAngle=\{turnAngle\}/);
+  const modelZoom = styles.match(/transform:translateY\(8%\) scale\((\d+\.\d+)\)/)?.[1];
+  assert.ok(modelZoom, 'the ready 3D model must receive an intentional iPhone zoom');
+  assert.ok(Number(modelZoom) >= 1.25 && Number(modelZoom) <= 1.45,
+    'enlarge the avatar while protecting the head and shoe silhouette');
+  assert.match(styles, /\.rp-hub \.rp-hub-runner \.rp-real-hologram\[data-renderer="ready"\]/);
+  assert.match(styles, /@media\(max-height:730px\)/);
+  assert.match(styles, /minmax\(106px,17dvh\)/);
+});
+
+test('Guest identity panel is usable and never shows a fake runner ID', () => {
+  const source = read('src/screens/ProfileScreen.tsx');
+  const styles = read('src/styles/profileHub.css');
+  assert.match(source, /activeSection === 'identity' && \(!user \?/);
+  assert.match(source, /className="rp-hub-guest"/);
+  assert.match(source, /ALS GAST NICHT VERFÜGBAR|GASTMODUS/);
+  assert.match(source, /className="rp-hub-guest-login"/);
+  assert.match(source, /navigator\.clipboard\.writeText\(user\.id\)/);
+  assert.match(styles, /\.rp-hub \.rp-hub-guest-login/);
+  assert.doesNotMatch(source, /3\.420 \/ 5\.000 XP|LVL 14/);
+});
