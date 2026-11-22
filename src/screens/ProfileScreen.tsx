@@ -323,6 +323,9 @@ export default function ProfileScreen() {
             <polyline points="271,77 239,77 204,113" />
             <polyline points="271,192 234,192 207,222" />
             <polyline points="271,315 239,315 204,318" />
+          </svg>
+          <svg className="rp-hub-anchors" viewBox="0 0 360 400" preserveAspectRatio="none"
+            focusable="false" aria-hidden="true">
             {[[159,113],[157,222],[157,318],[204,113],[207,222],[204,318]].map(([cx,cy],index) =>
               <circle key={index} cx={cx} cy={cy} r="3.2" />)}
           </svg>
