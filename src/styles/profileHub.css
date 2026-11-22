@@ -154,13 +154,6 @@
  display:flex;align-items:flex-end;justify-content:center;
  overflow:visible
 }
-.rp-hub .rp-hub-runner .rp-real-hologram{
- width:100%;height:100%;max-height:100%;
-}
-.rp-hub .rp-hub-runner .rp-hologram-real-model{
- width:100%;height:100%;display:block;--poster-color:transparent;
- filter:drop-shadow(0 0 4px #08e8f17b)
-}
 .rp-hub .rp-hub-runner .rp-runner-reference-art{
  height:98%;width:auto;max-width:125%;bottom:-1%;object-fit:contain
 }
@@ -175,26 +168,6 @@
  border-radius:50%;background:radial-gradient(ellipse,#14729389,#061b34 75%);
  box-shadow:0 0 9px #4bf6fbb4,0 0 18px #03d7ff55
 }
-.rp-hub .rp-hub-runner .rp-holo-controls{
- position:absolute;z-index:7;left:-7%;right:-7%;bottom:4%;pointer-events:none;
- display:flex;justify-content:space-between
-}
-.rp-hub .rp-hub-runner .rp-holo-controls button{
- display:grid;place-items:center;pointer-events:auto;
- width:29px;height:29px;border:1px solid #4cebffb5;border-radius:7px;
- background:#04213ade;color:white;box-shadow:0 0 7px #04cdf26a
-}
-.rp-hub-view-controls{
- position:absolute;z-index:8;top:5px;left:0;right:0;
- display:flex;align-items:center;justify-content:center;gap:5px
-}
-.rp-hub-view-controls button{
- display:inline-flex;align-items:center;justify-content:center;gap:4px;
- min-height:27px;border:1px solid #56e8f0a0;border-radius:8px 2px 8px 2px;
- padding:3px 6px;white-space:nowrap;background:#031c35df;color:#cffbff;
- font-size:9px;font-weight:900;box-shadow:0 0 6px #1ccde72e
-}
-.rp-hub-view-controls svg{height:12px;width:12px}
 .rp-hub-beta{
  position:absolute;z-index:5;bottom:0;left:0;right:0;
  text-align:center;font-size:8px;line-height:1.2;letter-spacing:.13em;
@@ -386,13 +359,6 @@
  .rp-hub .rp-scan-line{animation:none}
 }
 
-/* iPhone verification 2026-11-22: reference screenshot showed a tiny
-   sideways-turning model (~60% stage height). Keep the GLB, increase only
-   its visual framing and start it at a stable front view from React. */
-.rp-hub .rp-hub-runner .rp-real-hologram[data-renderer="ready"] .rp-hologram-real-model{
-  transform:translateY(8%) scale(1.36);
-  transform-origin:50% 50%;
-}
 .rp-hub .rp-hub-layout{
   grid-template-rows:
     clamp(38px,5.4dvh,50px)
@@ -417,10 +383,78 @@
   .rp-hub .rp-hub-layout{
     grid-template-rows:37px 52px minmax(182px,1fr) 46px minmax(106px,17dvh);
   }
-  .rp-hub .rp-hub-runner .rp-real-hologram[data-renderer="ready"] .rp-hologram-real-model{
-    transform:translateY(7%) scale(1.33);
+  }
+@media(prefers-reduced-motion:reduce){
+  }
+
+
+/* Original RUNNIT reference art (static 2D).
+   The art is an unchanged local asset, not the 3D mesh or a rotated sprite.
+   Keep the complete head-to-shoes silhouette in the scan and all six callouts. */
+.rp-hub .rp-hub-runner-static {
+  position:absolute;
+  left:20%;
+  top:1%;
+  bottom:0;
+  width:60%;
+  z-index:3;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-end;
+  overflow:visible;
+  filter:none;
+}
+.rp-hub .rp-hub-runner-static .rp-holo-stage-static{
+  position:relative;
+  width:100%;
+  min-height:0;
+  flex:1;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  overflow:visible;
+  touch-action:auto;
+}
+.rp-hub .rp-hub-runner-static .rp-holo-center-static{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  overflow:visible;
+  pointer-events:none;
+}
+.rp-hub .rp-hub-runner-static .rp-runner-reference-art-static{
+  position:absolute;
+  display:block;
+  left:50%;
+  bottom:-1%;
+  transform:translateX(-50%);
+  height:101%;
+  max-height:none;
+  width:auto;
+  max-width:none;
+  object-fit:contain;
+  pointer-events:none;
+  user-select:none;
+  -webkit-user-drag:none;
+  filter:drop-shadow(0 0 8px rgba(9,212,235,.28));
+}
+.rp-hub .rp-hub-runner-static .rp-plinth{
+  width:97%;
+  margin-bottom:7px;
+}
+@media(max-height:730px){
+  .rp-hub .rp-hub-runner-static .rp-runner-reference-art-static{
+    height:100%;
   }
 }
-@media(prefers-reduced-motion:reduce){
-  .rp-hub .rp-hub-runner .rp-hologram-real-model{transition:none}
+@media(max-width:355px){
+  .rp-hub .rp-hub-runner-static{
+    left:19%;
+    width:62%;
+  }
 }
