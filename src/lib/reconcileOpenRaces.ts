@@ -6,7 +6,10 @@ export function reconcileOpenRaces<T extends IdentifiedRace>(
   previous: readonly T[], discovered: readonly T[], ownHostId: string,
 ): T[] {
   const incoming = new Map(discovered.map(run => [run.id, run]));
-  const own = previous.filter(run => run.hostUserId === ownHostId && !run.id.startsWith('demo-run-'));
+  // An unresolved session must never make anonymous/stale markers look locally hosted.
+  const own = ownHostId.trim()
+    ? previous.filter(run => run.hostUserId === ownHostId && !run.id.startsWith('demo-run-'))
+    : [];
   for (const race of own) if (!incoming.has(race.id)) incoming.set(race.id, race);
   const kept = previous.flatMap(run => {
     const latest = incoming.get(run.id);
