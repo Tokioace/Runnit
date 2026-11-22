@@ -11,6 +11,8 @@ export function validWalkingGpsFixTimestamp(
   if (!Number.isFinite(fixEpochMs) || !Number.isFinite(nowEpochMs) || fixEpochMs <= 0) return false;
   const ageMs = nowEpochMs - fixEpochMs;
   if (ageMs < -1000 || ageMs > 3000) return false;
-  if (previousAcceptedEpochMs !== null && fixEpochMs <= previousAcceptedEpochMs) return false;
+  if (previousAcceptedEpochMs !== null &&
+      (!Number.isFinite(previousAcceptedEpochMs) || previousAcceptedEpochMs <= 0 ||
+       fixEpochMs <= previousAcceptedEpochMs)) return false;
   return true;
 }
