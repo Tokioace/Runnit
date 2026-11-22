@@ -6,7 +6,7 @@ const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8'
 test('Profile has its own compact, image-backed Y2K screen and keeps the shared nav', () => {
   const screen = read('src/screens/ProfileScreen.tsx');
   const css = read('src/styles/profileY2k.css');
-  assert.match(screen, /className="rp-screen"/);
+  assert.match(screen, /className="rp-screen rp-hub"/);
   assert.match(screen, /<BottomNav/);
   assert.match(screen, /runnit-metal-logo.svg/);
   assert.match(screen, /runnit-profile-avatar.avif/);
@@ -173,4 +173,51 @@ test('Profile reference artwork is a real imported image; data and controls stay
   assert.match(styles,/\.rp-hologram-wrap\.is-paused \.rp-scan-line/);
   assert.match(model,/String\(firstAngle\.current\) \+ 'deg 90deg ' \+ RUNNER_CAMERA_DISTANCE/);
   assert.doesNotMatch(source,/LVL 14|34,7 km/);
+});
+
+test('Profile hub keeps the real runner centered and all five accessible sections work', () => {
+  const screen = read('src/screens/ProfileScreen.tsx');
+  const css = read('src/styles/profileHub.css');
+  assert.match(screen, /useState<HubSection>\('identity'\)/);
+  assert.match(screen, /useState<'art' \| '3d'>\('3d'\)/);
+  for (const item of ['identity', 'style', 'dna', 'training', 'badges']) {
+    assert.match(screen, new RegExp("id: '" + item + "'"));
+    assert.match(screen, new RegExp("activeSection === '" + item + "'"));
+  }
+  assert.match(screen, /role="tablist"/);
+  assert.match(screen, /role="tabpanel"/);
+  assert.match(screen, /aria-selected=\{activeSection === id\}/);
+  assert.match(screen, /rp-hub-callouts-left/);
+  assert.match(screen, /rp-hub-callouts-right/);
+  assert.match(css, /\.rp-hub-callout:after/);
+  assert.match(css, /\.rp-hub .rp-hub-layout/);
+  assert.match(screen, /<BottomNav \/>/);
+});
+
+test('Profile hub reads real results and does not invent badges, XP or editable 3D wardrobe', () => {
+  const screen = read('src/screens/ProfileScreen.tsx');
+  assert.match(screen, /useRunnerHistory\(user\?\.id\)/);
+  assert.match(screen, /historyAvailable \? String\(history\.totals\.completedDuels\) : '—'/);
+  assert.match(screen, /historyAvailable \? formatRaceTime\(history\.totals\.best50Ms\) : '—'/);
+  assert.match(screen, /formatMetric\(performance\.acceleration/);
+  assert.match(screen, /formatMetric\(performance\.stride/);
+  assert.match(screen, /formatMetric\(performance\.cadence/);
+  assert.match(screen, /Noch keine vergebenen Badges/);
+  assert.match(screen, /frei wechselbare 3D-Kleidung ist noch nicht verfügbar/);
+  assert.doesNotMatch(screen, /LVL 14|3\.420 \/ 5\.000|128 spm|1,24 m\/s²/);
+});
+
+test('Profile redesign retains editable inputs, guest, calibration, privacy and account operations', () => {
+  const screen = read('src/screens/ProfileScreen.tsx');
+  for (const id of ['account','privacy','editor','dna','equipment','training','goals','badges','bio']) {
+    assert.match(screen, new RegExp("pane === '" + id + "'|open\\('" + id + "'\\)"));
+  }
+  for (const path of ['/calibration','/gps-lab','/fusion-lab','/sprint-lab']) {
+    assert.ok(screen.includes('to="' + path + '"'));
+  }
+  assert.match(screen, /onChange=\{\(\) => \{ void toggleGoal\(\); \}\}/);
+  assert.match(screen, /onChange=\{\(event\) => \{ void saveConsent\(event\.currentTarget\.checked\); \}\}/);
+  assert.match(screen, /to="\/login\?next=%2Fprofile"/);
+  assert.match(screen, /supabase\.auth\.updateUser/);
+  assert.match(screen, /<AccountDetailsPanel/);
 });

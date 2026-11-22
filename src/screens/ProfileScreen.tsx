@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Activity, ArrowLeft, CalendarDays, Check, ChevronLeft, ChevronRight, Dna,
-  Dumbbell, Footprints, Gauge, Image as Picture, LockKeyhole, Mars,
-  Pencil, Play, Pause, RotateCw, Ruler, Settings, ShieldCheck, Shirt,
-  Target, Trophy, UserRound, Weight, Zap,
+  Activity, ArrowLeft, ChevronLeft, ChevronRight, Dna,
+  Dumbbell, Footprints, Gauge, Image as Picture,
+  Pencil, Play, Pause, RotateCw, Settings, ShieldCheck, Shirt,
+  Target, Trophy, UserRound, Zap,
 } from 'lucide-react';
 import BottomNav from '../components/ui/BottomNav';
 import RunnerHologramModel from '../components/profile/RunnerHologramModel';
 import AccountDetailsPanel from '../components/profile/AccountDetailsPanel';
 import { useSupabaseUser } from '../hooks/useSupabaseUser';
 import { supabase } from '../lib/supabaseClient';
+import { useRunnerHistory } from '../hooks/useRunnerHistory';
+import { formatRaceTime } from '../lib/runnerHistory';
 import '../styles/profileY2k.css';
+import '../styles/profileHub.css';
 
 /**
  * Runner profile: all customizations are private Supabase Auth user metadata.
@@ -117,24 +120,25 @@ function validateProfile(p: RunnerProfile): string | null {
   if (p.bio.length > 180 || p.focus.length > 100) return 'Text ist zu lang.';
   return null;
 }
-const menu = [
-  { id: 'bio', title: 'PROFIL', Icon: UserRound },
-  { id: 'editor', title: 'RUNNER EDITOR', Icon: Shirt },
-  { id: 'dna', title: 'RUNNER-DNA', Icon: Dna },
-  { id: 'equipment', title: 'AUSRÜSTUNG', Icon: Footprints },
-  { id: 'training', title: 'TRAINING', Icon: Dumbbell },
-  { id: 'goals', title: 'ZIELE', Icon: Target },
-  { id: 'badges', title: 'BADGES', Icon: Trophy },
+type HubSection = 'identity' | 'style' | 'dna' | 'training' | 'badges';
+const hubSections = [
+  { id: 'identity', label: 'IDENTITÄT', Icon: UserRound },
+  { id: 'style', label: 'STYLE', Icon: Shirt },
+  { id: 'dna', label: 'DNA', Icon: Dna },
+  { id: 'training', label: 'TRAINING', Icon: Dumbbell },
+  { id: 'badges', label: 'BADGES', Icon: Trophy },
 ] as const;
 
 export default function ProfileScreen() {
   const { user, loading, signOut, updateDisplayName, changePassword } = useSupabaseUser();
+  const history = useRunnerHistory(user?.id);
   const [profile, setProfile] = useState<RunnerProfile>({ ...EMPTY_PROFILE });
   const [draft, setDraft] = useState<RunnerProfile>({ ...EMPTY_PROFILE });
   const [profileLoading, setProfileLoading] = useState(false);
   const [performance, setPerformance] = useState<Performance>(EMPTY_PERFORMANCE);
   const [performanceError, setPerformanceError] = useState(false);
   const [pane, setPane] = useState<Pane>(null);
+  const [activeSection, setActiveSection] = useState<HubSection>('identity');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(false);
@@ -144,9 +148,9 @@ export default function ProfileScreen() {
   const [consentError, setConsentError] = useState('');
   const [turnAngle, setTurnAngle] = useState(0);
   const [turning, setTurning] = useState(true);
-  // Exact illustration is the profile hero. The existing rigged model is opened
-  // deliberately for genuine 360-degree inspection; do not fake 3D from a sprite.
-  const [runnerView, setRunnerView] = useState<'art' | '3d'>('art');
+  // Use the real locally served 3D runner by default. Keep the original
+  // illustration as a voluntary 2D fallback, never rotate a flat image.
+  const [runnerView, setRunnerView] = useState<'art' | '3d'>('3d');
 
   useEffect(() => {
     let active = true;
@@ -154,9 +158,20 @@ export default function ProfileScreen() {
       setProfile({ ...EMPTY_PROFILE });
       setDraft({ ...EMPTY_PROFILE });
       setPerformance(EMPTY_PERFORMANCE);
+      setPerformanceError(false);
       setOptedIn(false);
+      setProfileLoading(false);
+      setConsentLoading(false);
+      setConsentError('');
       return;
     }
+    // Never show the previous signed-in runner's private information while
+    // a newly authenticated session is loading.
+    setProfile({ ...EMPTY_PROFILE });
+    setDraft({ ...EMPTY_PROFILE });
+    setPerformance(EMPTY_PERFORMANCE);
+    setOptedIn(false);
+    setConsentError('');
     setProfileLoading(true);
     setConsentLoading(true);
     setPerformanceError(false);
@@ -259,56 +274,52 @@ export default function ProfileScreen() {
   const name = loading ? 'LADEN …' : user?.displayName || 'GAST';
   const avatar = avatarImages[profile.avatar];
   const isGuest = !user;
+  const historyAvailable = Boolean(user) && !history.loading && !history.error;
+  const completedDuels = historyAvailable ? String(history.totals.completedDuels) : '—';
+  const best50 = historyAvailable ? formatRaceTime(history.totals.best50Ms) : '—';
+  const speedLabel = formatMetric(performance.speed === null ? null : performance.speed * 3.6, 'km/h');
+  const accelerationLabel = formatMetric(performance.acceleration, 'm/s²', 2);
+  const strideLabel = formatMetric(performance.stride, 'm', 2);
+  const cadenceLabel = formatMetric(performance.cadence, 'spm', 0);
   return (
-    <main className="rp-screen">
+    <main className="rp-screen rp-hub">
       <div className="rp-background" aria-hidden="true" />
-      <div className="rp-stage">
-        <section className="rp-headzone" aria-label="RUNNIT Profil">
-          <header className="rp-topbar">
-            <Link to="/home" className="rp-square" aria-label="Zurück zu Home"><ArrowLeft aria-hidden="true" /></Link>
-            <img className="rp-title-mark" src="/runnit-metal-logo.svg" alt="RUNNIT" />
-            <span className="rp-profile-word">PROFIL</span>
-            <button type="button" className="rp-square" onClick={() => open('account')} aria-label="Kontoeinstellungen öffnen">
-              <Settings aria-hidden="true" />
-            </button>
-          </header>
-          <div className="rp-identity">
-            <div className="rp-portrait"><img src={avatar} alt="Dein gewähltes Runner-Profilbild" /></div>
-            <div className="rp-player-text">
-              <strong className="rp-player-name">{name}</strong>
-              <span className="rp-player-sub">{user ? 'ANGEMELDETER RUNNER' : 'GASTMODUS'}</span>
-              <div className="rp-player-tags"><span>LVL <b>—</b></span><span>R <b>—</b></span></div>
-            </div>
-            <button type="button" className="rp-identity-edit" onClick={() => open('editor')} aria-label="Profilbild bearbeiten"><Pencil size={14} /></button>
+      <div className="rp-stage rp-hub-layout">
+
+        <header className="rp-hub-topbar" aria-label="RUNNIT Profil">
+          <Link to="/home" className="rp-hub-top-action" aria-label="Zurück zu Home"><ArrowLeft aria-hidden="true" /></Link>
+          <img src="/runnit-metal-logo.svg" alt="RUNNIT" className="rp-hub-logo" />
+          <span className="rp-hub-heading">PROFIL</span>
+          <button type="button" className="rp-hub-top-action" onClick={() => open('account')} aria-label="Kontoeinstellungen öffnen"><Settings aria-hidden="true" /></button>
+        </header>
+
+        <section className="rp-hub-identity" aria-label="Runner-Identität">
+          <img src={avatar} alt="Dein gewähltes Runner-Profilbild" className="rp-hub-avatar" />
+          <div className="rp-hub-identity-info">
+            <strong className="rp-hub-name">{name}</strong>
+            <span>{user ? 'ANGEMELDETER RUNNER' : 'GASTMODUS'}</span>
           </div>
+          <button type="button" className="rp-hub-icon-button" onClick={() => open('editor')} aria-label="Profilbild bearbeiten"><Pencil aria-hidden="true" /></button>
         </section>
 
-        <section className="rp-dashboard" aria-label="Runner-Editor und Körperdaten">
-          <nav className="rp-side" aria-label="Profilbereiche">
-            {menu.map(({ id, title, Icon }) => (
-              <button key={id} type="button" className={id === 'bio' ? 'is-selected' : ''} onClick={() => open(id)}>
-                <Icon aria-hidden="true" /> <span>{title}</span>
-              </button>
-            ))}
-          </nav>
-          <div className={"rp-hologram-wrap" + (turning ? "" : " is-paused") + (runnerView === "art" ? " rp-art-mode" : " rp-three-mode")}>
-            <button type="button" className="rp-holo-label" onClick={() => { setRunnerView(view => view === 'art' ? '3d' : 'art'); setTurning(true); setTurnAngle(0); }}
-              aria-label={runnerView === 'art' ? 'Echte 360-Grad-Ansicht starten' : 'Zur originalen Runner-Illustration wechseln'} aria-pressed={runnerView === '3d'}>
-              360° SCAN
-            </button>
+        <section className="rp-hub-hero" aria-label="Dein Runner mit gemessenen Leistungswerten">
+          <div className="rp-hub-callouts rp-hub-callouts-left">
+            <div className="rp-hub-callout"><Gauge aria-hidden="true" /><span>TOP-SPEED</span><strong>{speedLabel}</strong></div>
+            <div className="rp-hub-callout"><Footprints aria-hidden="true" /><span>SCHRITTLÄNGE</span><strong>{strideLabel}</strong></div>
+            <div className="rp-hub-callout"><Trophy aria-hidden="true" /><span>BESTZEIT 50 M</span><strong>{best50}</strong></div>
+          </div>
+
+          <div className={"rp-hologram-wrap rp-hub-runner" + (turning ? "" : " is-paused") + (runnerView === "art" ? " rp-art-mode" : " rp-three-mode")}>
+            <div className="rp-hub-ring" aria-hidden="true" />
             <div className="rp-holo-stage">
               <div className="rp-holo-center">
                 {runnerView === 'art' ? (
                   <img className="rp-runner-reference-art" src="/assets/runnit-reference-runner.webp"
-                    alt="RUNNIT-Läufer aus dem freigegebenen Design: braune Haare, blaue Sportbrille, dunkles Shirt, Shorts, Handschuhe und Laufschuhe" />
+                    alt="RUNNIT-Läufer mit braunen Haaren, blauer Sportbrille, dunklem Shirt, Shorts und Laufschuhen" />
                 ) : (
                   <RunnerHologramModel rotating={turning} manualAngle={turnAngle} />
                 )}
               </div>
-              <button type="button" className="rp-holo-pause" aria-label={turning ? 'Rotation anhalten' : 'Rotation fortsetzen'}
-                aria-pressed={turning} onClick={() => setTurning(value => !value)}>
-                {turning ? <Pause size={13} /> : <Play size={13} />}
-              </button>
               <div className="rp-scan-line" aria-hidden="true" />
             </div>
             <div className="rp-plinth" aria-hidden="true" />
@@ -316,58 +327,87 @@ export default function ProfileScreen() {
               <button type="button" aria-label="Runner links drehen" onClick={() => { setRunnerView('3d'); setTurning(false); setTurnAngle(angle => angle - 45); }}><ChevronLeft /></button>
               <button type="button" aria-label="Runner rechts drehen" onClick={() => { setRunnerView('3d'); setTurning(false); setTurnAngle(angle => angle + 45); }}><ChevronRight /></button>
             </div>
-          </div>
-          <section className="rp-info" aria-label="Private Runner-Daten">
-            <h2>RUNNER-ID</h2>
-            {[
-              { Icon: UserRound, label: 'Name', value: name, pane: 'account' as const },
-              { Icon: CalendarDays, label: 'Geburtsjahr', value: profile.birthYear || '—', pane: 'dna' as const },
-              { Icon: Mars, label: 'Geschlecht', value: profile.gender || '—', pane: 'dna' as const },
-              { Icon: Ruler, label: 'Größe', value: profile.heightCm ? profile.heightCm + ' cm' : '—', pane: 'dna' as const },
-              { Icon: Weight, label: 'Gewicht', value: profile.weightKg ? profile.weightKg + ' kg' : '—', pane: 'dna' as const },
-            ].map(({ Icon, label, value, pane: toPane }) => (
-              <div className="rp-info-row" key={label}>
-                <Icon aria-hidden="true" /><span className="rp-field-title">{label}</span>
-                <strong>{value}</strong>
-                <button type="button" aria-label={label + ' bearbeiten'} onClick={() => open(toPane)}><Pencil /></button>
-              </div>
-            ))}
-            <div className="rp-info-row">
-              <Activity aria-hidden="true" /><span className="rp-field-title">BMI</span>
-              <div><strong>{bmi === null ? '—' : bmi.toFixed(1).replace('.', ',')}</strong>{bmi !== null && <div className="rp-bmi-gradient" aria-hidden="true" />}</div>
+            <div className="rp-hub-view-controls">
+              <button type="button" aria-label={turning ? 'Rotation anhalten' : 'Rotation fortsetzen'}
+                aria-pressed={turning} onClick={() => { setRunnerView('3d'); setTurning(value => !value); }}>
+                {turning ? <Pause size={13} /> : <Play size={13} />}
+              </button>
+              <button type="button" onClick={() => { setRunnerView(view => view === 'art' ? '3d' : 'art'); setTurning(false); }}
+                aria-pressed={runnerView === '3d'} aria-label={runnerView === '3d' ? 'Zur 2D-Illustration wechseln' : 'Echte 360-Grad-Ansicht starten'}>
+                {runnerView === '3d' ? '360°' : '2D ART'} <RotateCw size={12} />
+              </button>
             </div>
-          </section>
+          </div>
+
+          <div className="rp-hub-callouts rp-hub-callouts-right">
+            <div className="rp-hub-callout"><Zap aria-hidden="true" /><span>TOP-BESCHL.</span><strong>{accelerationLabel}</strong></div>
+            <div className="rp-hub-callout"><Activity aria-hidden="true" /><span>SCHRITTFREQ.</span><strong>{cadenceLabel}</strong></div>
+            <div className="rp-hub-callout"><Target aria-hidden="true" /><span>DUELLE</span><strong>{completedDuels}</strong></div>
+          </div>
+          {(performanceError || history.error) && <p className="rp-hub-measurement-error" role="status">Einige Messwerte sind gerade nicht verfügbar.</p>}
+          <small className="rp-hub-beta">GEMESSENE WERTE · BETA</small>
         </section>
 
-        <section className="rp-records" aria-label="Gemessene Runner-Leistungsdaten">
-          <h2>LEISTUNGSPROFIL <span title="Beta-Messwerte. Noch nicht unabhängig auf Manipulation geprüft.">BETA</span></h2>
-          <div className="rp-record-tiles">
-            {[
-              { Icon: Zap, label: 'TOP-BESCHL.', value: formatMetric(performance.acceleration, 'm/s²', 2) },
-              { Icon: Gauge, label: 'TOP-SPEED', value: formatMetric(performance.speed === null ? null : performance.speed * 3.6, 'km/h') },
-              { Icon: Footprints, label: 'SCHRITTLÄNGE', value: formatMetric(performance.stride, 'm', 2) },
-              { Icon: Activity, label: 'SCHRITTFREQ.', value: formatMetric(performance.cadence, 'spm', 0) },
-            ].map(({ Icon, label, value }) => <div className="rp-record" key={label}>
-              <Icon aria-hidden="true" /><small>{label}</small><strong>{value}</strong>
-            </div>)}
-          </div>
-          {performanceError && <p className="rp-perf-error" role="alert">Messwerte konnten nicht geladen werden.</p>}
-        </section>
+        <nav className="rp-hub-tabs" role="tablist" aria-label="Profilbereiche">
+          {hubSections.map(({ id, label, Icon }) => (
+            <button id={'rp-hub-tab-' + id} key={id} role="tab" type="button"
+              aria-controls="rp-hub-panel" aria-selected={activeSection === id}
+              className={activeSection === id ? 'is-active' : ''}
+              onClick={() => setActiveSection(id)}>
+              <Icon aria-hidden="true" /><span>{label}</span>
+            </button>
+          ))}
+        </nav>
 
-        <section className="rp-bio-row" aria-label="Persönliches Runner-Profil">
-          <div className="rp-widget">
-            <h2>RUNNER-BIO <button type="button" onClick={() => open('bio')} aria-label="Runner-Bio bearbeiten"><Pencil /></button></h2>
-            <p className={!profile.bio ? 'rp-widget-empty' : ''}>{profileLoading ? 'Lädt …' : profile.bio || 'Noch keine Bio. Hier kannst du dich vorstellen.'}</p>
-          </div>
-          <div className="rp-widget">
-            <h2>ZIELE & FOKUS <button type="button" onClick={() => open('goals')} aria-label="Ziel bearbeiten"><Pencil /></button></h2>
-            <label>
-              <input type="checkbox" checked={profile.focusDone} disabled={isGuest || !profile.focus || saving}
+        <section id="rp-hub-panel" className="rp-hub-detail" role="tabpanel"
+          aria-labelledby={'rp-hub-tab-' + activeSection}>
+          {activeSection === 'identity' && <>
+            <div className="rp-hub-detail-head"><h2>RUNNER-ID & BIO</h2><button type="button" onClick={() => open('account')}><Settings size={14} /> KONTO</button></div>
+            <div className="rp-hub-detail-inline"><span>RUNNER-ID</span><strong>{user?.id ? user.id.slice(0, 8).toUpperCase() : '—'}</strong></div>
+            <div className="rp-hub-detail-copy"><p>{profileLoading ? 'Lädt …' : profile.bio || 'Noch keine Bio hinterlegt.'}</p>
+              <button type="button" onClick={() => open('bio')} aria-label="Runner-Bio bearbeiten"><Pencil size={15} /></button>
+            </div>
+            <button type="button" className="rp-hub-text-action" onClick={() => open('privacy')}><ShieldCheck size={15} /> RANGLISTEN-DATENSCHUTZ</button>
+          </>}
+          {activeSection === 'style' && <>
+            <div className="rp-hub-detail-head"><h2>RUNNER STYLE</h2><span>ORIGINAL-OUTFIT</span></div>
+            <p className="rp-hub-detail-note">Dein 3D-Runner bleibt wie bisher. Profilbild und Laufschuh-Präferenz sind bearbeitbar; frei wechselbare 3D-Kleidung ist noch nicht verfügbar.</p>
+            <div className="rp-hub-detail-actions">
+              <button type="button" onClick={() => open('editor')}><Picture size={17} /> PROFILBILD WÄHLEN</button>
+              <button type="button" onClick={() => open('equipment')}><Footprints size={17} /> AUSRÜSTUNG</button>
+            </div>
+            <small>Schuhtyp: {profile.shoeType || 'Keine Angabe'}</small>
+          </>}
+          {activeSection === 'dna' && <>
+            <div className="rp-hub-detail-head"><h2>RUNNER-DNA</h2><button type="button" onClick={() => open('dna')}><Pencil size={14} /> BEARBEITEN</button></div>
+            <div className="rp-hub-data-grid">
+              <span>GEBURTSJAHR <strong>{profile.birthYear || '—'}</strong></span>
+              <span>GESCHLECHT <strong>{profile.gender || '—'}</strong></span>
+              <span>GRÖSSE <strong>{profile.heightCm ? profile.heightCm + ' cm' : '—'}</strong></span>
+              <span>GEWICHT <strong>{profile.weightKg ? profile.weightKg + ' kg' : '—'}</strong></span>
+              <span>BMI <strong>{bmi === null ? '—' : bmi.toFixed(1).replace('.', ',')}</strong></span>
+            </div>
+            <small>Freiwillige Angaben · BMI rechnerisch, kein Körperscan.</small>
+          </>}
+          {activeSection === 'training' && <>
+            <div className="rp-hub-detail-head"><h2>TRAINING & ZIELE</h2><button type="button" onClick={() => open('training')}><Dumbbell size={14} /> TRAINING</button></div>
+            <div className="rp-hub-detail-inline"><span>LAUFSTIL</span><strong>{profile.runningStyle || 'Keine Angabe'}</strong></div>
+            <div className="rp-hub-detail-copy">
+              <label><input type="checkbox" checked={profile.focusDone} disabled={isGuest || !profile.focus || saving}
                 aria-label="Persönliches Ziel als erledigt markieren" onChange={() => { void toggleGoal(); }} />
-              <span className={!profile.focus ? 'rp-widget-empty' : ''}>{profile.focus || 'Noch kein Ziel gesetzt'}</span>
-            </label>
-            {!user && <Link className="rp-login-inline" to="/login?next=%2Fprofile">ANMELDEN</Link>}
-          </div>
+                <span>{profile.focus || 'Noch kein Ziel gesetzt'}</span></label>
+              <button type="button" onClick={() => open('goals')} aria-label="Ziel bearbeiten"><Pencil size={15} /></button>
+            </div>
+            <div className="rp-hub-detail-actions">
+              <Link to="/calibration"><Footprints size={17} /> KALIBRIERUNG</Link>
+              <button type="button" onClick={() => open('training')}><Gauge size={17} /> GPS-LABOR & TESTS</button>
+            </div>
+          </>}
+          {activeSection === 'badges' && <>
+            <div className="rp-hub-detail-head"><h2>BADGES</h2><span>ECHTE AUSZEICHNUNGEN</span></div>
+            <div className="rp-hub-badges-empty"><Trophy aria-hidden="true" /><p>Noch keine vergebenen Badges. Hier erscheinen nur tatsächlich freigeschaltete Auszeichnungen.</p></div>
+          </>}
+          {!user && <Link className="rp-login-inline rp-hub-login" to="/login?next=%2Fprofile">ANMELDEN, UM DEIN PROFIL ZU SPEICHERN</Link>}
         </section>
       </div>
       {notice && <div className="rp-notice" role="status">{notice}</div>}
