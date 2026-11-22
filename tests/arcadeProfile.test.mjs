@@ -232,7 +232,9 @@ test('Fidelity HUD uses six precise SVG connectors and preserves drag-to-rotate 
   assert.match(screen, /onPointerUp=\{\(\) => setRunnerInteracting\(false\)\}/);
   assert.match(screen, /onPointerCancel=\{\(\) => setRunnerInteracting\(false\)\}/);
   assert.match(screen, /setRunnerView\('3d'\)/);
-  assert.match(css, /\.rp-hub-hero\.is-interacting \.rp-hub-lines\{opacity:0\}/);
+  assert.match(css, /\.rp-hub-hero\.is-interacting \.rp-hub-lines,\.rp-hub-hero\.is-interacting \.rp-hub-anchors\{opacity:0\}/);
+  assert.match(screen, /className="rp-hub-anchors"/);
+  assert.match(css, /\.rp-hub-anchors\{z-index:5\}/);
   assert.match(css, /left:21%;top:0;bottom:0;width:58%/);
   assert.doesNotMatch(css, /rp-hub-callout:after\{\s*content:''/);
 });
