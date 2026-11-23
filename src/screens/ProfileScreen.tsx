@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Activity, ArrowLeft, ChevronLeft, ChevronRight, Copy, Dna,
+  Activity, ArrowLeft, Copy, Dna,
   Dumbbell, Footprints, Gauge, Image as Picture,
-  Pencil, Play, Pause, RotateCw, Settings, ShieldCheck, Shirt,
+  Pencil, Settings, ShieldCheck, Shirt,
   Target, Trophy, UserRound, Zap,
 } from 'lucide-react';
 import BottomNav from '../components/ui/BottomNav';
-import RunnerHologramModel from '../components/profile/RunnerHologramModel';
 import AccountDetailsPanel from '../components/profile/AccountDetailsPanel';
 import { useSupabaseUser } from '../hooks/useSupabaseUser';
 import { supabase } from '../lib/supabaseClient';
@@ -139,7 +138,6 @@ export default function ProfileScreen() {
   const [performanceError, setPerformanceError] = useState(false);
   const [pane, setPane] = useState<Pane>(null);
   const [activeSection, setActiveSection] = useState<HubSection>('identity');
-  const [runnerInteracting, setRunnerInteracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(false);
@@ -147,13 +145,6 @@ export default function ProfileScreen() {
   const [consentLoading, setConsentLoading] = useState(false);
   const [consentSaving, setConsentSaving] = useState(false);
   const [consentError, setConsentError] = useState('');
-  const [turnAngle, setTurnAngle] = useState(0);
-  // Start facing the runner, without automatic spin, so profile screenshots and
-  // first paint show the same stable silhouette. The play control still rotates.
-  const [turning, setTurning] = useState(false);
-  // Use the real locally served 3D runner by default. Keep the original
-  // illustration as a voluntary 2D fallback, never rotate a flat image.
-  const [runnerView, setRunnerView] = useState<'art' | '3d'>('3d');
 
   useEffect(() => {
     let active = true;
@@ -315,8 +306,7 @@ export default function ProfileScreen() {
         </section>
 
 
-        <section className={'rp-hub-hero' + (runnerInteracting ? ' is-interacting' : '')}
-          aria-label="Interaktiver Runner-Scan mit sechs echten Leistungswerten">
+        <section className="rp-hub-hero" aria-label="Runner-Scan mit sechs echten Leistungswerten">
           <svg className="rp-hub-lines" viewBox="0 0 360 400" preserveAspectRatio="none"
             focusable="false" aria-hidden="true">
             <polyline points="89,77 121,77 159,113" />
@@ -336,38 +326,20 @@ export default function ProfileScreen() {
             <div className="rp-hub-callout"><Footprints aria-hidden="true" /><span>SCHRITTLÄNGE</span><strong>{strideLabel}</strong></div>
             <div className="rp-hub-callout"><Trophy aria-hidden="true" /><span>BESTZEIT 50 M</span><strong>{best50}</strong></div>
           </div>
-          <div className={"rp-hologram-wrap rp-hub-runner" + (turning ? "" : " is-paused") + (runnerView === "art" ? " rp-art-mode" : " rp-three-mode")}>
+          <div className="rp-hologram-wrap rp-hub-runner rp-art-mode rp-hub-runner-static">
             <div className="rp-hub-ring" aria-hidden="true" />
-            <div className="rp-holo-stage"
-              onPointerDown={() => { if (runnerView === '3d') { setRunnerInteracting(true); setTurning(false); } }}
-              onPointerUp={() => setRunnerInteracting(false)}
-              onPointerCancel={() => setRunnerInteracting(false)}
-              onPointerLeave={() => setRunnerInteracting(false)}>
-              <div className="rp-holo-center">
-                {runnerView === 'art' ? (
-                  <img className="rp-runner-reference-art" src="/assets/runnit-reference-runner.webp"
-                    alt="RUNNIT-Läufer mit braunen Haaren, blauer Sportbrille, dunklem Shirt, Shorts und Laufschuhen" />
-                ) : (
-                  <RunnerHologramModel rotating={turning} manualAngle={turnAngle} />
-                )}
+            <div className="rp-holo-stage rp-holo-stage-static">
+              <div className="rp-holo-center rp-holo-center-static">
+                <img
+                  className="rp-runner-reference-art rp-runner-reference-art-static"
+                  src="/assets/runnit-reference-runner.webp"
+                  alt="Originaler RUNNIT-Runner mit braunen Haaren, blauer Sportbrille, dunklem Shirt, Shorts und Laufschuhen"
+                  draggable={false}
+                />
               </div>
               <div className="rp-scan-line" aria-hidden="true" />
             </div>
             <div className="rp-plinth" aria-hidden="true" />
-            <div className="rp-holo-controls">
-              <button type="button" aria-label="Runner links drehen" onClick={() => { setRunnerView('3d'); setTurning(false); setTurnAngle(angle => angle - 45); }}><ChevronLeft /></button>
-              <button type="button" aria-label="Runner rechts drehen" onClick={() => { setRunnerView('3d'); setTurning(false); setTurnAngle(angle => angle + 45); }}><ChevronRight /></button>
-            </div>
-            <div className="rp-hub-view-controls">
-              <button type="button" aria-label={turning ? 'Rotation anhalten' : 'Rotation fortsetzen'}
-                aria-pressed={turning} onClick={() => { setRunnerView('3d'); setTurning(value => !value); }}>
-                {turning ? <Pause size={13} /> : <Play size={13} />}
-              </button>
-              <button type="button" onClick={() => { setRunnerView(view => view === 'art' ? '3d' : 'art'); setTurning(false); }}
-                aria-pressed={runnerView === '3d'} aria-label={runnerView === '3d' ? 'Zur 2D-Illustration wechseln' : 'Echte 360-Grad-Ansicht starten'}>
-                {runnerView === '3d' ? '360°' : '2D ART'} <RotateCw size={12} />
-              </button>
-            </div>
           </div>
           <div className="rp-hub-callouts rp-hub-callouts-right" aria-label="Leistung rechts">
             <div className="rp-hub-callout"><Zap aria-hidden="true" /><span>TOP-BESCHL.</span><strong>{accelerationLabel}</strong></div>
@@ -445,7 +417,7 @@ export default function ProfileScreen() {
                 <small>SCHUHE: {profile.shoeType || 'Keine Angabe'}</small>
               </div>
             </div>
-            <p className="rp-hub-mininote">3D-Kleidung ist derzeit nicht wechselbar; Profilbilder und Schuhdaten bleiben bearbeitbar.</p>
+            <p className="rp-hub-mininote">Das Original-Outfit ist aktuell fest. Profilbilder und Schuhdaten kannst du bearbeiten.</p>
           </>}
           {activeSection === 'dna' && <>
             <div className="rp-hub-detail-head"><h2>RUNNER-DNA</h2><button type="button" onClick={() => open('dna')}><Pencil size={15} /> BEARBEITEN</button></div>

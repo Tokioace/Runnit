@@ -10,7 +10,7 @@ test('Profile has its own compact, image-backed Y2K screen and keeps the shared 
   assert.match(screen, /<BottomNav/);
   assert.match(screen, /runnit-metal-logo.svg/);
   assert.match(screen, /runnit-profile-avatar.avif/);
-  assert.match(screen, /<RunnerHologramModel rotating=\{turning\} manualAngle=\{turnAngle\}/);
+  assert.match(screen, /rp-runner-reference-art-static/);
   assert.match(css, /runnit-profile-race-scene.avif/);
   assert.match(css, /height:100dvh/);
   assert.match(css, /overflow:hidden/);
@@ -68,11 +68,11 @@ test('Profile uses no-scroll body with accessible, internally scrollable dialogs
   assert.match(css, /env\(safe-area-inset-bottom/);
 });
 
-test('Runner hologram rotates volumetric torso, limbs and head instead of flat SVG billboards', () => {
+test('Legacy 3D geometry remains available separately, but profile uses only original 2D artwork', () => {
   const scene = read('src/screens/ProfileScreen.tsx');
   const source = read('src/components/profile/RunnerHologram3D.tsx');
   const model = read('src/components/profile/RunnerHologramModel.tsx');
-  assert.match(scene, /RunnerHologramModel/);
+  assert.doesNotMatch(scene, /RunnerHologramModel/);
   assert.match(model, /RunnerHologram3D/); // Legacy geometry remains a working fallback.
   assert.doesNotMatch(scene, /runnit-profile-hologram.svg/);
   assert.match(source, /function loft\(/);
@@ -95,10 +95,10 @@ test('Human scan includes cranial profile, eyes, nose, jaw and integrated should
   assert.match(source, /rotating model, never screen-fixed/);
 });
 
-test('Profile switches to CC0 rigged 3D runner while retaining a local hologram fallback', () => {
+test('Optional legacy 3D component remains internally valid but is not loaded by the profile', () => {
   const screen = read('src/screens/ProfileScreen.tsx');
   const model = read('src/components/profile/RunnerHologramModel.tsx');
-  assert.match(screen, /<RunnerHologramModel/);
+  assert.doesNotMatch(screen, /<RunnerHologramModel/);
   assert.match(model, /model-viewer/);
   assert.match(model, /runnit-runner-3d\.glb/);
   assert.match(read('docs/runner-model.md'), /a488723e3a93d73d5c562d88f8a85353c37bc721/);
@@ -163,9 +163,9 @@ test('Profile reference artwork is a real imported image; data and controls stay
   assert.equal(image.subarray(8,12).toString('ascii'),'WEBP');
   assert.match(source, /rp-runner-reference-art/);
   assert.match(source, /runnit-reference-runner\.webp/);
-  assert.match(source, /runnerView === 'art'/);
-  assert.match(source, /setRunnerView\('3d'\)/);
-  assert.match(source, /<RunnerHologramModel rotating=\{turning\} manualAngle=\{turnAngle\}/);
+  assert.doesNotMatch(source, /runnerView/);
+  assert.match(source, /rp-hub-runner-static/);
+  assert.doesNotMatch(source, /<RunnerHologramModel/);
   assert.match(source, /supabase\.auth\.updateUser/);
   assert.match(source, /<BottomNav/);
   assert.match(styles,/\.rp-runner-reference-art/);
@@ -179,7 +179,7 @@ test('Profile hub keeps the real runner centered and all five accessible section
   const screen = read('src/screens/ProfileScreen.tsx');
   const css = read('src/styles/profileHub.css');
   assert.match(screen, /useState<HubSection>\('identity'\)/);
-  assert.match(screen, /useState<'art' \| '3d'>\('3d'\)/);
+  assert.doesNotMatch(screen, /useState<'art' \| '3d'>/);
   for (const item of ['identity', 'style', 'dna', 'training', 'badges']) {
     assert.match(screen, new RegExp("id: '" + item + "'"));
     assert.match(screen, new RegExp("activeSection === '" + item + "'"));
@@ -203,7 +203,7 @@ test('Profile hub reads real results and does not invent badges, XP or editable 
   assert.match(screen, /formatMetric\(performance\.stride/);
   assert.match(screen, /formatMetric\(performance\.cadence/);
   assert.match(screen, /Noch keine vergebenen Badges/);
-  assert.match(screen, /3D-Kleidung ist derzeit nicht wechselbar/);
+  assert.match(screen, /Das Original-Outfit ist aktuell fest/);
   assert.doesNotMatch(screen, /LVL 14|3\.420 \/ 5\.000|128 spm|1,24 m\/s²/);
 });
 
@@ -222,17 +222,16 @@ test('Profile redesign retains editable inputs, guest, calibration, privacy and 
   assert.match(screen, /<AccountDetailsPanel/);
 });
 
-test('Fidelity HUD uses six precise SVG connectors and preserves drag-to-rotate controls', () => {
+test('Static 2D HUD keeps all six precise connector lines without rotation controls', () => {
   const screen = read('src/screens/ProfileScreen.tsx');
   const css = read('src/styles/profileHub.css');
   assert.match(screen, /viewBox="0 0 360 400"/);
   assert.equal((screen.match(/<polyline points=/g) ?? []).length, 6);
   assert.match(screen, /rp-hub-lines/);
-  assert.match(screen, /onPointerDown=\{\(\) =>/);
-  assert.match(screen, /onPointerUp=\{\(\) => setRunnerInteracting\(false\)\}/);
-  assert.match(screen, /onPointerCancel=\{\(\) => setRunnerInteracting\(false\)\}/);
-  assert.match(screen, /setRunnerView\('3d'\)/);
-  assert.match(css, /\.rp-hub-hero\.is-interacting \.rp-hub-lines,\.rp-hub-hero\.is-interacting \.rp-hub-anchors\{opacity:0\}/);
+  assert.match(screen, /rp-hub-runner-static/);
+  assert.doesNotMatch(screen, /onPointerDown|setRunnerView|setTurnAngle|setTurning|runnerInteracting/);
+  assert.doesNotMatch(screen, /rp-holo-controls|rp-hub-view-controls|360° SCAN/);
+  assert.doesNotMatch(screen, /RunnerHologramModel|rp-hologram-real-model/);
   assert.match(screen, /className="rp-hub-anchors"/);
   assert.match(css, /\.rp-hub-anchors\{z-index:5\}/);
   assert.match(css, /left:21%;top:0;bottom:0;width:58%/);
@@ -260,19 +259,21 @@ test('Fidelity tabs have real-content actions, avatar images, keyboard navigatio
   assert.match(screen, /<BottomNav \/>/);
 });
 
-test('Profile screenshot regression: bigger stationary 3D runner framed on small iPhones', () => {
+test('Static original 2D runner is centered full-height at normal and small iPhone sizes', () => {
   const source = read('src/screens/ProfileScreen.tsx');
-  const styles = read('src/styles/profileHub.css');
-  assert.match(source, /const \[turning, setTurning\] = useState\(false\)/);
-  assert.match(source, /onPointerDown=\{\(\) =>/);
-  assert.match(source, /<RunnerHologramModel rotating=\{turning\} manualAngle=\{turnAngle\}/);
-  const modelZoom = styles.match(/transform:translateY\(8%\) scale\((\d+\.\d+)\)/)?.[1];
-  assert.ok(modelZoom, 'the ready 3D model must receive an intentional iPhone zoom');
-  assert.ok(Number(modelZoom) >= 1.25 && Number(modelZoom) <= 1.45,
-    'enlarge the avatar while protecting the head and shoe silhouette');
-  assert.match(styles, /\.rp-hub \.rp-hub-runner \.rp-real-hologram\[data-renderer="ready"\]/);
-  assert.match(styles, /@media\(max-height:730px\)/);
-  assert.match(styles, /minmax\(106px,17dvh\)/);
+  const css = read('src/styles/profileHub.css');
+  assert.match(source, /src="\/assets\/runnit-reference-runner\.webp"/);
+  assert.match(source, /rp-runner-reference-art-static/);
+  assert.match(source, /rp-holo-stage-static/);
+  assert.match(source, /rp-holo-center-static/);
+  assert.match(css, /\.rp-hub \.rp-hub-runner-static/);
+  assert.match(css, /\.rp-hub \.rp-hub-runner-static \.rp-runner-reference-art-static/);
+  assert.match(css, /height:101%/);
+  assert.match(css, /left:20%/);
+  assert.match(css, /width:60%/);
+  assert.match(css, /@media\(max-height:730px\)/);
+  assert.doesNotMatch(source, /turnAngle|runnerView|setTurning|model-viewer|RunnerHologramModel/);
+  assert.doesNotMatch(css, /rp-hub-view-controls|rp-holo-controls|rp-real-hologram/);
 });
 
 test('Guest identity panel is usable and never shows a fake runner ID', () => {
