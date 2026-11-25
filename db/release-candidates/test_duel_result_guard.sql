@@ -111,10 +111,10 @@ BEGIN
   EXCEPTION WHEN check_violation THEN NULL;
   END;
   r := public.submit_duel_result(d,6000,0,100,'NaN'::double precision,'Infinity'::double precision,51,
-    '{"samplesUsed":7,"latitude":12.34,"verification":"verified","measurement":"gps-displacement-v1","avgAccuracyM":3}'::jsonb);
+    '{"samplesUsed":7,"latitude":12.34,"verification":"verified","measurement":"gps-displacement-v1","avgAccuracyM":3,"motionEvidence":"consistent","motionCoverage":0.9,"motionSamples":400,"motionGapCount":1,"sprintCadenceSpm":220,"motionRaw":[1,2,3]}'::jsonb);
   IF r.time_ms IS DISTINCT FROM 6000 OR r.steps_count IS DISTINCT FROM 0
      OR r.step_length_m_avg IS NOT NULL OR r.max_speed_mps IS NOT NULL OR r.max_accel_mps2 IS NOT NULL
-     OR r.metrics_json IS DISTINCT FROM '{"samplesUsed":7,"verification":"unverified","measurement":"gps-displacement-v1","avgAccuracyM":3}'::jsonb THEN
+     OR r.metrics_json IS DISTINCT FROM '{"samplesUsed":7,"verification":"unverified","measurement":"gps-displacement-v1","avgAccuracyM":3,"motionEvidence":"consistent","motionCoverage":0.9,"motionSamples":400,"motionGapCount":1,"sprintCadenceSpm":220}'::jsonb THEN
     RAISE EXCEPTION 'optional diagnostic sanitization failed';
   END IF;
   IF (SELECT status FROM public.duels WHERE id=d) IS DISTINCT FROM 'matched' THEN

@@ -22,6 +22,7 @@ import { cancelHostedOpenDuel, cancelHostedDuelMessage, listHostedOpenDuels, typ
 import { abortMatchedDuel } from '../db/abortMatchedDuel';
 import { readActiveDuelId, rememberActiveDuelId, forgetActiveDuelId } from '../lib/activeDuelStorage';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
+import { DuelMotionCapture, requestDuelMotionPermission, motionEventSample } from '../lib/duelMotionEvidence';
 import { createDuelGpsMeasurement, advanceDuelGpsMeasurement, duelGpsMetrics } from '../lib/duelGpsMeasurement';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage, type ScreenWakeLockStatus } from '../lib/screenWakeLock';
@@ -1907,6 +1908,9 @@ export default function MapScreen() {
           onReady={() => {
             // Unlock audio before the async Ready RPC (iOS user-gesture rule).
             if (raceSoundEnabled) unlockRaceAudio();
+            // iOS requires the permission request to begin in this user gesture.
+            // Denial or unavailable sensors never block server readiness.
+            void requestDuelMotionPermission();
             void confirmMatchReady();
           }}
           onSoundToggle={() => {
@@ -2091,6 +2095,7 @@ function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinis
   const finishCallbackRef = useRef(onFinish);
   finishCallbackRef.current = onFinish;
   const liveStepCounter = useRef(new LiveStepPeakCounter());
+  const motionCapture = useRef(new DuelMotionCapture(startedAt));
   const [liveStepCount, setLiveStepCount] = useState(0);
   const finishedRef = useRef(false);
   const [confirmAbort, setConfirmAbort] = useState(false);
@@ -2142,7 +2147,8 @@ function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinis
         finishedRef.current = true;
         setDisplayDistanceM(distance);
         finishCallbackRef.current(next.sprint.finishTimestampMs,
-          duelGpsMetrics(next, liveStepCounter.current.count));
+          duelGpsMetrics(next, liveStepCounter.current.timestampsMs.filter(t => t <= next.sprint.finishTimestampMs!).length,
+            motionCapture.current.summarize(next.sprint.finishTimestampMs, next.sprint.targetMeters)));
       }
     };
     try {
@@ -2165,13 +2171,10 @@ function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinis
   useEffect(() => {
     const handler = (event: DeviceMotionEvent) => {
       if (finishedRef.current) return;
-      const a = event.acceleration;
-      if (!a || a.x === null || a.y === null || a.z === null) return;
-      const magnitude = Math.hypot(a.x, a.y, a.z);
-      const updated = liveStepCounter.current.push({
-        timestampMs: performance.now(),
-        accelerationMagnitudeMps2: magnitude,
-      });
+      if (document.visibilityState !== 'visible') return;
+      const sample = motionEventSample(event, performance.timeOrigin, performance.now());
+      if (!sample || !motionCapture.current.push(sample)) return;
+      const updated = liveStepCounter.current.push(sample);
       if (updated !== null) setLiveStepCount(updated);
     };
     window.addEventListener('devicemotion', handler, { passive: true });
