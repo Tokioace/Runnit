@@ -1,13 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { emailLoginOptions } from '../src/lib/authRedirect.ts';
 
 const read = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 
 test('Email login requests callback on same HTTPS origin', () => {
   const hook = read('src/hooks/useSupabaseUser.ts');
   const redirect = read('src/lib/authRedirect.ts');
-  assert.match(hook, /emailRedirectTo: authCallbackUrl\(window\.location\.origin\)/);
+  assert.match(hook, /options: emailLoginOptions\(window\.location\.href, window\.location\.origin\)/);
+  assert.deepEqual(emailLoginOptions('https://runnit.example/login','https://runnit.example'), {
+    emailRedirectTo:'https://runnit.example/auth/callback', shouldCreateUser:true,
+  });
+  assert.deepEqual(emailLoginOptions('capacitor://localhost/login','null'), {shouldCreateUser:false});
+  assert.throws(()=>emailLoginOptions('http://runnit.example/login','http://runnit.example'), /HTTPS/);
   assert.match(redirect, /AUTH_CALLBACK_PATH = '\/auth\/callback'/);
   assert.doesNotMatch(hook, /http:\/\/localhost:3000/);
 });
