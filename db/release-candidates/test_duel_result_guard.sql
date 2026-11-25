@@ -22,6 +22,8 @@ CREATE TABLE public.duel_results (
   max_accel_mps2 double precision, distance_m double precision, metrics_json jsonb,
   created_at timestamptz DEFAULT now()
 );
+CREATE TABLE public.users (id uuid PRIMARY KEY, username text, leaderboard_opt_in boolean DEFAULT false);
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.duels ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.duel_results ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON SCHEMA public, auth TO authenticated, anon;
@@ -29,6 +31,7 @@ GRANT INSERT ON public.duels TO authenticated;
 CREATE POLICY host_insert ON public.duels FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = host_user_id AND status = 'open');
 \ir duel_result_guard.sql
+\ir beta_ranking_guard.sql
 
 INSERT INTO public.duels(id,host_user_id,challenger_user_id,target_distance_m,start_at,status) VALUES
  ('00000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000011','00000000-0000-4000-8000-000000000012',50,statement_timestamp()-interval '20 seconds','matched'),
@@ -145,4 +148,76 @@ BEGIN
 END
 $role_test$;
 RESET ROLE;
+
+-- Synthetic historical rows deliberately bypass the submission guard as the
+-- fixture owner. They represent legacy / imported untrusted records.
+INSERT INTO public.users(id,username,leaderboard_opt_in) VALUES
+ ('00000000-0000-4000-8000-000000000011','Alpha',true),
+ ('00000000-0000-4000-8000-000000000012','Private',false),
+ ('00000000-0000-4000-8000-000000000013','Beta',true);
+INSERT INTO public.duels(id,host_user_id,challenger_user_id,target_distance_m,start_at,status) VALUES
+ ('00000000-0000-4000-8000-000000000021','00000000-0000-4000-8000-000000000011','00000000-0000-4000-8000-000000000013',50,now()-interval '30 seconds','completed'),
+ ('00000000-0000-4000-8000-000000000022','00000000-0000-4000-8000-000000000011','00000000-0000-4000-8000-000000000013',50,now()-interval '30 seconds','completed'),
+ ('00000000-0000-4000-8000-000000000023','00000000-0000-4000-8000-000000000011','00000000-0000-4000-8000-000000000013',100,now()-interval '5 seconds','completed'),
+ ('00000000-0000-4000-8000-000000000024','00000000-0000-4000-8000-000000000011','00000000-0000-4000-8000-000000000013',50,NULL,'completed'),
+ ('00000000-0000-4000-8000-000000000025','00000000-0000-4000-8000-000000000011','00000000-0000-4000-8000-000000000013',500,now()-interval '100 seconds','completed'),
+ ('00000000-0000-4000-8000-000000000026','00000000-0000-4000-8000-000000000011','00000000-0000-4000-8000-000000000013',50,now()-interval '30 seconds','completed');
+INSERT INTO public.duel_results(duel_id,user_id,time_ms,max_speed_mps,max_accel_mps2,metrics_json) VALUES
+ ('00000000-0000-4000-8000-000000000021','00000000-0000-4000-8000-000000000011',5000,9,12,'{"verification":"unverified"}'),
+ ('00000000-0000-4000-8000-000000000021','00000000-0000-4000-8000-000000000013',5500,8,10,NULL),
+ ('00000000-0000-4000-8000-000000000022','00000000-0000-4000-8000-000000000011',1,1000,1000,'{"verification":"verified"}'),
+ ('00000000-0000-4000-8000-000000000022','00000000-0000-4000-8000-000000000013',6000,9,11,NULL),
+ ('00000000-0000-4000-8000-000000000023','00000000-0000-4000-8000-000000000011',9000,9,11,NULL),
+ ('00000000-0000-4000-8000-000000000023','00000000-0000-4000-8000-000000000013',9500,9,11,NULL),
+ ('00000000-0000-4000-8000-000000000024','00000000-0000-4000-8000-000000000011',6000,9,11,NULL),
+ ('00000000-0000-4000-8000-000000000024','00000000-0000-4000-8000-000000000013',6500,9,11,NULL),
+ ('00000000-0000-4000-8000-000000000025','00000000-0000-4000-8000-000000000011',50000,9,11,NULL),
+ ('00000000-0000-4000-8000-000000000025','00000000-0000-4000-8000-000000000013',60000,9,11,NULL),
+ ('00000000-0000-4000-8000-000000000026','00000000-0000-4000-8000-000000000011',5500,1000,1000,NULL),
+ ('00000000-0000-4000-8000-000000000026','00000000-0000-4000-8000-000000000013',5600,'NaN'::double precision,'Infinity'::double precision,NULL);
+
+SET LOCAL ROLE anon;
+DO $ranking$
+DECLARE r record; metric text;
+BEGIN
+  IF (SELECT count(*) FROM public.list_beta_duel_leaderboard(NULL,100)) <> 2 THEN
+    RAISE EXCEPTION 'opt-in ranking visibility changed';
+  END IF;
+  SELECT * INTO r FROM public.list_beta_duel_leaderboard(50,100)
+    WHERE username='Alpha';
+  IF r.best_time_ms IS DISTINCT FROM 5000 OR r.races_count IS DISTINCT FROM 3
+     OR r.wins_count IS DISTINCT FROM 3 THEN
+    RAISE EXCEPTION 'ladder allowed invalid pair or discarded valid pair';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.list_beta_duel_leaderboard(100,100)) THEN
+    RAISE EXCEPTION 'impossible server elapsed time accepted';
+  END IF;
+  FOREACH metric IN ARRAY ARRAY['times','speed','acceleration','wins','streak','duels'] LOOP
+    SELECT * INTO r FROM public.list_beta_runnit_records(metric,50,100)
+      WHERE username='Alpha';
+    IF r.races_count IS DISTINCT FROM 3 OR r.wins_count IS DISTINCT FROM 3 THEN
+      RAISE EXCEPTION 'record category contains invalid duel: %', metric;
+    END IF;
+    IF r.metric_value IS DISTINCT FROM CASE metric WHEN 'times' THEN 5000
+      WHEN 'speed' THEN 9 WHEN 'acceleration' THEN 12 ELSE 3 END::double precision THEN
+      RAISE EXCEPTION 'unexpected record value for %', metric;
+    END IF;
+    IF EXISTS (SELECT 1 FROM public.list_beta_runnit_records(metric,50,100) WHERE username='Private') THEN
+      RAISE EXCEPTION 'private user leaked';
+    END IF;
+  END LOOP;
+  SELECT * INTO r FROM public.list_beta_runnit_records('speed',50,100) WHERE username='Beta';
+  IF r.metric_value IS DISTINCT FROM 8::double precision OR r.races_count IS DISTINCT FROM 2 THEN
+    RAISE EXCEPTION 'bad rival pair or non-finite speed affected ranking';
+  END IF;
+END
+$ranking$;
+RESET ROLE;
+DO $preservation$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.duel_results WHERE time_ms=1) THEN
+    RAISE EXCEPTION 'historical data deleted';
+  END IF;
+END
+$preservation$;
 ROLLBACK;
