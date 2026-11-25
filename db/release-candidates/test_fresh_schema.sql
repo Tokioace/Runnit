@@ -50,9 +50,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.users,public.ghost_runs,public.du
 \ir ../../supabase/migrations/20261118101752_beta_record_categories_20261118.sql
 \ir ../../supabase/migrations/20261119_001_runner_stats_preferences.sql
 -- Execute the identical read-only operator preflight before candidate DDL.
-\ir release_preflight.sql
-\gset baseline_
-\if :baseline_preflight_pass
+\ir release_preflight_ci.sql
+\if :preflight_preflight_pass
 \else
   \echo Baseline preflight failed
   SELECT 1/0;
@@ -60,9 +59,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.users,public.ghost_runs,public.du
 -- Negative control: a synthetic orphan must prevent release.
 BEGIN;
 INSERT INTO public.users(id,username) VALUES('90000000-0000-4000-8000-000000000001','Synthetic orphan');
-\ir release_preflight.sql
-\gset negative_
-\if :negative_preflight_pass
+\ir release_preflight_ci.sql
+\if :preflight_preflight_pass
   \echo Orphan unexpectedly passed preflight
   SELECT 1/0;
 \endif
