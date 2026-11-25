@@ -98,6 +98,10 @@ jobs:
           Path("/tmp/runnit-preflight-ci.sql").write_text(query[:-1] + " " + chr(92) + "gset preflight_\n")
           PY
           docker cp /tmp/runnit-preflight-ci.sql "$DB_CONTAINER:/tmp/db/release-candidates/release_preflight_ci.sql"
+          python3 scripts/build-release-rehearsal.py --output "$RUNNER_TEMP/release_bundle"
+          python3 scripts/build-release-rehearsal.py --output "$RUNNER_TEMP/release_bundle_repeat"
+          diff -r "$RUNNER_TEMP/release_bundle" "$RUNNER_TEMP/release_bundle_repeat"
+          docker cp "$RUNNER_TEMP/release_bundle" "$DB_CONTAINER:/tmp/db/release-candidates/release_bundle"
           docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_schema_test -v ON_ERROR_STOP=1 -f /tmp/db/release-candidates/test_fresh_schema.sql
       - name: Complete actual-schema race and rehearse account erasure
         env:
@@ -111,3 +115,10 @@ jobs:
           python3 scripts/extract-stale-duel-cleanup.py db/one_active_event_60min_cron.sql > "$RUNNER_TEMP/runnit-cleanup-function.sql"
           docker cp "$RUNNER_TEMP/runnit-cleanup-function.sql" "$DB_CONTAINER:/tmp/runnit-cleanup-function.sql"
           docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_schema_test -v ON_ERROR_STOP=1 -f /tmp/db/release-candidates/test_stale_duel_cleanup.sql
+      - name: Archive reviewed disposable release bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: runnit-db-rehearsal-bundle
+          path: ${{ runner.temp }}/release_bundle/
+          retention-days: 7
+          if-no-files-found: error
