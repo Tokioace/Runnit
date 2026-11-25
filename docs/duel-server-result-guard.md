@@ -9,3 +9,6 @@ Current RPC accepts any positive time once the duel has started. The candidate p
 2. Create an isolated Supabase development database/branch with approval, inspect the effective RPC and migrations, then generate a versioned migration with Supabase CLI. Review the SQL diff, test it and run advisors. Do not apply to live data automatically.
 3. Verify client UX for rejected times and clock mismatch; test 50/75/100 m, older clients, missing sensors, weak GPS, and network retries.
 4. Design a separate trusted result eligibility layer for public rankings, including existing unverified results, without falsely certifying client telemetry.
+
+## Isolated CI test
+The dedicated PostgreSQL 16 service executes the SQL fixture in an ephemeral database without Supabase credentials. It checks actual anon/authenticated role execution, direct writes, valid submissions, invalid times, sanitized metrics, idempotency and two-runner completion. This does not replace real-schema and concurrency testing. The linked Supabase schema and active RPC were inspected read-only; no data or settings changed.

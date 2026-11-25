@@ -1,0 +1,35 @@
+name: Isolated duel SQL validation
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, 'fix/duel-server-result-guard-20261125']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres:
+    name: PostgreSQL duel guard execution
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local-ci-only
+          POSTGRES_DB: runnit_test
+        options: >-
+          --health-cmd "pg_isready -U postgres -d runnit_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Execute isolated SQL fixture
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker cp db/release-candidates/duel_result_guard.sql "$DB_CONTAINER:/tmp/duel_result_guard.sql"
+          docker cp db/release-candidates/test_duel_result_guard.sql "$DB_CONTAINER:/tmp/test_duel_result_guard.sql"
+          docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_test -v ON_ERROR_STOP=1 -f /tmp/test_duel_result_guard.sql
