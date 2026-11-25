@@ -11,36 +11,59 @@ test('hosted smoke refuses production and missing explicit synthetic identity',(
  const config=readConfig(env);assert.equal(config.url,'https://abcdefghijklmnopqrst.supabase.co');
  for(const change of [{RUNNIT_NATIVE_TEST_REF:'fcbffqcmvgdojsdfwgyt'},{RUNNIT_NATIVE_TEST_DATA_CONFIRMED:''},{RUNNIT_NATIVE_TEST_PUBLISHABLE_KEY:'sb_secret_never'},{RUNNIT_API_TEST_EMAIL_A:'real@example.invalid'},{RUNNIT_API_TEST_ID_B:idA},{RUNNIT_API_TEST_PASSWORD_A:''}])assert.throws(()=>readConfig({...env,...change}));
 });
-function fixture({leak=false,stale=false,error=false}={}){
- const sessions=new Map();let sequence=0,logoutCount=0;
+function fixture({leak=false,stale=false,error=false,revokedRefresh=false,badRotation=false,badRejection=false}={}){
+ const sessions=new Map(),tokens=new Map(),refreshes=new Map();let sequence=0,logoutCount=0,refreshCount=0;
  const reply=(data,status=200)=>({ok:status>=200&&status<300,status,json:async()=>data});
  const request=async(url,opts)=>{
   const u=new URL(url);assert.equal(u.hostname,'abcdefghijklmnopqrst.supabase.co');assert.equal(opts.redirect,'error');assert.ok(opts.signal);
   assert.equal(opts.headers.apikey,env.RUNNIT_NATIVE_TEST_PUBLISHABLE_KEY);
   const token=opts.headers.authorization?.slice(7);
+  function issue(session,previous){
+   const t='fake.'+Buffer.from(JSON.stringify({sub:session.id,session_id:session.sid})).toString('base64url')+'.'+(++sequence);
+   const refresh=badRotation&&previous?previous:'refresh-'+sequence;
+   tokens.set(t,session);refreshes.set(refresh,session);
+   return reply({access_token:t,refresh_token:refresh,user:{id:session.id,email:session.email}});
+  }
   if(u.pathname==='/auth/v1/token'){
-   const body=JSON.parse(opts.body),id=body.email===env.RUNNIT_API_TEST_EMAIL_A?idA:idB;
-   const t='fake.token.'+(++sequence);sessions.set(t,{id,revoked:false});
-   return reply({access_token:t,user:{id,email:body.email}});
+   const body=JSON.parse(opts.body);
+   if(u.searchParams.get('grant_type')==='refresh_token'){
+    const session=refreshes.get(body.refresh_token);
+    if(!session||session.revoked&&!revokedRefresh)return reply({error_code:badRejection?'unexpected':'refresh_token_not_found'},400);
+    refreshCount++;
+    if(revokedRefresh&&session.revoked)session.revoked=false;
+    return issue(session,body.refresh_token);
+   }
+   const id=body.email===env.RUNNIT_API_TEST_EMAIL_A?idA:idB;
+   const sid='10000000-0000-4000-8000-'+String(sequence+1).padStart(12,'0');
+   const session={id,sid,email:body.email,revoked:false};sessions.set(sid,session);
+   return issue(session);
   }
   if(u.pathname==='/auth/v1/logout'){
-   assert.equal(u.searchParams.get('scope'),'local');sessions.get(token).revoked=true;logoutCount++;return reply(null,204);
+   assert.equal(u.searchParams.get('scope'),'local');tokens.get(token).revoked=true;logoutCount++;return reply(null,204);
   }
-  const session=sessions.get(token),isPrefs=u.pathname.endsWith('runner_stats_preferences');
+  const session=tokens.get(token),isPrefs=u.pathname.endsWith('runner_stats_preferences');
   const field=isPrefs?'user_id':'id',wanted=u.searchParams.get(field).slice(3);
   if(error&&wanted===idB&&session?.id===idA)return reply(null,500);
   if(!session||session.revoked&&!stale)return reply([]);
   return reply((session.id===wanted||leak)?[{[field]:wanted}]:[]);
  };
- return {request,sessions,get logoutCount(){return logoutCount;}};
+ return {request,sessions,get logoutCount(){return logoutCount;},get refreshCount(){return refreshCount;}};
 }
 test('real request contract proves independent sessions and explicit revoked bearer denial',async()=>{
  const f=fixture();const result=await runAuthSmoke(readConfig(env),f.request);
  assert.equal(result.revokedBearerDenied,true);assert.equal(result.independentSessionRetained,true);
- assert.equal(f.logoutCount,3);assert.ok([...f.sessions.values()].every(s=>s.revoked));
+ assert.equal(f.logoutCount,3);assert.equal(f.refreshCount,2);assert.ok([...f.sessions.values()].every(s=>s.revoked));
+ assert.equal(result.refreshRotation,true);assert.equal(result.revokedRefreshDenied,true);assert.equal(result.independentRefreshRetained,true);
 });
 test('privacy leak, stale bearer access and server error fail and clean up',async()=>{
  for(const options of [{leak:true},{stale:true},{error:true}]){
+  const f=fixture(options);await assert.rejects(runAuthSmoke(readConfig(env),f.request));
+  assert.ok([...f.sessions.values()].every(s=>s.revoked));
+ }
+});
+
+test('refresh rotation, revoked refresh acceptance and unrelated API errors cannot pass',async()=>{
+ for(const options of [{revokedRefresh:true},{badRotation:true},{badRejection:true}]){
   const f=fixture(options);await assert.rejects(runAuthSmoke(readConfig(env),f.request));
   assert.ok([...f.sessions.values()].every(s=>s.revoked));
  }
