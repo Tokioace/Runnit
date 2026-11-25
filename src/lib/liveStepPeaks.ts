@@ -39,8 +39,11 @@ export class LiveStepPeakCounter {
     const t = sample.timestampMs;
     const value = sample.accelerationMagnitudeMps2;
     if (!Number.isFinite(t) || !Number.isFinite(value) || value < 0 || value >= 200) return null;
-    if (this.lastInputMs !== null && (t <= this.lastInputMs || t - this.lastInputMs > 250)) {
-      // Never infer steps across suspended sensor events or stale timestamps.
+    // A duplicate or late callback must not move the input clock backwards
+    // or seed a peak from samples that have already been superseded.
+    if (this.lastInputMs !== null && t <= this.lastInputMs) return null;
+    if (this.lastInputMs !== null && t - this.lastInputMs > 250) {
+      // Never infer steps across suspended sensor events.
       // Previously accepted steps remain visible.
       this.recent = [];
       this.rawWindow = [];
