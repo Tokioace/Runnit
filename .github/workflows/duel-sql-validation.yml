@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [develop, main]
   push:
-    branches: [develop, 'fix/duel-server-result-guard-20261125']
+    branches: [develop, 'fix/duel-release-integration-20261125']
   workflow_dispatch:
 permissions:
   contents: read
@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 10
     services:
       postgres:
-        image: postgres:16
+        image: postgres:17
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: local-ci-only
@@ -34,3 +34,12 @@ jobs:
           docker cp db/release-candidates/beta_ranking_guard.sql "$DB_CONTAINER:/tmp/beta_ranking_guard.sql"
           docker cp db/release-candidates/test_duel_result_guard.sql "$DB_CONTAINER:/tmp/test_duel_result_guard.sql"
           docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_test -v ON_ERROR_STOP=1 -f /tmp/test_duel_result_guard.sql
+      - name: Execute full duel lifecycle and concurrent finishes
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker cp supabase/migrations/202611100001_guard_duel_cancellation.sql "$DB_CONTAINER:/tmp/cancellation.sql"
+          docker cp supabase/migrations/20261116_003_arcade_ready_ten_second_start.sql "$DB_CONTAINER:/tmp/ready.sql"
+          docker cp supabase/migrations/20261116_004_abort_matched_duel.sql "$DB_CONTAINER:/tmp/abort.sql"
+          docker cp db/release-candidates/duel_integration_setup.sql "$DB_CONTAINER:/tmp/duel_integration_setup.sql"
+          bash db/release-candidates/test_duel_integration.sh "$DB_CONTAINER"
