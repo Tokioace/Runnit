@@ -53,7 +53,9 @@ BEGIN
    RAISE EXCEPTION 'direct profile delete still granted';
  END IF;
  IF has_schema_privilege('authenticated','runnit_private','USAGE')
-    OR has_function_privilege('authenticated','runnit_private.guard_profile_erasure()','EXECUTE') THEN
+    OR EXISTS (SELECT 1 FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace
+      WHERE n.nspname='runnit_private' AND p.proname='guard_profile_erasure'
+        AND has_function_privilege('authenticated',p.oid,'EXECUTE')) THEN
    RAISE EXCEPTION 'private erasure guard exposed';
  END IF;
  BEGIN
