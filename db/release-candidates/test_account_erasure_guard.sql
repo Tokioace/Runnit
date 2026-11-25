@@ -119,4 +119,73 @@ BEGIN
 END
 $test$;
 RESET ROLE;
+-- Upgrade the staged guard within this transaction. Existing shared race
+-- is still matched and must not be deleted while live.
+\ir shared_duel_erasure.sql
+DO $test$
+BEGIN
+ BEGIN
+  DELETE FROM auth.users WHERE id='00000000-0000-4000-8000-000000000011';
+  RAISE EXCEPTION 'active race erased';
+ EXCEPTION WHEN check_violation THEN NULL;
+ END;
+ IF EXISTS(SELECT 1 FROM public.archived_personal_duel_times) THEN RAISE EXCEPTION 'active race archived'; END IF;
+END
+$test$;
+UPDATE public.duels SET start_at=statement_timestamp()-interval '20 seconds'
+ WHERE id='00000000-0000-4000-8000-000000000021';
+UPDATE public.duels SET status='completed'
+ WHERE id='00000000-0000-4000-8000-000000000021';
+
+SAVEPOINT host_erasure;
+DELETE FROM auth.users WHERE id='00000000-0000-4000-8000-000000000011';
+DO $test$
+BEGIN
+ IF EXISTS(SELECT 1 FROM public.users WHERE id='00000000-0000-4000-8000-000000000011')
+    OR EXISTS(SELECT 1 FROM public.duels WHERE id='00000000-0000-4000-8000-000000000021')
+    OR EXISTS(SELECT 1 FROM public.duel_results) THEN RAISE EXCEPTION 'shared original not erased'; END IF;
+ IF (SELECT count(*) FROM public.archived_personal_duel_times)<>1 OR
+    NOT EXISTS(SELECT 1 FROM public.archived_personal_duel_times WHERE user_id='00000000-0000-4000-8000-000000000012' AND time_ms=6500 AND target_distance_m=50) THEN
+   RAISE EXCEPTION 'challenger own time lost';
+ END IF;
+ IF EXISTS(SELECT 1 FROM public.list_beta_duel_leaderboard(50,100)) THEN RAISE EXCEPTION 'archive leaked to public ranking'; END IF;
+END
+$test$;
+ROLLBACK TO SAVEPOINT host_erasure;
+
+DELETE FROM auth.users WHERE id='00000000-0000-4000-8000-000000000012';
+DO $test$
+BEGIN
+ IF EXISTS(SELECT 1 FROM public.duel_results) OR
+    (SELECT count(*) FROM public.archived_personal_duel_times)<>1 OR
+    NOT EXISTS(SELECT 1 FROM public.archived_personal_duel_times WHERE user_id='00000000-0000-4000-8000-000000000011' AND time_ms=6000) THEN
+   RAISE EXCEPTION 'host own time lost or original still exists';
+ END IF;
+END
+$test$;
+SET LOCAL ROLE authenticated;
+SELECT set_config('test.actor','00000000-0000-4000-8000-000000000012',true);
+DO $test$
+BEGIN
+ IF EXISTS(SELECT 1 FROM public.archived_personal_duel_times) THEN RAISE EXCEPTION 'foreign archive leaked'; END IF;
+END
+$test$;
+SELECT set_config('test.actor','00000000-0000-4000-8000-000000000011',true);
+DO $test$
+BEGIN
+ IF (SELECT count(*) FROM public.archived_personal_duel_times)<>1 THEN RAISE EXCEPTION 'owner archive missing'; END IF;
+ BEGIN
+  INSERT INTO public.archived_personal_duel_times(user_id,occurred_at,time_ms) VALUES(auth.uid(),now(),1);
+  RAISE EXCEPTION 'client forged archive';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;
+ END;
+END
+$test$;
+RESET ROLE;
+DELETE FROM auth.users WHERE id='00000000-0000-4000-8000-000000000011';
+DO $test$
+BEGIN
+ IF EXISTS(SELECT 1 FROM public.archived_personal_duel_times) THEN RAISE EXCEPTION 'archive did not cascade on later account erasure'; END IF;
+END
+$test$;
 ROLLBACK;

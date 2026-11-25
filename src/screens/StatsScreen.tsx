@@ -103,7 +103,7 @@ export default function StatsScreen({userId}:Props) {
  const entries=useMemo(()=>[
    ...races.map(r=>({id:'d-'+r.id,at:r.occurredAt,
      title:'1V1 · '+r.distanceM+' M',time:formatStatsTime(r.timeMs),
-     sub:r.completed?r.outcome==='won'?'DUELL GEWONNEN':r.outcome==='lost'?'DUELL VERLOREN':r.outcome==='tie'?'REMIS':'ERGEBNIS GESPEICHERT':'DUELL NICHT ABGESCHLOSSEN'})),
+     sub:r.archivedPersonal?'PRIVATE LAUFZEIT · OHNE WERTUNG':r.completed?r.outcome==='won'?'DUELL GEWONNEN':r.outcome==='lost'?'DUELL VERLOREN':r.outcome==='tie'?'REMIS':'ERGEBNIS GESPEICHERT':'DUELL NICHT ABGESCHLOSSEN'})),
    ...ghostSessions.map(g=>({id:'g-'+g.id,at:g.created_at,
      title:'GHOST · '+g.target_distance_m+' M',time:formatStatsTime(g.elapsed_ms),
      sub:g.run_state==='finished'?'SOLO-TRAINING · ABGESCHLOSSEN':'TRAINING ABGEBROCHEN'})),

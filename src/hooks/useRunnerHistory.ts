@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { mapWithConcurrency } from '../lib/mapWithConcurrency';
 import {
-  calculateActivityTotals, currentLocalWeekStart, raceHistoryFromServer,
+  calculateActivityTotals, currentLocalWeekStart, raceHistoryFromServer, archivedPersonalTimes,
+  type StoredArchivedPersonalTime,
   type PairedResult, type RaceHistoryItem, type StoredDuel,
   type StoredDuelResult, type StoredGhostSession,
 } from '../lib/runnerHistory';
@@ -62,8 +63,17 @@ export function useRunnerHistory(userId: string | null | undefined) {
           if (response.error) throw response.error;
           pairedResults.set(completed[i].id, (response.data ?? []) as PairedResult[]);
         }
+        let archive: RaceHistoryItem[] = [];
+        if (import.meta.env.VITE_ACCOUNT_DELETION_REQUESTS_ENABLED === 'true') {
+          const response = await supabase.from('archived_personal_duel_times')
+            .select('id,occurred_at,target_distance_m,time_ms,steps_count,distance_m')
+            .eq('user_id', userId).order('occurred_at', { ascending:false }).limit(150);
+          if (response.error) throw response.error;
+          archive = archivedPersonalTimes((response.data ?? []) as StoredArchivedPersonalTime[]);
+        }
         if (active) setState({
-          races: raceHistoryFromServer(userId!, own, duels, pairedResults),
+          races: [...raceHistoryFromServer(userId!, own, duels, pairedResults), ...archive]
+            .sort((a,b)=>Date.parse(b.occurredAt)-Date.parse(a.occurredAt)).slice(0,150),
           ghostSessions: (ghostResponse.data ?? []) as StoredGhostSession[],
           loading: false, error: null,
         });

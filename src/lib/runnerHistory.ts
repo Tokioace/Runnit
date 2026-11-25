@@ -18,6 +18,7 @@ export type RaceHistoryItem = {
   stepsCount: number | null; measuredDistanceM: number | null;
   completed: boolean; outcome: RaceOutcome; opponentTimeMs: number | null;
   opponentUserId?: string | null; opponentName?: string | null;
+  archivedPersonal?: boolean;
 };
 export type ActivityTotals = {
   completedDuels: number; wins: number; losses: number; ties: number;
@@ -69,6 +70,22 @@ export function raceHistoryFromServer(
       opponentName: rival?.username?.trim() || null,
     }];
   }).sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt));
+}
+
+export type StoredArchivedPersonalTime = {
+  id: string; occurred_at: string; target_distance_m: number | null;
+  time_ms: number; steps_count: number | null; distance_m: number | null;
+};
+
+/** An archived own result is a private historical time, not a scored duel. */
+export function archivedPersonalTimes(rows: readonly StoredArchivedPersonalTime[]): RaceHistoryItem[] {
+  return rows.flatMap(row => {
+    if (typeof row.id !== 'string' || !Number.isFinite(Date.parse(row.occurred_at)) ||
+        !Number.isFinite(row.time_ms) || row.time_ms<=0) return [];
+    return [{id:row.id, occurredAt:row.occurred_at, distanceM:nonnegative(row.target_distance_m) ?? 0,
+      timeMs:row.time_ms, stepsCount:nonnegative(row.steps_count), measuredDistanceM:nonnegative(row.distance_m),
+      completed:false, outcome:'pending' as const, opponentTimeMs:null, archivedPersonal:true}];
+  });
 }
 
 /** Only recorded sensor sessions and completed server-paired duels count.
