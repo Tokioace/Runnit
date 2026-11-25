@@ -51,11 +51,11 @@ jobs:
           mkdir -p "$RUNNER_TEMP/runnit-ios-preview/www"
           cp native/ios-preview/package.json native/ios-preview/capacitor.config.json "$RUNNER_TEMP/runnit-ios-preview/"
           cp -R dist/. "$RUNNER_TEMP/runnit-ios-preview/www/"
-          cp scripts/build-ios-preview.sh scripts/install-ios-vault.py native/ios-preview/RunnitSessionVault.swift native/ios-preview/RunnitSensorProbe.swift "$RUNNER_TEMP/runnit-ios-preview/"
+          cp scripts/build-ios-preview.sh scripts/install-ios-vault.py native/ios-preview/RunnitSessionVault.swift native/ios-preview/RunnitSensorProbe.swift native/ios-preview/RunnitSprintEstimator.swift "$RUNNER_TEMP/runnit-ios-preview/"
           cd "$RUNNER_TEMP/runnit-ios-preview"
           test -f www/index.html
           printf 'window?.rootViewController = CAPBridgeViewController()\n' > fixture-scene.swift
-          python3 install-ios-vault.py fixture-scene.swift RunnitSessionVault.swift RunnitSensorProbe.swift
+          python3 install-ios-vault.py fixture-scene.swift RunnitSessionVault.swift RunnitSensorProbe.swift RunnitSprintEstimator.swift
           grep -q 'rootViewController = RunnitBridgeViewController()' fixture-scene.swift
           grep -q 'registerPluginInstance(RunnitSessionVault())' fixture-scene.swift
           grep -q 'registerPluginInstance(RunnitSensorProbe())' fixture-scene.swift
@@ -66,6 +66,10 @@ jobs:
           npm audit --audit-level=high
           ./node_modules/.bin/cap --version
           rm -rf node_modules
+      - name: Run pure Swift sprint estimator tests on Linux
+        run: |
+          swiftc native/ios-preview/RunnitSprintEstimator.swift native/ios-preview/tests/main.swift -o "$RUNNER_TEMP/runnit-sprint-tests"
+          "$RUNNER_TEMP/runnit-sprint-tests"
       - uses: actions/upload-artifact@v4
         with:
           name: runnit-ios-preview-input

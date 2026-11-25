@@ -3,7 +3,7 @@
 from pathlib import Path
 import sys
 
-def install(scene: Path, plugin: Path, sensor: Path | None = None) -> None:
+def install(scene: Path, plugin: Path, sensor: Path | None = None, estimator: Path | None = None) -> None:
     source = scene.read_text()
     expected = "window?.rootViewController = CAPBridgeViewController()"
     # Some template versions spell the optional property without optional chaining.
@@ -13,9 +13,11 @@ def install(scene: Path, plugin: Path, sensor: Path | None = None) -> None:
         raise ValueError("Unexpected Capacitor scene template; review before compiling")
     replacement = matches[0].replace("CAPBridgeViewController()", "RunnitBridgeViewController()")
     extra = "\n\n" + sensor.read_text() if sensor else ""
+    if estimator:
+        extra += "\n\n" + estimator.read_text()
     scene.write_text(source.replace(matches[0], replacement) + "\n\n" + plugin.read_text() + extra + "\n")
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (3, 4):
-        raise SystemExit("Usage: install-ios-vault.py SceneDelegate.swift RunnitSessionVault.swift [RunnitSensorProbe.swift]")
-    install(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]) if len(sys.argv) == 4 else None)
+    if len(sys.argv) not in (3, 4, 5):
+        raise SystemExit("Usage: install-ios-vault.py SceneDelegate.swift RunnitSessionVault.swift [RunnitSensorProbe.swift] [RunnitSprintEstimator.swift]")
+    install(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]) if len(sys.argv) >= 4 else None, Path(sys.argv[4]) if len(sys.argv) == 5 else None)
