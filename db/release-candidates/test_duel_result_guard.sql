@@ -198,8 +198,8 @@ BEGIN
     IF r.races_count IS DISTINCT FROM 3 OR r.wins_count IS DISTINCT FROM 3 THEN
       RAISE EXCEPTION 'record category contains invalid duel: %', metric;
     END IF;
-    IF r.metric_value IS DISTINCT FROM CASE metric WHEN 'times' THEN 5000
-      WHEN 'speed' THEN 9 WHEN 'acceleration' THEN 12 ELSE 3 END::double precision THEN
+    IF r.metric_value IS DISTINCT FROM (CASE metric WHEN 'times' THEN 5000
+      WHEN 'speed' THEN 9 WHEN 'acceleration' THEN 12 ELSE 3 END)::double precision THEN
       RAISE EXCEPTION 'unexpected record value for %', metric;
     END IF;
     IF EXISTS (SELECT 1 FROM public.list_beta_runnit_records(metric,50,100) WHERE username='Private') THEN
