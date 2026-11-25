@@ -15,7 +15,8 @@ import FusionLabScreen from './screens/FusionLabScreen';
 import SprintArenaLabScreen from './screens/SprintArenaLabScreen';
 import WelcomeAuthScreen from './components/auth/WelcomeAuthScreen';
 import AuthCallbackScreen from './components/auth/AuthCallbackScreen';
-import { AUTH_CALLBACK_PATH } from './lib/authRedirect';
+import { AUTH_CALLBACK_PATH, isNativeAuthRuntime } from './lib/authRedirect';
+import NativeSensorScreen from './screens/NativeSensorScreen';
 import { useSupabaseUser } from './hooks/useSupabaseUser';
 import LegalScreen from './screens/LegalScreen';
 import { legalPages } from './lib/legalPages';
@@ -138,6 +139,7 @@ export default function App() {
         <Route path="/profile" element={<ProfileScreen />} />
         <Route path="/gps-lab" element={<GpsLabScreen />} />
         <Route path="/gps-field-test" element={<GpsFieldTestScreen />} />
+        {isNativeAuthRuntime() && <Route path="/native-sensors" element={<NativeSensorScreen />} />}
         <Route path="/calibration" element={<StrideCalibrationScreen />} />
         <Route path="/fusion-lab" element={<FusionLabScreen />} />
         <Route path="/sprint-lab" element={<SprintArenaLabScreen />} />
