@@ -6,6 +6,10 @@ on:
       - 'native/ios-preview/**'
       - '.github/workflows/ios-preview.yml'
       - 'scripts/build-ios-preview.sh'
+      - 'src/lib/authRedirect.ts'
+      - 'src/lib/supabaseClient.ts'
+      - 'src/hooks/useSupabaseUser.ts'
+      - 'src/components/auth/**'
   workflow_dispatch:
     inputs:
       build_simulator:

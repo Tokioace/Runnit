@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import {
   getAccountDisplayName, getAccountDisplayNameError, normalizeDisplayName,
 } from '../lib/accountProfile';
-import { authCallbackUrl, type SocialProvider } from '../lib/authRedirect';
+import { authCallbackUrl, emailLoginOptions, isNativeAuthRuntime, type SocialProvider } from '../lib/authRedirect';
 import { getWalkingCalibration, type WalkingCalibration } from '../lib/strideCalibration';
 
 export type AuthUser = {
@@ -87,6 +87,7 @@ export function useSupabaseUser() {
   }, []);
 
   const signInWithProvider = useCallback(async (provider: SocialProvider) => {
+    if (isNativeAuthRuntime()) throw new Error('Native provider login disabled until secure callback support is available.');
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: { redirectTo: authCallbackUrl(window.location.origin) },
@@ -98,10 +99,7 @@ export function useSupabaseUser() {
   const sendMagicLink = useCallback(async (email: string) => {
     const { data, error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: {
-        emailRedirectTo: authCallbackUrl(window.location.origin),
-        shouldCreateUser: true,
-      },
+      options: emailLoginOptions(window.location.href, window.location.origin),
     });
     if (error) throw error;
     return data;

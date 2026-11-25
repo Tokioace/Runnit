@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { createClient } from '@supabase/supabase-js';
+import { isNativeAuthRuntime } from './authRedirect';
 
 // Vite only rewrites statically referenced import.meta.env.VITE_* variables.
 // Dynamic/optional access (import.meta?.env?.[name]) leaves the local dev
@@ -35,7 +36,8 @@ export const supabase = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || ''
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
+    // Native URL callbacks are not implemented; never import tokens from a WebView URL.
+    detectSessionInUrl: !isNativeAuthRuntime(),
     flowType: 'implicit',
   },
 });
