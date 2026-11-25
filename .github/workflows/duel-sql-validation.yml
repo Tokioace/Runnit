@@ -43,3 +43,10 @@ jobs:
           docker cp supabase/migrations/20261116_004_abort_matched_duel.sql "$DB_CONTAINER:/tmp/abort.sql"
           docker cp db/release-candidates/duel_integration_setup.sql "$DB_CONTAINER:/tmp/duel_integration_setup.sql"
           bash db/release-candidates/test_duel_integration.sh "$DB_CONTAINER"
+      - name: Verify account deletion request permissions
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker cp db/release-candidates/account_deletion_requests.sql "$DB_CONTAINER:/tmp/account_deletion_requests.sql"
+          docker cp db/release-candidates/test_account_deletion_requests.sql "$DB_CONTAINER:/tmp/test_account_deletion_requests.sql"
+          docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_test -v ON_ERROR_STOP=1 -f /tmp/test_account_deletion_requests.sql

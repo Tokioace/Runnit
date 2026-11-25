@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { CheckCircle2, LogOut, Mail, Pencil, Save, ShieldAlert, UserRound } from 'lucide-react';
 import type { AuthUser, UseSupabaseUserReturn } from '../../hooks/useSupabaseUser';
 import { getAccountDisplayNameError } from '../../lib/accountProfile';
+import AccountDeletionPanel from './AccountDeletionPanel';
 
 type Props = {
   user: AuthUser;
@@ -188,6 +189,7 @@ export default function AccountDetailsPanel({ user, updateDisplayName, changePas
           <LogOut className="h-4 w-4" aria-hidden="true" /> Abmelden
         </button>
       )}
+      {import.meta.env.VITE_ACCOUNT_DELETION_REQUESTS_ENABLED === 'true' && <AccountDeletionPanel key={user.id} userId={user.id} />}
     </section>
   );
 }
