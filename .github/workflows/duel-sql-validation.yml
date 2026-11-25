@@ -91,3 +91,8 @@ jobs:
           docker cp supabase "$DB_CONTAINER:/tmp/supabase"
           docker cp db "$DB_CONTAINER:/tmp/db"
           docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_schema_test -v ON_ERROR_STOP=1 -f /tmp/db/release-candidates/test_fresh_schema.sql
+      - name: Complete actual-schema race and rehearse account erasure
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_schema_test -v ON_ERROR_STOP=1 -f /tmp/db/release-candidates/test_fresh_schema_finish.sql
