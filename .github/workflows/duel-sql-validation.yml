@@ -50,3 +50,10 @@ jobs:
           docker cp db/release-candidates/account_deletion_requests.sql "$DB_CONTAINER:/tmp/account_deletion_requests.sql"
           docker cp db/release-candidates/test_account_deletion_requests.sql "$DB_CONTAINER:/tmp/test_account_deletion_requests.sql"
           docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_test -v ON_ERROR_STOP=1 -f /tmp/test_account_deletion_requests.sql
+      - name: Verify account erasure FK and shared-race safety
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker cp db/release-candidates/account_erasure_guard.sql "$DB_CONTAINER:/tmp/account_erasure_guard.sql"
+          docker cp db/release-candidates/test_account_erasure_guard.sql "$DB_CONTAINER:/tmp/test_account_erasure_guard.sql"
+          docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_test -v ON_ERROR_STOP=1 -f /tmp/test_account_erasure_guard.sql
