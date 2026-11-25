@@ -17,6 +17,7 @@ import { LeaderboardSheet } from '../components/leaderboard/Sheet';
 import { leaderboardSourceLabel, type LeaderboardSource } from '../lib/leaderboardProvenance';
 import ArcadeMapChrome, { type ArcadeMapEntry, type ArcadeMapView } from '../components/map/ArcadeMapChrome';
 import { parseGeographyPoint } from '../lib/duelLocation';
+import { duelRealtimeRow, createDuelRealtimeLifetime } from '../lib/duelRealtime';
 import { reconcileOpenRaces } from '../lib/reconcileOpenRaces';
 import { cancelHostedOpenDuel, cancelHostedDuelMessage, listHostedOpenDuels, type HostedOpenDuel } from '../db/cancelHostedDuel';
 import { abortMatchedDuel } from '../db/abortMatchedDuel';
@@ -1349,14 +1350,25 @@ export default function MapScreen() {
   useEffect(() => {
     if (!authUser) { setRealtimeConnected(false); return; }
     setRealtimeConnected(false);
+    const lifetime = createDuelRealtimeLifetime();
     const channel = supabase
       .channel('duels-realtime')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'duels' },
-        async (payload: any) => {
-          const row: any = payload.new ?? payload.old;
+        (payload: any) => {
+          if (!lifetime.isActive()) return;
+          const row: any = duelRealtimeRow(payload);
           if (!row) return;
+
+          // DELETE supplies only the old primary key. Remove known local
+          // markers; do not infer match completion or participant identity.
+          if (payload.eventType === 'DELETE') {
+            setOpenRuns(previous => previous.filter(run => run.id !== row.id));
+            setHostedOpenDuels(previous => previous.filter(run => run.id !== row.id));
+            setRegionalRuns(previous => previous.filter(run => run.id !== row.id));
+            return;
+          }
 
           // A second browser/device can join or cancel the host's lobby.
           // Stop the visible open-lobby timer as soon as the server confirms
@@ -1422,9 +1434,15 @@ export default function MapScreen() {
           });
         }
       )
-      .subscribe(status => setRealtimeConnected(status === 'SUBSCRIBED'));
+      .subscribe(status => {
+        if (!lifetime.isActive()) return;
+        setRealtimeConnected(status === 'SUBSCRIBED');
+        // Reconcile the authoritative discovery list after (re)subscription.
+        if (status === 'SUBSCRIBED') setDiscoveryRefreshTick(tick => tick + 1);
+      });
     return () => {
-      supabase.removeChannel(channel);
+      lifetime.close();
+      void supabase.removeChannel(channel);
     };
   }, [authUser?.id, applyMatchedDuel, clearAbortedDuel, showCompletedDuel]);
 
