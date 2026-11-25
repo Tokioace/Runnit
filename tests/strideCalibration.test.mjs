@@ -94,6 +94,6 @@ test('experimental feature is separate from established step detection and race 
   assert.match(screen, /supabase\.auth\.updateUser/);
   assert.match(screen, /assessWalkingCalibration/);
   assert.doesNotMatch(screen, /submitDuelResult|leaderboard|createDuel/);
-  assert.match(app, /<Route path="\/calibration" element=\{<StrideCalibrationScreen \/>\}/);
+  assert.match(app, /<Route path="\/calibration" element=\{<StrideCalibrationScreen key=\{auth\.user\?\.id \?\? 'guest'\} auth=\{auth\} \/>\}/);
   assert.match(profile, /to="\/calibration"/);
 });
