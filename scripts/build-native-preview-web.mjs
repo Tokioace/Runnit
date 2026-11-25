@@ -1,0 +1,50 @@
+// Build-time guard only. Never output credentials or accept admin keys.
+import { spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
+
+const PRODUCTION_REF='fcbffqcmvgdojsdfwgyt';
+export function previewEnvironment(env){
+ const mode=env.RUNNIT_NATIVE_BACKEND_MODE||'offline';
+ if(mode!=='offline'&&mode!=='test')throw Error('Unknown native preview backend mode');
+ const flags={
+  VITE_ACCOUNT_DELETION_REQUESTS_ENABLED:'false',
+  VITE_LEGAL_PAGES_ENABLED:'false',
+  VITE_IOS_PREVIEW_SMOKE:'true',
+ };
+ if(mode==='offline')return {...flags,VITE_SUPABASE_URL:'https://runnit-preview.invalid',VITE_SUPABASE_ANON_KEY:'preview-not-a-real-key'};
+ if(env.GITHUB_EVENT_NAME!=='workflow_dispatch'||env.GITHUB_REF!=='refs/heads/develop')
+  throw Error('Connected preview requires manual develop workflow');
+ const ref=env.RUNNIT_NATIVE_TEST_REF;
+ const key=env.RUNNIT_NATIVE_TEST_PUBLISHABLE_KEY;
+ if(typeof ref!=='string'||!(/^[a-z]{20}$/).test(ref)||ref===PRODUCTION_REF)
+  throw Error('A distinct, approved test project reference is required');
+ if(env.RUNNIT_NATIVE_TEST_DATA_CONFIRMED!=='synthetic-only')
+  throw Error('Synthetic-only test project confirmation missing');
+ if(typeof key!=='string'||!/^sb_publishable_[A-Za-z0-9_-]{16,128}$/.test(key))
+  throw Error('Only a Supabase publishable key is allowed');
+ return {...flags,VITE_SUPABASE_URL:'https://'+ref+'.supabase.co',VITE_SUPABASE_ANON_KEY:key};
+}
+export async function checkTestBackend(config,request=fetch){
+ // Read-only Auth settings endpoint; this validates API reachability, not RLS
+ // or whether the operator actually populated the approved project safely.
+ let response;
+ try{
+  response=await request(config.VITE_SUPABASE_URL+'/auth/v1/settings',{
+   method:'GET',headers:{apikey:config.VITE_SUPABASE_ANON_KEY},
+   redirect:'error',signal:AbortSignal.timeout(10000)
+  });
+ }catch{throw Error('Test backend unreachable');}
+ if(!response.ok)throw Error('Test backend rejected public credential');
+}
+async function main(){
+ const config=previewEnvironment(process.env);
+ if(process.env.RUNNIT_NATIVE_BACKEND_MODE==='test')await checkTestBackend(config);
+ // Do not pass build credential source variables into the build subprocess.
+ const env={...process.env,...config};
+ for(const key of Object.keys(env))if(key.startsWith('RUNNIT_NATIVE_TEST_'))delete env[key];
+ const run=spawnSync('npm',['run','build'],{env,stdio:'inherit'});
+ if(run.error||run.status!==0)throw Error('Native preview web build failed');
+}
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
+ main().catch(error=>{console.error(error.message);process.exitCode=1;});
+}

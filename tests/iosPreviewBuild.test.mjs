@@ -17,7 +17,7 @@ test('macOS build is manual, unsigned and separate from production deployment',(
  const flow=read('.github/workflows/ios-preview.yml');
  const script=read('scripts/build-ios-preview.sh');
  assert.match(flow,/github.event_name == 'workflow_dispatch' && inputs.build_simulator/);
- assert.match(flow,/runnit-preview\.invalid/);
+ assert.match(read('scripts/build-native-preview-web.mjs'),/runnit-preview\.invalid/);
  assert.match(script,/CODE_SIGNING_ALLOWED=NO/);
  const verifier=read('scripts/verify-ios-project.py');
  assert.match(verifier,/NSLocationWhenInUseUsageDescription/);
@@ -44,7 +44,7 @@ test('startup smoke is opt-in, simulator scoped and requires a fresh success mar
  const flow=read('.github/workflows/ios-preview.yml');
  const script=read('scripts/smoke-ios-preview.sh');
  const vault=read('native/ios-preview/RunnitSessionVault.swift');
- assert.match(flow,/VITE_IOS_PREVIEW_SMOKE: 'true'/);
+ assert.match(read('scripts/build-native-preview-web.mjs'),/VITE_IOS_PREVIEW_SMOKE:'true'/);
  assert.match(flow,/bash smoke-ios-preview.sh/);
  assert.match(script,/simctl create/);
  assert.match(script,/simctl launch/);
