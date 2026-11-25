@@ -4,6 +4,7 @@ import {
   LockKeyhole, Mail, ShieldCheck,
 } from 'lucide-react';
 import type { UseSupabaseUserReturn } from '../../hooks/useSupabaseUser';
+import LegalLinks from '../legal/LegalLinks';
 import type { SocialProvider } from '../../lib/authRedirect';
 import AccountAuthPanel from '../profile/AccountAuthPanel';
 import { Link } from 'react-router-dom';
@@ -272,6 +273,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
         <p className="mt-4 flex justify-center gap-2 text-[10px] font-semibold text-white/30">
           <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" /> Dein persönlicher Zugang
         </p>
+        <LegalLinks />
       </div>
     </main>
   );

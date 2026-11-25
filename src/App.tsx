@@ -17,6 +17,8 @@ import WelcomeAuthScreen from './components/auth/WelcomeAuthScreen';
 import AuthCallbackScreen from './components/auth/AuthCallbackScreen';
 import { AUTH_CALLBACK_PATH } from './lib/authRedirect';
 import { useSupabaseUser } from './hooks/useSupabaseUser';
+import LegalScreen from './screens/LegalScreen';
+import { legalPages } from './lib/legalPages';
 
 const GUEST_SESSION_KEY = 'runnit:guest-mode';
 const APP_PATHS = new Set(['/', '/home', '/stats', '/map', '/leaderboard', '/profile', '/gps-lab', '/gps-field-test', '/calibration', '/fusion-lab', '/sprint-lab', '/ghost-run']);
@@ -75,6 +77,11 @@ export default function App() {
     }
     previousSignedInId.current = auth.user?.id ?? null;
   }, [auth.loading, auth.user?.id, navigate]);
+
+  // Public legal pages must work without a completed authentication request.
+  if (legalPages && (location.pathname === '/privacy' || location.pathname === '/terms' || location.pathname === '/imprint')) {
+    return <LegalScreen pages={legalPages} page={location.pathname === '/privacy' ? 'privacy' : location.pathname === '/terms' ? 'terms' : 'imprint'} />;
+  }
 
   if (auth.loading) {
     return (
