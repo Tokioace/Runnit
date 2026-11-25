@@ -68,8 +68,42 @@ ROLLBACK;
 -- Marker exists only in this disposable schema fixture.
 CREATE SCHEMA runnit_rehearsal_fixture;
 REVOKE ALL ON SCHEMA runnit_rehearsal_fixture FROM PUBLIC,anon,authenticated;
--- Run all six candidates as one transaction and prove that rollback restores
--- the baseline (including absence of new tables, constraints and policies).
+-- Compare the actual baseline catalog rather than assuming that an
+-- IF NOT EXISTS index was first introduced by this release.
+CREATE TEMP VIEW release_catalog_snapshot AS
+ WITH relations AS (
+   SELECT c.oid,c.relname,c.relkind,c.relacl,c.relrowsecurity,c.relforcerowsecurity
+   FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+   WHERE n.nspname IN ('public','runnit_private','runnit_session_private')
+     AND c.relname IN ('users','duels','duel_results','ghost_runs','ghost_run_sessions',
+       'runner_stats_preferences','account_deletion_requests','archived_personal_duel_times')
+ ), functions AS (
+   SELECT p.oid,n.nspname,p.proname,p.proacl,pg_get_functiondef(p.oid) AS definition
+   FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+   WHERE p.prokind IN ('f','p') AND (
+     n.nspname IN ('runnit_private','runnit_session_private')
+     OR (n.nspname='public' AND p.proname IN ('join_duel','ready_for_duel','abort_duel',
+       'submit_duel_result','get_duel_results','get_top_ghost_runs',
+       'list_beta_duel_leaderboard','list_beta_runnit_records')))
+ )
+ SELECT jsonb_build_object(
+   'schemas',(SELECT coalesce(jsonb_agg(to_jsonb(n) ORDER BY n.oid),'[]'::jsonb)
+     FROM pg_namespace n WHERE n.nspname IN ('runnit_private','runnit_session_private')),
+   'relations',(SELECT coalesce(jsonb_agg(to_jsonb(r) ORDER BY r.oid),'[]'::jsonb) FROM relations r),
+   'columns',(SELECT coalesce(jsonb_agg(to_jsonb(a) ORDER BY a.attrelid,a.attnum),'[]'::jsonb)
+     FROM pg_attribute a WHERE a.attrelid IN (SELECT oid FROM relations) AND a.attnum>0),
+   'indexes',(SELECT coalesce(jsonb_agg(jsonb_build_object('oid',i.indexrelid,'definition',pg_get_indexdef(i.indexrelid)) ORDER BY i.indexrelid),'[]'::jsonb)
+     FROM pg_index i WHERE i.indrelid IN (SELECT oid FROM relations)),
+   'constraints',(SELECT coalesce(jsonb_agg(to_jsonb(c) ORDER BY c.oid),'[]'::jsonb)
+     FROM pg_constraint c WHERE c.conrelid IN (SELECT oid FROM relations)),
+   'policies',(SELECT coalesce(jsonb_agg(to_jsonb(p) ORDER BY p.oid),'[]'::jsonb)
+     FROM pg_policy p WHERE p.polrelid IN (SELECT oid FROM relations)),
+   'triggers',(SELECT coalesce(jsonb_agg(to_jsonb(t) ORDER BY t.oid),'[]'::jsonb)
+     FROM pg_trigger t WHERE t.tgrelid IN (SELECT oid FROM relations)),
+   'functions',(SELECT coalesce(jsonb_agg(to_jsonb(f) ORDER BY f.oid),'[]'::jsonb) FROM functions f)
+ ) AS catalog;
+CREATE TEMP TABLE release_catalog_before AS SELECT catalog FROM release_catalog_snapshot;
+-- Run all six candidates as one transaction and verify restoration.
 \ir release_bundle/rehearse-rollback.sql
 \ir release_preflight_ci.sql
 \if :preflight_preflight_pass
@@ -79,13 +113,18 @@ REVOKE ALL ON SCHEMA runnit_rehearsal_fixture FROM PUBLIC,anon,authenticated;
 \endif
 DO $rollback$
 BEGIN
- IF to_regnamespace('runnit_private') IS NOT NULL
- OR to_regnamespace('runnit_session_private') IS NOT NULL
- OR to_regclass('public.duel_results_one_per_runner_uidx') IS NOT NULL THEN
-   RAISE EXCEPTION 'Candidate objects remained after rollback';
+ IF (SELECT catalog FROM release_catalog_snapshot)
+    IS DISTINCT FROM (SELECT catalog FROM release_catalog_before) THEN
+   RAISE EXCEPTION 'Rollback changed baseline catalog: %',
+     (SELECT string_agg(a.key, ', ' ORDER BY a.key)
+      FROM jsonb_each((SELECT catalog FROM release_catalog_before)) a
+      JOIN jsonb_each((SELECT catalog FROM release_catalog_snapshot)) b USING (key)
+      WHERE a.value IS DISTINCT FROM b.value);
  END IF;
 END
 $rollback$;
+DROP TABLE release_catalog_before;
+DROP VIEW release_catalog_snapshot;
 -- Install exactly the same payload with COMMIT, then run existing tests.
 \ir release_bundle/rehearse-install.sql
 -- The test-only admin helper is deliberately outside the six-candidate bundle.
