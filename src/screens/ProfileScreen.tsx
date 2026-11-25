@@ -9,6 +9,7 @@ import {
 import BottomNav from '../components/ui/BottomNav';
 import AccountDetailsPanel from '../components/profile/AccountDetailsPanel';
 import { useSupabaseUser } from '../hooks/useSupabaseUser';
+import LegalLinks from '../components/legal/LegalLinks';
 import { supabase } from '../lib/supabaseClient';
 import { useRunnerHistory } from '../hooks/useRunnerHistory';
 import { formatRaceTime } from '../lib/runnerHistory';
@@ -478,6 +479,7 @@ export default function ProfileScreen() {
                 onChange={(event) => { void saveConsent(event.currentTarget.checked); }} />
             </label> : <Link to="/login?next=%2Fprofile" className="rp-modal-save">ZUM LOGIN</Link>}
             {consentError && <p role="alert" className="rp-modal-error">{consentError}</p>}
+            <LegalLinks />
           </div>}
           {pane === 'badges' && <div className="rp-modal-form">
             <Trophy size={34} color="#88dbe5" /><p>Noch keine vergebenen Badges. Hier erscheinen nur wirklich freigeschaltete Auszeichnungen.</p>
