@@ -19,7 +19,7 @@ const EMPTY: HistoryState = { races: [], ghostSessions: [], loading: false, erro
  * Opponent outcomes come from the authorized get_duel_results RPC.
  * A failed request stays visible as an error instead of becoming false zeroes. */
 export function useRunnerHistory(userId: string | null | undefined) {
-  const [state, setState] = useState<HistoryState>(EMPTY);
+  const [state, setState] = useState<HistoryState>(() => userId ? { ...EMPTY, loading: true } : EMPTY);
   const [revision, reload] = useState(0);
 
   const refresh = useCallback(() => reload(n => n + 1), []);
@@ -41,6 +41,7 @@ export function useRunnerHistory(userId: string | null | undefined) {
             .select('id,created_at,target_distance_m,run_state,elapsed_ms,observed_distance_m,steps_count,motion_permission')
             .eq('user_id', userId).order('created_at', { ascending: false }).limit(150),
         ]);
+        if (!active) return;
         if (ownResultResponse.error) throw ownResultResponse.error;
         if (ghostResponse.error) throw ghostResponse.error;
         const own = (ownResultResponse.data ?? []) as StoredDuelResult[];
@@ -50,14 +51,20 @@ export function useRunnerHistory(userId: string | null | undefined) {
           const response = await supabase.from('duels')
             .select('id,status,target_distance_m,host_user_id,challenger_user_id,created_at')
             .in('id', ids);
+          if (!active) return;
           if (response.error) throw response.error;
           duels = (response.data ?? []) as StoredDuel[];
         }
         const pairedResults = new Map<string, readonly PairedResult[]>();
         const completed = duels.filter(duel => duel.status === 'completed');
         // Cap simultaneous RPCs to avoid a burst of up to 150 requests on focus/reload.
-        const pairResponses = await mapWithConcurrency(completed, 4, duel =>
-          supabase.rpc('get_duel_results', { p_duel_id: duel.id }));
+        const pairResponses = await mapWithConcurrency(completed, 4, async duel => {
+          if (!active) throw new Error('Retired history request');
+          const response = await supabase.rpc('get_duel_results', { p_duel_id: duel.id });
+          if (response.error) throw response.error;
+          return response;
+        });
+        if (!active) return;
         for (let i = 0; i < completed.length; i++) {
           const response = pairResponses[i];
           if (response.error) throw response.error;
@@ -69,6 +76,7 @@ export function useRunnerHistory(userId: string | null | undefined) {
             .select('id,occurred_at,target_distance_m,time_ms,steps_count,distance_m')
             .eq('user_id', userId).order('occurred_at', { ascending:false }).limit(150);
           if (response.error) throw response.error;
+          if (!active) return;
           archive = archivedPersonalTimes((response.data ?? []) as StoredArchivedPersonalTime[]);
         }
         if (active) setState({
