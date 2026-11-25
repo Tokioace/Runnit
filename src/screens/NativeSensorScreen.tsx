@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
 import {Link} from 'react-router-dom';
-import {nativeProbeForWindow,nativeReferenceDifference,type ProbeReport} from '../lib/nativeSensorProbe';
+import {nativeProbeForWindow,nativeReferenceDifference,nativeStepDifference,type ProbeReport} from '../lib/nativeSensorProbe';
 
 export default function NativeSensorScreen(){
  const api=useRef<ReturnType<typeof nativeProbeForWindow>>(null);
@@ -10,6 +10,7 @@ export default function NativeSensorScreen(){
  const [busy,setBusy]=useState(false);
  const [target,setTarget]=useState<50|75|100>(50);
  const [reference,setReference]=useState('');
+ const [manualSteps,setManualSteps]=useState('');
  const arming=useRef(false);
  const [armBusy,setArmBusy]=useState(false);
  const [report,setReport]=useState<ProbeReport|null>(null);
@@ -52,7 +53,7 @@ export default function NativeSensorScreen(){
   const bridge=api.current;
   if(!bridge){setNotice('Native Sensorschnittstelle nicht verfügbar.');return;}
   if(starting.current||run.current||document.hidden)return;
-  starting.current=true;setBusy(true);setReport(null);setReference('');
+  starting.current=true;setBusy(true);setReport(null);setReference('');setManualSteps('');
   const ticket=++generation.current;
   try{
    const result=await bridge.start();
@@ -80,6 +81,8 @@ export default function NativeSensorScreen(){
   finally{arming.current=false;setArmBusy(false);}
  };
  const sprint=report?.sprint;
+ const analysis=report?.motionAnalysis;
+ const stepDifference=analysis?nativeStepDifference(analysis.candidates,manualSteps):null;
  const difference=nativeReferenceDifference(sprint?.finishMs??null,reference);
  return <main className="min-h-[100dvh] bg-[#080b13] px-4 py-8 text-white">
   <div className="mx-auto max-w-xl space-y-5">
@@ -108,6 +111,17 @@ export default function NativeSensorScreen(){
      <input id="native-reference" inputMode="decimal" autoComplete="off" className="w-full rounded-lg bg-[#141b2a] p-3" value={reference} onChange={e=>setReference(e.target.value)} placeholder="7,24"/>
      <p>{difference===null?'Keine auswertbare Referenzzeit.':'GPS minus Referenz: '+(difference>=0?'+':'')+difference.toFixed(3)+' s'}</p>
      <p className="text-xs text-white/60">Gleicher manueller Start und gleiche markierte Ziellinie. GPS-Schätzung, kein offizielles Ergebnis.</p>
+    </div>}
+   </section>}
+   {analysis&&<section className="space-y-3 rounded-xl border border-white/15 p-4">
+    <h2 className="font-bold">Bewegungsanalyse · {analysis.window==='sprint'?'Sprintfenster':'Gesamttest'}</h2>
+    <p>{analysis.candidates} Schrittkandidaten · {Math.round(analysis.coverage*100)} % Sensorabdeckung</p>
+    <p>Kadenz: {analysis.cadenceSpm===null?'nicht bestimmbar':analysis.cadenceSpm.toFixed(1)+' Schritte/min (geschätzt)'}</p>
+    <p className="text-xs text-white/60">{analysis.state==='sprint-like'?'Sprintähnlicher Rhythmus':analysis.state==='other-rhythm'?'Anderer regelmäßiger Rhythmus':analysis.state==='incomplete'?'Messabdeckung unzureichend':analysis.state==='irregular'?'Unregelmäßiger Rhythmus':'Zu wenige Bewegungsspitzen'} · keine verifizierten Schritte.</p>
+    {report?.status!=='running'&&report?.status!=='interrupted'&&report?.status!=='sensor-error'&&(!sprint||sprint.finishMs!==null)&&<div className="space-y-2">
+     <label htmlFor="native-step-reference">Manuell gezählte Schritte im gleichen Messfenster</label>
+     <input id="native-step-reference" inputMode="numeric" autoComplete="off" className="w-full rounded-lg bg-[#141b2a] p-3" value={manualSteps} onChange={e=>setManualSteps(e.target.value)} placeholder="z. B. 25"/>
+     <p>{stepDifference===null?'Keine Vergleichszahl.':'Kandidaten minus manuelle Zählung: '+(stepDifference>=0?'+':'')+stepDifference}</p>
     </div>}
    </section>}
    {report&&<dl className="grid grid-cols-2 gap-4 rounded-2xl border border-white/15 p-4">

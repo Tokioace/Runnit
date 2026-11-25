@@ -52,3 +52,85 @@ struct RunnitSprintEstimator {
 
     mutating func invalidate() { if finishSeconds == nil { invalid = true } }
 }
+
+
+// Experimental motion peaks, not verified steps. No raw samples leave this
+// in-memory, bounded capture. Analyze the exact selected measurement window.
+struct RunnitMotionSummary {
+    let candidates: Int
+    let samples: Int
+    let gaps: Int
+    let coverage: Double
+    let cadence: Double?
+    let state: String
+}
+struct RunnitMotionCapture {
+    private struct Sample {
+        let t: Double
+        let magnitude: Double
+    }
+    private var samples: [Sample] = []
+    private var truncated = false
+    mutating func push(time: Double, magnitude: Double) {
+        guard time.isFinite, magnitude.isFinite, magnitude >= 0, magnitude < 200,
+              samples.last.map({ time > $0.t }) ?? true else { return }
+        guard samples.count < 3000 else { truncated = true; return }
+        samples.append(Sample(t: time, magnitude: magnitude))
+    }
+    private func median(_ values: [Double]) -> Double {
+        let sorted = values.sorted()
+        let i = sorted.count / 2
+        return sorted.count % 2 == 1 ? sorted[i] : (sorted[i-1] + sorted[i]) / 2
+    }
+    func summarize(from start: Double, through end: Double) -> RunnitMotionSummary {
+        let valid = samples.filter { $0.t >= start && $0.t <= end }
+        let duration = end - start
+        var gaps = 0, segment = 0
+        var segments: [Int] = []
+        var observed = 0.0
+        for i in valid.indices {
+            if i > 0 {
+                let dt = valid[i].t - valid[i-1].t
+                if dt > 0.25 { gaps += 1; segment += 1 }
+                else { observed += dt }
+            }
+            segments.append(segment)
+        }
+        let coverage = duration.isFinite && duration > 0 ? min(1, observed / duration) : 0
+        var peaks: [(t: Double, segment: Int)] = []
+        if valid.count >= 3 {
+            for i in 1..<(valid.count - 1) {
+                let p = valid[i]
+                guard segments[i-1] == segments[i], segments[i+1] == segments[i],
+                      p.magnitude >= 4, p.magnitude > valid[i-1].magnitude,
+                      p.magnitude >= valid[i+1].magnitude else { continue }
+                var left = p.magnitude, right = p.magnitude
+                var j = i-1
+                while j >= 0 && segments[j] == segments[i] && p.t-valid[j].t <= 0.11 {
+                    left = min(left, valid[j].magnitude); j -= 1
+                }
+                j = i+1
+                while j < valid.count && segments[j] == segments[i] && valid[j].t-p.t <= 0.11 {
+                    right = min(right, valid[j].magnitude); j += 1
+                }
+                guard p.magnitude - max(left,right) >= 1.8 else { continue }
+                if let last = peaks.last, last.segment == segments[i], p.t-last.t < 0.19 { continue }
+                peaks.append((p.t, segments[i]))
+            }
+        }
+        func result(_ state: String, _ cadence: Double? = nil) -> RunnitMotionSummary {
+            RunnitMotionSummary(candidates: peaks.count, samples: valid.count, gaps: gaps,
+                coverage: coverage, cadence: cadence, state: state)
+        }
+        guard !truncated, duration >= 1, coverage >= 0.7, gaps == 0, valid.count >= 10 else { return result("incomplete") }
+        let latest = Array(peaks.suffix(10))
+        guard latest.count >= 6 else { return result("insufficient") }
+        let intervals = (1..<latest.count).map { latest[$0].t - latest[$0-1].t }
+        let typical = median(intervals)
+        let variation = median(intervals.map { abs($0-typical) }) / typical
+        guard typical > 0, variation.isFinite, variation <= 0.2 else { return result("irregular") }
+        let cadence = 60 / typical
+        guard cadence.isFinite, cadence > 0, cadence <= 320 else { return result("irregular") }
+        return result(cadence >= 140 && cadence <= 300 ? "sprint-like" : "other-rhythm", cadence)
+    }
+}
