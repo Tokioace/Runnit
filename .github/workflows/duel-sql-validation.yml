@@ -65,3 +65,29 @@ jobs:
           docker cp db/release-candidates/session_access_guard.sql "$DB_CONTAINER:/tmp/session_access_guard.sql"
           docker cp db/release-candidates/test_session_access_guard.sql "$DB_CONTAINER:/tmp/test_session_access_guard.sql"
           docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_test -v ON_ERROR_STOP=1 -f /tmp/test_session_access_guard.sql
+
+  full-schema:
+    name: Fresh schema and combined release candidates
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local-ci-only
+          POSTGRES_DB: runnit_schema_test
+        options: >-
+          --health-cmd "pg_isready -U postgres -d runnit_schema_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replay repository schema and staged candidates in disposable PostGIS
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker cp supabase "$DB_CONTAINER:/tmp/supabase"
+          docker cp db "$DB_CONTAINER:/tmp/db"
+          docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_schema_test -v ON_ERROR_STOP=1 -f /tmp/db/release-candidates/test_fresh_schema.sql
