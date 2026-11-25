@@ -17,7 +17,8 @@ public class RunnitSessionVault: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "readSession", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "writeSession", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "removeSession", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "removeSession", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "previewSmokeComplete", returnType: CAPPluginReturnPromise)
     ]
     private let queue = DispatchQueue(label: "runnit.session.vault")
     private let service = (Bundle.main.bundleIdentifier ?? "runnit.preview") + ".auth.v1"
@@ -58,6 +59,20 @@ public class RunnitSessionVault: CAPPlugin, CAPBridgedPlugin {
             try Data([1]).write(to: marker, options: .atomic)
         }
         prepared = true
+    }
+
+    @objc public func previewSmokeComplete(_ call: CAPPluginCall) {
+        guard let nonce = RunnitPreviewSmoke.nonce() else { call.reject("Preview smoke disabled"); return }
+        do {
+            let folder = try FileManager.default.url(for: .cachesDirectory, in: .userDomainMask,
+                appropriateFor: nil, create: true)
+            let data = try JSONSerialization.data(withJSONObject: [
+                "nonce": nonce, "schema": "runnit-ios-smoke-v1", "welcome": true,
+                "sensorBridge": true, "vaultRoundTrip": true
+            ])
+            try data.write(to: folder.appendingPathComponent("runnit-smoke-" + nonce + ".json"), options: .atomic)
+            call.resolve()
+        } catch { call.reject("Preview smoke marker failed") }
     }
 
     @objc public func readSession(_ call: CAPPluginCall) {
@@ -108,5 +123,21 @@ public class RunnitSessionVault: CAPPlugin, CAPBridgedPlugin {
             }
             call.resolve()
         }
+    }
+}
+
+
+// Only the CI-launched, debug simulator preview can create a smoke marker.
+enum RunnitPreviewSmoke {
+    static func nonce() -> String? {
+        #if DEBUG && targetEnvironment(simulator)
+        guard Bundle.main.bundleIdentifier == "com.tokioace.runnit.preview",
+              let value = ProcessInfo.processInfo.environment["RUNNIT_SMOKE_NONCE"],
+              value.range(of: #"^[a-f0-9]{32}$"#, options: .regularExpression) != nil
+        else { return nil }
+        return value
+        #else
+        return nil
+        #endif
     }
 }

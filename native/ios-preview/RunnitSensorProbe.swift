@@ -13,7 +13,8 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
         CAPPluginMethod(name: "startProbe", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readProbe", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "armSprint", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "stopProbe", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "stopProbe", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "previewPing", returnType: CAPPluginReturnPromise)
     ]
     private lazy var gps = CLLocationManager()
     private let motion = CMMotionManager()
@@ -99,6 +100,12 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
         latestGoodFix = nil; sprintAnchor = nil; sprintPrevious = nil
         sprintStart = nil; sprintUptime = nil
     }
+    @objc public func previewPing(_ call: CAPPluginCall) {
+        guard RunnitPreviewSmoke.nonce() != nil else { call.reject("Preview smoke disabled"); return }
+        // Intentionally do not access CLLocationManager or motion permissions.
+        call.resolve(["ready": true])
+    }
+
     @objc public func startProbe(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             guard UIApplication.shared.applicationState == .active else {

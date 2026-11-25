@@ -39,3 +39,18 @@ test('Linux generates the actual native project; macOS compiles the same artifac
  assert.match(script,/python3 verify-ios-project.py --verify/);
  assert.match(verifier,/prepared project input changed/);
 });
+
+test('startup smoke is opt-in, simulator scoped and requires a fresh success marker',()=>{
+ const flow=read('.github/workflows/ios-preview.yml');
+ const script=read('scripts/smoke-ios-preview.sh');
+ const vault=read('native/ios-preview/RunnitSessionVault.swift');
+ assert.match(flow,/VITE_IOS_PREVIEW_SMOKE: 'true'/);
+ assert.match(flow,/bash smoke-ios-preview.sh/);
+ assert.match(script,/simctl create/);
+ assert.match(script,/simctl launch/);
+ assert.match(script,/No React\/bridge\/vault smoke marker/);
+ assert.match(script,/simctl delete/);
+ assert.match(vault,/#if DEBUG && targetEnvironment\(simulator\)/);
+ assert.match(vault,/RUNNIT_SMOKE_NONCE/);
+ assert.match(read('src/App.tsx'),/maybeRunPreviewSmoke\(import.meta.env.VITE_IOS_PREVIEW_SMOKE\)/);
+});

@@ -7,6 +7,8 @@ on:
       - '.github/workflows/ios-preview.yml'
       - 'scripts/build-ios-preview.sh'
       - 'scripts/verify-ios-project.py'
+      - 'scripts/smoke-ios-preview.sh'
+      - 'src/lib/nativePreviewSmoke.ts'
       - 'scripts/install-ios-vault.py'
       - 'src/lib/nativeAuthStorage.ts'
       - 'src/lib/nativeSensorProbe.ts'
@@ -47,19 +49,21 @@ jobs:
           VITE_SUPABASE_ANON_KEY: preview-not-a-real-key
           VITE_ACCOUNT_DELETION_REQUESTS_ENABLED: 'false'
           VITE_LEGAL_PAGES_ENABLED: 'false'
+          VITE_IOS_PREVIEW_SMOKE: 'true'
         run: npm run build
       - name: Prepare clean native shell without modifying root dependencies
         run: |
           mkdir -p "$RUNNER_TEMP/runnit-ios-preview/www"
           cp native/ios-preview/package.json native/ios-preview/capacitor.config.json "$RUNNER_TEMP/runnit-ios-preview/"
           cp -R dist/. "$RUNNER_TEMP/runnit-ios-preview/www/"
-          cp scripts/build-ios-preview.sh scripts/verify-ios-project.py scripts/install-ios-vault.py native/ios-preview/RunnitSessionVault.swift native/ios-preview/RunnitSensorProbe.swift native/ios-preview/RunnitSprintEstimator.swift "$RUNNER_TEMP/runnit-ios-preview/"
+          cp scripts/build-ios-preview.sh scripts/smoke-ios-preview.sh scripts/verify-ios-project.py scripts/install-ios-vault.py native/ios-preview/RunnitSessionVault.swift native/ios-preview/RunnitSensorProbe.swift native/ios-preview/RunnitSprintEstimator.swift "$RUNNER_TEMP/runnit-ios-preview/"
           cd "$RUNNER_TEMP/runnit-ios-preview"
           test -f www/index.html
           npm install --package-lock-only --ignore-scripts
           npm ci --ignore-scripts
           npm audit --audit-level=high
           ./node_modules/.bin/cap --version
+          bash -n smoke-ios-preview.sh
           bash build-ios-preview.sh --prepare-only
           python3 verify-ios-project.py --verify
           rm -rf node_modules
@@ -76,7 +80,7 @@ jobs:
           if-no-files-found: error
 
   simulator:
-    name: Unsigned iOS simulator compilation
+    name: Unsigned iOS simulator compilation and startup smoke test
     if: github.event_name == 'workflow_dispatch' && inputs.build_simulator
     needs: prepare
     runs-on: macos-26
@@ -95,9 +99,22 @@ jobs:
       - name: Compile the checked native shell
         working-directory: ${{ runner.temp }}/runnit-ios-preview
         run: bash build-ios-preview.sh --compile-only
+      - name: Boot fresh simulator and test React/native bridges
+        working-directory: ${{ runner.temp }}/runnit-ios-preview
+        run: bash smoke-ios-preview.sh
+      - name: Package simulator app with executable permissions
+        working-directory: ${{ runner.temp }}/runnit-ios-preview
+        run: tar -czf runnit-ios-simulator-app.tar.gz -C derived/Build/Products/Debug-iphonesimulator App.app
       - uses: actions/upload-artifact@v4
         with:
           name: runnit-ios-simulator-app
-          path: ${{ runner.temp }}/runnit-ios-preview/derived/Build/Products/Debug-iphonesimulator/App.app
+          path: ${{ runner.temp }}/runnit-ios-preview/runnit-ios-simulator-app.tar.gz
           retention-days: 7
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runnit-ios-smoke-diagnostics
+          path: ${{ runner.temp }}/runnit-ios-preview/smoke/
+          retention-days: 7
+          if-no-files-found: ignore
