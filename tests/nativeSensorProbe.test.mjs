@@ -30,7 +30,7 @@ test('native hard stop, foreground lifecycle and no upload in diagnostic',()=>{
  const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
  const swift=read('native/ios-preview/RunnitSensorProbe.swift');
  assert.match(swift,/willResignActiveNotification/);
- assert.match(swift,/withTimeInterval: 30/);
+ assert.match(swift,/timeInterval: 30/);
  assert.match(swift,/allowsBackgroundLocationUpdates = false/);
  assert.match(swift,/stopUpdatingLocation/);
  assert.match(swift,/stopDeviceMotionUpdates/);

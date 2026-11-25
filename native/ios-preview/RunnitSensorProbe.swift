@@ -90,6 +90,7 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
                 self.motion.deviceMotionUpdateInterval = 0.02
                 self.motion.startDeviceMotionUpdates(to: .main) { [weak self] data, error in
                     guard let self = self, self.status == "running", self.runID == currentID else { return }
+                    if ProcessInfo.processInfo.systemUptime - self.started >= 30 { self.finish("completed"); return }
                     if error != nil { self.finish("sensor-error"); return }
                     guard let data = data, data.timestamp.isFinite, data.timestamp >= self.started,
                           data.timestamp <= ProcessInfo.processInfo.systemUptime else { return }
@@ -101,9 +102,11 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
                     self.motionSamples += 1
                 }
             }
-            self.timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: false) { [weak self] _ in
+            let deadline = Timer(timeInterval: 30, repeats: false) { [weak self] _ in
                 self?.finish("completed")
             }
+            self.timer = deadline
+            RunLoop.main.add(deadline, forMode: .common)
             call.resolve(self.report())
         }
     }
@@ -130,6 +133,7 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
     }
     public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard status == "running" else { return }
+        if ProcessInfo.processInfo.systemUptime - started >= 30 { finish("completed"); return }
         for fix in locations {
             let age = Date().timeIntervalSince(fix.timestamp)
             guard fix.timestamp >= startedWall, age >= 0, age <= 3,
