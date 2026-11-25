@@ -54,3 +54,21 @@ test('startup smoke is opt-in, simulator scoped and requires a fresh success mar
  assert.match(vault,/RUNNIT_SMOKE_NONCE/);
  assert.match(read('src/App.tsx'),/maybeRunPreviewSmoke\(import.meta.env.VITE_IOS_PREVIEW_SMOKE\)/);
 });
+
+test('native dependency graph is committed, integrity checked and never regenerated during CI',()=>{
+ const p=JSON.parse(read('native/ios-preview/package.json'));
+ const lock=JSON.parse(read('native/ios-preview/package-lock.json'));
+ assert.equal(lock.lockfileVersion,3);
+ assert.deepEqual(lock.packages[''].dependencies,p.dependencies);
+ assert.deepEqual(lock.packages[''].devDependencies,p.devDependencies);
+ for(const [name,entry] of Object.entries(lock.packages)){
+  if(!name)continue;
+  assert.match(entry.resolved,/^https:\/\/registry\.npmjs\.org\//);
+  assert.match(entry.integrity,/^sha512-/);
+ }
+ const flow=read('.github/workflows/ios-preview.yml');
+ assert.match(flow,/cp native\/ios-preview\/package\.json native\/ios-preview\/package-lock\.json/);
+ assert.match(flow,/npm ci --ignore-scripts/);
+ assert.match(flow,/cmp package-lock\.json/);
+ assert.doesNotMatch(flow,/npm install --package-lock-only/);
+});
