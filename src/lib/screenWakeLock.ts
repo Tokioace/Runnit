@@ -31,35 +31,50 @@ export function keepScreenAwake(
   let closed = false;
   let requesting = false;
   let retryAfterPending = false;
-  let held: ScreenWakeLockHandle | null = null;
+  let held: { handle: ScreenWakeLockHandle; listener: () => void } | null = null;
+  let visibilityGeneration = 0;
 
   const report = (status: ScreenWakeLockStatus) => {
     if (!closed) onStatus(status);
   };
-  const onRelease = () => {
+  const dropHeld = () => {
+    const previous = held;
     held = null;
-    report(source.isVisible() ? 'released' : 'hidden');
+    if (previous) {
+      previous.handle.removeEventListener('release', previous.listener);
+      void previous.handle.release().catch(() => {});
+    }
   };
 
   const acquire = async (): Promise<void> => {
     if (closed) return;
     if (!source.isSupported()) { report('unsupported'); return; }
     if (!source.isVisible()) { report('hidden'); return; }
-    if (held && !held.released) return;
+    if (held && !held.handle.released) return;
+    if (held) dropHeld();
     if (requesting) { retryAfterPending = true; return; }
     requesting = true;
+    const generation = visibilityGeneration;
     report('requesting');
     try {
       const next = await source.request();
-      if (closed || !source.isVisible()) {
-        await next.release();
+      if (closed || !source.isVisible() || generation !== visibilityGeneration) {
+        await next.release().catch(() => {});
         return;
       }
-      held = next;
-      next.addEventListener('release', onRelease);
-      report('held');
+      if (next.released) { report('released'); return; }
+      const listener = () => {
+        if (held?.handle !== next || held.listener !== listener) return;
+        held = null;
+        next.removeEventListener('release', listener);
+        report(source.isVisible() ? 'released' : 'hidden');
+      };
+      held = { handle: next, listener };
+      next.addEventListener('release', listener);
+      if (next.released) listener();
+      else report('held');
     } catch {
-      report('blocked');
+      if (generation === visibilityGeneration) report(source.isVisible() ? 'blocked' : 'hidden');
     } finally {
       requesting = false;
       if (retryAfterPending) {
@@ -73,12 +88,8 @@ export function keepScreenAwake(
     if (!source.isVisible()) {
       // Release explicitly: browsers may not dispatch a release event before
       // hiding the page. Never claim a wake lock survives backgrounding.
-      if (held) {
-        const previous = held;
-        held = null;
-        previous.removeEventListener('release', onRelease);
-        void previous.release().catch(() => {});
-      }
+      visibilityGeneration += 1;
+      dropHeld();
       report('hidden');
     } else {
       void acquire();
@@ -91,12 +102,7 @@ export function keepScreenAwake(
     if (closed) return;
     closed = true;
     unsubscribe();
-    if (held) {
-      const previous = held;
-      held = null;
-      previous.removeEventListener('release', onRelease);
-      void previous.release().catch(() => {});
-    }
+    dropHeld();
   };
 }
 
