@@ -1,0 +1,49 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createDuelRecoveryQueue,isCurrentRecovery} from '../src/lib/duelRecovery.ts';
+const turn=()=>new Promise(resolve=>setImmediate(resolve));
+test('focus, visibility and interval triggers never overlap requests',async()=>{
+ let calls=0,concurrent=0,peak=0;
+ const releases=[];
+ const queue=createDuelRecoveryQueue(async()=>{
+  calls++;concurrent++;peak=Math.max(peak,concurrent);
+  await new Promise(resolve=>releases.push(resolve));concurrent--;
+ });
+ queue.request();queue.request();queue.request();queue.request();
+ assert.equal(calls,1);
+ releases.shift()();await turn();assert.equal(calls,2);
+ releases.shift()();await turn();assert.equal(calls,2);assert.equal(peak,1);
+ queue.close();
+});
+test('closing recovery cancels queued retries; network rejection allows later retry',async()=>{
+ let calls=0,release;
+ const queue=createDuelRecoveryQueue(async()=>{
+  calls++;
+  if(calls===1)throw Error('offline');
+  await new Promise(resolve=>{release=resolve;});
+ });
+ queue.request();await turn();queue.request();queue.request();
+ assert.equal(calls,2);queue.close();release();await turn();queue.request();
+ assert.equal(calls,2);
+});
+test('newer confirmed transition or changed account invalidates an old response',()=>{
+ assert.equal(isCurrentRecovery(true,'a','a',3,3),true);
+ for(const args of [[false,'a','a',3,3],[true,'b','a',3,3],[true,null,'a',3,3],[true,'a','a',4,3]]){
+  assert.equal(isCurrentRecovery(...args),false);
+ }
+});
+test('map checks account and revision after both reads and closes the queue',()=>{
+ const screen=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'utf8');
+ const recovery=screen.slice(screen.indexOf('// Mobile Safari may suspend Realtime'),screen.indexOf('// No Realtime subscription'));
+ assert.match(recovery,/createDuelRecoveryQueue\(async/);
+ assert.match(recovery,/isCurrentRecovery\(active, finishAccountRef.current, authUser.id/);
+ assert.match(recovery,/if \(!current\(\) \|\| error\) return/);
+ assert.match(recovery,/if \(!current\(\) \|\| statusError \|\| activeDuelIdRef.current !== activeId\) return/);
+ assert.match(recovery,/active = false;\s*queue.close\(\)/);
+ for(const name of ['clearAbortedDuel','showCompletedDuel','closeCompletedDuel','applyMatchedDuel']){
+  const start=screen.indexOf('const '+name+' = React.useCallback');
+  const end=screen.indexOf('}, [authUser?.id]);',start);
+  assert.match(screen.slice(start,end),/recoveryRevisionRef.current \+= 1/);
+ }
+});

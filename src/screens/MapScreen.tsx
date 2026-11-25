@@ -18,6 +18,7 @@ import { leaderboardSourceLabel, type LeaderboardSource } from '../lib/leaderboa
 import ArcadeMapChrome, { type ArcadeMapEntry, type ArcadeMapView } from '../components/map/ArcadeMapChrome';
 import { parseGeographyPoint } from '../lib/duelLocation';
 import { duelRealtimeRow, createDuelRealtimeLifetime } from '../lib/duelRealtime';
+import { createDuelRecoveryQueue, isCurrentRecovery } from '../lib/duelRecovery';
 import { reconcileOpenRaces } from '../lib/reconcileOpenRaces';
 import { cancelHostedOpenDuel, cancelHostedDuelMessage, listHostedOpenDuels, type HostedOpenDuel } from '../db/cancelHostedDuel';
 import { abortMatchedDuel } from '../db/abortMatchedDuel';
@@ -814,6 +815,7 @@ export default function MapScreen() {
   const matchStartHandledRef = useRef<string | null>(null);
   // Keep the server-confirmed duel ID even after READY hides its lobby.
   const activeDuelIdRef = useRef<string | null>(null);
+  const recoveryRevisionRef = useRef(0);
   // Ignore late Realtime/poll responses for duels confirmed as terminated.
   const endedDuelIdsRef = useRef<Set<string>>(new Set());
   const [race, setRace] = useState<
@@ -828,6 +830,7 @@ export default function MapScreen() {
 
   const clearAbortedDuel = React.useCallback((duelId: string, remote: boolean) => {
     if (activeDuelIdRef.current !== duelId) return;
+    recoveryRevisionRef.current += 1;
     endedDuelIdsRef.current.add(duelId);
     activeDuelIdRef.current = null;
     if (authUser) {
@@ -861,6 +864,7 @@ export default function MapScreen() {
         (row.host_user_id !== authUser.id && row.challenger_user_id !== authUser.id)) return;
     const active = activeDuelIdRef.current;
     if (active && active !== row.id) return;
+    recoveryRevisionRef.current += 1;
     activeDuelIdRef.current = row.id;
     rememberActiveDuelId(authUser.id, row.id);
     forgetPendingFinish(authUser.id, row.id);
@@ -878,6 +882,7 @@ export default function MapScreen() {
   }, [authUser?.id]);
 
   const closeCompletedDuel = React.useCallback((duelId: string) => {
+    recoveryRevisionRef.current += 1;
     endedDuelIdsRef.current.add(duelId);
     if (activeDuelIdRef.current === duelId) activeDuelIdRef.current = null;
     if (authUser) {
@@ -903,6 +908,7 @@ export default function MapScreen() {
     if (!authUser || row?.status !== 'matched' || typeof row.id !== 'string' ||
         endedDuelIdsRef.current.has(row.id) ||
         (row.host_user_id !== authUser.id && row.challenger_user_id !== authUser.id)) return;
+    recoveryRevisionRef.current += 1;
     activeDuelIdRef.current = row.id;
     rememberActiveDuelId(authUser.id, row.id);
     setOpenRuns(previous => previous.filter(run => run.id !== row.id));
@@ -1296,7 +1302,11 @@ export default function MapScreen() {
       return;
     }
     let active = true;
-    const refresh = async () => {
+    const queue = createDuelRecoveryQueue(async () => {
+      const revision = recoveryRevisionRef.current;
+      const current = () => isCurrentRecovery(active, finishAccountRef.current, authUser.id,
+        recoveryRevisionRef.current, revision);
+      if (!current()) return;
       const { data, error } = await supabase.from('duels')
         .select('id, status, host_user_id, challenger_user_id, target_distance_m, host_ready, challenger_ready, start_at')
         .eq('status', 'matched')
@@ -1304,7 +1314,7 @@ export default function MapScreen() {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (!active || error) return;
+      if (!current() || error) return;
       if (data) {
         applyMatchedDuel(data);
         return;
@@ -1320,25 +1330,28 @@ export default function MapScreen() {
       const { data: latest, error: statusError } = await supabase.from('duels')
         .select('id, status, host_user_id, challenger_user_id, start_at, target_distance_m')
         .eq('id', activeId).maybeSingle();
-      if (!active || statusError) return;
+      if (!current() || statusError || activeDuelIdRef.current !== activeId) return;
+      // Never infer termination from a missing row or a failed/RLS-hidden read.
+      if (latest && (latest.host_user_id !== authUser.id && latest.challenger_user_id !== authUser.id)) return;
       if (latest?.status === 'abandoned') {
         clearAbortedDuel(activeId, true);
       } else if (latest?.status === 'completed') {
         showCompletedDuel(latest);
       }
-    };
+    });
     const whenVisible = () => {
       if (document.visibilityState === 'visible') {
-        void refresh();
+        queue.request();
         setDiscoveryRefreshTick(tick => tick + 1);
       }
     };
-    void refresh();
-    const id = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, 4_000);
+    queue.request();
+    const id = window.setInterval(() => { if (document.visibilityState === 'visible') queue.request(); }, 4_000);
     document.addEventListener('visibilitychange', whenVisible);
     window.addEventListener('focus', whenVisible);
     return () => {
       active = false;
+      queue.close();
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', whenVisible);
       window.removeEventListener('focus', whenVisible);
