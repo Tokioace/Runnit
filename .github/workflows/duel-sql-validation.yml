@@ -96,3 +96,10 @@ jobs:
           DB_CONTAINER: ${{ job.services.postgres.id }}
         run: |
           docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_schema_test -v ON_ERROR_STOP=1 -f /tmp/db/release-candidates/test_fresh_schema_finish.sql
+      - name: Verify stale duel cleanup boundaries and privileges
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          python3 scripts/extract-stale-duel-cleanup.py db/one_active_event_60min_cron.sql > "$RUNNER_TEMP/runnit-cleanup-function.sql"
+          docker cp "$RUNNER_TEMP/runnit-cleanup-function.sql" "$DB_CONTAINER:/tmp/runnit-cleanup-function.sql"
+          docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_schema_test -v ON_ERROR_STOP=1 -f /tmp/db/release-candidates/test_stale_duel_cleanup.sql
