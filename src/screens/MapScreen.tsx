@@ -4,7 +4,7 @@ import ArcadeMapLibreView from '../components/map/ArcadeMapLibreView';
 import { isOpenEventAvailable } from '../lib/duelExpiry.ts';
 import { LocateFixed } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
-import { useSupabaseUser } from '../hooks/useSupabaseUser';
+import type { UseSupabaseUserReturn } from '../hooks/useSupabaseUser';
 import { createDuel } from '../db/createDuel';
 import { getNearbyDuels } from '../db/getNearbyDuels';
 import { joinDuel } from '../db/joinDuel';
@@ -731,13 +731,13 @@ function AuthModal({
 }
 
 // Main Screen
-export default function MapScreen() {
+export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const { coords: userCoords, locationError, locating, requestOnce, insecureContext, unsupported } = useUserLocation();
   const liveUserCoordsRef = useRef(userCoords);
   liveUserCoordsRef.current = userCoords;
-  const { user: authUser, loading: authLoading, signIn, signUp, signOut } = useSupabaseUser();
+  const { user: authUser, signIn, signUp, signOut } = auth;
 
   // Neutral global overview when neither permission nor network IP lookup succeeds.
   // Do not suggest a real user location without a valid location fix.
@@ -801,8 +801,13 @@ export default function MapScreen() {
   const [finishSubmissionError, setFinishSubmissionError] = useState<string | null>(null);
   const latestFinishPayloadRef = useRef<PendingFinish | null>(null);
   const finishSubmittingRef = useRef<PendingFinish | null>(null);
-  const finishAccountRef = useRef<string | null>(null);
-  finishAccountRef.current = authUser?.id ?? null;
+  // App keys this screen by account. Retire the old instance synchronously
+  // during unmount, even before passive subscription cleanup runs.
+  const finishAccountRef = useRef<string | null>(authUser?.id ?? null);
+  React.useLayoutEffect(() => {
+    finishAccountRef.current = authUser?.id ?? null;
+    return () => { finishAccountRef.current = null; };
+  }, [authUser?.id]);
   const [matchOverlay, setMatchOverlay] = useState<{ duelId: string; startsAt: number; targetDistanceM: number } | null>(null);
   const [matchedDuel, setMatchedDuel] = useState<MatchedDuelState | null>(null);
   const [dismissedMatchId, setDismissedMatchId] = useState<string | null>(null);
@@ -829,7 +834,7 @@ export default function MapScreen() {
   const wakeStatus = useScreenWakeLock(Boolean(matchOverlay) || race.status === 'countdown' || race.status === 'running');
 
   const clearAbortedDuel = React.useCallback((duelId: string, remote: boolean) => {
-    if (activeDuelIdRef.current !== duelId) return;
+    if (!authUser || finishAccountRef.current !== authUser.id || activeDuelIdRef.current !== duelId) return;
     recoveryRevisionRef.current += 1;
     endedDuelIdsRef.current.add(duelId);
     activeDuelIdRef.current = null;
@@ -859,7 +864,7 @@ export default function MapScreen() {
   // Once the server confirms completed, both participants must see their
   // results. Do not mark the race as seen until THIS phone closes the overlay.
   const showCompletedDuel = React.useCallback((row: any) => {
-    if (!authUser || row?.status !== 'completed' || typeof row.id !== 'string' ||
+    if (!authUser || finishAccountRef.current !== authUser.id || row?.status !== 'completed' || typeof row.id !== 'string' ||
         endedDuelIdsRef.current.has(row.id) ||
         (row.host_user_id !== authUser.id && row.challenger_user_id !== authUser.id)) return;
     const active = activeDuelIdRef.current;
@@ -882,6 +887,7 @@ export default function MapScreen() {
   }, [authUser?.id]);
 
   const closeCompletedDuel = React.useCallback((duelId: string) => {
+    if (!authUser || finishAccountRef.current !== authUser.id) return;
     recoveryRevisionRef.current += 1;
     endedDuelIdsRef.current.add(duelId);
     if (activeDuelIdRef.current === duelId) activeDuelIdRef.current = null;
@@ -905,7 +911,7 @@ export default function MapScreen() {
   // A DB-confirmed match is authoritative. Realtime, a join response and
   // foreground recovery all use this same idempotent transition.
   const applyMatchedDuel = React.useCallback((row: any) => {
-    if (!authUser || row?.status !== 'matched' || typeof row.id !== 'string' ||
+    if (!authUser || finishAccountRef.current !== authUser.id || row?.status !== 'matched' || typeof row.id !== 'string' ||
         endedDuelIdsRef.current.has(row.id) ||
         (row.host_user_id !== authUser.id && row.challenger_user_id !== authUser.id)) return;
     recoveryRevisionRef.current += 1;
@@ -1372,6 +1378,7 @@ export default function MapScreen() {
         (payload: any) => {
           if (!lifetime.isActive()) return;
           const row: any = duelRealtimeRow(payload);
+          if (finishAccountRef.current !== authUser.id) return;
           if (!row) return;
 
           // DELETE supplies only the old primary key. Remove known local
@@ -1448,7 +1455,7 @@ export default function MapScreen() {
         }
       )
       .subscribe(status => {
-        if (!lifetime.isActive()) return;
+        if (!lifetime.isActive() || finishAccountRef.current !== authUser.id) return;
         setRealtimeConnected(status === 'SUBSCRIBED');
         // Reconcile the authoritative discovery list after (re)subscription.
         if (status === 'SUBSCRIBED') setDiscoveryRefreshTick(tick => tick + 1);
@@ -1536,6 +1543,7 @@ export default function MapScreen() {
       .eq('host_user_id', authUser.id)
       .in('status', ['open', 'matched'])
       .limit(1);
+    if (finishAccountRef.current !== authUser.id) return;
     if (activeCheckError) throw activeCheckError;
     if (activeHosted?.length) {
       throw new Error('Du hast bereits ein aktives Event. Schließe zuerst dein vorheriges Rennen ab oder storniere es.');
@@ -1547,6 +1555,7 @@ export default function MapScreen() {
       distanceKm: 1,
       targetDistanceM: distanceMeters,
     });
+    if (finishAccountRef.current !== authUser.id) return;
     if (error) throw error;
     if (!data?.id || data.status !== 'open' || !data.expires_at) {
       throw new Error('Renn-Erstellung wurde nicht bestätigt.');
@@ -1590,6 +1599,7 @@ export default function MapScreen() {
     setRaceNotice(null);
     try {
       const result = await cancelHostedOpenDuel(supabase, run.id, authUser.id);
+      if (finishAccountRef.current !== authUser.id) return;
       const message = cancelHostedDuelMessage(result);
       if (result.status === 'cancelled') {
         setHostedOpenDuels(previous => previous.filter(item => item.id !== run.id));
@@ -1605,6 +1615,7 @@ export default function MapScreen() {
         const { data: latest } = await supabase.from('duels')
           .select('id, status, host_user_id, challenger_user_id, target_distance_m, host_ready, challenger_ready, start_at')
           .eq('id', run.id).maybeSingle();
+        if (finishAccountRef.current !== authUser.id) return;
         if (latest?.status === 'matched') {
           applyMatchedDuel(latest);
           setCancelError(null);
@@ -1670,6 +1681,7 @@ export default function MapScreen() {
     }
     // Leave the countdown/race visible until Supabase confirms termination.
     const confirmed = await abortMatchedDuel(supabase, duelId);
+    if (finishAccountRef.current !== authUser.id) return;
     if (confirmed.id !== duelId || confirmed.status !== 'abandoned') {
       throw new Error('Der Server hat den Abbruch nicht bestätigt.');
     }
@@ -1685,6 +1697,7 @@ export default function MapScreen() {
     setReadyError(null);
     try {
       const { data, error } = await readyForDuel(supabase, matchedDuel.id);
+      if (finishAccountRef.current !== authUser.id) return;
       if (error) throw error;
       if (!data || data.id !== matchedDuel.id || data.status !== 'matched') {
         throw new Error('Der Server hat den Bereitschaftsstatus nicht bestätigt.');
@@ -1717,6 +1730,7 @@ export default function MapScreen() {
     try {
       // Inspect the RPC response, not just a Realtime event which iOS may miss.
       const confirmed = await joinDuel(supabase, run.id);
+      if (finishAccountRef.current !== authUser.id) return;
       if (confirmed.challenger_user_id !== authUser.id) {
         throw new Error('Beitritt nicht für dieses Konto bestätigt.');
       }
@@ -2049,6 +2063,7 @@ export default function MapScreen() {
           targetDistanceM={race.targetDistanceM}
           onAbort={() => confirmAbortMatchedDuel(race.duelId)}
           onFinish={(endedAt, metrics) => {
+            if (finishAccountRef.current !== authUser.id || endedDuelIdsRef.current.has(race.duelId)) return;
             const timeMs = Math.max(1, endedAt - race.startedAt);
             setRace({ status: 'finished', duelId: race.duelId,
               startedAt: race.startedAt, endedAt, targetDistanceM: race.targetDistanceM });
