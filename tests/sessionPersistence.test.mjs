@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { isNativeAuthRuntime } from '../src/lib/authRedirect.ts';
 
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
@@ -8,7 +9,21 @@ test('Supabase sessions persist between visits in the same browser without chang
   const client = read('src/lib/supabaseClient.ts');
   assert.match(client, /persistSession:\s*true/);
   assert.match(client, /autoRefreshToken:\s*true/);
-  assert.match(client, /detectSessionInUrl:\s*true/);
+  assert.match(client, /detectSessionInUrl:\s*!isNativeAuthRuntime\(\)/);
+  const previous=Object.getOwnPropertyDescriptor(globalThis,'window');
+  try {
+    for(const [href,expected] of [
+      ['https://runnit.example/login',true],
+      ['http://localhost:5173/login',true],
+      ['capacitor://localhost/login',false],
+    ]) {
+      Object.defineProperty(globalThis,'window',{configurable:true,value:{location:{href}}});
+      assert.equal(!isNativeAuthRuntime(),expected);
+    }
+  } finally {
+    if(previous) Object.defineProperty(globalThis,'window',previous);
+    else delete globalThis.window;
+  }
   assert.doesNotMatch(client, /storageKey:\s*['"]/);
   assert.doesNotMatch(client, /sessionStorage/);
 });

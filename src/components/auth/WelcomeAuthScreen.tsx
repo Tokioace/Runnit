@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import type { UseSupabaseUserReturn } from '../../hooks/useSupabaseUser';
 import LegalLinks from '../legal/LegalLinks';
-import type { SocialProvider } from '../../lib/authRedirect';
+import { isNativeAuthRuntime, type SocialProvider } from '../../lib/authRedirect';
 import AccountAuthPanel from '../profile/AccountAuthPanel';
 import { Link } from 'react-router-dom';
 
@@ -53,6 +53,7 @@ function authErrorMessage(error: unknown): string {
 }
 
 export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, verifyEmailOtp, signIn, signUp, loadError, onContinueAsGuest, initialMode = 'signin' }: Props) {
+  const nativeAuth = isNativeAuthRuntime();
   const [emailMode, setEmailMode] = useState<EmailMode>('password');
   const [email, setEmail] = useState('');
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
@@ -96,7 +97,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
       setEmailResendCooldown(60);
       setVerificationEmail(email.trim());
       setOtpCode('');
-      setNotice('Falls die E-Mail zugestellt wird, enthält sie deinen Anmeldelink. Wenn zusätzlich ein sechsstelliger Code enthalten ist, kannst du ihn direkt hier eingeben. Prüfe auch den Spamordner.');
+      setNotice(nativeAuth ? 'Falls die E-Mail zugestellt wird, gib den sechsstelligen Code hier ein. Ein Link allein meldet dich nicht in dieser App an. Prüfe auch den Spamordner.' : 'Falls die E-Mail zugestellt wird, enthält sie deinen Anmeldelink. Wenn zusätzlich ein sechsstelliger Code enthalten ist, kannst du ihn direkt hier eingeben. Prüfe auch den Spamordner.');
     } catch (e) {
       setError(authErrorMessage(e));
     } finally {
@@ -173,13 +174,14 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
               <AccountAuthPanel signIn={signIn} signUp={signUp} initialMode={initialMode} hideModeSwitch />
               {initialMode === 'signin' && (
                 <button type="button" onClick={openEmail} className="min-h-11 w-full rounded-xl text-center text-xs font-bold text-cyan-200 hover:text-white">
-                  Lieber ohne Passwort? Anmeldelink oder Code verwenden
+                  {nativeAuth ? 'Lieber ohne Passwort? E-Mail-Code verwenden' : 'Lieber ohne Passwort? Anmeldelink oder Code verwenden'}
                 </button>
               )}
-              <button type="button" onClick={() => { setEmailMode('hidden'); setError(null); setNotice(null); }}
+              {!nativeAuth && <button type="button" onClick={() => { setEmailMode('hidden'); setError(null); setNotice(null); }}
                 className="min-h-11 w-full rounded-xl border border-white/15 bg-white/5 px-4 text-center text-xs font-bold text-white/80 hover:bg-white/10">
                 Weitere Anmeldearten (Apple, Google, Facebook)
-              </button>
+              </button>}
+              {nativeAuth && <p className="text-xs leading-5 text-white/60">iOS-Vorschau: Anmeldung mit Passwort oder E-Mail-Code. Bestätige eine neue Registrierung zunächst im Browser und melde dich danach hier an.</p>}
             </div>
           ) : emailMode === 'hidden' ? (
             <div className="space-y-3 rounded-[26px] border border-violet-300/20 bg-[#11172b]/95 p-5">
@@ -210,7 +212,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
                 <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Zur Anmeldung mit Passwort
               </button>
               <h2 className="text-lg font-extrabold">Ohne Passwort anmelden</h2>
-              <p className="text-xs leading-5 text-white/60">Du erhältst einen Anmeldelink. Alternativ kannst du den sechsstelligen Code eingeben, falls er in der E-Mail steht.</p>
+              <p className="text-xs leading-5 text-white/60">{nativeAuth ? 'Fordere für dein bestehendes Konto einen sechsstelligen E-Mail-Code an. Der direkte Anmeldelink wird in der iOS-Vorschau noch nicht unterstützt.' : 'Du erhältst einen Anmeldelink. Alternativ kannst du den sechsstelligen Code eingeben, falls er in der E-Mail steht.'}</p>
               <form onSubmit={event => { void submitEmail(event); }} className="space-y-3">
                 <label htmlFor="welcome-email" className="block text-xs font-bold text-white/75">E-Mail-Adresse</label>
                 <input id="welcome-email" type="email" required autoComplete="email" inputMode="email"
@@ -219,7 +221,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
                   className="min-h-14 w-full rounded-2xl border border-white/20 bg-[#0d1322] px-4 text-sm text-white outline-none placeholder:text-white/30 focus:ring-2 focus:ring-cyan-300/50" />
                 <button type="submit" disabled={Boolean(pending) || emailResendCooldown > 0}
                   className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-4 text-sm font-extrabold text-[#061027] transition hover:brightness-110 disabled:opacity-50">
-                  {pending === 'email' ? 'E-Mail wird angefordert …' : emailResendCooldown > 0 ? `Erneut senden in ${emailResendCooldown} s` : verificationEmail ? 'Neuen Link oder Code senden' : 'Anmeldelink senden'}
+                  {pending === 'email' ? 'E-Mail wird angefordert …' : emailResendCooldown > 0 ? `Erneut senden in ${emailResendCooldown} s` : verificationEmail ? (nativeAuth ? 'Neuen Code senden' : 'Neuen Link oder Code senden') : (nativeAuth ? 'E-Mail-Code senden' : 'Anmeldelink senden')}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </button>
               </form>
@@ -228,7 +230,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
                   <p className="flex items-center gap-2 text-xs font-bold text-emerald-200">
                     <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> E-Mail angefordert
                   </p>
-                  <label htmlFor="welcome-otp" className="block text-xs font-semibold text-white/75">Sechsstelliger E-Mail-Code (falls vorhanden)</label>
+                  <label htmlFor="welcome-otp" className="block text-xs font-semibold text-white/75">{nativeAuth ? 'Sechsstelliger E-Mail-Code' : 'Sechsstelliger E-Mail-Code (falls vorhanden)'}</label>
                   <input id="welcome-otp" name="one-time-code" type="text" inputMode="numeric"
                     autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required
                     value={otpCode} disabled={Boolean(pending)}
@@ -239,7 +241,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
                     className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-sm font-extrabold text-slate-950 disabled:opacity-50">
                     {pending === 'otp' ? 'Code wird geprüft …' : 'Mit Code anmelden'}
                   </button>
-                  <p className="text-[11px] leading-5 text-white/55">Der Code funktioniert im selben Browser. Falls du nur einen Link erhältst, muss die Supabase-Mailvorlage einen Code enthalten.</p>
+                  <p className="text-[11px] leading-5 text-white/55">{nativeAuth ? 'Falls du nur einen Link erhältst, fehlt der Code in der Supabase-Mailvorlage. Nutze bis dahin dein Passwort.' : 'Der Code funktioniert im selben Browser. Falls du nur einen Link erhältst, muss die Supabase-Mailvorlage einen Code enthalten.'}</p>
                 </form>
               )}
             </section>
@@ -268,7 +270,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
         </p>
         <p className="mt-5 flex gap-2 text-[11px] leading-5 text-white/40">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300/70" aria-hidden="true" />
-          Die Anmeldung erfolgt über Supabase Auth. Apple, Google und Facebook benötigen eine gesonderte Freischaltung.
+          {nativeAuth ? 'Die Anmeldung erfolgt über Supabase Auth. Die iOS-Vorschau unterstützt noch keine externen Anmeldeanbieter.' : 'Die Anmeldung erfolgt über Supabase Auth. Apple, Google und Facebook benötigen eine gesonderte Freischaltung.'}
         </p>
         <p className="mt-4 flex justify-center gap-2 text-[10px] font-semibold text-white/30">
           <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" /> Dein persönlicher Zugang

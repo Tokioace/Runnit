@@ -20,3 +20,22 @@ export function callbackHasError(search: string, hash: string): boolean {
   return Boolean(query.get('error') || query.get('error_code') ||
     fragment.get('error') || fragment.get('error_code'));
 }
+
+/** Capacitor's bundled iOS origin, not a remote website or a callback URL. */
+export function isBundledIosLocation(href: string): boolean {
+  try {
+    const url = new URL(href);
+    return url.protocol === 'capacitor:' && url.hostname === 'localhost' &&
+      !url.port && !url.username && !url.password;
+  } catch { return false; }
+}
+export function isNativeAuthRuntime(): boolean {
+  return typeof window !== 'undefined' && isBundledIosLocation(window.location.href);
+}
+
+/** Native preview supports code entry, not magic-link or OAuth deep links.
+ * Keep web redirects restricted to the existing HTTPS/localhost policy. */
+export function emailLoginOptions(href: string, origin: string) {
+  if (isBundledIosLocation(href)) return { shouldCreateUser: false } as const;
+  return { emailRedirectTo: authCallbackUrl(origin), shouldCreateUser: true } as const;
+}

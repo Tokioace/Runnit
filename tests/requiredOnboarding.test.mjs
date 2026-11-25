@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  AUTH_CALLBACK_PATH, authCallbackUrl, callbackHasError,
+  AUTH_CALLBACK_PATH, authCallbackUrl, callbackHasError, emailLoginOptions,
 } from '../src/lib/authRedirect.ts';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
@@ -38,8 +38,11 @@ test('welcome page offers four login methods and an explicit guest entry', () =>
 test('social auth and passwordless email do not use provider secrets inside browser code', () => {
   const hook = read('src/hooks/useSupabaseUser.ts');
   assert.match(hook, /provider,\s*options: \{ redirectTo: authCallbackUrl\(window\.location\.origin\) \}/);
-  assert.match(hook, /emailRedirectTo: authCallbackUrl\(window\.location\.origin\)/);
-  assert.match(hook, /shouldCreateUser: true/);
+  assert.match(hook, /options: emailLoginOptions\(window\.location\.href, window\.location\.origin\)/);
+  assert.equal(emailLoginOptions('https://runnit.example/login','https://runnit.example').shouldCreateUser,true);
+  assert.equal(emailLoginOptions('https://runnit.example/login','https://runnit.example').emailRedirectTo,'https://runnit.example/auth/callback');
+  assert.deepEqual(emailLoginOptions('capacitor://localhost/login','null'),{shouldCreateUser:false});
+  assert.doesNotMatch(read('src/lib/authRedirect.ts'), /client_secret|private_key|facebook_secret/i);
   assert.doesNotMatch(hook, /client_secret|private_key|facebook_secret/i);
 });
 
