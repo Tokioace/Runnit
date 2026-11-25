@@ -31,5 +31,6 @@ jobs:
           DB_CONTAINER: ${{ job.services.postgres.id }}
         run: |
           docker cp db/release-candidates/duel_result_guard.sql "$DB_CONTAINER:/tmp/duel_result_guard.sql"
+          docker cp db/release-candidates/beta_ranking_guard.sql "$DB_CONTAINER:/tmp/beta_ranking_guard.sql"
           docker cp db/release-candidates/test_duel_result_guard.sql "$DB_CONTAINER:/tmp/test_duel_result_guard.sql"
           docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_test -v ON_ERROR_STOP=1 -f /tmp/test_duel_result_guard.sql
