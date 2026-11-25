@@ -1,6 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {Link} from 'react-router-dom';
 import {nativeProbeForWindow,nativeReferenceDifference,nativeStepDifference,type ProbeReport} from '../lib/nativeSensorProbe';
+import {assessNativeConsistency,nativeConsistencyReason} from '../lib/nativeSensorConsistency';
 
 export default function NativeSensorScreen(){
  const api=useRef<ReturnType<typeof nativeProbeForWindow>>(null);
@@ -82,6 +83,7 @@ export default function NativeSensorScreen(){
  };
  const sprint=report?.sprint;
  const analysis=report?.motionAnalysis;
+ const consistency=report&&report.status!=='running'&&sprint?assessNativeConsistency(report):null;
  const stepDifference=analysis?nativeStepDifference(analysis.candidates,manualSteps):null;
  const difference=nativeReferenceDifference(sprint?.finishMs??null,reference);
  return <main className="min-h-[100dvh] bg-[#080b13] px-4 py-8 text-white">
@@ -112,6 +114,17 @@ export default function NativeSensorScreen(){
      <p>{difference===null?'Keine auswertbare Referenzzeit.':'GPS minus Referenz: '+(difference>=0?'+':'')+difference.toFixed(3)+' s'}</p>
      <p className="text-xs text-white/60">Gleicher manueller Start und gleiche markierte Ziellinie. GPS-Schätzung, kein offizielles Ergebnis.</p>
     </div>}
+   </section>}
+   {consistency&&<section className="space-y-3 rounded-xl border border-white/15 p-4">
+    <h2 className="font-bold">GPS + Bewegung · Konsistenztest</h2>
+    <p className="font-semibold">{consistency.status==='compatible'?'Messwerte vereinbar':consistency.status==='discrepancy'?'Auffällige Abweichung':'Nicht ausreichend beurteilbar'}</p>
+    {consistency.reasons.map(reason=><p key={reason} className="text-sm text-white/75">{nativeConsistencyReason[reason]??reason}</p>)}
+    <dl className="grid grid-cols-2 gap-3 text-sm">
+     <div><dt>Ø GPS-Tempo</dt><dd>{consistency.averageSpeedMps===null?'—':(consistency.averageSpeedMps*3.6).toFixed(1)+' km/h'}</dd></div>
+     <div><dt>Distanz pro Kandidat</dt><dd>{consistency.metersPerCandidate===null?'—':consistency.metersPerCandidate.toFixed(2)+' m'}</dd></div>
+     <div><dt>Kandidaten/min</dt><dd>{consistency.candidatesPerMinute===null?'—':consistency.candidatesPerMinute.toFixed(1)}</dd></div>
+    </dl>
+    <p className="text-xs leading-5 text-white/60">Experimentelle Grenzwerte, nicht validiert. Auffälligkeiten können durch Trageposition, GPS-Fehler oder fehlende Sensorwerte entstehen. Keine Betrugsfeststellung und keine Ranglistenfreigabe.</p>
    </section>}
    {analysis&&<section className="space-y-3 rounded-xl border border-white/15 p-4">
     <h2 className="font-bold">Bewegungsanalyse · {analysis.window==='sprint'?'Sprintfenster':'Gesamttest'}</h2>
