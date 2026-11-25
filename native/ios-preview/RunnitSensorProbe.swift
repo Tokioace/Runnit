@@ -31,6 +31,7 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
     private var lastMotion: Double?
     private var motionAvailable = false
     private var observer: NSObjectProtocol?
+    private var sceneObserver: NSObjectProtocol?
     private var latestGoodFix: CLLocation?
     private var sprintAnchor: CLLocation?
     private var sprintPrevious: CLLocation?
@@ -43,9 +44,14 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
     public override func load() {
         observer = NotificationCenter.default.addObserver(forName: UIApplication.willResignActiveNotification,
             object: nil, queue: .main) { [weak self] _ in self?.finish("interrupted") }
+        // UIScene can deactivate without the legacy application callback.
+        // Conservative: stop for any scene deactivation, never continue capture.
+        sceneObserver = NotificationCenter.default.addObserver(forName: UIScene.willDeactivateNotification,
+            object: nil, queue: .main) { [weak self] _ in self?.finish("interrupted") }
     }
     deinit {
         if let observer = observer { NotificationCenter.default.removeObserver(observer) }
+        if let sceneObserver = sceneObserver { NotificationCenter.default.removeObserver(sceneObserver) }
         timer?.invalidate()
         motion.stopDeviceMotionUpdates()
     }

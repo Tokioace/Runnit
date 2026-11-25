@@ -19,7 +19,23 @@ test('macOS build is manual, unsigned and separate from production deployment',(
  assert.match(flow,/github.event_name == 'workflow_dispatch' && inputs.build_simulator/);
  assert.match(flow,/runnit-preview\.invalid/);
  assert.match(script,/CODE_SIGNING_ALLOWED=NO/);
- assert.match(script,/NSLocationWhenInUseUsageDescription/);
- assert.match(script,/NSMotionUsageDescription/);
- assert.doesNotMatch(script,/NSMicrophoneUsageDescription|exportArchive/);
+ const verifier=read('scripts/verify-ios-project.py');
+ assert.match(verifier,/NSLocationWhenInUseUsageDescription/);
+ assert.match(verifier,/NSMotionUsageDescription/);
+ assert.match(verifier,/NSMicrophoneUsageDescription.*UIBackgroundModes/);
+ assert.doesNotMatch(script,/exportArchive/);
+});
+
+test('Linux generates the actual native project; macOS compiles the same artifact',()=>{
+ const flow=read('.github/workflows/ios-preview.yml');
+ const script=read('scripts/build-ios-preview.sh');
+ const verifier=read('scripts/verify-ios-project.py');
+ assert.match(flow,/bash build-ios-preview.sh --prepare-only/);
+ assert.match(script,/cap add ios --packagemanager SPM/);
+ assert.match(script,/swiftc -frontend -parse ios\/App\/App\/SceneDelegate.swift/);
+ assert.doesNotMatch(flow,/fixture-scene/);
+ assert.match(flow,/tar -czf/);
+ assert.match(flow,/bash build-ios-preview.sh --compile-only/);
+ assert.match(script,/python3 verify-ios-project.py --verify/);
+ assert.match(verifier,/prepared project input changed/);
 });

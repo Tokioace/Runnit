@@ -6,6 +6,7 @@ on:
       - 'native/ios-preview/**'
       - '.github/workflows/ios-preview.yml'
       - 'scripts/build-ios-preview.sh'
+      - 'scripts/verify-ios-project.py'
       - 'scripts/install-ios-vault.py'
       - 'src/lib/nativeAuthStorage.ts'
       - 'src/lib/nativeSensorProbe.ts'
@@ -30,7 +31,7 @@ permissions:
 
 jobs:
   prepare:
-    name: Bundle web assets and resolve isolated iOS lockfile
+    name: Generate and validate actual native iOS project
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -52,21 +53,17 @@ jobs:
           mkdir -p "$RUNNER_TEMP/runnit-ios-preview/www"
           cp native/ios-preview/package.json native/ios-preview/capacitor.config.json "$RUNNER_TEMP/runnit-ios-preview/"
           cp -R dist/. "$RUNNER_TEMP/runnit-ios-preview/www/"
-          cp scripts/build-ios-preview.sh scripts/install-ios-vault.py native/ios-preview/RunnitSessionVault.swift native/ios-preview/RunnitSensorProbe.swift native/ios-preview/RunnitSprintEstimator.swift "$RUNNER_TEMP/runnit-ios-preview/"
+          cp scripts/build-ios-preview.sh scripts/verify-ios-project.py scripts/install-ios-vault.py native/ios-preview/RunnitSessionVault.swift native/ios-preview/RunnitSensorProbe.swift native/ios-preview/RunnitSprintEstimator.swift "$RUNNER_TEMP/runnit-ios-preview/"
           cd "$RUNNER_TEMP/runnit-ios-preview"
           test -f www/index.html
-          printf 'window?.rootViewController = CAPBridgeViewController()\n' > fixture-scene.swift
-          python3 install-ios-vault.py fixture-scene.swift RunnitSessionVault.swift RunnitSensorProbe.swift RunnitSprintEstimator.swift
-          grep -q 'rootViewController = RunnitBridgeViewController()' fixture-scene.swift
-          grep -q 'registerPluginInstance(RunnitSessionVault())' fixture-scene.swift
-          grep -q 'registerPluginInstance(RunnitSensorProbe())' fixture-scene.swift
-          grep -q 'class RunnitSensorProbe' fixture-scene.swift
-          rm fixture-scene.swift
           npm install --package-lock-only --ignore-scripts
           npm ci --ignore-scripts
           npm audit --audit-level=high
           ./node_modules/.bin/cap --version
+          bash build-ios-preview.sh --prepare-only
+          python3 verify-ios-project.py --verify
           rm -rf node_modules
+          tar -czf "$RUNNER_TEMP/runnit-ios-project.tar.gz" -C "$RUNNER_TEMP/runnit-ios-preview" .
       - name: Run pure Swift sprint estimator tests on Linux
         run: |
           swiftc native/ios-preview/RunnitSprintEstimator.swift native/ios-preview/tests/main.swift -o "$RUNNER_TEMP/runnit-sprint-tests"
@@ -74,7 +71,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: runnit-ios-preview-input
-          path: ${{ runner.temp }}/runnit-ios-preview/
+          path: ${{ runner.temp }}/runnit-ios-project.tar.gz
           retention-days: 7
           if-no-files-found: error
 
@@ -92,9 +89,12 @@ jobs:
         with:
           name: runnit-ios-preview-input
           path: ${{ runner.temp }}/runnit-ios-preview
-      - name: Generate and compile native shell
+      - name: Extract checked native project
         working-directory: ${{ runner.temp }}/runnit-ios-preview
-        run: bash build-ios-preview.sh
+        run: tar -xzf runnit-ios-project.tar.gz && rm runnit-ios-project.tar.gz
+      - name: Compile the checked native shell
+        working-directory: ${{ runner.temp }}/runnit-ios-preview
+        run: bash build-ios-preview.sh --compile-only
       - uses: actions/upload-artifact@v4
         with:
           name: runnit-ios-simulator-app

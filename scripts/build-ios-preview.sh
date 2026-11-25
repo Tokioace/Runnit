@@ -1,26 +1,29 @@
 #!/usr/bin/env bash
 # Run in the isolated shell directory, never in the web project's root.
 set -euo pipefail
+mode="${1:---compile-only}"
+[[ $# -le 1 && ( "$mode" == --prepare-only || "$mode" == --compile-only ) ]] || { echo "Unknown preview mode"; exit 1; }
+[[ -f capacitor.config.json && -f package-lock.json && -f www/index.html ]] || { echo "Prepared shell input required"; exit 1; }
+if [[ "$mode" == --prepare-only ]]; then
+  [[ ! -e ios ]] || { echo "Use a fresh preview directory; existing iOS project will not be overwritten"; exit 1; }
+  # npm ci was run by the Linux preparation job.
+  [[ -x ./node_modules/.bin/cap ]]
+  ./node_modules/.bin/cap add ios --packagemanager SPM
+  ./node_modules/.bin/cap sync ios
+  python3 install-ios-vault.py ios/App/App/SceneDelegate.swift RunnitSessionVault.swift RunnitSensorProbe.swift RunnitSprintEstimator.swift
+  python3 verify-ios-project.py --prepare
+  swiftc -frontend -parse ios/App/App/SceneDelegate.swift
+  exit 0
+fi
 [[ "$(uname -s)" == Darwin ]] || { echo "macOS required"; exit 1; }
-[[ -f capacitor.config.json && -f package-lock.json && -f www/index.html ]] || { echo "Prepared shell artifact required"; exit 1; }
-[[ ! -e ios ]] || { echo "Use a fresh preview directory; no existing iOS project will be overwritten"; exit 1; }
 xcodebuild -version
 major="$(xcodebuild -version | awk '/^Xcode / {split($2,v,".");print v[1]}')"
 [[ "$major" =~ ^[0-9]+$ && "$major" -ge 26 ]] || { echo "Xcode 26+ required"; exit 1; }
 npm ci --ignore-scripts
-./node_modules/.bin/cap add ios --packagemanager SPM
-./node_modules/.bin/cap sync ios
-python3 install-ios-vault.py ios/App/App/SceneDelegate.swift RunnitSessionVault.swift RunnitSensorProbe.swift RunnitSprintEstimator.swift
-plist=ios/App/App/Info.plist
-[[ -f "$plist" ]]
-set_plist() {
-  /usr/libexec/PlistBuddy -c "Set :$1 $2" "$plist" 2>/dev/null ||
-    /usr/libexec/PlistBuddy -c "Add :$1 string $2" "$plist"
-}
-set_plist NSLocationWhenInUseUsageDescription "RUNNIT verwendet deinen Standort für die Kartensuche und experimentelle Laufmessungen."
-set_plist NSMotionUsageDescription "RUNNIT verwendet Bewegungssensoren zur experimentellen Schritt- und Sprintmessung."
-plutil -lint "$plist"
-# Simulator only; not signed, not an archive, no App Store upload.
+# Compile exactly the project generated and checked by the preparation job.
+# Do not regenerate the template or modify the permission descriptions.
+python3 verify-ios-project.py --verify
+plutil -lint ios/App/App/Info.plist
 xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
   -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath "$PWD/derived" CODE_SIGNING_ALLOWED=NO build
