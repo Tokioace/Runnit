@@ -27,7 +27,7 @@ function aggregateMetrics(value: unknown): DuelMetrics | undefined {
     const fields: Record<string, unknown> = finiteFields(diagnostic, ['avgAccuracyM','samplesUsed','rejectedSamples','staleFixes','motionCoverage','motionSamples','motionGapCount','sprintCadenceSpm']);
     if (typeof diagnostic.usedPrestartFix === 'boolean') fields.usedPrestartFix = diagnostic.usedPrestartFix;
     if (diagnostic.measurement === 'gps-displacement-v1') fields.measurement = diagnostic.measurement;
-    if (['consistent','uncertain','incomplete'].includes(String(diagnostic.motionEvidence))) fields.motionEvidence = diagnostic.motionEvidence;
+    if (typeof diagnostic.motionEvidence === 'string' && ['consistent','uncertain','incomplete'].includes(diagnostic.motionEvidence)) fields.motionEvidence = diagnostic.motionEvidence;
     fields.verification = 'unverified';
     result.metricsJson = fields;
   }
