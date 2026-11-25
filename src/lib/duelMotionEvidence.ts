@@ -45,7 +45,11 @@ export function motionEventSample(
 export class DuelMotionCapture {
   private samples: SprintMotionSample[] = [];
   private truncated = false;
-  constructor(private readonly startedAtMs: number) {}
+  private readonly startedAtMs: number;
+
+  constructor(startedAtMs: number) {
+    this.startedAtMs = startedAtMs;
+  }
 
   push(sample: SprintMotionSample): boolean {
     if (!Number.isFinite(sample.timestampMs) || sample.timestampMs < this.startedAtMs ||
