@@ -1,0 +1,34 @@
+name: Hosted synthetic Auth API smoke
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_synthetic:
+        description: 'Run against approved synthetic-only Supabase test project'
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  smoke:
+    if: github.ref == 'refs/heads/develop' && inputs.confirm_synthetic
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: runnit-synthetic-api-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify hosted test Auth and protected REST reads
+        env:
+          RUNNIT_NATIVE_TEST_REF: ${{ vars.RUNNIT_NATIVE_TEST_REF }}
+          RUNNIT_NATIVE_TEST_DATA_CONFIRMED: ${{ vars.RUNNIT_NATIVE_TEST_DATA_CONFIRMED }}
+          RUNNIT_NATIVE_TEST_PUBLISHABLE_KEY: ${{ secrets.RUNNIT_NATIVE_TEST_PUBLISHABLE_KEY }}
+          RUNNIT_API_TEST_EMAIL_A: ${{ secrets.RUNNIT_API_TEST_EMAIL_A }}
+          RUNNIT_API_TEST_EMAIL_B: ${{ secrets.RUNNIT_API_TEST_EMAIL_B }}
+          RUNNIT_API_TEST_PASSWORD_A: ${{ secrets.RUNNIT_API_TEST_PASSWORD_A }}
+          RUNNIT_API_TEST_PASSWORD_B: ${{ secrets.RUNNIT_API_TEST_PASSWORD_B }}
+          RUNNIT_API_TEST_ID_A: ${{ secrets.RUNNIT_API_TEST_ID_A }}
+          RUNNIT_API_TEST_ID_B: ${{ secrets.RUNNIT_API_TEST_ID_B }}
+        run: node scripts/hosted-auth-smoke.mjs
