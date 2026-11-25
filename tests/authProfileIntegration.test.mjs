@@ -15,7 +15,7 @@ test('app allows opt-in guests to browse and preserves explicit login route', ()
 });
 
 test('Authenticated profiles show live account details and safe ranking opt-in', () => {
-  const s=read('src/screens/ProfileScreen.tsx');assert.match(s,/useSupabaseUser\(\)/);assert.match(s,/<AccountDetailsPanel/);assert.match(s,/\.update\(\{ leaderboard_opt_in: next \}\)/);assert.doesNotMatch(s,/Runner8|9\.33\s?s|Demo-Profil|<AccountAuthPanel/);
+  const s=read('src/screens/ProfileScreen.tsx');assert.match(s,/const \{ user, loading, signOut, updateDisplayName, changePassword, beginAccountMutation \} = auth;/);assert.match(read('src/App.tsx'), /<ProfileScreen key=\{auth\.user\?\.id \?\? 'guest'\} auth=\{auth\}/);assert.match(s,/<AccountDetailsPanel/);assert.match(s,/\.update\(\{ leaderboard_opt_in: next \}\)/);assert.doesNotMatch(s,/Runner8|9\.33\s?s|Demo-Profil|<AccountAuthPanel/);
 });
 
 test('account flows stay within Supabase Auth and never store passwords in custom browser storage', () => {
