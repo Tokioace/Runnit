@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { createAuthSnapshotGuard } from '../lib/authSnapshotGuard';
 import {
   getAccountDisplayName, getAccountDisplayNameError, normalizeDisplayName,
 } from '../lib/accountProfile';
@@ -35,33 +36,34 @@ export function useSupabaseUser() {
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    let isMounted = true;
+    const guard = createAuthSnapshotGuard();
+    const initialRevision = guard.capture();
     const init = async () => {
       try {
         const { data, error } = await supabase.auth.getSession();
-        if (!isMounted) return;
+        if (!guard.isCurrent(initialRevision)) return;
         if (error) throw error;
         setUser(toAuthUser(data.session?.user));
         setLoadError(false);
       } catch {
-        if (!isMounted) return;
+        if (!guard.isCurrent(initialRevision)) return;
         setLoadError(true);
         setUser(null);
       } finally {
-        if (isMounted) setLoading(false);
+        if (guard.isCurrent(initialRevision)) setLoading(false);
       }
     };
     void init();
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!isMounted) return;
+      if (!guard.acceptEvent()) return;
       setUser(toAuthUser(session?.user));
       setLoading(false);
       setLoadError(false);
     });
 
     return () => {
-      isMounted = false;
+      guard.close();
       sub.subscription.unsubscribe();
     };
   }, []);
@@ -141,8 +143,8 @@ export function useSupabaseUser() {
     const synced = await supabase.from('users')
       .update({ username: nickname }).eq('id', data.user.id)
       .select('username').single();
-    // onAuthStateChange USER_UPDATED also updates all other mounted consumers.
-    setUser(toAuthUser(data.user));
+    // USER_UPDATED already updates every mounted consumer. Do not restore
+    // the older identity here after the asynchronous profile row sync.
     if (synced.error || synced.data?.username !== nickname) {
       throw new Error('Profilname geändert, aber die Rangliste konnte nicht synchronisiert werden. Bitte erneut speichern.');
     }
@@ -152,7 +154,8 @@ export function useSupabaseUser() {
   const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
-    setUser(null);
+    // SIGNED_OUT is the authoritative update; a late operation completion
+    // must not clear a newer sign-in.
   }, []);
 
   return { user, loading, loadError, signIn, signUp, signInWithProvider, sendMagicLink, verifyEmailOtp, changePassword, updateDisplayName, signOut } as const;
