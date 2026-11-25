@@ -65,12 +65,30 @@ INSERT INTO public.users(id,username) VALUES('90000000-0000-4000-8000-0000000000
   SELECT 1/0;
 \endif
 ROLLBACK;
-\ir duel_result_guard.sql
-\ir beta_ranking_guard.sql
-\ir account_deletion_requests.sql
-\ir account_erasure_guard.sql
-\ir shared_duel_erasure.sql
-\ir session_access_guard.sql
+-- Marker exists only in this disposable schema fixture.
+CREATE SCHEMA runnit_rehearsal_fixture;
+REVOKE ALL ON SCHEMA runnit_rehearsal_fixture FROM PUBLIC,anon,authenticated;
+-- Run all six candidates as one transaction and prove that rollback restores
+-- the baseline (including absence of new tables, constraints and policies).
+\ir release_bundle/rehearse-rollback.sql
+\ir release_preflight_ci.sql
+\if :preflight_preflight_pass
+\else
+  \echo Atomic rollback did not restore preflight
+  SELECT 1/0;
+\endif
+DO $rollback$
+BEGIN
+ IF to_regnamespace('runnit_private') IS NOT NULL
+ OR to_regnamespace('runnit_session_private') IS NOT NULL
+ OR to_regclass('public.duel_results_one_per_runner_uidx') IS NOT NULL THEN
+   RAISE EXCEPTION 'Candidate objects remained after rollback';
+ END IF;
+END
+$rollback$;
+-- Install exactly the same payload with COMMIT, then run existing tests.
+\ir release_bundle/rehearse-install.sql
+-- The test-only admin helper is deliberately outside the six-candidate bundle.
 \ir test_only_erasure_gate.sql
 -- Start a separate transaction AFTER migration replay so SET LOCAL and
 -- transaction-local synthetic JWT claims remain active until ROLLBACK.
