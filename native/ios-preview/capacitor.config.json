@@ -1,0 +1,14 @@
+{
+  "appId": "com.tokioace.runnit.preview",
+  "appName": "RUNNIT",
+  "webDir": "www",
+  "server": {
+    "hostname": "localhost",
+    "iosScheme": "capacitor"
+  },
+  "ios": {
+    "contentInset": "never",
+    "allowsLinkPreview": false,
+    "webContentsDebuggingEnabled": false
+  }
+}

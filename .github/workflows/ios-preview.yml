@@ -1,0 +1,81 @@
+name: iOS preview preparation
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'native/ios-preview/**'
+      - '.github/workflows/ios-preview.yml'
+      - 'scripts/build-ios-preview.sh'
+  workflow_dispatch:
+    inputs:
+      build_simulator:
+        description: 'Run optional macOS simulator build (uses hosted runner minutes)'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Bundle web assets and resolve isolated iOS lockfile
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Build non-production preview assets
+        env:
+          VITE_SUPABASE_URL: https://runnit-preview.invalid
+          VITE_SUPABASE_ANON_KEY: preview-not-a-real-key
+          VITE_ACCOUNT_DELETION_REQUESTS_ENABLED: 'false'
+          VITE_LEGAL_PAGES_ENABLED: 'false'
+        run: npm run build
+      - name: Prepare clean native shell without modifying root dependencies
+        run: |
+          mkdir -p "$RUNNER_TEMP/runnit-ios-preview/www"
+          cp native/ios-preview/package.json native/ios-preview/capacitor.config.json "$RUNNER_TEMP/runnit-ios-preview/"
+          cp -R dist/. "$RUNNER_TEMP/runnit-ios-preview/www/"
+          cp scripts/build-ios-preview.sh "$RUNNER_TEMP/runnit-ios-preview/"
+          cd "$RUNNER_TEMP/runnit-ios-preview"
+          test -f www/index.html
+          npm install --package-lock-only --ignore-scripts
+          npm ci --ignore-scripts
+          npm audit --audit-level=high
+          ./node_modules/.bin/cap --version
+          rm -rf node_modules
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runnit-ios-preview-input
+          path: ${{ runner.temp }}/runnit-ios-preview/
+          retention-days: 7
+          if-no-files-found: error
+
+  simulator:
+    name: Unsigned iOS simulator compilation
+    if: github.event_name == 'workflow_dispatch' && inputs.build_simulator
+    needs: prepare
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: runnit-ios-preview-input
+          path: ${{ runner.temp }}/runnit-ios-preview
+      - name: Generate and compile native shell
+        working-directory: ${{ runner.temp }}/runnit-ios-preview
+        run: bash build-ios-preview.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runnit-ios-simulator-app
+          path: ${{ runner.temp }}/runnit-ios-preview/derived/Build/Products/Debug-iphonesimulator/App.app
+          retention-days: 7
+          if-no-files-found: error
