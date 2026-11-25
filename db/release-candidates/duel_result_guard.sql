@@ -145,3 +145,13 @@ TO authenticated;
 -- Players must use the checked RPC, never edit/inject individual result rows.
 -- SELECT remains available under existing participant-only result RLS and RPC.
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON TABLE public.duel_results FROM authenticated;
+
+-- The current UI creates an open event using exactly these five columns.
+-- Prevent a client from seeding the start clock, ready flags, challenger,
+-- ID or lifecycle timestamps on INSERT. Existing join/ready RPCs own those.
+REVOKE INSERT ON TABLE public.duels FROM PUBLIC, anon, authenticated;
+REVOKE INSERT (id, host_user_id, location, max_distance_km, status, created_at,
+  challenger_user_id, target_distance_m, host_ready, challenger_ready, start_at,
+  expires_at, matched_at) ON TABLE public.duels FROM PUBLIC, anon, authenticated;
+GRANT INSERT (host_user_id, location, max_distance_km, target_distance_m, status)
+  ON TABLE public.duels TO authenticated;
