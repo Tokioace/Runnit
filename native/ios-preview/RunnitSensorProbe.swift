@@ -12,6 +12,7 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "startProbe", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readProbe", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "armSprint", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stopProbe", returnType: CAPPluginReturnPromise)
     ]
     private lazy var gps = CLLocationManager()
@@ -30,6 +31,12 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
     private var lastMotion: Double?
     private var motionAvailable = false
     private var observer: NSObjectProtocol?
+    private var latestGoodFix: CLLocation?
+    private var sprintAnchor: CLLocation?
+    private var sprintPrevious: CLLocation?
+    private var sprintStart: Date?
+    private var sprintUptime: Double?
+    private var sprint: RunnitSprintEstimator?
 
     public override func load() {
         observer = NotificationCenter.default.addObserver(forName: UIApplication.willResignActiveNotification,
@@ -50,6 +57,13 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
         ]
         if let accuracy = accuracy { result["accuracyM"] = accuracy }
         else { result["accuracyM"] = NSNull() }
+        if let sprint = sprint {
+            var metrics: [String: Any] = ["targetM": sprint.targetM, "distanceM": sprint.distanceM,
+                "accepted": sprint.accepted, "rejected": sprint.rejected, "invalid": sprint.invalid]
+            if let time = sprint.finishSeconds { metrics["finishMs"] = time * 1000 }
+            else { metrics["finishMs"] = NSNull() }
+            result["sprint"] = metrics
+        }
         return result
     }
     private func finish(_ reason: String) {
@@ -59,6 +73,8 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
         timer?.invalidate(); timer = nil
         gps.stopUpdatingLocation()
         motion.stopDeviceMotionUpdates()
+        latestGoodFix = nil; sprintAnchor = nil; sprintPrevious = nil
+        sprintStart = nil; sprintUptime = nil
     }
     @objc public func startProbe(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
@@ -80,6 +96,8 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
             self.startedWall = Date()
             self.elapsed = 0; self.fixes = 0; self.rejected = 0; self.accuracy = nil
             self.motionSamples = 0; self.motionGaps = 0; self.lastMotion = nil
+            self.latestGoodFix = nil; self.sprintAnchor = nil; self.sprintPrevious = nil
+            self.sprintStart = nil; self.sprintUptime = nil; self.sprint = nil
             self.motionAvailable = self.motion.isDeviceMotionAvailable
             self.status = "running"
             self.gps.desiredAccuracy = kCLLocationAccuracyBest
@@ -107,6 +125,26 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
             }
             self.timer = deadline
             RunLoop.main.add(deadline, forMode: .common)
+            call.resolve(self.report())
+        }
+    }
+    @objc public func armSprint(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard let id = call.getString("runId"), id == self.runID,
+                  self.status == "running", self.sprint == nil,
+                  UIApplication.shared.applicationState == .active,
+                  let raw = call.getString("targetM"), let target = Int(raw),
+                  let fix = self.latestGoodFix else { call.reject("Sprint not ready"); return }
+            let now = Date()
+            let uptime = ProcessInfo.processInfo.systemUptime
+            let age = now.timeIntervalSince(fix.timestamp)
+            guard age >= 0, age <= 3, uptime - self.started <= 15,
+                  abs(now.timeIntervalSince(self.startedWall) - (uptime - self.started)) <= 1,
+                  let estimator = RunnitSprintEstimator(targetM: target, anchorSeconds: -age)
+            else { call.reject("Fresh GPS fix and remaining test time required"); return }
+            self.sprint = estimator
+            self.sprintAnchor = fix; self.sprintPrevious = fix
+            self.sprintStart = now; self.sprintUptime = uptime
             call.resolve(self.report())
         }
     }
@@ -142,6 +180,22 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
             }
             fixes += 1
             accuracy = fix.horizontalAccuracy
+            if fix.horizontalAccuracy <= 15 && (latestGoodFix == nil || fix.timestamp > latestGoodFix!.timestamp) {
+                latestGoodFix = fix
+            }
+            if var measurement = sprint, let anchor = sprintAnchor, let previous = sprintPrevious,
+               let start = sprintStart, let uptime = sprintUptime, measurement.finishSeconds == nil, !measurement.invalid {
+                if abs(Date().timeIntervalSince(start) - (ProcessInfo.processInfo.systemUptime - uptime)) > 1 {
+                    measurement.invalidate(); sprint = measurement; finish("sensor-error"); return
+                }
+                let accepted = measurement.accept(seconds: fix.timestamp.timeIntervalSince(start),
+                    displacementM: fix.distance(from: anchor), segmentM: fix.distance(from: previous),
+                    accuracyM: fix.horizontalAccuracy)
+                sprint = measurement
+                if accepted { sprintPrevious = fix }
+                if measurement.invalid { finish("sensor-error"); return }
+                if measurement.finishSeconds != nil { finish("completed"); return }
+            }
         }
     }
     public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
