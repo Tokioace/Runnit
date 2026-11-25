@@ -9,6 +9,7 @@ on:
       - 'scripts/install-ios-vault.py'
       - 'src/lib/nativeAuthStorage.ts'
       - 'src/lib/nativeSensorProbe.ts'
+      - 'src/lib/nativeSensorConsistency.ts'
       - 'src/screens/NativeSensorScreen.tsx'
       - 'src/screens/GpsFieldTestScreen.tsx'
       - 'src/App.tsx'
