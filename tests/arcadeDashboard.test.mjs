@@ -54,6 +54,6 @@ test('Stats still owns personal weekly steps, and five bottom navigation links r
  assert.match(home,/LETZTES DUELL/);
  assert.match(stats,/DIESE <span>WOCHE/);
  assert.match(stats,/DUELL-<span>BILANZ/);
- assert.match(app,/<StatsScreen userId=\{auth.user\?\.id\}/);
+ assert.match(app,/<StatsScreen key=\{auth\.user\?\.id \?\? 'guest'\} userId=\{auth\.user\?\.id\}/);
  assert.doesNotMatch(home,/SCHRITTE|KALORIEN|runnit-game-activity/);
 });
