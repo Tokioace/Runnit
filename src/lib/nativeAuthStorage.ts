@@ -27,8 +27,9 @@ export function createNativeAuthStorage(bridge?:Bridge) {
       const result=await invoke('readSession',{key});
       if(!result||typeof result!=='object'||!('value' in result))throw new Error('Invalid native session response');
       const value=result.value;
-      if(value!==null&&typeof value!=='string')throw new Error('Invalid native session response');
-      return value;
+      if(value===null)return null;
+      if(typeof value==='string')return value;
+      throw new Error('Invalid native session response');
     },
     async setItem(key:string,value:string):Promise<void>{
       checkKey(key);

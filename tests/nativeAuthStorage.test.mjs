@@ -46,3 +46,10 @@ test('native vault has non-sync device-only protection and preview wiring',()=>{
  assert.equal(JSON.parse(read('native/ios-preview/capacitor.config.json')).loggingBehavior,'none');
  assert.match(read('scripts/build-ios-preview.sh'),/python3 install-ios-vault.py/);
 });
+
+test('native storage rejects malformed bridge payloads rather than coercing them',async()=>{
+ for(const response of [null,undefined,{}, {value:undefined},{value:0},{value:false},{value:['token']},{value:{token:'x'}}]) {
+  const adapter=createNativeAuthStorage({nativePromise:async()=>response});
+  await assert.rejects(adapter.getItem(key),/Invalid native session response/);
+ }
+});
