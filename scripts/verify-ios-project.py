@@ -46,7 +46,7 @@ def validate():
 
 def hashes():
     files = [ROOT / "package.json", ROOT / "package-lock.json", ROOT / "capacitor.config.json",
-             ROOT / "build-ios-preview.sh", ROOT / "verify-ios-project.py"]
+             ROOT / "build-ios-preview.sh", ROOT / "verify-ios-project.py", ROOT / "smoke-ios-preview.sh"]
     for folder in (ROOT / "www", ROOT / "ios"):
         files.extend(p for p in folder.rglob("*") if p.is_file() and not p.is_symlink())
     return {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)}

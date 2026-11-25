@@ -17,6 +17,7 @@ import WelcomeAuthScreen from './components/auth/WelcomeAuthScreen';
 import AuthCallbackScreen from './components/auth/AuthCallbackScreen';
 import { AUTH_CALLBACK_PATH, isNativeAuthRuntime } from './lib/authRedirect';
 import NativeSensorScreen from './screens/NativeSensorScreen';
+import { maybeRunPreviewSmoke } from './lib/nativePreviewSmoke';
 import { useSupabaseUser } from './hooks/useSupabaseUser';
 import LegalScreen from './screens/LegalScreen';
 import { legalPages } from './lib/legalPages';
@@ -78,6 +79,13 @@ export default function App() {
     }
     previousSignedInId.current = auth.user?.id ?? null;
   }, [auth.loading, auth.user?.id, navigate]);
+
+  // React effects run only after a successful commit of the welcome route.
+  useEffect(() => {
+    if (!auth.loading && !auth.user && location.pathname === '/') {
+      maybeRunPreviewSmoke(import.meta.env.VITE_IOS_PREVIEW_SMOKE);
+    }
+  }, [auth.loading, auth.user, location.pathname]);
 
   // Public legal pages must work without a completed authentication request.
   if (legalPages && (location.pathname === '/privacy' || location.pathname === '/terms' || location.pathname === '/imprint')) {
