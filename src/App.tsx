@@ -141,7 +141,7 @@ export default function App() {
         <Route path="/" element={<HomeScreen isSignedIn={Boolean(auth.user)} guestAccess={guestAccess} onStart={enterApp} onContinueAsGuest={enterGuestMode} />} />
         <Route path="/home" element={<DashboardScreen displayName={auth.user?.displayName} userId={auth.user?.id} />} />
         <Route path="/stats" element={<StatsScreen userId={auth.user?.id} />} />
-        <Route path="/map" element={<MapScreen />} />
+        <Route path="/map" element={<MapScreen key={auth.user?.id ?? 'guest'} auth={auth} />} />
         <Route path="/ghost-run" element={<GhostRunScreen />} />
         <Route path="/leaderboard" element={<LeaderboardScreen userId={auth.user?.id} displayName={auth.user?.displayName} />} />
         <Route path="/profile" element={<ProfileScreen />} />
