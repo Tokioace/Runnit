@@ -31,7 +31,7 @@ test('User information is private, optional and free of invented athlete achieve
 test('Profile retains editable account, privacy, calibration, diagnostics and guest links', () => {
   const s = read('src/screens/ProfileScreen.tsx');
   const account = read('src/components/profile/AccountDetailsPanel.tsx');
-  assert.match(s, /useSupabaseUser\(\)/);
+  assert.match(s, /const \{ user, loading, signOut, updateDisplayName, changePassword, beginAccountMutation \} = auth;/);
   assert.match(s, /<AccountDetailsPanel/);
   assert.match(s, /updateDisplayName=\{updateDisplayName\}/);
   assert.match(s, /changePassword=\{changePassword\}/);

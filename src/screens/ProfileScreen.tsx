@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import BottomNav from '../components/ui/BottomNav';
 import AccountDetailsPanel from '../components/profile/AccountDetailsPanel';
-import { useSupabaseUser } from '../hooks/useSupabaseUser';
+import type { UseSupabaseUserReturn } from '../hooks/useSupabaseUser';
 import LegalLinks from '../components/legal/LegalLinks';
 import { supabase } from '../lib/supabaseClient';
 import { useRunnerHistory } from '../hooks/useRunnerHistory';
@@ -129,8 +129,8 @@ const hubSections = [
   { id: 'badges', label: 'BADGES', Icon: Trophy },
 ] as const;
 
-export default function ProfileScreen() {
-  const { user, loading, signOut, updateDisplayName, changePassword } = useSupabaseUser();
+export default function ProfileScreen({ auth }: { auth: UseSupabaseUserReturn }) {
+  const { user, loading, signOut, updateDisplayName, changePassword, beginAccountMutation } = auth;
   const history = useRunnerHistory(user?.id);
   const [profile, setProfile] = useState<RunnerProfile>({ ...EMPTY_PROFILE });
   const [draft, setDraft] = useState<RunnerProfile>({ ...EMPTY_PROFILE });
@@ -230,11 +230,14 @@ export default function ProfileScreen() {
     if (saving) return false;
     setSaving(true); setError(null);
     try {
+      const assertCurrent = beginAccountMutation();
       const { data: identity, error: authError } = await supabase.auth.getUser();
+      assertCurrent();
       if (authError || identity.user?.id !== user.id) throw new Error('session');
       const { data, error: saveError } = await supabase.auth.updateUser({
         data: { runnit_profile_v1: next },
       });
+      assertCurrent();
       if (saveError || data.user?.id !== user.id) throw saveError || new Error('profile');
       setProfile(next); setDraft(next); setNotice('Profil gespeichert.');
       return true;
@@ -242,7 +245,7 @@ export default function ProfileScreen() {
       setError('Speichern fehlgeschlagen. Bitte prüfe deine Anmeldung.');
       return false;
     } finally { setSaving(false); }
-  }, [user?.id, saving]);
+  }, [user?.id, saving, beginAccountMutation]);
 
   async function submitProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -252,9 +255,11 @@ export default function ProfileScreen() {
     if (!user?.id || consentSaving || consentLoading) return;
     setConsentSaving(true); setConsentError('');
     try {
+      const assertCurrent = beginAccountMutation();
       const { data, error: updateError } = await supabase.from('users')
         .update({ leaderboard_opt_in: next }).eq('id', user.id)
         .select('leaderboard_opt_in').single();
+      assertCurrent();
       if (updateError || data?.leaderboard_opt_in !== next) throw updateError || new Error('not confirmed');
       setOptedIn(next);
     } catch {

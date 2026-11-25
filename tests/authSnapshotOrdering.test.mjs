@@ -56,7 +56,7 @@ test('hook guards all initial result paths and does not restore identities after
  assert.equal((init.match(/if \(!guard\.isCurrent\(initialRevision\)\) return;/g)||[]).length,2);
  assert.match(init,/if \(guard\.isCurrent\(initialRevision\)\) setLoading\(false\)/);
  assert.match(hook,/onAuthStateChange\(\(_event, session\) => \{\s*if \(!guard.acceptEvent\(\)\) return;/);
- assert.match(hook,/guard.close\(\);\s*sub.subscription.unsubscribe\(\)/);
+ assert.match(hook,/guard.close\(\);\s*mutationGuard.current.setAccount\(null\);\s*sub.subscription.unsubscribe\(\)/);
  const mutations=hook.slice(hook.indexOf('const updateDisplayName = useCallback'));
  assert.doesNotMatch(mutations,/setUser\(/);
 });

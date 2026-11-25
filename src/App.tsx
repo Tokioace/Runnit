@@ -144,7 +144,7 @@ export default function App() {
         <Route path="/map" element={<MapScreen key={auth.user?.id ?? 'guest'} auth={auth} />} />
         <Route path="/ghost-run" element={<GhostRunScreen />} />
         <Route path="/leaderboard" element={<LeaderboardScreen userId={auth.user?.id} displayName={auth.user?.displayName} />} />
-        <Route path="/profile" element={<ProfileScreen />} />
+        <Route path="/profile" element={<ProfileScreen key={auth.user?.id ?? 'guest'} auth={auth} />} />
         <Route path="/gps-lab" element={<GpsLabScreen />} />
         <Route path="/gps-field-test" element={<GpsFieldTestScreen />} />
         {isNativeAuthRuntime() && <Route path="/native-sensors" element={<NativeSensorScreen />} />}
