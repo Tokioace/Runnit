@@ -37,6 +37,8 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
     private var sprintStart: Date?
     private var sprintUptime: Double?
     private var sprint: RunnitSprintEstimator?
+    private var motionCapture = RunnitMotionCapture()
+    private var finalMotion: RunnitMotionSummary?
 
     public override func load() {
         observer = NotificationCenter.default.addObserver(forName: UIApplication.willResignActiveNotification,
@@ -46,6 +48,12 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
         if let observer = observer { NotificationCenter.default.removeObserver(observer) }
         timer?.invalidate()
         motion.stopDeviceMotionUpdates()
+    }
+    private func motionSummary() -> RunnitMotionSummary {
+        let start = sprintUptime ?? started
+        let end = sprintUptime.flatMap { t in sprint?.finishSeconds.map { t + $0 } }
+            ?? min(started + 30, started + elapsed)
+        return motionCapture.summarize(from: start, through: end)
     }
     private func report() -> [String: Any] {
         var result: [String: Any] = [
@@ -64,12 +72,21 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
             else { metrics["finishMs"] = NSNull() }
             result["sprint"] = metrics
         }
+        let summary = finalMotion ?? motionSummary()
+        var motionMetrics: [String: Any] = ["candidates": summary.candidates, "samples": summary.samples,
+            "gaps": summary.gaps, "coverage": summary.coverage, "state": summary.state,
+            "window": sprint == nil ? "probe" : "sprint"]
+        if let cadence = summary.cadence { motionMetrics["cadenceSpm"] = cadence }
+        else { motionMetrics["cadenceSpm"] = NSNull() }
+        result["motionAnalysis"] = motionMetrics
         return result
     }
     private func finish(_ reason: String) {
         guard status == "running" else { return }
         elapsed = ProcessInfo.processInfo.systemUptime - started
         status = reason
+        finalMotion = motionSummary()
+        motionCapture = RunnitMotionCapture()
         timer?.invalidate(); timer = nil
         gps.stopUpdatingLocation()
         motion.stopDeviceMotionUpdates()
@@ -96,6 +113,7 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
             self.startedWall = Date()
             self.elapsed = 0; self.fixes = 0; self.rejected = 0; self.accuracy = nil
             self.motionSamples = 0; self.motionGaps = 0; self.lastMotion = nil
+            self.motionCapture = RunnitMotionCapture(); self.finalMotion = nil
             self.latestGoodFix = nil; self.sprintAnchor = nil; self.sprintPrevious = nil
             self.sprintStart = nil; self.sprintUptime = nil; self.sprint = nil
             self.motionAvailable = self.motion.isDeviceMotionAvailable
@@ -118,6 +136,10 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
                     }
                     self.lastMotion = data.timestamp
                     self.motionSamples += 1
+                    // Core Motion userAcceleration is in g; convert to m/s².
+                    let a = data.userAcceleration
+                    let magnitude = sqrt(a.x*a.x + a.y*a.y + a.z*a.z) * 9.80665
+                    self.motionCapture.push(time: data.timestamp, magnitude: magnitude)
                 }
             }
             let deadline = Timer(timeInterval: 30, repeats: false) { [weak self] _ in

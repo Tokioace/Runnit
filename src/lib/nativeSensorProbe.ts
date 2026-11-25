@@ -1,9 +1,12 @@
 export type SprintProbeReport = Readonly<{targetM:50|75|100; distanceM:number; accepted:number; rejected:number; invalid:boolean; finishMs:number|null}>;
+export type MotionProbeAnalysis = Readonly<{candidates:number; samples:number; gaps:number; coverage:number;
+ cadenceSpm:number|null; state:'incomplete'|'insufficient'|'irregular'|'sprint-like'|'other-rhythm'; window:'probe'|'sprint'}>;
 export type ProbeReport = Readonly<{
  runId:string; status:'running'|'completed'|'stopped'|'interrupted'|'sensor-error';
  elapsedMs:number; gpsFixes:number; rejectedFixes:number; accuracyM:number|null;
  motionSamples:number; motionGaps:number; motionAvailable:boolean;
  sprint?:SprintProbeReport;
+ motionAnalysis?:MotionProbeAnalysis;
 }>;
 type Bridge={nativePromise(plugin:string,method:string,options:Record<string,string>):Promise<unknown>};
 const states=['running','completed','stopped','interrupted','sensor-error'];
@@ -33,9 +36,27 @@ export function parseProbeReport(raw:unknown,expected?:string):ProbeReport|null{
   }
   sprint={targetM:target,distanceM:s.distanceM,accepted:s.accepted,rejected:s.rejected,invalid:s.invalid,finishMs};
  }
+ let motionAnalysis:MotionProbeAnalysis|undefined;
+ if(r.motionAnalysis!==undefined){
+  if(!r.motionAnalysis||typeof r.motionAnalysis!=='object')return null;
+  const m=r.motionAnalysis as Record<string,unknown>;
+  if(!count(m.candidates)||!count(m.samples)||!count(m.gaps)||m.samples>3000||
+    m.samples>r.motionSamples||m.candidates>m.samples||m.gaps>m.samples||!numberIn(m.coverage,1)||
+    (m.window!=='probe'&&m.window!=='sprint')||m.window!==(sprint?'sprint':'probe')||
+    typeof m.state!=='string'||!['incomplete','insufficient','irregular','sprint-like','other-rhythm'].includes(m.state))return null;
+  let cadenceSpm:number|null=null;
+  const rhythmic=m.state==='sprint-like'||m.state==='other-rhythm';
+  if(rhythmic){
+    if(!numberIn(m.cadenceSpm,320)||m.cadenceSpm<=0||m.candidates<6||m.samples<10||m.gaps!==0||m.coverage<0.7)return null;
+    if((m.cadenceSpm>=140&&m.cadenceSpm<=300)!==(m.state==='sprint-like'))return null;
+    cadenceSpm=m.cadenceSpm;
+  }else if(m.cadenceSpm!==null)return null;
+  motionAnalysis={candidates:m.candidates,samples:m.samples,gaps:m.gaps,coverage:m.coverage,
+   cadenceSpm,state:m.state as MotionProbeAnalysis['state'],window:m.window};
+ }
  return {runId:r.runId,status:r.status as ProbeReport['status'],elapsedMs:r.elapsedMs,gpsFixes:r.gpsFixes,
     rejectedFixes:r.rejectedFixes,accuracyM:accuracy,motionSamples:r.motionSamples,
-    motionGaps:r.motionGaps,motionAvailable:r.motionAvailable,...(sprint?{sprint}:{})};
+    motionGaps:r.motionGaps,motionAvailable:r.motionAvailable,...(sprint?{sprint}:{}),...(motionAnalysis?{motionAnalysis}:{})};
 }
 export function createNativeProbe(bridge:Bridge){
  const invoke=(method:string,options:Record<string,string>={})=>bridge.nativePromise('RunnitSensorProbe',method,options);
@@ -68,4 +89,10 @@ export function nativeReferenceDifference(finishMs:number|null,reference:string)
  if(finishMs===null||!numberIn(finishMs,30000)||finishMs<=0||!/^\d{1,2}(?:[.,]\d{1,3})?$/.test(reference.trim()))return null;
  const seconds=Number(reference.trim().replace(',','.'));
  return seconds>0&&seconds<=30?finishMs/1000-seconds:null;
+}
+
+export function nativeStepDifference(candidates:number,reference:string):number|null {
+ if(!Number.isInteger(candidates)||candidates<0||candidates>3000||!/^\d{1,3}$/.test(reference.trim()))return null;
+ const counted=Number(reference.trim());
+ return counted<=300?candidates-counted:null;
 }

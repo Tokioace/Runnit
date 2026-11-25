@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {parseProbeReport,createNativeProbe,nativeReferenceDifference} from '../src/lib/nativeSensorProbe.ts';
+import {parseProbeReport,createNativeProbe,nativeReferenceDifference,nativeStepDifference} from '../src/lib/nativeSensorProbe.ts';
 const id='00000000-0000-4000-8000-000000000001';
 const report={runId:id,status:'running',elapsedMs:1000,gpsFixes:1,rejectedFixes:0,accuracyM:3,motionSamples:50,motionGaps:0,motionAvailable:true};
 test('only bounded aggregate diagnostics cross JS bridge',()=>{
@@ -56,4 +56,15 @@ test('arm command is explicit and scoped to supported distance and run',async()=
   assert.equal(method,'armSprint');assert.deepEqual(options,{runId:id,targetM:'50'});return report;
  }});
  await api.arm(id,50);await assert.rejects(api.arm(id,10));await assert.rejects(api.arm('bad',50));
+});
+
+test('motion summary validates cadence, window and coverage, discards raw data',()=>{
+ const motionAnalysis={candidates:20,samples:50,gaps:0,coverage:.9,cadenceSpm:200,state:'sprint-like',window:'probe'};
+ assert.deepEqual(parseProbeReport({...report,motionAnalysis:{...motionAnalysis,raw:[1]}}),{...report,motionAnalysis});
+ for(const bad of [{...motionAnalysis,samples:51},{...motionAnalysis,candidates:51},{...motionAnalysis,gaps:1},{...motionAnalysis,coverage:.2},{...motionAnalysis,cadenceSpm:100},{...motionAnalysis,window:'sprint'},{...motionAnalysis,state:'verified'}])assert.equal(parseProbeReport({...report,motionAnalysis:bad}),null);
+});
+test('manual step count is a separate diagnostic comparison',()=>{
+ assert.equal(nativeStepDifference(26,'25'),1);
+ assert.equal(nativeStepDifference(0,'0'),0);
+ for(const value of ['', '-1','25.2','1e2','301'])assert.equal(nativeStepDifference(25,value),null);
 });

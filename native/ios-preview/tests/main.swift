@@ -28,3 +28,33 @@ check(crossing.finishSeconds == nil, "crossing reset")
 check(crossing.accept(seconds: 10, displacementM: 56, segmentM: 3, accuracyM: 3), "confirm")
 check(abs((crossing.finishSeconds ?? -1)-8.25)<0.001, "interpolation")
 print("Swift sprint estimator synthetic tests passed")
+
+func syntheticMotion(_ period: Double, gap: Bool = false) -> RunnitMotionCapture {
+    var capture = RunnitMotionCapture()
+    for i in 0...500 {
+        let t = Double(i) * 0.02
+        if gap && t > 3 && t < 4 { continue }
+        let phase = t.truncatingRemainder(dividingBy: period)
+        let nearest = min(phase, period-phase)
+        capture.push(time:t, magnitude:0.5 + 8 * exp(-pow(nearest/0.035,2)))
+    }
+    return capture
+}
+let running = syntheticMotion(0.3)
+let rhythm = running.summarize(from: 0, through: 9)
+check(rhythm.state == "sprint-like", "synthetic running rhythm")
+check(abs((rhythm.cadence ?? 0)-200) < 1, "synthetic cadence")
+let clipped = running.summarize(from: 2, through: 5)
+check(clipped.candidates < rhythm.candidates && clipped.samples < rhythm.samples, "clip to actual sprint window")
+check(clipped.candidates >= 8 && clipped.candidates <= 11, "window peak count")
+let walking = syntheticMotion(0.6).summarize(from:0,through:9)
+check(walking.state == "other-rhythm", "walking not sprint rhythm")
+let missing = syntheticMotion(0.3,gap:true).summarize(from:0,through:9)
+check(missing.gaps == 1 && missing.cadence == nil && missing.state == "incomplete", "no cadence over gap")
+var stationary = RunnitMotionCapture()
+for i in 0...200 { stationary.push(time:Double(i)*0.02,magnitude:0.1) }
+stationary.push(time:4.1,magnitude:Double.nan)
+stationary.push(time:3,magnitude:10)
+let still = stationary.summarize(from:0,through:4)
+check(still.candidates == 0 && still.cadence == nil && still.samples == 201, "invalid and stationary samples")
+print("Swift motion candidate synthetic tests passed")
