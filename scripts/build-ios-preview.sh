@@ -10,6 +10,7 @@ major="$(xcodebuild -version | awk '/^Xcode / {split($2,v,".");print v[1]}')"
 npm ci --ignore-scripts
 ./node_modules/.bin/cap add ios --packagemanager SPM
 ./node_modules/.bin/cap sync ios
+python3 install-ios-vault.py ios/App/App/SceneDelegate.swift RunnitSessionVault.swift
 plist=ios/App/App/Info.plist
 [[ -f "$plist" ]]
 set_plist() {
