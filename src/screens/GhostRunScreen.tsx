@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Download, Flag, Footprints, Gauge, PauseCircle, Play, ShieldCheck, Timer, WifiOff } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
-import { useSupabaseUser } from '../hooks/useSupabaseUser';
+import type { UseSupabaseUserReturn } from '../hooks/useSupabaseUser';
+import { createMeasurementLifetime, measurementAccountCurrent } from '../lib/measurementLifetime';
 import { createGpsSprint, advanceGpsSprint, type GpsSprintState, type GpsSample } from '../lib/sprintGps';
 import { ghostSummary, safeNumber, type DiagnosticSummary, type MotionPermission } from '../lib/ghostRunSummary';
 import { isFreshStartFix, primeGpsSprint } from '../lib/gpsField';
@@ -28,8 +29,8 @@ const MAX_MOTION_SAMPLES = 30000;
 const MAX_GPS_SAMPLES = 3000;
 const MAX_RUN_MS = 5 * 60 * 1000;
 
-export default function GhostRunScreen() {
-  const { user, loading } = useSupabaseUser();
+export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }) {
+  const { user, loading, beginAccountMutation } = auth;
   const [phase, setPhase] = useState<Phase>('idle');
   const [target, setTarget] = useState<Target>(50);
   const [notice, setNotice] = useState('Ghost Run: allein laufen und echte Sensordaten sammeln.');
@@ -63,6 +64,8 @@ export default function GhostRunScreen() {
   const interruptedRef = useRef(false);
   const motionPermissionRef = useRef<MotionPermission>('unavailable');
   const savedRef = useRef(false);
+  const lifetime = useRef(createMeasurementLifetime());
+  const preparingRef = useRef(false);
   const unmountedRef = useRef(false);
   const audioPlayedRef = useRef(false);
   const wakeStatus = useScreenWakeLock(phase === 'running' || phase === 'countdown');
@@ -79,22 +82,28 @@ export default function GhostRunScreen() {
   }, []);
 
   const refreshSaved = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id || !lifetime.current.isActive()) return;
+    const isLive = lifetime.current.capture();
     const { data } = await supabase.from('ghost_run_sessions')
       .select('id,created_at,target_distance_m,run_state,elapsed_ms,steps_count,observed_distance_m')
       .eq('user_id', user.id).order('created_at', { ascending: false }).limit(6);
-    if (!unmountedRef.current && data) setSavedRuns(data as SavedRun[]);
+    if (isLive() && data) setSavedRuns(data as SavedRun[]);
   }, [user?.id]);
   useEffect(() => { void refreshSaved(); }, [refreshSaved]);
   useEffect(() => { saveEnabledRef.current = saveToAccount; }, [saveToAccount]);
 
   const saveSummary = useCallback(async (item: DiagnosticSummary) => {
-    if (!saveEnabledRef.current || !user?.id || savedRef.current) return;
+    if (!saveEnabledRef.current || !user?.id || savedRef.current || !lifetime.current.isActive()) return;
+    const isLive = lifetime.current.capture();
+    let assertAccount: () => void;
+    try { assertAccount = beginAccountMutation(); } catch { return; }
+    if (!measurementAccountCurrent(isLive, assertAccount)) return;
     savedRef.current = true; // a run can never be written twice from duplicate callbacks
     setSaveStatus('saving');
     const { error } = await supabase.from('ghost_run_sessions').insert({
       user_id: user.id, ...item, source: 'ios-web-beta',
     });
+    if (!measurementAccountCurrent(isLive, assertAccount)) return;
     if (error) {
       savedRef.current = false;
       setSaveStatus('error');
@@ -104,10 +113,10 @@ export default function GhostRunScreen() {
       setSavedMessage('Messzusammenfassung privat im Konto gespeichert. Keine Ranglistenwertung.');
       void refreshSaved();
     }
-  }, [user?.id, refreshSaved]);
+  }, [user?.id, refreshSaved, beginAccountMutation]);
 
   const stopRun = useCallback((reason: 'finished'|'stopped', message: string) => {
-    if (phaseRef.current !== 'running') return;
+    if (!lifetime.current.isActive() || phaseRef.current !== 'running') return;
     const state = activeRef.current;
     if (!state) return;
     setCurrentPhase(reason);
@@ -198,6 +207,12 @@ export default function GhostRunScreen() {
     if (!window.isSecureContext || !navigator.geolocation) {
       setCurrentPhase('error'); setNotice('GPS benötigt HTTPS und ein Gerät mit Ortungsdiensten.'); return;
     }
+    if (preparingRef.current || !lifetime.current.isActive()) return;
+    const isLive = lifetime.current.capture();
+    let assertAccount: () => void;
+    try { assertAccount = beginAccountMutation(); } catch { return; }
+    preparingRef.current = true;
+    try {
     // iOS gesture: request motion permission before any await or timers.
     let motion: MotionPermission = 'unavailable';
     try {
@@ -209,11 +224,13 @@ export default function GhostRunScreen() {
           ? await motionEvent.requestPermission() : 'granted';
       }
     } catch { motion = 'denied'; }
+    if (!measurementAccountCurrent(isLive, assertAccount)) return;
     motionPermissionRef.current = motion;
     setMotionPermission(motion);
     const { data: activeDuels, error: duelsError } = await supabase.from('duels')
       .select('id').or(`host_user_id.eq.${user.id},challenger_user_id.eq.${user.id}`)
       .in('status', ['open', 'matched']).limit(1);
+    if (!measurementAccountCurrent(isLive, assertAccount)) return;
     if (duelsError) {
       setCurrentPhase('error');
       setNotice('Aktive Rennen konnten nicht geprüft werden. Bitte erneut versuchen.');
@@ -239,6 +256,12 @@ export default function GhostRunScreen() {
       setCurrentPhase('error');
       setNotice('GPS konnte nicht gestartet werden.');
     }
+    } catch {
+      if (measurementAccountCurrent(isLive, assertAccount)) {
+        setCurrentPhase('error');
+        setNotice('Vorbereitung fehlgeschlagen. Bitte erneut versuchen.');
+      }
+    } finally { if (isLive()) preparingRef.current = false; }
   };
 
   // iOS may keep reporting an accurate *old* fix when the runner is standing
@@ -281,7 +304,7 @@ export default function GhostRunScreen() {
   };
 
   const beginCountdown = () => {
-    if (phaseRef.current !== 'ready') return;
+    if (!lifetime.current.isActive() || phaseRef.current !== 'ready') return;
     if (!isFreshStartFix(readyRef.current, Date.now())) {
       setCurrentPhase('acquiring');
       setNotice('GPS-Fix ist nicht mehr aktuell. Bitte auf ein neues Signal warten.');
@@ -309,7 +332,7 @@ export default function GhostRunScreen() {
   }, [phase, countdownAt, onGps]);
 
   const beginRun = () => {
-    if (phaseRef.current !== 'countdown') return;
+    if (!lifetime.current.isActive() || phaseRef.current !== 'countdown') return;
     const startMs = Date.now(); // actual clock when the countdown finishes, never a stale Safari timer
     const anchor = readyRef.current;
     // Countdown could have suspended in Safari. Do not silently start from stale GPS.
@@ -343,7 +366,7 @@ export default function GhostRunScreen() {
   useEffect(() => {
     if (phase !== 'running') return;
     const handler = (event: DeviceMotionEvent) => {
-      if (phaseRef.current !== 'running') return;
+      if (!lifetime.current.isActive() || phaseRef.current !== 'running') return;
       const a = event.acceleration;
       if (!a || a.x == null || a.y == null || a.z == null) return;
       const stamp = performance.now();
@@ -406,11 +429,19 @@ export default function GhostRunScreen() {
       window.removeEventListener('pagehide', pageHide);
     };
   }, [stopRun, setCurrentPhase]);
-  useEffect(() => {
+  useLayoutEffect(() => {
+    lifetime.current.open();
     unmountedRef.current = false;
+    preparingRef.current = false;
     return () => {
+      lifetime.current.close();
       unmountedRef.current = true;
+      phaseRef.current = 'idle';
       stopGps();
+      readyRef.current = null;
+      activeRef.current = null;
+      gpsTraceRef.current = [];
+      motionTraceRef.current = [];
     };
   }, [stopGps]);
 
