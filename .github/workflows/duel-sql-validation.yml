@@ -58,3 +58,10 @@ jobs:
           docker cp db/release-candidates/shared_duel_erasure.sql "$DB_CONTAINER:/tmp/shared_duel_erasure.sql"
           docker cp db/release-candidates/test_account_erasure_guard.sql "$DB_CONTAINER:/tmp/test_account_erasure_guard.sql"
           docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_test -v ON_ERROR_STOP=1 -f /tmp/test_account_erasure_guard.sql
+      - name: Verify revoked and mismatched session access
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker cp db/release-candidates/session_access_guard.sql "$DB_CONTAINER:/tmp/session_access_guard.sql"
+          docker cp db/release-candidates/test_session_access_guard.sql "$DB_CONTAINER:/tmp/test_session_access_guard.sql"
+          docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_test -v ON_ERROR_STOP=1 -f /tmp/test_session_access_guard.sql
