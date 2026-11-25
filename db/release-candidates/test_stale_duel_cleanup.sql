@@ -31,12 +31,23 @@ INSERT INTO cleanup_cases(label,initial_status,expiry_offset,matched_offset,star
  ('matched-overdue','matched',interval '-1 minute',interval '-31 minutes',NULL,'abandoned'),
  ('countdown','matched',interval '-3 hours',interval '-2 hours',interval '10 seconds','matched'),
  ('running-recent','matched',interval '-2 hours',interval '-2 hours',interval '-1 hour','matched'),
- ('running-before-deadline','matched',interval '-5 hours',interval '-4 hours 10 minutes',interval '-3 hours 59 minutes','matched'),
- ('running-boundary','matched',interval '-5 hours',interval '-4 hours 10 minutes',interval '-4 hours','abandoned'),
- ('running-overdue','matched',interval '-6 hours',interval '-5 hours',interval '-4 hours 1 minute','abandoned'),
+ ('running-before-deadline','matched',interval '-5 hours',-(interval '4 hours 10 minutes'),-(interval '3 hours 59 minutes'),'matched'),
+ ('running-boundary','matched',interval '-5 hours',-(interval '4 hours 10 minutes'),interval '-4 hours','abandoned'),
+ ('running-overdue','matched',interval '-6 hours',interval '-5 hours',-(interval '4 hours 1 minute'),'abandoned'),
  ('cancelled','cancelled',interval '-6 hours',NULL,NULL,'cancelled'),
  ('already-expired','expired',interval '-6 hours',NULL,NULL,'expired'),
  ('already-abandoned','abandoned',interval '-6 hours',interval '-5 hours',interval '-4 hours','abandoned');
+-- PostgreSQL applies signs to individual interval fields. Check that the
+-- two neighbors are actually one minute either side of the four-hour limit.
+DO $offsets$
+BEGIN
+ IF (SELECT EXTRACT(epoch FROM start_offset) FROM cleanup_cases WHERE label='running-before-deadline') IS DISTINCT FROM -14340::numeric
+ OR (SELECT EXTRACT(epoch FROM start_offset) FROM cleanup_cases WHERE label='running-boundary') IS DISTINCT FROM -14400::numeric
+ OR (SELECT EXTRACT(epoch FROM start_offset) FROM cleanup_cases WHERE label='running-overdue') IS DISTINCT FROM -14460::numeric THEN
+   RAISE EXCEPTION 'Fixture intervals do not straddle the four-hour boundary';
+ END IF;
+END
+$offsets$;
 INSERT INTO auth.users(id,email,raw_user_meta_data)
  SELECT host,label||'@example.invalid',jsonb_build_object('display_name','Fixture') FROM cleanup_cases;
 -- One synthetic challenger, never a host in the test.
