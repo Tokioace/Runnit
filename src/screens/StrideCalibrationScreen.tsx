@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Footprints, MapPinned, ShieldAlert, Ruler } from 'lucide-react';
 import PageFrame from '../components/ui/PageFrame';
-import { useSupabaseUser } from '../hooks/useSupabaseUser';
+import type { UseSupabaseUserReturn } from '../hooks/useSupabaseUser';
+import { createMeasurementLifetime, measurementAccountCurrent } from '../lib/measurementLifetime';
+import { confirmMutationIdentity } from '../lib/accountMutationGuard';
 import { supabase } from '../lib/supabaseClient';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import {
@@ -15,8 +17,8 @@ type PermissionDeviceMotionEvent = typeof DeviceMotionEvent & {
   requestPermission?: () => Promise<'granted' | 'denied'>;
 };
 
-export default function StrideCalibrationScreen() {
-  const { user } = useSupabaseUser();
+export default function StrideCalibrationScreen({ auth }: { auth: UseSupabaseUserReturn }) {
+  const { user, beginAccountMutation } = auth;
   const [height, setHeight] = useState('');
   const [phase, setPhase] = useState<Phase>('idle');
   const phaseRef = useRef<Phase>('idle');
@@ -30,12 +32,15 @@ export default function StrideCalibrationScreen() {
   const [assessment, setAssessment] = useState<CalibrationAssessment | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const pendingRef = useRef(false);
+  const lifetime = useRef(createMeasurementLifetime());
+  const measurementCurrent = useRef<(() => boolean) | null>(null);
   const locationWatch = useRef<number | null>(null);
   const motionListener = useRef<((event: DeviceMotionEvent) => void) | null>(null);
   const [gpsError, setGpsError] = useState<string | null>(null);
 
   const setPhaseBoth = (next: Phase) => { phaseEpochMs.current = Date.now(); phaseRef.current = next; setPhase(next); };
-  const stopSensors = () => {
+  const stopSensors = useCallback(() => {
     if (locationWatch.current !== null && navigator.geolocation) {
       navigator.geolocation.clearWatch(locationWatch.current);
       locationWatch.current = null;
@@ -44,25 +49,40 @@ export default function StrideCalibrationScreen() {
       window.removeEventListener('devicemotion', motionListener.current);
       motionListener.current = null;
     }
-  };
+  }, []);
+
+  useLayoutEffect(() => {
+    lifetime.current.open();
+    pendingRef.current = false;
+    return () => {
+      lifetime.current.close();
+      measurementCurrent.current = null;
+      phaseRef.current = 'idle';
+      stopSensors();
+    };
+  }, [stopSensors]);
 
   useEffect(() => {
-    const hidden = () => {
-      if (document.visibilityState === 'hidden' && phaseRef.current === 'walking') {
+    const interrupt = () => {
+      if (measurementCurrent.current?.() && ['start', 'walking', 'end'].includes(phaseRef.current)) {
         interruptedRef.current = true;
         setInterrupted(true);
       }
     };
+    const hidden = () => { if (document.visibilityState === 'hidden') interrupt(); };
     document.addEventListener('visibilitychange', hidden);
+    window.addEventListener('pagehide', interrupt);
     return () => {
       document.removeEventListener('visibilitychange', hidden);
-      if (locationWatch.current !== null && navigator.geolocation)
-        navigator.geolocation.clearWatch(locationWatch.current);
-      if (motionListener.current) window.removeEventListener('devicemotion', motionListener.current);
+      window.removeEventListener('pagehide', interrupt);
     };
   }, []);
 
   const reset = () => {
+    if (!lifetime.current.isActive() || pendingRef.current) return;
+    lifetime.current.close();
+    lifetime.current.open();
+    measurementCurrent.current = null;
     stopSensors();
     counter.current.reset();
     setStartFixes([]);
@@ -77,7 +97,7 @@ export default function StrideCalibrationScreen() {
   };
 
   const start = async () => {
-    if (!user || pending || phaseRef.current !== 'idle') return;
+    if (!user || pendingRef.current || !lifetime.current.isActive() || phaseRef.current !== 'idle') return;
     if (estimateWalkingStrideFromHeight(Number(height)) === null || height.trim() === '') {
       setError('Bitte zuerst deine Körpergröße in Zentimetern eingeben.');
       return;
@@ -86,12 +106,22 @@ export default function StrideCalibrationScreen() {
       setError('Für die Kalibrierung benötigst du HTTPS, GPS und den Bewegungssensor deines Smartphones.');
       return;
     }
+    // New attempt invalidates any queued callback from an earlier attempt.
+    lifetime.current.open();
+    const isLive = lifetime.current.capture();
+    let assertAccount: () => void;
+    try { assertAccount = beginAccountMutation(); } catch { return; }
+    const isCurrent = () => measurementAccountCurrent(isLive, assertAccount);
+    measurementCurrent.current = isCurrent;
+    pendingRef.current = true;
     setPending(true);
     setError(null);
     setGpsError(null);
     try {
       const motion = DeviceMotionEvent as PermissionDeviceMotionEvent;
-      if (motion.requestPermission && await motion.requestPermission() !== 'granted') {
+      const permission = motion.requestPermission ? await motion.requestPermission() : 'granted';
+      if (!isCurrent()) return;
+      if (permission !== 'granted') {
         setError('Bitte den Zugriff auf Bewegungssensoren erlauben.');
         return;
       }
@@ -104,7 +134,7 @@ export default function StrideCalibrationScreen() {
       setAssessment(null);
       setPhaseBoth('start');
       const handleMotion = (event: DeviceMotionEvent) => {
-        if (phaseRef.current !== 'walking') return;
+        if (!isCurrent() || phaseRef.current !== 'walking') return;
         const a = event.acceleration;
         if (!a || a.x === null || a.y === null || a.z === null) return;
         const magnitude = Math.hypot(a.x, a.y, a.z);
@@ -115,6 +145,7 @@ export default function StrideCalibrationScreen() {
       motionListener.current = handleMotion;
       window.addEventListener('devicemotion', handleMotion);
       locationWatch.current = navigator.geolocation.watchPosition(position => {
+        if (!isCurrent()) return;
         const currentPhase = phaseRef.current;
         if (currentPhase !== 'start' && currentPhase !== 'end') return;
         const c = position.coords;
@@ -133,34 +164,40 @@ export default function StrideCalibrationScreen() {
         else setEndFixes(update);
         setGpsError(null);
       }, e => {
+        if (!isCurrent() || !['start', 'walking', 'end'].includes(phaseRef.current)) return;
         setGpsError(e.code === 1
           ? 'Standortfreigabe fehlt. Bitte in den iPhone-Einstellungen aktivieren.'
           : 'GPS derzeit nicht verfügbar. Für die Kalibrierung benötigst du freien Himmel.');
       }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
     } catch {
-      stopSensors();
-      setPhaseBoth('idle');
-      setError('Sensoren konnten nicht gestartet werden. Bitte Berechtigungen prüfen.');
+      if (isLive()) {
+        stopSensors();
+        if (isCurrent()) {
+          setPhaseBoth('idle');
+          setError('Sensoren konnten nicht gestartet werden. Bitte Berechtigungen prüfen.');
+        }
+        measurementCurrent.current = null;
+      }
     } finally {
-      setPending(false);
+      if (isLive()) { pendingRef.current = false; setPending(false); }
     }
   };
 
   const beginWalking = () => {
-    if (phaseRef.current !== 'start' || startFixes.length < 3 ||
+    if (!measurementCurrent.current?.() || phaseRef.current !== 'start' || startFixes.length < 3 ||
       startFixes[startFixes.length - 1].timestampMs - startFixes[0].timestampMs < 1500) return;
     counter.current.reset();
     setSteps(0);
     setPhaseBoth('walking');
   };
   const finishWalking = () => {
-    if (phaseRef.current !== 'walking') return;
+    if (!measurementCurrent.current?.() || phaseRef.current !== 'walking') return;
     setSteps(counter.current.count);
     setEndFixes([]);
     setPhaseBoth('end');
   };
   const finishCalibration = () => {
-    if (phaseRef.current !== 'end') return;
+    if (!measurementCurrent.current?.() || phaseRef.current !== 'end') return;
     const result = assessWalkingCalibration({
       heightCm: Number(height), stepCount: counter.current.count,
       startFixes, endFixes, sensorInterrupted: interruptedRef.current,
@@ -170,25 +207,38 @@ export default function StrideCalibrationScreen() {
     stopSensors();
   };
   const save = async () => {
-    if (!user || !assessment?.accepted || pending) return;
+    const isCurrent = measurementCurrent.current;
+    if (!user || !assessment?.accepted || pendingRef.current || phaseRef.current !== 'review' || !isCurrent?.()) return;
+    const isLive = lifetime.current.capture();
+    pendingRef.current = true;
     setPending(true);
     setError(null);
     try {
+      const assertCurrent = () => {
+        if (!isLive() || !isCurrent()) throw new Error('Messung oder Konto hat sich geändert.');
+      };
+      await confirmMutationIdentity(user.id, assertCurrent, async () => {
+        const { data, error } = await supabase.auth.getUser();
+        return error ? null : data.user?.id ?? null;
+      });
+      assertCurrent();
       const calibration = makeWalkingCalibration({
         assessment, heightCm: Number(height),
         stepCount: counter.current.count, nowIso: new Date().toISOString(),
       });
       // Only these derived values, never raw GPS coordinates, are saved in
       // the current account's editable profile metadata. Not an auth/anti-cheat claim.
-      const { error: saveError } = await supabase.auth.updateUser({
+      assertCurrent();
+      const { data, error: saveError } = await supabase.auth.updateUser({
         data: { walking_calibration: calibration },
       });
-      if (saveError) throw saveError;
+      assertCurrent();
+      if (saveError || data.user?.id !== user.id) throw saveError || new Error('Konto nicht bestätigt.');
       setPhaseBoth('saved');
     } catch {
-      setError('Kalibrierung konnte nicht gespeichert werden. Bitte deine Anmeldung prüfen und erneut versuchen.');
+      if (isLive() && isCurrent()) setError('Kalibrierung konnte nicht gespeichert werden. Bitte deine Anmeldung prüfen und erneut versuchen.');
     } finally {
-      setPending(false);
+      if (isLive()) { pendingRef.current = false; setPending(false); }
     }
   };
 
@@ -209,7 +259,7 @@ export default function StrideCalibrationScreen() {
             <div>
               <label htmlFor="stride-height" className="block text-sm font-bold text-white">Deine Körpergröße (cm)</label>
               <input id="stride-height" type="number" min={100} max={230} inputMode="numeric" value={height}
-                onChange={e => setHeight(e.target.value)} disabled={phase !== 'idle'}
+                onChange={e => setHeight(e.target.value)} disabled={phase !== 'idle' || pending}
                 placeholder="z. B. 175"
                 className="mt-2 min-h-14 w-full rounded-xl border border-white/20 bg-[#0d1524] px-4 text-lg font-bold text-white" />
               <p className="mt-2 text-xs leading-5 text-white/55">
@@ -286,7 +336,7 @@ export default function StrideCalibrationScreen() {
                   className="min-h-14 w-full rounded-2xl bg-gradient-to-r from-violet-500 to-cyan-500 px-4 font-black">
                   {pending ? 'Speichern …' : 'Gehschrittlänge im Profil speichern'}
                 </button>}
-                <button type="button" onClick={reset} className="min-h-12 w-full rounded-xl border border-white/15 bg-white/5 text-sm font-bold">
+                <button type="button" disabled={pending} onClick={reset} className="min-h-12 w-full rounded-xl border border-white/15 bg-white/5 text-sm font-bold">
                   Neue Messung
                 </button>
               </div>

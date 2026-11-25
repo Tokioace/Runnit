@@ -148,7 +148,7 @@ export default function App() {
         <Route path="/gps-lab" element={<GpsLabScreen />} />
         <Route path="/gps-field-test" element={<GpsFieldTestScreen />} />
         {isNativeAuthRuntime() && <Route path="/native-sensors" element={<NativeSensorScreen />} />}
-        <Route path="/calibration" element={<StrideCalibrationScreen />} />
+        <Route path="/calibration" element={<StrideCalibrationScreen key={auth.user?.id ?? 'guest'} auth={auth} />} />
         <Route path="/fusion-lab" element={<FusionLabScreen />} />
         <Route path="/sprint-lab" element={<SprintArenaLabScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
