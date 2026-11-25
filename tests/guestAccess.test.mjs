@@ -59,7 +59,7 @@ test('guest browsing does not query protected personal leaderboard or duel data'
   const map = read('src/screens/MapScreen.tsx');
   assert.match(map, /if \(!authUser\) \{\s*setPlayers\(\[\]\);/);
   assert.match(map, /if \(!authUser\) \{\s*discoveryLoadedRef\.current = false;\s*setOpenRuns\(\[\]\);/);
-  assert.match(map, /if \(!authUser\) \{ setRealtimeConnected\(false\); return; \}\s*setRealtimeConnected\(false\);\s*const channel = supabase/);
+  assert.match(map, /if \(!authUser\) \{ setRealtimeConnected\(false\); return; \}\s*setRealtimeConnected\(false\);\s*const lifetime = createDuelRealtimeLifetime\(\);\s*const channel = supabase\s*\.channel\('duels-realtime'\)/);
   assert.doesNotMatch(map, /DEMO · BEISPIELRENNEN|generateDemoRuns|generateCityPlayers/);
 });
 
