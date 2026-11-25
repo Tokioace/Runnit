@@ -12,3 +12,5 @@ Current RPC accepts any positive time once the duel has started. The candidate p
 
 ## Isolated CI test
 The dedicated PostgreSQL 16 service executes the SQL fixture in an ephemeral database without Supabase credentials. It checks actual anon/authenticated role execution, direct writes, valid submissions, invalid times, sanitized metrics, idempotency and two-runner completion. This does not replace real-schema and concurrency testing. The linked Supabase schema and active RPC were inspected read-only; no data or settings changed.
+
+Read-only catalog inspection found that existing lifecycle triggers normalize created_at/expires_at/matched_at and reject non-open initial state, but authenticated users currently have INSERT on start_at and ready flags. The staged candidate now restricts INSERT columns to the exact five used by createDuel.ts. Existing join/ready functions are unchanged; test the real Supabase API create/join/ready flow before activation. The isolated fixture tests allowed creation and denied direct clock/ready inserts. No live privileges were changed.

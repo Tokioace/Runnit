@@ -25,3 +25,9 @@ test('staged diagnostics whitelist does not insert arbitrary JSON or claim verif
   assert.match(candidate,/"verification":"unverified"/);
   assert.match(candidate,/p_max_speed_mps NOT BETWEEN 0 AND 15/);
 });
+
+test('staged duel creation grants exclude client-controlled clock and ready state', () => {
+  assert.match(candidate,/REVOKE INSERT ON TABLE public.duels FROM PUBLIC, anon, authenticated/);
+  assert.match(candidate,/GRANT INSERT \(host_user_id, location, max_distance_km, target_distance_m, status\)\s+ON TABLE public.duels TO authenticated/);
+  assert.match(candidate,/challenger_user_id, target_distance_m, host_ready, challenger_ready, start_at/);
+});
