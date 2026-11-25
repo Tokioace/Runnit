@@ -90,6 +90,14 @@ jobs:
         run: |
           docker cp supabase "$DB_CONTAINER:/tmp/supabase"
           docker cp db "$DB_CONTAINER:/tmp/db"
+          # Generate a psql capture wrapper from the exact read-only SQL.
+          python3 - <<'PY'
+          from pathlib import Path
+          query = Path("db/release-candidates/release_preflight.sql").read_text().rstrip()
+          assert query.endswith(";")
+          Path("/tmp/runnit-preflight-ci.sql").write_text(query[:-1] + " " + chr(92) + "gset preflight_\n")
+          PY
+          docker cp /tmp/runnit-preflight-ci.sql "$DB_CONTAINER:/tmp/db/release-candidates/release_preflight_ci.sql"
           docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_schema_test -v ON_ERROR_STOP=1 -f /tmp/db/release-candidates/test_fresh_schema.sql
       - name: Complete actual-schema race and rehearse account erasure
         env:
