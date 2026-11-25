@@ -6,6 +6,7 @@ on:
       - 'native/ios-preview/**'
       - '.github/workflows/ios-preview.yml'
       - 'scripts/build-ios-preview.sh'
+      - 'scripts/build-native-preview-web.mjs'
       - 'scripts/verify-ios-project.py'
       - 'scripts/smoke-ios-preview.sh'
       - 'src/lib/nativePreviewSmoke.ts'
@@ -27,6 +28,11 @@ on:
         required: true
         type: boolean
         default: false
+      test_backend:
+        description: 'Use explicitly configured synthetic-only Supabase test project (manual develop only)'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -44,13 +50,24 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Build non-production preview assets
+        if: github.event_name != 'workflow_dispatch' || !inputs.test_backend
         env:
-          VITE_SUPABASE_URL: https://runnit-preview.invalid
-          VITE_SUPABASE_ANON_KEY: preview-not-a-real-key
-          VITE_ACCOUNT_DELETION_REQUESTS_ENABLED: 'false'
-          VITE_LEGAL_PAGES_ENABLED: 'false'
-          VITE_IOS_PREVIEW_SMOKE: 'true'
-        run: npm run build
+          RUNNIT_NATIVE_BACKEND_MODE: offline
+        run: node scripts/build-native-preview-web.mjs
+      - name: Build connected synthetic-only test preview
+        if: github.event_name == 'workflow_dispatch' && inputs.test_backend
+        env:
+          RUNNIT_NATIVE_BACKEND_MODE: test
+          RUNNIT_NATIVE_TEST_REF: ${{ vars.RUNNIT_NATIVE_TEST_REF }}
+          RUNNIT_NATIVE_TEST_DATA_CONFIRMED: ${{ vars.RUNNIT_NATIVE_TEST_DATA_CONFIRMED }}
+          RUNNIT_NATIVE_TEST_PUBLISHABLE_KEY: ${{ secrets.RUNNIT_NATIVE_TEST_PUBLISHABLE_KEY }}
+        run: node scripts/build-native-preview-web.mjs
+      - name: Reject production project references in bundled preview
+        run: |
+          if grep -R -a -l 'fcbffqcmvgdojsdfwgyt' dist; then
+            echo "Production project reference found in preview"
+            exit 1
+          fi
       - name: Prepare clean native shell without modifying root dependencies
         run: |
           mkdir -p "$RUNNER_TEMP/runnit-ios-preview/www"
