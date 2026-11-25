@@ -10,5 +10,6 @@
     "contentInset": "never",
     "allowsLinkPreview": false,
     "webContentsDebuggingEnabled": false
-  }
+  },
+  "loggingBehavior": "none"
 }
