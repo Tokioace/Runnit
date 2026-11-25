@@ -22,6 +22,7 @@ import { cancelHostedOpenDuel, cancelHostedDuelMessage, listHostedOpenDuels, typ
 import { abortMatchedDuel } from '../db/abortMatchedDuel';
 import { readActiveDuelId, rememberActiveDuelId, forgetActiveDuelId } from '../lib/activeDuelStorage';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
+import { createDuelGpsMeasurement, advanceDuelGpsMeasurement, duelGpsMetrics } from '../lib/duelGpsMeasurement';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage, type ScreenWakeLockStatus } from '../lib/screenWakeLock';
 import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters } from '../lib/mapHostPlacement';
@@ -1953,6 +1954,8 @@ export default function MapScreen() {
 
       {race.status === 'running' && authUser && (
         <RaceOverlay
+          key={race.duelId}
+          startFix={userCoords}
           wakeStatus={wakeStatus}
           startedAt={race.startedAt}
           targetDistanceM={race.targetDistanceM}
@@ -2074,18 +2077,21 @@ export default function MapScreen() {
   );
 }
 
-function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish, onAbort }: { startedAt: number; targetDistanceM: number; wakeStatus: ScreenWakeLockStatus | 'idle'; onFinish: (endedAt: number, metrics?: DuelMetrics) => void; onAbort: () => Promise<void> }) {
+function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinish, onAbort }: { startedAt: number; targetDistanceM: number; startFix: Coordinates | null; wakeStatus: ScreenWakeLockStatus | 'idle'; onFinish: (endedAt: number, metrics?: DuelMetrics) => void; onAbort: () => Promise<void> }) {
   const [elapsedMs, setElapsedMs] = useState(Math.max(0, Date.now() - startedAt));
-  const [acceptedDistanceM, setAcceptedDistanceM] = useState(0);
   const [displayDistanceM, setDisplayDistanceM] = useState(0);
   const [maxSpeed, setMaxSpeed] = useState(0);
-  const [maxAccel, setMaxAccel] = useState(0);
-  const [accumAccuracyM, setAccumAccuracyM] = useState(0);
-  const [samplesUsed, setSamplesUsed] = useState(0);
-  const lastSampleRef = useRef<{ t: number; lat: number; lng: number; v: number } | null>(null);
+  const [initialMeasurement] = useState(() => createDuelGpsMeasurement(targetDistanceM, startedAt, startFix ? {
+    latitude: startFix.lat,
+    longitude: startFix.lng,
+    accuracyM: startFix.accuracyMeters ?? NaN,
+    timestampMs: startFix.sampledAtMs ?? NaN,
+  } : null));
+  const measurementRef = useRef(initialMeasurement);
+  const finishCallbackRef = useRef(onFinish);
+  finishCallbackRef.current = onFinish;
   const liveStepCounter = useRef(new LiveStepPeakCounter());
   const [liveStepCount, setLiveStepCount] = useState(0);
-  const overTargetStreakRef = useRef(0);
   const finishedRef = useRef(false);
   const [confirmAbort, setConfirmAbort] = useState(false);
   const [abortBusy, setAbortBusy] = useState(false);
@@ -2114,81 +2120,43 @@ function RaceOverlay({ startedAt, targetDistanceM, wakeStatus, onFinish, onAbort
     return () => clearInterval(id);
   }, [startedAt]);
 
-  // Very simple GPS sampler with accuracy filter, EMA smoothing, and sanity caps
+  // Use GPS fix timestamps, not callback arrival times. Keep measurement and
+  // completion side effects outside React state updaters (which may be replayed).
   useEffect(() => {
     if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
+    let active = true;
     const handle = (pos: GeolocationPosition) => {
-      if (finishedRef.current) return;
-      const t = Date.now();
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-      const acc = typeof pos.coords.accuracy === 'number' ? pos.coords.accuracy : 9999;
-      // Filter: require reasonable accuracy
-      const MAX_ACC_M = 15;
-      if (acc > MAX_ACC_M) return;
-      const prev = lastSampleRef.current;
-      if (prev) {
-        const dt = (t - prev.t) / 1000;
-        const MIN_DT = 0.2;
-        if (dt < MIN_DT) return;
-        const d = haversineM(prev.lat, prev.lng, lat, lng);
-        const v = d / Math.max(dt, 1e-3);
-        // Speed cap (~43 km/h)
-        const MAX_V = 12; // m/s
-        if (v > MAX_V) {
-          // Skip unrealistic spikes
-          lastSampleRef.current = { t, lat, lng, v: prev.v };
-          return;
-        }
-        const a = (v - prev.v) / Math.max(dt, 1e-3);
-        // Accept sample
-        setMaxSpeed((x) => Math.max(x, v));
-        setMaxAccel((x) => Math.max(x, Math.abs(a)));
-        setSamplesUsed((n) => n + 1);
-        setAccumAccuracyM((s) => s + acc);
-        setAcceptedDistanceM((prevDist) => {
-          const nextDist = prevDist + d;
-          // EMA smoothing for display
-          const ALPHA = 0.35;
-          setDisplayDistanceM((disp) => disp + ALPHA * (nextDist - disp));
-          // Finish check: require two consecutive accepted samples over target
-          const margin = 0.5;
-          if (nextDist >= Math.max(1, targetDistanceM - margin)) {
-            overTargetStreakRef.current += 1;
-          } else {
-            overTargetStreakRef.current = 0;
-          }
-          if (overTargetStreakRef.current >= 2 && !finishedRef.current) {
-            finishedRef.current = true;
-            // The finish screen plays the shared arcade beep and crowd SFX.
-            const steps = liveStepCounter.current.count;
-            const stepLen = steps > 0 ? nextDist / steps : undefined;
-            onFinish(Date.now(), {
-              stepsCount: steps,
-              stepLengthAvgM: stepLen,
-              maxSpeedMps: Math.max(maxSpeed, v),
-              maxAccelMps2: maxAccel,
-              distanceM: nextDist,
-              metricsJson: { avgAccuracyM: (accumAccuracyM + acc) / Math.max(1, samplesUsed + 1), samplesUsed: samplesUsed + 1 },
-            });
-          }
-          return nextDist;
-        });
-        lastSampleRef.current = { t, lat, lng, v };
-      } else {
-        lastSampleRef.current = { t, lat, lng, v: 0 };
+      if (!active || finishedRef.current) return;
+      const next = advanceDuelGpsMeasurement(measurementRef.current, {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        accuracyM: pos.coords.accuracy,
+        timestampMs: pos.timestamp,
+      }, Date.now());
+      measurementRef.current = next;
+      if (next.sprint.lastDecision !== 'accepted') return;
+      setMaxSpeed(next.sprint.maxSpeedMps);
+      const distance = next.sprint.distanceM;
+      setDisplayDistanceM(previous => previous + 0.35 * (distance - previous));
+      if (next.sprint.finishTimestampMs !== null) {
+        finishedRef.current = true;
+        setDisplayDistanceM(distance);
+        finishCallbackRef.current(next.sprint.finishTimestampMs,
+          duelGpsMetrics(next, liveStepCounter.current.count));
       }
     };
     try {
       watchIdRef.current = navigator.geolocation.watchPosition(handle, () => {}, {
         enableHighAccuracy: true,
-        maximumAge: 500,
+        maximumAge: 0,
         timeout: 5000,
       });
     } catch {}
     return () => {
+      active = false;
       if (watchIdRef.current !== null) {
         try { navigator.geolocation.clearWatch(watchIdRef.current); } catch {}
+        watchIdRef.current = null;
       }
     };
   }, []);
