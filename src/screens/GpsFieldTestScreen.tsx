@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { isNativeAuthRuntime } from '../lib/authRedirect';
 import { advanceGpsSprint, createGpsSprint, type GpsSample, type GpsSprintState } from '../lib/sprintGps';
 import {
   compareWithReferenceSeconds,
@@ -256,6 +257,7 @@ export default function GpsFieldTestScreen() {
           <Link to="/gps-lab" className="rounded-xl border border-white/20 px-3 py-2 text-sm text-white/80">Simulation</Link>
         </header>
 
+        {isNativeAuthRuntime() && <Link to="/native-sensors" className="block rounded-xl border border-cyan-300/50 p-4 font-bold text-cyan-200">Native Sensor-Diagnose</Link>}
         <section className="rounded-2xl border border-amber-400/40 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
           <strong>Echte GPS-Position · experimentell · nicht ranglistenfähig.</strong> Erst mit „GPS vorbereiten“
           fragst du Standortzugriff an. Die Messwerte bleiben nur während dieser Sitzung im Browser.

@@ -6,6 +6,7 @@ import Capacitor
 final class RunnitBridgeViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(RunnitSessionVault())
+        bridge?.registerPluginInstance(RunnitSensorProbe())
     }
 }
 

@@ -8,6 +8,10 @@ on:
       - 'scripts/build-ios-preview.sh'
       - 'scripts/install-ios-vault.py'
       - 'src/lib/nativeAuthStorage.ts'
+      - 'src/lib/nativeSensorProbe.ts'
+      - 'src/screens/NativeSensorScreen.tsx'
+      - 'src/screens/GpsFieldTestScreen.tsx'
+      - 'src/App.tsx'
       - 'src/lib/authRedirect.ts'
       - 'src/lib/supabaseClient.ts'
       - 'src/hooks/useSupabaseUser.ts'
@@ -47,13 +51,15 @@ jobs:
           mkdir -p "$RUNNER_TEMP/runnit-ios-preview/www"
           cp native/ios-preview/package.json native/ios-preview/capacitor.config.json "$RUNNER_TEMP/runnit-ios-preview/"
           cp -R dist/. "$RUNNER_TEMP/runnit-ios-preview/www/"
-          cp scripts/build-ios-preview.sh scripts/install-ios-vault.py native/ios-preview/RunnitSessionVault.swift "$RUNNER_TEMP/runnit-ios-preview/"
+          cp scripts/build-ios-preview.sh scripts/install-ios-vault.py native/ios-preview/RunnitSessionVault.swift native/ios-preview/RunnitSensorProbe.swift "$RUNNER_TEMP/runnit-ios-preview/"
           cd "$RUNNER_TEMP/runnit-ios-preview"
           test -f www/index.html
           printf 'window?.rootViewController = CAPBridgeViewController()\n' > fixture-scene.swift
-          python3 install-ios-vault.py fixture-scene.swift RunnitSessionVault.swift
+          python3 install-ios-vault.py fixture-scene.swift RunnitSessionVault.swift RunnitSensorProbe.swift
           grep -q 'rootViewController = RunnitBridgeViewController()' fixture-scene.swift
           grep -q 'registerPluginInstance(RunnitSessionVault())' fixture-scene.swift
+          grep -q 'registerPluginInstance(RunnitSensorProbe())' fixture-scene.swift
+          grep -q 'class RunnitSensorProbe' fixture-scene.swift
           rm fixture-scene.swift
           npm install --package-lock-only --ignore-scripts
           npm ci --ignore-scripts
