@@ -22,6 +22,7 @@ import { cancelHostedOpenDuel, cancelHostedDuelMessage, listHostedOpenDuels, typ
 import { abortMatchedDuel } from '../db/abortMatchedDuel';
 import { readActiveDuelId, rememberActiveDuelId, forgetActiveDuelId } from '../lib/activeDuelStorage';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
+import { readPendingFinish, rememberPendingFinish, forgetPendingFinish, type PendingFinish } from '../lib/pendingDuelFinish.ts';
 import { DuelMotionCapture, requestDuelMotionPermission, motionEventSample } from '../lib/duelMotionEvidence';
 import { createDuelGpsMeasurement, advanceDuelGpsMeasurement, duelGpsMetrics } from '../lib/duelGpsMeasurement';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
@@ -796,8 +797,10 @@ export default function MapScreen() {
   const [discoveryCoords, setDiscoveryCoords] = useState<Coordinates | null>(null);
   const [discoveryRefreshTick, setDiscoveryRefreshTick] = useState(0);
   const [finishSubmissionError, setFinishSubmissionError] = useState<string | null>(null);
-  const [finishSubmitting, setFinishSubmitting] = useState(false);
-  const latestFinishPayloadRef = useRef<{ duelId: string; timeMs: number; metrics?: DuelMetrics } | null>(null);
+  const latestFinishPayloadRef = useRef<PendingFinish | null>(null);
+  const finishSubmittingRef = useRef<PendingFinish | null>(null);
+  const finishAccountRef = useRef<string | null>(null);
+  finishAccountRef.current = authUser?.id ?? null;
   const [matchOverlay, setMatchOverlay] = useState<{ duelId: string; startsAt: number; targetDistanceM: number } | null>(null);
   const [matchedDuel, setMatchedDuel] = useState<MatchedDuelState | null>(null);
   const [dismissedMatchId, setDismissedMatchId] = useState<string | null>(null);
@@ -826,7 +829,12 @@ export default function MapScreen() {
     if (activeDuelIdRef.current !== duelId) return;
     endedDuelIdsRef.current.add(duelId);
     activeDuelIdRef.current = null;
-    if (authUser) forgetActiveDuelId(authUser.id, duelId);
+    if (authUser) {
+      forgetActiveDuelId(authUser.id, duelId);
+      forgetPendingFinish(authUser.id, duelId);
+    }
+    if (latestFinishPayloadRef.current?.duelId === duelId) latestFinishPayloadRef.current = null;
+    setFinishSubmissionError(null);
     matchStartHandledRef.current = null;
     setMatchOverlay(previous => previous?.duelId === duelId ? null : previous);
     setMatchedDuel(previous => previous?.id === duelId ? null : previous);
@@ -854,6 +862,9 @@ export default function MapScreen() {
     if (active && active !== row.id) return;
     activeDuelIdRef.current = row.id;
     rememberActiveDuelId(authUser.id, row.id);
+    forgetPendingFinish(authUser.id, row.id);
+    if (latestFinishPayloadRef.current?.duelId === row.id) latestFinishPayloadRef.current = null;
+    setFinishSubmissionError(null);
     setMatchOverlay(previous => previous?.duelId === row.id ? null : previous);
     setMatchedDuel(previous => previous?.id === row.id ? null : previous);
     setDismissedMatchId(null);
@@ -868,9 +879,12 @@ export default function MapScreen() {
   const closeCompletedDuel = React.useCallback((duelId: string) => {
     endedDuelIdsRef.current.add(duelId);
     if (activeDuelIdRef.current === duelId) activeDuelIdRef.current = null;
-    if (authUser) forgetActiveDuelId(authUser.id, duelId);
+    if (authUser) {
+      forgetActiveDuelId(authUser.id, duelId);
+      forgetPendingFinish(authUser.id, duelId);
+    }
     matchStartHandledRef.current = null;
-    latestFinishPayloadRef.current = null;
+    if (latestFinishPayloadRef.current?.duelId === duelId) latestFinishPayloadRef.current = null;
     setFinishSubmissionError(null);
     setMatchOverlay(previous => previous?.duelId === duelId ? null : previous);
     setMatchedDuel(previous => previous?.id === duelId ? null : previous);
@@ -899,6 +913,22 @@ export default function MapScreen() {
     if (startAt) {
       const serverStart = Date.parse(startAt);
       const key = row.id + ':' + startAt;
+      // A recorded finish takes precedence over restarting an old countdown.
+      // Only restore after the server confirms this account and duel are matched.
+      const current = latestFinishPayloadRef.current;
+      if (current?.userId === authUser.id && current.duelId === row.id) return;
+      const pending = readPendingFinish(authUser.id, row.id);
+      if (pending && Number.isFinite(serverStart) && serverStart === pending.startedAt &&
+          pending.targetDistanceM === targetDistanceM) {
+        latestFinishPayloadRef.current = pending;
+        matchStartHandledRef.current = key;
+        setMatchedDuel(null);
+        setMatchOverlay(null);
+        setFinishSubmissionError('Zielzeit lokal wiederhergestellt. Falls sie noch fehlt, erneut speichern.');
+        setRace({ status: 'finished', duelId: row.id, startedAt: pending.startedAt,
+          endedAt: pending.startedAt + pending.timeMs, targetDistanceM });
+        return;
+      }
       if (Number.isFinite(serverStart) && serverStart > Date.now() - 10_000 &&
           matchStartHandledRef.current !== key) {
         matchStartHandledRef.current = key;
@@ -1565,19 +1595,42 @@ export default function MapScreen() {
     }
   };
 
-  const retryFinishedTime = async () => {
-    const payload = latestFinishPayloadRef.current;
-    if (!payload || finishSubmitting) return;
-    setFinishSubmitting(true);
+  const sendFinishedTime = async (payload: PendingFinish) => {
+    if (finishSubmittingRef.current || finishAccountRef.current !== payload.userId ||
+        latestFinishPayloadRef.current !== payload || endedDuelIdsRef.current.has(payload.duelId)) return;
+    finishSubmittingRef.current = payload;
+    const stillCurrent = () => finishAccountRef.current === payload.userId &&
+      latestFinishPayloadRef.current === payload && !endedDuelIdsRef.current.has(payload.duelId);
     try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (!stillCurrent()) return;
+      if (sessionError || sessionData.session?.user.id !== payload.userId) {
+        setFinishSubmissionError('Bitte erneut anmelden, bevor du deine Zielzeit speicherst.');
+        return;
+      }
       const { error } = await submitDuelResult(supabase, payload.duelId, payload.timeMs, payload.metrics);
-      if (error) throw error;
+      if (!stillCurrent()) return;
+      if (error) {
+        if (error.code === '23514') {
+          setFinishSubmissionError('Der Server hat die Messung nicht akzeptiert. Bitte Rennstatus prüfen.');
+        } else {
+          setFinishSubmissionError('Zielzeit nicht gespeichert. Bitte erneut versuchen.');
+        }
+        return;
+      }
+      // Retain the local finish until both players complete or the duel is
+      // abandoned. A lost response/reload can safely retry the same payload.
       setFinishSubmissionError(null);
     } catch {
-      setFinishSubmissionError('Zielzeit konnte nicht gespeichert werden. Bitte erneut versuchen.');
+      if (stillCurrent()) setFinishSubmissionError('Netzwerkfehler. Bitte Zielzeit erneut speichern.');
     } finally {
-      setFinishSubmitting(false);
+      if (finishSubmittingRef.current === payload) finishSubmittingRef.current = null;
     }
+  };
+
+  const retryFinishedTime = async () => {
+    const payload = latestFinishPayloadRef.current;
+    if (payload) await sendFinishedTime(payload);
   };
 
   const confirmAbortMatchedDuel = async (duelId: string) => {
@@ -1970,12 +2023,12 @@ export default function MapScreen() {
               startedAt: race.startedAt, endedAt, targetDistanceM: race.targetDistanceM });
             setFinishSubmissionError(null);
             if (!race.duelId.startsWith('demo-run-')) {
-              latestFinishPayloadRef.current = { duelId: race.duelId, timeMs, metrics };
-              void submitDuelResult(supabase, race.duelId, timeMs, metrics)
-                .then(({ error }) => {
-                  if (error) setFinishSubmissionError('Zielzeit nicht gespeichert. Bitte erneut versuchen.');
-                })
-                .catch(() => setFinishSubmissionError('Netzwerkfehler. Bitte Zielzeit erneut speichern.'));
+              const payload: PendingFinish = { userId: authUser.id, duelId: race.duelId,
+                timeMs: Math.round(timeMs), startedAt: race.startedAt,
+                targetDistanceM: race.targetDistanceM, metrics };
+              latestFinishPayloadRef.current = payload;
+              rememberPendingFinish(payload);
+              void sendFinishedTime(payload);
             }
           }}
         />
