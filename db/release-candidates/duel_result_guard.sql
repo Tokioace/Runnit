@@ -103,6 +103,17 @@ BEGIN
       AND jsonb_typeof(e.value) = 'number'
       AND e.value BETWEEN '0'::jsonb AND '100000'::jsonb
     ) OR (
+      e.key = 'motionCoverage' AND jsonb_typeof(e.value) = 'number'
+      AND e.value BETWEEN '0'::jsonb AND '1'::jsonb
+    ) OR (
+      e.key IN ('motionSamples','motionGapCount') AND jsonb_typeof(e.value) = 'number'
+      AND e.value BETWEEN '0'::jsonb AND '30000'::jsonb
+    ) OR (
+      e.key = 'sprintCadenceSpm' AND jsonb_typeof(e.value) = 'number'
+      AND e.value BETWEEN '140'::jsonb AND '300'::jsonb
+    ) OR (
+      e.key = 'motionEvidence' AND e.value IN ('"consistent"'::jsonb, '"uncertain"'::jsonb, '"incomplete"'::jsonb)
+    ) OR (
       e.key = 'usedPrestartFix' AND jsonb_typeof(e.value) = 'boolean'
     ) OR (
       e.key = 'measurement' AND e.value = '"gps-displacement-v1"'::jsonb

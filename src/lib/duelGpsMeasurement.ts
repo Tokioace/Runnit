@@ -1,6 +1,7 @@
 import { advanceGpsSprint, createGpsSprint, haversineMeters, type GpsSample, type GpsSprintState } from './sprintGps.ts';
 import { isFreshStartFix, primeGpsSprint } from './gpsField.ts';
 import type { DuelMetrics } from '../db/submitDuelResult.ts';
+import type { DuelMotionEvidence } from './duelMotionEvidence.ts';
 
 /** Unverified client measurement only. Not server-side anti-cheat or proof of a sprint. */
 export type DuelGpsMeasurement = Readonly<{
@@ -50,7 +51,7 @@ export function advanceDuelGpsMeasurement(state: DuelGpsMeasurement, sample: Gps
 }
 
 /** Only aggregate diagnostic values cross the submission boundary. No coordinates. */
-export function duelGpsMetrics(state: DuelGpsMeasurement, steps: number): DuelMetrics {
+export function duelGpsMetrics(state: DuelGpsMeasurement, steps: number, motion?: DuelMotionEvidence): DuelMetrics {
   const sprint = state.sprint;
   return {
     stepsCount: steps,
@@ -66,6 +67,9 @@ export function duelGpsMetrics(state: DuelGpsMeasurement, steps: number): DuelMe
       usedPrestartFix: state.usedPrestartFix,
       measurement: 'gps-displacement-v1',
       verification: 'unverified',
+      ...(motion ? { motionEvidence: motion.motionEvidence, motionCoverage: motion.motionCoverage,
+        motionSamples: motion.motionSamples, motionGapCount: motion.motionGapCount,
+        ...(motion.sprintCadenceSpm !== null ? { sprintCadenceSpm: motion.sprintCadenceSpm } : {}) } : {}),
     },
   };
 }
