@@ -53,5 +53,5 @@ test('unknown callback errors are not rendered as server-provided HTML or string
 });
 
 test('Login is not forced on launch while data is gated to an authenticated runner', () => {
-  const app=read('src/App.tsx');assert.match(app,/!auth\.user && accountPage/);assert.match(app,/enterGuestMode/);assert.match(app,/<LeaderboardScreen userId=\{auth.user\?\.id\}/);
+  const app=read('src/App.tsx');assert.match(app,/!auth\.user && accountPage/);assert.match(app,/enterGuestMode/);assert.match(app,/<LeaderboardScreen key=\{auth\.user\?\.id \?\? 'guest'\} userId=\{auth\.user\?\.id\}/);
 });

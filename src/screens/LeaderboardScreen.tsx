@@ -6,6 +6,7 @@ import { useRunnerHistory } from '../hooks/useRunnerHistory';
 import { formatRaceTime } from '../lib/runnerHistory';
 import { summarizeRivals } from '../lib/competition';
 import { supabase } from '../lib/supabaseClient';
+import { currentLeaderboardSnapshot } from '../lib/leaderboardSnapshot';
 import '../styles/runnitCompetition.css';
 import '../styles/legendsShowcase.css';
 
@@ -68,11 +69,16 @@ export default function LeaderboardScreen({userId,displayName}:{userId?:string|n
  const [tab,setTab]=useState<PageTab>(() => new URLSearchParams(location.search).get('tab') === 'records' ? 'records' : 'rivals');
  const [metric,setMetric]=useState<Metric>('times');
  const [distance,setDistance]=useState<Distance>(50);
- const [rows,setRows]=useState<BoardRow[]>([]);
- const [consent,setConsent]=useState<boolean|null>(null);
- const [loading,setLoading]=useState(false);
- const [error,setError]=useState<string|null>(null);
+ const [board,setBoard]=useState<{key:string;rows:BoardRow[];error:string|null}|null>(null);
+ const [consentResult,setConsentResult]=useState<{key:string;value:boolean|null}|null>(null);
  const [revision,setRevision]=useState(0);
+ const boardKey=JSON.stringify([userId??null,tab,metric,distance,revision]);
+ const consentKey=JSON.stringify([userId??null,revision]);
+ const currentBoard=currentLeaderboardSnapshot(board,boardKey);
+ const rows=currentBoard?.rows??[];
+ const error=currentBoard?.error??null;
+ const loading=tab!=='rivals'&&!currentBoard;
+ const consent=currentLeaderboardSnapshot(consentResult,consentKey)?.value??null;
  const contentRef=useRef<HTMLDivElement>(null);
  const history=useRunnerHistory(userId);
  const rivals=useMemo(()=>summarizeRivals(history.races),[history.races]);
@@ -82,8 +88,8 @@ export default function LeaderboardScreen({userId,displayName}:{userId?:string|n
  const resetScroll=()=>{if(contentRef.current)contentRef.current.scrollTop=0;};
 
  useEffect(()=>{
-  if(tab==='rivals'){setLoading(false);setError(null);return;}
-  let active=true;setLoading(true);setError(null);setRows([]);
+  if(tab==='rivals'){setBoard(null);return;}
+  let active=true;setBoard(null);
   async function load(){
    try {
     const response=tab==='ladder'
@@ -93,18 +99,23 @@ export default function LeaderboardScreen({userId,displayName}:{userId?:string|n
     const normalized:BoardRow[]=tab==='ladder'
       ?((response.data??[]) as PublicRow[]).map(r=>({rank_position:r.rank_position,user_id:r.user_id,username:r.username,value:r.wins_count,races_count:r.races_count,wins_count:r.wins_count}))
       :((response.data??[]) as RecordRow[]).filter(r=>r.metric_value!==null).map(r=>({rank_position:r.rank_position,user_id:r.user_id,username:r.username,value:r.metric_value!,races_count:r.races_count,wins_count:r.wins_count}));
-    if(active){setRows(normalized);setLoading(false);}
-   }catch{if(active){setError('Wertung konnte nicht geladen werden.');setLoading(false);}}
+    if(active)setBoard({key:boardKey,rows:normalized,error:null});
+   }catch{if(active)setBoard({key:boardKey,rows:[],error:'Wertung konnte nicht geladen werden.'});}
   }
   void load();return()=>{active=false;};
- },[tab,metric,distance,revision]);
+ },[tab,metric,distance,boardKey]);
  useEffect(()=>{
-  if(!userId){setConsent(null);return;}
-  let active=true;
-  void supabase.from('users').select('leaderboard_opt_in').eq('id',userId).maybeSingle()
-   .then(({data,error})=>{if(active)setConsent(error?null:data?.leaderboard_opt_in===true);});
+  if(!userId){setConsentResult(null);return;}
+  let active=true;setConsentResult(null);
+  async function loadConsent(){
+   try{
+    const {data,error}=await supabase.from('users').select('leaderboard_opt_in').eq('id',userId!).maybeSingle();
+    if(active)setConsentResult({key:consentKey,value:error||!data?null:data.leaderboard_opt_in===true});
+   }catch{if(active)setConsentResult({key:consentKey,value:null});}
+  }
+  void loadConsent();
   return()=>{active=false;};
- },[userId,revision]);
+ },[userId,consentKey]);
  useEffect(()=>{
   const focus=()=>{if(document.visibilityState==='visible')refresh();};
   window.addEventListener('focus',focus);document.addEventListener('visibilitychange',focus);
