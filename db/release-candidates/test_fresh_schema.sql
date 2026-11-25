@@ -10,7 +10,7 @@ BEGIN
  END IF;
 END
 $guard$;
-BEGIN;
+-- Historical migrations may manage their own transactions. Replay them as-is.
 CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
 CREATE ROLE service_role NOLOGIN BYPASSRLS;
@@ -56,6 +56,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.users,public.ghost_runs,public.du
 \ir shared_duel_erasure.sql
 \ir session_access_guard.sql
 \ir test_only_erasure_gate.sql
+-- Start a separate transaction AFTER migration replay so SET LOCAL and
+-- transaction-local synthetic JWT claims remain active until ROLLBACK.
+BEGIN;
 DO $catalog$
 DECLARE tab text;
 BEGIN
