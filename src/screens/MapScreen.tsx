@@ -1,3 +1,4 @@
+import { createDuelStartLatch } from '../lib/duelStartLatch';
 import { createDuelWriteGate } from '../lib/duelWriteGate';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -820,6 +821,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   const [matchedNames, setMatchedNames] = useState<Record<string, string>>({});
   const joiningRunRef = useRef<string | null>(null);
   const matchStartHandledRef = useRef<string | null>(null);
+  const duelStartLatch = useRef(createDuelStartLatch());
   // Keep the server-confirmed duel ID even after READY hides its lobby.
   const activeDuelIdRef = useRef<string | null>(null);
   const recoveryRevisionRef = useRef(0);
@@ -919,6 +921,9 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     if (!authUser || finishAccountRef.current !== authUser.id || row?.status !== 'matched' || typeof row.id !== 'string' ||
         endedDuelIdsRef.current.has(row.id) || completedDuelIdsRef.current.has(row.id) ||
         (row.host_user_id !== authUser.id && row.challenger_user_id !== authUser.id)) return;
+    const startAt = typeof row.start_at === 'string' ? row.start_at : null;
+    // Once a server start is observed, an older lobby row cannot reset it.
+    if (!duelStartLatch.current.accept(row.id, startAt)) return;
     recoveryRevisionRef.current += 1;
     activeDuelIdRef.current = row.id;
     rememberActiveDuelId(authUser.id, row.id);
@@ -927,10 +932,9 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     setCancelConfirmation(previous => previous?.id === row.id ? null : previous);
     setSelectedRunId(previous => previous === row.id ? null : previous);
     const targetDistanceM = Number(row.target_distance_m) > 0 ? Number(row.target_distance_m) : 50;
-    const startAt = typeof row.start_at === 'string' ? row.start_at : null;
     if (startAt) {
       const serverStart = Date.parse(startAt);
-      const key = row.id + ':' + startAt;
+      const key = row.id + ':' + serverStart;
       // A recorded finish takes precedence over restarting an old countdown.
       // Only restore after the server confirms this account and duel are matched.
       const current = latestFinishPayloadRef.current;
