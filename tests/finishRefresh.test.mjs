@@ -54,3 +54,24 @@ test('a different duel cannot inherit the previous finish screen state',()=>{
  const source=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'utf8');
  assert.match(source,/<DuelFinishScreen\s+key=\{race.duelId\}/);
 });
+
+test('confirmed abandonment never depends on a result RPC',()=>{
+ const s=readFileSync(new URL('../src/components/race/DuelFinishScreen.tsx',import.meta.url),'utf8');
+ const abandoned=s.slice(s.indexOf("if (duel.status === 'abandoned')"),s.indexOf('const resultsResponse = await'));
+ assert.match(abandoned,/setRows\(\[\]\);/);
+ assert.match(abandoned,/setStatus\('abandoned'\);\s*setFetchError\(null\);\s*return;/);
+ assert.ok(s.indexOf("if (duel.status === 'abandoned')")<s.indexOf('await getDuelResults(supabase, duelId)'));
+});
+test('terminal absence and cancellation allow a local exit without retrying or aborting the duel',()=>{
+ const s=readFileSync(new URL('../src/components/race/DuelFinishScreen.tsx',import.meta.url),'utf8');
+ assert.match(s,/const terminalWithoutResult = status === 'abandoned' \|\| status === 'unavailable';/);
+ assert.match(s,/submissionError && !completed && !terminalWithoutResult/);
+ assert.match(s,/!completed && !terminalWithoutResult && \(/);
+ assert.match(s,/\) : terminalWithoutResult \? \(\s*<button[^>]*onClick=\{onClose\}/);
+ assert.match(s,/status === 'abandoned' \? 'ABGEBROCHEN · ZUR KARTE »' : 'ZUR KARTE »'/);
+});
+test('an unexpected server status is not treated as confirmed absence',()=>{
+ const s=readFileSync(new URL('../src/components/race/DuelFinishScreen.tsx',import.meta.url),'utf8');
+ assert.match(s,/duel.status === 'matched' \? 'matched' : 'unexpected'/);
+ assert.doesNotMatch(s,/duel.status === 'matched' \? 'matched' : 'unavailable'/);
+});
