@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createMeasurementLifetime } from '../lib/measurementLifetime';
+import { ghostFixOrder } from '../lib/ghostGpsReadiness';
 import { Link } from 'react-router-dom';
 import { isNativeAuthRuntime } from '../lib/authRedirect';
 import { advanceGpsSprint, createGpsSprint, isFreshLiveGpsFix, type GpsSample, type GpsSprintState } from '../lib/sprintGps';
@@ -35,6 +36,7 @@ export default function GpsFieldTestScreen() {
   const stopReasonRef = useRef<GpsFieldStopReason | null>(null);
   const watchId = useRef<number | null>(null);
   const readyFixRef = useRef<GpsSample | null>(null);
+  const latestPreparationFixMs = useRef<number | null>(null);
   const stateRef = useRef<GpsSprintState | null>(null);
   const mountedRef = useRef(true);
   const watchLifetime = useRef(createMeasurementLifetime());
@@ -49,6 +51,8 @@ export default function GpsFieldTestScreen() {
     watchLifetime.current.close();
     const id = watchId.current;
     watchId.current = null;
+    latestPreparationFixMs.current = null;
+    readyFixRef.current = null;
     if (id !== null && typeof navigator !== 'undefined' && 'geolocation' in navigator) {
       try { navigator.geolocation.clearWatch(id); } catch { /* already retired */ }
     }
@@ -103,6 +107,8 @@ export default function GpsFieldTestScreen() {
   }, [phase]);
 
   const prepare = () => {
+    if (!mountedRef.current || document.hidden ||
+        (phaseRef.current !== 'idle' && phaseRef.current !== 'error')) return;
     if (!('geolocation' in navigator)) {
       setStatus('Dieser Browser unterstützt keine GPS-Ortung.');
       setCurrentPhase('error');
@@ -135,13 +141,24 @@ export default function GpsFieldTestScreen() {
           timestampMs: pos.timestamp,
         };
         const now = Date.now();
+        const preparing = phaseNow === 'acquiring' || phaseNow === 'ready';
+        if (preparing) {
+          const order = ghostFixOrder(latestPreparationFixMs.current, sample, now);
+          if (order.ignore) return;
+          latestPreparationFixMs.current = order.timestampMs;
+        }
         if (!isFreshLiveGpsFix(sample, now)) {
           setSkippedStale((n) => n + 1);
-          setStatus('Veralteter GPS-Fix ignoriert. Bitte Bildschirm entsperrt lassen.');
+          if (preparing) {
+            readyFixRef.current = null;
+            setCurrentPhase('acquiring');
+            setLatestAccuracy(null);
+          }
+          setStatus('Veralteter oder ungültiger GPS-Fix ignoriert. Bitte Bildschirm entsperrt lassen.');
           return;
         }
-        if (phaseNow === 'acquiring' || phaseNow === 'ready') {
-          setLatestAccuracy(sample.accuracyM);
+        if (preparing) {
+          setLatestAccuracy(Number.isFinite(sample.accuracyM) && sample.accuracyM >= 0 ? sample.accuracyM : null);
           if (isFreshStartFix(sample, now)) {
             readyFixRef.current = sample;
             setCurrentPhase('ready');
@@ -187,7 +204,7 @@ export default function GpsFieldTestScreen() {
   };
 
   const start = () => {
-    if (phaseRef.current !== 'ready') return;
+    if (phaseRef.current !== 'ready' || !watchLifetime.current.isActive() || document.hidden) return;
     const atMs = Date.now();
     const anchor = readyFixRef.current;
     if (!isFreshStartFix(anchor, atMs)) {
