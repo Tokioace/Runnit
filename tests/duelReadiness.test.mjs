@@ -25,5 +25,11 @@ test('MapScreen merges both lobby transitions against the latest React state',()
  const source=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'utf8');
  const block=source.slice(source.indexOf('const applyMatchedDuel ='),source.indexOf('// Display only profile nicknames'));
  assert.equal((block.match(/setMatchedDuel\(previous => mergeDuelReadiness\(previous, \{/g)||[]).length,2);
- assert.equal((block.match(/hostReady: row.host_ready === true, challengerReady: row.challenger_ready === true/g)||[]).length,2);
+ const merges=[...block.matchAll(/setMatchedDuel\(previous => mergeDuelReadiness\(previous, \{([\s\S]*?)\}\)\);/g)];
+ assert.equal(merges.length,2);
+ for(const merge of merges) assert.match(merge[1],/hostReady: row.host_ready === true, challengerReady: row.challenger_ready === true/);
+ const savedLobby=block.match(/setMatchOverlay\(\{ duelId: row.id, startsAt, targetDistanceM, lobby: \{([\s\S]*?)\} \}\);/);
+ assert.ok(savedLobby,'countdown must retain its confirmed lobby');
+ assert.match(savedLobby[1],/id: row.id, hostUserId: row.host_user_id, challengerUserId: row.challenger_user_id/);
+ assert.match(savedLobby[1],/hostReady: row.host_ready === true, challengerReady: row.challenger_ready === true, startAt/);
 });
