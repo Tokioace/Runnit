@@ -20,6 +20,27 @@ export function safeNumber(value: number, digits = 2): number {
   return Number.isFinite(value) ? Number(value.toFixed(digits)) : 0;
 }
 
+/** Limit finish diagnostics to the interpolated crossing, not the later GPS
+ * confirmation. A confirmed peak can precede the sample that confirmed it.
+ * Do not invent missing samples or steps. */
+export function ghostFinishMotion<T extends { t_ms: number; steps: number }>(
+  trace: readonly T[], stepTimestampsMs: readonly number[], startedAtMs: number, finishedAtMs: number,
+): { trace: T[]; steps: number; gaps: number } {
+  const cutoff = finishedAtMs - startedAtMs;
+  const peaks = stepTimestampsMs.filter(t => Number.isFinite(t) && t >= startedAtMs && t <= finishedAtMs);
+  let index = 0;
+  let gaps = 0;
+  let previous: number | null = null;
+  const retained = trace.filter(s => Number.isFinite(s.t_ms) && s.t_ms >= 0 && s.t_ms <= cutoff)
+    .map(s => {
+      if (previous !== null && s.t_ms - previous > 250) gaps++;
+      previous = s.t_ms;
+      while (index < peaks.length && peaks[index] - startedAtMs <= s.t_ms) index++;
+      return { ...s, steps: index };
+    });
+  return { trace: retained, steps: peaks.length, gaps };
+}
+
 /** Experimental GPS and IMU summary, never eligible for official standings. */
 export function ghostSummary(state: GpsSprintState, steps: number, imu: number, gaps: number,
   permission: MotionPermission, interrupted: boolean, finish: boolean): DiagnosticSummary {

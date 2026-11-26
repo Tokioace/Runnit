@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import type { UseSupabaseUserReturn } from '../hooks/useSupabaseUser';
 import { createMeasurementLifetime, measurementAccountCurrent } from '../lib/measurementLifetime';
 import { createGpsSprint, advanceLiveGpsSprint, type GpsSprintState, type GpsSample } from '../lib/sprintGps';
-import { ghostSummary, safeNumber, type DiagnosticSummary, type MotionPermission } from '../lib/ghostRunSummary';
+import { ghostSummary, ghostFinishMotion, safeNumber, type DiagnosticSummary, type MotionPermission } from '../lib/ghostRunSummary';
 import { isFreshStartFix, primeGpsSprint } from '../lib/gpsField';
 import { inspectGhostGpsFix, ghostGpsFixNotice, type GhostGpsFixIssue } from '../lib/ghostGpsReadiness';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
@@ -144,7 +144,17 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     if (!state) return;
     setCurrentPhase(reason);
     stopGps();
-    const summaryRow = ghostSummary(state, stepRef.current.count,
+    let finalSteps = stepRef.current.count;
+    if (reason === 'finished' && state.finishTimestampMs !== null) {
+      const motion = ghostFinishMotion(motionTraceRef.current, stepRef.current.timestampsMs,
+        state.startedAtMs, state.finishTimestampMs);
+      motionTraceRef.current = motion.trace;
+      finalSteps = motion.steps;
+      gapCountRef.current = motion.gaps;
+      setStepCount(finalSteps);
+      setMotionGaps(motion.gaps);
+    }
+    const summaryRow = ghostSummary(state, finalSteps,
       motionTraceRef.current.length, gapCountRef.current,
       motionPermissionRef.current, interruptedRef.current,
       reason === 'finished');
