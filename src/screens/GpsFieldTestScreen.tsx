@@ -3,7 +3,7 @@ import { createMeasurementLifetime } from '../lib/measurementLifetime';
 import { ghostFixOrder, inspectGhostGpsFix, ghostGpsFixNotice } from '../lib/ghostGpsReadiness';
 import { Link } from 'react-router-dom';
 import { isNativeAuthRuntime } from '../lib/authRedirect';
-import { advanceGpsSprint, createGpsSprint, isFreshLiveGpsFix, type GpsSample, type GpsSprintState } from '../lib/sprintGps';
+import { advanceLiveGpsSprint, createGpsSprint, isFreshLiveGpsFix, type GpsSample, type GpsSprintState } from '../lib/sprintGps';
 import {
   compareWithReferenceSeconds,
   createExperimentalRunReport,
@@ -193,7 +193,7 @@ export default function GpsFieldTestScreen() {
 
         const previous = stateRef.current;
         if (!previous) return;
-        const next = advanceGpsSprint(previous, sample);
+        const next = advanceLiveGpsSprint(previous, sample, now);
         stateRef.current = next;
         setMeasurement(next);
         if (next.finishTimestampMs !== null) {
