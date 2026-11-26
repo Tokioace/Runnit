@@ -12,7 +12,7 @@ test('Ghost Run cannot reset during a pending save, including before React rende
 });
 test('uncertain transport failures do not allow duplicate blind inserts',()=>{
  const save=source.slice(source.indexOf('const saveSummary'),source.indexOf('const stopRun'));
- assert.match(save,/uncertain = Boolean\(response.error\) && response.status === 0;/);
+ assert.match(save,/uncertain = isUncertainGhostSave\(response.status, response.error\);/);
  assert.match(save,/catch \{\s*uncertain = true;/);
  const unknown=save.slice(save.indexOf('if (uncertain)'),save.indexOf('else if (error)'));
  assert.match(unknown,/setSaveStatus\('unknown'\)/);
