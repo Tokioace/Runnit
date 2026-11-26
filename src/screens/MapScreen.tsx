@@ -1924,6 +1924,20 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       return;
     }
 
+    // A stale click can outlive the marker that originally rendered it.
+    // Keep the server authoritative, but avoid a request for a locally known
+    // closed event or one whose visible deadline has already passed.
+    if (knownNonOpenRunIdsRef.current.has(run.id) ||
+        (run.expiresAt && !isOpenEventAvailable(run.expiresAt))) {
+      setOpenRuns(previous => previous.filter(item => item.id !== run.id));
+      setHostedOpenDuels(previous => previous.filter(item => item.id !== run.id));
+      setRegionalRuns(previous => previous.filter(item => item.id !== run.id));
+      setSelectedRunId(previous => previous === run.id ? null : previous);
+      setDiscoveryRefreshTick(tick => tick + 1);
+      setRaceNotice('Dieses Rennen ist bereits besetzt oder nicht mehr verfügbar.');
+      return;
+    }
+
     // Signed-in runners may try explicitly labeled, non-scored sample races.
     if (run.id.startsWith('demo-run-')) {
       const startsAt = Date.now() + ARCADE_COUNTDOWN_SECONDS * 1000; // local demo only; real time is stored by server
