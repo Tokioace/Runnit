@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createMeasurementLifetime } from '../lib/measurementLifetime';
-import { ghostFixOrder } from '../lib/ghostGpsReadiness';
+import { ghostFixOrder, inspectGhostGpsFix, ghostGpsFixNotice } from '../lib/ghostGpsReadiness';
 import { Link } from 'react-router-dom';
 import { isNativeAuthRuntime } from '../lib/authRedirect';
 import { advanceGpsSprint, createGpsSprint, isFreshLiveGpsFix, type GpsSample, type GpsSprintState } from '../lib/sprintGps';
@@ -223,14 +223,35 @@ export default function GpsFieldTestScreen() {
     }
   };
 
+  const expireReadyFix = (atMs: number): boolean => {
+    if (phaseRef.current !== 'ready' || !watchLifetime.current.isActive() || document.hidden) return false;
+    const anchor = readyFixRef.current;
+    if (isFreshStartFix(anchor, atMs)) return false;
+    const info = inspectGhostGpsFix(anchor, atMs);
+    readyFixRef.current = null;
+    setCurrentPhase('acquiring');
+    setStatus(ghostGpsFixNotice(info));
+    return true;
+  };
+
+  useEffect(() => {
+    if (phase !== 'ready') return;
+    const isWatchLive = watchLifetime.current.capture();
+    const check = () => {
+      if (!mountedRef.current || !isWatchLive() || document.hidden || phaseRef.current !== 'ready') return;
+      expireReadyFix(Date.now());
+    };
+    check();
+    const timer = window.setInterval(check, 250);
+    return () => window.clearInterval(timer);
+  }, [phase]);
+
   const start = () => {
     if (phaseRef.current !== 'ready' || !watchLifetime.current.isActive() || document.hidden) return;
     const atMs = Date.now();
     const anchor = readyFixRef.current;
     if (!isFreshStartFix(anchor, atMs)) {
-      readyFixRef.current = null;
-      setCurrentPhase('acquiring');
-      setStatus('Start-Fix ist älter als drei Sekunden. Bitte auf ein neues GPS-Signal warten.');
+      expireReadyFix(atMs);
       return;
     }
     try {
