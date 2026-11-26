@@ -241,6 +241,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       const order = ghostFixOrder(latestPreparationFixMs.current, sample, observedNow);
       if (order.ignore) return;
       latestPreparationFixMs.current = order.timestampMs;
+      setNow(observedNow);
       const info = inspectGhostGpsFix(sample, observedNow);
       setAccuracyM(info.accuracyM);
       setFixTimestampMs(Number.isFinite(sample.timestampMs) ? sample.timestampMs : null);
@@ -400,11 +401,32 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     return () => { cancelled = true; window.clearInterval(interval); };
   }, [phase, onGps]);
 
+  const expireReadyFix = useCallback((atMs: number): boolean => {
+    if (phaseRef.current !== 'ready' || !gpsLifetime.current.isActive()) return false;
+    const anchor = readyRef.current;
+    if (isFreshStartFix(anchor, atMs)) return false;
+    const info = inspectGhostGpsFix(anchor, atMs);
+    readyRef.current = null;
+    setFixIssue(info.issue);
+    setNow(atMs);
+    setCurrentPhase('acquiring');
+    setNotice(ghostGpsFixNotice(info));
+    return true;
+  }, [setCurrentPhase]);
+
   useEffect(() => {
     if (phase !== 'acquiring' && phase !== 'ready' && phase !== 'countdown') return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    const isGpsLive = gpsLifetime.current.capture();
+    const tick = () => {
+      if (!isGpsLive() || document.visibilityState !== 'visible' ||
+          (phaseRef.current !== 'acquiring' && phaseRef.current !== 'ready' && phaseRef.current !== 'countdown')) return;
+      const atMs = Date.now();
+      if (!expireReadyFix(atMs)) setNow(atMs);
+    };
+    tick();
+    const timer = window.setInterval(tick, 250);
     return () => window.clearInterval(timer);
-  }, [phase]);
+  }, [phase, expireReadyFix]);
 
   const requestGpsRefresh = () => {
     if (!navigator.geolocation || !gpsLifetime.current.isActive() ||
@@ -442,11 +464,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   const beginCountdown = () => {
     if (!lifetime.current.isActive() || phaseRef.current !== 'ready') return;
     if (!gpsLifetime.current.isActive() || document.visibilityState !== 'visible') return;
-    if (!isFreshStartFix(readyRef.current, Date.now())) {
-      setCurrentPhase('acquiring');
-      setNotice('GPS-Fix ist nicht mehr aktuell. Bitte auf ein neues Signal warten.');
-      return;
-    }
+    if (expireReadyFix(Date.now())) return;
     if (soundEnabledRef.current) unlockRaceAudio(); // User gesture; do not require sound permission later.
     const start = Date.now() + ARCADE_COUNTDOWN_SECONDS * 1000;
     manualGpsRequestRef.current = null;
