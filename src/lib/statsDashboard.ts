@@ -1,4 +1,4 @@
-import type { RaceHistoryItem, StoredGhostSession } from './runnerHistory';
+import { isRecordedBy, type RaceHistoryItem, type StoredGhostSession } from './runnerHistory.ts';
 
 export type StatsDay = { key: string; label: string; sessions: number; measuredDistanceM: number };
 export type StatsOverview = {
@@ -36,9 +36,12 @@ export function calculateStatsOverview(
   ghostSessions: readonly StoredGhostSession[],
   now: Date = new Date()
 ): StatsOverview {
-  const completed = races.filter(r=>r.completed && r.timeMs>0 && Number.isFinite(r.timeMs));
+  const asOfMs = now.getTime();
+  const completed = races.filter(r=>r.completed && r.timeMs>0 && Number.isFinite(r.timeMs) &&
+    isRecordedBy(r.occurredAt, asOfMs));
   const finishedGhosts = ghostSessions.filter(g=>g.run_state==='finished' &&
-    typeof g.elapsed_ms==='number' && Number.isFinite(g.elapsed_ms) && g.elapsed_ms>0);
+    typeof g.elapsed_ms==='number' && Number.isFinite(g.elapsed_ms) && g.elapsed_ms>0 &&
+    isRecordedBy(g.created_at, asOfMs));
 
   const today = new Date(now.getFullYear(),now.getMonth(),now.getDate());
   const monday = new Date(today);
