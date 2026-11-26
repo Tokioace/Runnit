@@ -850,7 +850,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
         )}
       </div>
       {phase === 'countdown' && countdownAt !== null && (
-        <RaceCountdown key={countdownAt} startsAt={countdownAt} targetDistanceM={target} wakeStatus={wakeStatus}
+        <RaceCountdown key={countdownAt} startsAt={countdownAt} targetDistanceM={target} wakeStatus={wakeStatus} mode="ghost"
           soundEnabled={soundEnabled} onDone={beginRun} onAbort={async () => {
             if (phaseRef.current !== 'countdown' || countdownAtRef.current !== countdownAt) return;
             countdownAtRef.current = null;
