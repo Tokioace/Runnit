@@ -45,7 +45,13 @@ function tone(ctx: AudioContext, at: number, duration: number, startHz: number, 
   gain.gain.exponentialRampToValueAtTime(0.0001, at + duration);
   oscillator.connect(gain).connect(ctx.destination);
   oscillator.start(at);
-  oscillator.stop(at + duration + 0.01);
+  try {
+    oscillator.stop(at + duration + 0.01);
+  } catch (error) {
+    // A source that started but could not schedule its stop must be retired.
+    try { oscillator.stop(); } catch {}
+    throw error;
+  }
   return () => { try { oscillator.stop(); } catch {} };
 }
 
@@ -94,8 +100,14 @@ export function playArcadeFinishSfx(): void {
   const ctx = audio();
   if (!ctx || ctx.state !== 'running') return;
   const now = ctx.currentTime + 0.01;
-  tone(ctx, now, 0.65, 1100, 1900, 0.19, 'square');
-  tone(ctx, now + 0.14, 0.8, 760, 1300, 0.10, 'triangle');
+  const chimes: Stop[] = [];
+  try {
+    chimes.push(tone(ctx, now, 0.65, 1100, 1900, 0.19, 'square'));
+    chimes.push(tone(ctx, now + 0.14, 0.8, 760, 1300, 0.10, 'triangle'));
+  } catch {
+    chimes.forEach(stop => stop());
+    return; // Optional audio must never interrupt the result or its persistence.
+  }
   try {
     const duration = 1.8;
     const samples = Math.round(ctx.sampleRate * duration);
@@ -122,6 +134,11 @@ export function playArcadeFinishSfx(): void {
     volume.gain.exponentialRampToValueAtTime(0.0001, now + duration);
     noise.connect(filter).connect(volume).connect(ctx.destination);
     noise.start(now + 0.12);
-    noise.stop(now + duration + 0.01);
+    try {
+      noise.stop(now + duration + 0.01);
+    } catch (error) {
+      try { noise.stop(); } catch {}
+      throw error;
+    }
   } catch { /* Silent fallback on unavailable audio hardware. */ }
 }
