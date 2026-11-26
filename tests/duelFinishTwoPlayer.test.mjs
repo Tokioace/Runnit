@@ -82,8 +82,10 @@ test('failed finish submission has an explicit retry and does not score an unver
   const map = read('src/screens/MapScreen.tsx');
   const finish = read('src/components/race/DuelFinishScreen.tsx');
   assert.match(map, /setFinishSubmissionError\('Zielzeit nicht gespeichert\. Bitte erneut versuchen\.'/);
-  assert.match(map, /const retryFinishedTime = async \(\) =>/);
-  assert.match(map, /onRetrySubmit=\{retryFinishedTime\}/);
+  const retry = map.slice(map.indexOf('const retryFinishedTime ='), map.indexOf('const confirmAbortMatchedDuel ='));
+  assert.match(retry, /const retryFinishedTime = async \(duelId: string\) =>/);
+  assert.match(retry, /if \(payload\?\.duelId === duelId\) await sendFinishedTime\(payload\);/);
+  assert.match(map, /onRetrySubmit=\{\(\) => retryFinishedTime\(race.duelId\)\}/);
   assert.match(finish, /ZIELZEIT ERNEUT SPEICHERN/);
   assert.match(finish, /nicht als verifizierte Ranglistenwertung/);
   assert.doesNotMatch(map, /source: 'local-unverified'/);
