@@ -24,8 +24,8 @@ export function createDuelGpsMeasurement(targetM: number, startedAtMs: number, s
     maxAccelMps2: 0, usedPrestartFix: false, staleFixes: 0 };
 }
 
-/** A rejected abort resumes the same race, but not the interrupted
- * crossing or speed observation. Require new fixes after the pause. */
+/** A rejected abort or reported GPS outage interrupts crossing and speed
+ * evidence, not the race clock. Require new fixes after the boundary. */
 export function resumeDuelGpsMeasurement(state: DuelGpsMeasurement, resumedAtMs: number): DuelGpsMeasurement {
   if (state.sprint.finishTimestampMs !== null || !Number.isFinite(resumedAtMs)) return state;
   return { ...state, resumeAfterMs: Math.max(resumedAtMs, state.resumeAfterMs ?? -Infinity),
