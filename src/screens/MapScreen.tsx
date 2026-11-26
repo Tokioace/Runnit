@@ -861,6 +861,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     if (!authUser || finishAccountRef.current !== authUser.id || activeDuelIdRef.current !== duelId) return;
     recoveryRevisionRef.current += 1;
     endedDuelIdsRef.current.add(duelId);
+    knownNonOpenRunIdsRef.current.add(duelId);
+    setRegionalRuns(previous => previous.filter(run => run.id !== duelId));
     activeDuelIdRef.current = null;
     unconfirmedRecoveryHintRef.current = null;
     if (authUser) {
@@ -895,6 +897,10 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     const active = activeDuelIdRef.current;
     if (active && active !== row.id) return;
     completedDuelIdsRef.current.add(row.id);
+    knownNonOpenRunIdsRef.current.add(row.id);
+    setRegionalRuns(previous => previous.filter(run => run.id !== row.id));
+    setOpenRuns(previous => previous.filter(run => run.id !== row.id));
+    setHostedOpenDuels(previous => previous.filter(run => run.id !== row.id));
     unconfirmedRecoveryHintRef.current = null;
     recoveryRevisionRef.current += 1;
     activeDuelIdRef.current = row.id;
