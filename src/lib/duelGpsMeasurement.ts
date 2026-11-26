@@ -42,9 +42,16 @@ export function advanceDuelGpsMeasurement(state: DuelGpsMeasurement, sample: Gps
   // Keep confirmation diagnostics, but exclude the post-crossing interval from peak acceleration.
   if (previous && sprint.finishTimestampMs === null) {
     const dt = (sample.timestampMs - previous.timestampMs) / 1000;
-    speed = haversineMeters(previous, sample) / dt;
-    if (state.previousSpeedMps !== null) {
-      maxAccel = Math.max(maxAccel, Math.abs(speed - state.previousSpeedMps) / dt);
+    // A long observation gap gives an interval average, not a current speed.
+    // Do not compare acceleration across that gap or against its average on
+    // the following fix. Preserve the last reliable peak.
+    if (dt > 3) {
+      speed = null;
+    } else {
+      speed = haversineMeters(previous, sample) / dt;
+      if (state.previousSpeedMps !== null) {
+        maxAccel = Math.max(maxAccel, Math.abs(speed - state.previousSpeedMps) / dt);
+      }
     }
   }
   return { ...state, sprint, accuracySum: state.accuracySum + sample.accuracyM,
