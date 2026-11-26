@@ -1303,7 +1303,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       return;
     }
     let active = true;
-    const refresh = async () => {
+    const queue = createDuelRecoveryQueue(async () => {
       const { data, error } = await supabase
         .from('duels')
         .select('id, location, expires_at')
@@ -1311,15 +1311,30 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         .gt('expires_at', new Date().toISOString())
         .limit(500);
       if (!active || error) return;
+      if (finishAccountRef.current !== authUser.id) return;
       setRegionalRuns((data ?? []).flatMap(row => {
         if (knownNonOpenRunIdsRef.current.has(row.id)) return [];
+        if (!isOpenEventAvailable(row.expires_at)) return [];
         const location = parseGeographyPoint(row.location);
         return location ? [{ id: row.id as string, location, expiresAt: row.expires_at as string }] : [];
       }));
+    });
+    const whenVisible = () => {
+      if (document.visibilityState === 'visible') queue.request();
     };
-    void refresh();
-    const id = window.setInterval(() => void refresh(), 90_000);
-    return () => { active = false; window.clearInterval(id); };
+    queue.request();
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') queue.poll();
+    }, 90_000);
+    document.addEventListener('visibilitychange', whenVisible);
+    window.addEventListener('online', whenVisible);
+    return () => {
+      active = false;
+      queue.close();
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', whenVisible);
+      window.removeEventListener('online', whenVisible);
+    };
   }, [authUser?.id, wideMapView]);
 
   // Fetch only this authenticated host's open, unjoined lobbies. Keep the
