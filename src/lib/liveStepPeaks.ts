@@ -34,6 +34,14 @@ export class LiveStepPeakCounter {
     this.accepted = [];
   }
 
+  /** Break an interrupted observation without discarding confirmed steps. */
+  resumeAfter(timestampMs: number): void {
+    if (!Number.isFinite(timestampMs)) return;
+    this.recent = [];
+    this.rawWindow = [];
+    this.lastInputMs = Math.max(this.lastInputMs ?? -Infinity, timestampMs);
+  }
+
   /** Return a new total on each confirmed local crest; otherwise null. */
   push(sample: Pick<MotionSample, 'timestampMs' | 'accelerationMagnitudeMps2'>): number | null {
     const t = sample.timestampMs;

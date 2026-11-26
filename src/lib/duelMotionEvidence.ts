@@ -45,19 +45,36 @@ export function motionEventSample(
 export class DuelMotionCapture {
   private samples: SprintMotionSample[] = [];
   private truncated = false;
+  private resumeAfterMs: number | null = null;
+  private firstResumeMs: number | null = null;
+  private discontinuities = new Set<number>();
+  private resumePending = false;
   private readonly startedAtMs: number;
 
   constructor(startedAtMs: number) {
     this.startedAtMs = startedAtMs;
   }
 
+  /** Keep previous samples but mark the explicit interruption as a gap. */
+  resumeAfter(timestampMs: number): void {
+    if (!Number.isFinite(timestampMs)) return;
+    this.resumeAfterMs = Math.max(this.resumeAfterMs ?? -Infinity, timestampMs);
+    this.firstResumeMs = Math.min(this.firstResumeMs ?? Infinity, timestampMs);
+    this.resumePending = true;
+  }
+
   push(sample: SprintMotionSample): boolean {
     if (!Number.isFinite(sample.timestampMs) || sample.timestampMs < this.startedAtMs ||
         !Number.isFinite(sample.accelerationMagnitudeMps2) ||
         sample.accelerationMagnitudeMps2 < 0 || sample.accelerationMagnitudeMps2 >= 200) return false;
+    if (this.resumeAfterMs !== null && sample.timestampMs <= this.resumeAfterMs) return false;
     const previous = this.samples[this.samples.length - 1];
     if (previous && sample.timestampMs <= previous.timestampMs) return false;
     if (this.samples.length >= MAX_SAMPLES) { this.truncated = true; return false; }
+    if (this.resumePending) {
+      this.discontinuities.add(this.samples.length);
+      this.resumePending = false;
+    }
     this.samples.push({ ...sample });
     return true;
   }
@@ -69,11 +86,12 @@ export class DuelMotionCapture {
     let gaps = 0;
     for (let i = 1; i < samples.length; i++) {
       const interval = samples[i].timestampMs - samples[i - 1].timestampMs;
-      if (interval > MAX_GAP_MS) gaps++;
+      if (interval > MAX_GAP_MS || this.discontinuities.has(i)) gaps++;
       else observed += interval;
     }
     const coverage = Number.isFinite(duration) && duration > 0 ? Math.min(1, observed / duration) : 0;
-    const enough = !this.truncated && samples.length >= 10 && coverage >= 0.7 && gaps === 0;
+    const interrupted = this.firstResumeMs !== null && this.firstResumeMs <= finishedAtMs;
+    const enough = !this.truncated && !interrupted && samples.length >= 10 && coverage >= 0.7 && gaps === 0;
     const analysis = enough ? analyzeSprintCadence(samples) : null;
     const speed = duration > 0 ? distanceM / (duration / 1000) : 0;
     const consistent = analysis?.status === 'sprint-like-rhythm' &&

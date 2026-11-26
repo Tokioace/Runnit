@@ -53,5 +53,5 @@ test('a finished measurement cannot be reopened and a live abort failure install
  const abortEnd=source.indexOf('const watchIdRef =',abortStart);
  assert.ok(overlayStart>=0 && abortStart>overlayStart && abortEnd>abortStart);
  const abort=source.slice(abortStart,abortEnd);
- assert.match(abort,/if \(!isLive\(\)\) return;\s*finishedRef.current = false;\s*measurementRef.current = resumeDuelGpsMeasurement\(measurementRef.current, Date.now\(\)\);/);
+ assert.match(abort,/if \(!isLive\(\)\) return;\s*finishedRef.current = false;\s*const resumedAtMs = Date.now\(\);\s*measurementRef.current = resumeDuelGpsMeasurement\(measurementRef.current, resumedAtMs\);/);
 });
