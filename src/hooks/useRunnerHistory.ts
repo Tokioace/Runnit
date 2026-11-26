@@ -21,6 +21,7 @@ const EMPTY: HistoryState = { races: [], ghostSessions: [], loading: false, erro
 export function useRunnerHistory(userId: string | null | undefined) {
   const [state, setState] = useState<HistoryState>(() => userId ? { ...EMPTY, loading: true } : EMPTY);
   const [revision, reload] = useState(0);
+  const [clockRevision, tickClock] = useState(0);
 
   const refresh = useCallback(() => reload(n => n + 1), []);
 
@@ -103,11 +104,28 @@ export function useRunnerHistory(userId: string | null | undefined) {
     };
   }, [userId, revision, refresh]);
 
-  const totals = useMemo(() => {
-    const now = new Date();
-    return calculateActivityTotals(state.races, state.ghostSessions, currentLocalWeekStart(now), now.getTime());
-  }, [state.races, state.ghostSessions]);
+  // Calendar boundaries and clock corrections must update existing records
+  // even when the screen stays open. This clock does not trigger network reads.
+  useEffect(() => {
+    if (!userId) return;
+    const tick = () => {
+      if (document.visibilityState === 'visible') tickClock(n => n + 1);
+    };
+    const timer = window.setInterval(tick, 60_000);
+    window.addEventListener('focus', tick);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', tick);
+      document.removeEventListener('visibilitychange', tick);
+    };
+  }, [userId]);
 
-  return { ...state, totals, refresh };
+  const now = useMemo(() => new Date(), [state.races, state.ghostSessions, clockRevision]);
+  const totals = useMemo(() => {
+    return calculateActivityTotals(state.races, state.ghostSessions, currentLocalWeekStart(now), now.getTime());
+  }, [state.races, state.ghostSessions, now]);
+
+  return { ...state, totals, refresh, now };
 }
 
