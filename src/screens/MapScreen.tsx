@@ -2091,6 +2091,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       {matchedDuel && !matchOverlay && race.status === 'idle' &&
         dismissedMatchId !== matchedDuel.id && (
         <ReadyLobby
+          key={matchedDuel.id}
           hostName={matchedDuel.hostUserId === authUser?.id
             ? (authUser?.displayName || 'HOST')
             : (matchedNames[matchedDuel.hostUserId] || 'HOST')}
