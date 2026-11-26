@@ -1,3 +1,4 @@
+import { mergeDuelReadiness } from '../lib/duelReadiness';
 import { createDuelStartLatch } from '../lib/duelStartLatch';
 import { createDuelWriteGate } from '../lib/duelWriteGate';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -960,19 +961,19 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         setRace({ status: 'countdown', duelId: row.id, startsAt, targetDistanceM });
       } else if (matchStartHandledRef.current !== key) {
         // Do not start an hours-old duel from a resumed Safari tab.
-        setMatchedDuel({
+        setMatchedDuel(previous => mergeDuelReadiness(previous, {
           id: row.id, hostUserId: row.host_user_id,
           challengerUserId: row.challenger_user_id, targetDistanceM,
-          hostReady: Boolean(row.host_ready), challengerReady: Boolean(row.challenger_ready), startAt,
-        });
+          hostReady: row.host_ready === true, challengerReady: row.challenger_ready === true, startAt,
+        }));
       }
       return;
     }
-    setMatchedDuel({
+    setMatchedDuel(previous => mergeDuelReadiness(previous, {
       id: row.id, hostUserId: row.host_user_id,
       challengerUserId: row.challenger_user_id, targetDistanceM,
-      hostReady: Boolean(row.host_ready), challengerReady: Boolean(row.challenger_ready), startAt: null,
-    });
+      hostReady: row.host_ready === true, challengerReady: row.challenger_ready === true, startAt: null,
+    }));
   }, [authUser?.id]);
 
   // Display only profile nicknames (never email addresses). Names are optional:
