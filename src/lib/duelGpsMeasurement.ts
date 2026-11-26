@@ -54,9 +54,13 @@ export function advanceDuelGpsMeasurement(state: DuelGpsMeasurement, sample: Gps
 /** Only aggregate diagnostic values cross the submission boundary. No coordinates. */
 export function duelGpsMetrics(state: DuelGpsMeasurement, steps: number, motion?: DuelMotionEvidence): DuelMetrics {
   const sprint = state.sprint;
+  // Steps are counted through the interpolated finish, not the later
+  // confirmation fix. Use the displacement at that same crossing for the
+  // estimated step length; retain the observed fix distance for diagnostics.
+  const stepDistanceM = sprint.finishTimestampMs !== null ? sprint.targetMeters : sprint.distanceM;
   return {
     stepsCount: steps,
-    stepLengthAvgM: steps > 0 ? sprint.distanceM / steps : undefined,
+    stepLengthAvgM: steps > 0 ? stepDistanceM / steps : undefined,
     maxSpeedMps: sprint.maxSpeedMps,
     maxAccelMps2: state.maxAccelMps2,
     distanceM: sprint.distanceM,
