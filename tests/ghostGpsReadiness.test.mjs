@@ -35,7 +35,7 @@ test('GhostRun does not stay permanently disabled if iOS supplies accurate stale
   const ui = source('src/screens/GhostRunScreen.tsx');
   assert.match(ui,/inspectGhostGpsFix\(sample, observedNow\)/);
   assert.match(ui,/if \(info.issue === 'ready' && isFreshStartFix\(sample, observedNow\)\)/);
-  assert.match(ui,/sample.timestampMs < readyRef.current.timestampMs/);
+  assert.match(ui,/ghostFixOrder\(latestPreparationFixMs.current, sample, observedNow\)/);
   assert.match(ui,/navigator.geolocation.getCurrentPosition\(/);
   assert.match(ui,/maximumAge: 0, timeout: 7000/);
   assert.match(ui,/window.setInterval\(requestFreshFix, 5000\)/);
