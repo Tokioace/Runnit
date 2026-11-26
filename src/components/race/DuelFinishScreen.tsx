@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { getDuelResults } from '../../db/getDuelResults';
 import { playArcadeFinishSfx } from '../../lib/arcadeRaceAudio';
 
-import { determineDuelOutcome } from '../../lib/duelOutcome';
+import { determineDuelOutcome, validateDuelResultRows } from '../../lib/duelOutcome';
 import { createFinishRefresh } from '../../lib/finishRefresh';
 
 export type DuelResultRow = {
@@ -116,10 +116,10 @@ export default function DuelFinishScreen({
     };
   }, [supabase, duelId, userId, isDemo]);
 
-  const uniqueResults = rows.filter(row =>
-    typeof row.user_id === 'string' &&
-    (row.user_id === hostId || row.user_id === challengerId) &&
-    Number.isFinite(row.time_ms) && row.time_ms > 0);
+  const validatedResults = validateDuelResultRows(rows, hostId, challengerId);
+  const uniqueResults = validatedResults ?? [];
+  const resultDataError = (status === 'matched' || status === 'completed') && !isDemo && validatedResults === null
+    ? 'Widersprüchliche Rennergebnisse. Die Anzeige versucht es erneut.' : null;
   const outcome = determineDuelOutcome(uniqueResults, userId, status);
   const completed = isDemo || outcome !== 'pending';
   const terminalWithoutResult = status === 'abandoned' || status === 'unavailable';
@@ -196,7 +196,7 @@ export default function DuelFinishScreen({
             {' '}Der Ergebnisbildschirm bleibt offen, bis das gemeinsame Rennen abgeschlossen ist.
           </p>
         )}
-        {fetchError && <p className="race-arcade-error" role="alert">{fetchError}</p>}
+        {(fetchError || resultDataError) && <p className="race-arcade-error" role="alert">{fetchError || resultDataError}</p>}
         {submissionError && !completed && !terminalWithoutResult && (
           <div className="race-arcade-result-retry">
             <p className="race-arcade-error" role="alert">{submissionError}</p>
