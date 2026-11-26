@@ -25,3 +25,18 @@ test('join guards account lifetime and confirmed races before writing and after 
  assert.match(join,/else \{\s*setDiscoveryRefreshTick\(tick => tick \+ 1\);\s*setRaceNotice\('Beitritt nicht bestätigt/);
  assert.match(join,/finally \{\s*joiningRunRef.current = null;/);
 });
+
+test('stale event click cannot request a join after confirmed closure or local expiry',()=>{
+ const map=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'utf8');
+ const join=map.slice(map.indexOf('const handleJoinRun ='),map.indexOf('// Both views use the exact same secure callbacks'));
+ const guard=join.indexOf('if (knownNonOpenRunIdsRef.current.has(run.id)');
+ const request=join.indexOf('joiningRunRef.current = run.id;');
+ assert.ok(guard>=0 && request>guard);
+ const preflight=join.slice(guard,request);
+ assert.match(preflight,/if \(knownNonOpenRunIdsRef.current.has\(run.id\) \|\|\s*\(run.expiresAt && !isOpenEventAvailable\(run.expiresAt\)\)\) \{/);
+ assert.match(preflight,/setOpenRuns\(previous => previous.filter\(item => item.id !== run.id\)\)/);
+ assert.match(preflight,/setHostedOpenDuels\(previous => previous.filter\(item => item.id !== run.id\)\)/);
+ assert.match(preflight,/setRegionalRuns\(previous => previous.filter\(item => item.id !== run.id\)\)/);
+ assert.match(preflight,/setSelectedRunId\(previous => previous === run.id \? null : previous\)/);
+ assert.match(preflight,/setDiscoveryRefreshTick\(tick => tick \+ 1\);\s*setRaceNotice\([^\n]+\);\s*return;\s*\}/);
+});
