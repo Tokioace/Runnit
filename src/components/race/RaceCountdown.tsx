@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createMeasurementLifetime } from '../../lib/measurementLifetime';
 import { scheduleArcadeStartSfx, unlockRaceAudio } from '../../lib/arcadeRaceAudio';
 import { createCountdownAudioSession } from '../../lib/countdownAudioSession';
 import { screenWakeLockMessage, type ScreenWakeLockStatus } from '../../lib/screenWakeLock';
@@ -15,31 +16,48 @@ export function countdownSecond(startsAt: number, now: number): number {
 }
 
 type Props = { startsAt: number; targetDistanceM: number; soundEnabled: boolean;
-  wakeStatus: ScreenWakeLockStatus | 'idle'; onDone: () => boolean; onAbort: () => Promise<void> };
+  mode?: 'duel' | 'ghost'; wakeStatus: ScreenWakeLockStatus | 'idle'; onDone: () => boolean; onAbort: () => Promise<void> };
 
-export default function RaceCountdown({ startsAt, targetDistanceM, soundEnabled, wakeStatus, onDone, onAbort }: Props) {
+export default function RaceCountdown({ startsAt, targetDistanceM, soundEnabled, wakeStatus, onDone, onAbort, mode = 'duel' }: Props) {
   const [remaining, setRemaining] = useState(() => countdownSecond(startsAt, Date.now()));
   const [confirmAbort, setConfirmAbort] = useState(false);
   const [aborting, setAborting] = useState(false);
   const [abortError, setAbortError] = useState<string | null>(null);
+  const lifetime = useRef(createMeasurementLifetime());
+  const abortPendingRef = useRef(false);
+  const finishedRef = useRef(false);
+  const handedOffStart = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    lifetime.current.open();
+    abortPendingRef.current = false;
+    finishedRef.current = false;
+    handedOffStart.current = null;
+    setConfirmAbort(false);
+    setAborting(false);
+    setAbortError(null);
+    return () => lifetime.current.close();
+  }, [startsAt]);
   const confirmExit = async () => {
-    if (aborting) return;
+    if (!lifetime.current.isActive() || abortPendingRef.current || finishedRef.current) return;
+    const isLive = lifetime.current.capture();
+    abortPendingRef.current = true;
     setAborting(true);
     setAbortError(null);
     try {
       await onAbort();
     } catch {
+      if (!isLive() || finishedRef.current) return;
+      abortPendingRef.current = false;
       setAbortError('Rennabbruch nicht bestätigt. Bitte erneut versuchen.');
       setAborting(false);
     }
   };
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
-  const finishedRef = useRef(false);
-  const handedOffStart = useRef<number | null>(null);
   useEffect(() => {
-    finishedRef.current = false;
+    const isLive = lifetime.current.capture();
     const tick = () => {
+      if (!isLive()) return;
       const next = countdownSecond(startsAt, Date.now());
       setRemaining(value => value === next ? value : next);
       if (next === 0 && !finishedRef.current) {
@@ -75,10 +93,10 @@ export default function RaceCountdown({ startsAt, targetDistanceM, soundEnabled,
       <div className="race-arcade-light race-arcade-light-a" aria-hidden="true" />
       <div className="race-arcade-light race-arcade-light-b" aria-hidden="true" />
       <div className="race-arcade-shell">
-        <div className="race-arcade-topline"><span>RUNNIT // RACE CONTROL</span><span>1V1 LIVE</span></div>
+        <div className="race-arcade-topline"><span>RUNNIT // RACE CONTROL</span><span>{mode === 'ghost' ? 'SOLO LIVE' : '1V1 LIVE'}</span></div>
         <div className="race-arcade-headline">
           <h2>START YOUR ENGINES</h2>
-          <div className="race-arcade-duel-tag">1V1 DUELL <b>· {targetDistanceM} M</b></div>
+          <div className="race-arcade-duel-tag">{mode === 'ghost' ? 'GHOST RUN' : '1V1 DUELL'} <b>· {targetDistanceM} M</b></div>
         </div>
         <div className="race-arcade-count-center">
           <p className="race-arcade-caption">RENNEN STARTET IN</p>
@@ -103,7 +121,7 @@ export default function RaceCountdown({ startsAt, targetDistanceM, soundEnabled,
           </button>}
           {confirmAbort ? (
             <div className="race-arcade-confirm" role="alertdialog" aria-label="Countdown abbrechen">
-              <p>RENNEN FÜR BEIDE SPIELER ABBRECHEN?</p>
+              <p>{mode === 'ghost' ? 'GHOST RUN ABBRECHEN?' : 'RENNEN FÜR BEIDE SPIELER ABBRECHEN?'}</p>
               <div className="race-arcade-confirm-actions">
                 <button type="button" disabled={aborting} onClick={() => setConfirmAbort(false)}>NEIN</button>
                 <button type="button" disabled={aborting} onClick={() => { void confirmExit(); }}>
