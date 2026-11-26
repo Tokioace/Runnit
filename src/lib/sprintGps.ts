@@ -32,6 +32,7 @@ export type GpsSprintState = Readonly<{
   rejectedSamples: number;
   beyondTargetCount: number;
   crossingTimestampMs: number | null;
+  crossingIntervalMs: number | null;
   finishTimestampMs: number | null;
   lastDecision: GpsDecision | null;
 }>;
@@ -57,7 +58,7 @@ export function createGpsSprint(targetMeters: number, startedAtMs: number): GpsS
   return {
     targetMeters, startedAtMs, origin: null, lastAccepted: null, distanceM: 0,
     maxSpeedMps: 0, acceptedSamples: 0, rejectedSamples: 0, beyondTargetCount: 0,
-    crossingTimestampMs: null, finishTimestampMs: null, lastDecision: null,
+    crossingTimestampMs: null, crossingIntervalMs: null, finishTimestampMs: null, lastDecision: null,
   };
 }
 
@@ -93,19 +94,22 @@ export function advanceGpsSprint(state: GpsSprintState, sample: GpsSample): GpsS
   const isBeyond = distanceM >= state.targetMeters;
   const beyondTargetCount = isBeyond ? state.beyondTargetCount + 1 : 0;
   let crossingTimestampMs = isBeyond ? state.crossingTimestampMs : null;
+  let crossingIntervalMs = isBeyond ? state.crossingIntervalMs : null;
   if (isBeyond && crossingTimestampMs === null) {
     const oldDistance = state.distanceM;
     const fraction = distanceM > oldDistance
       ? Math.max(0, Math.min(1, (state.targetMeters - oldDistance) / (distanceM - oldDistance)))
       : 1;
     crossingTimestampMs = prev.timestampMs + Math.round(elapsedMs * fraction);
+    // Diagnostic bracket, not a calibrated error bound for the finish time.
+    crossingIntervalMs = elapsedMs;
   }
   return {
     ...state, lastAccepted: sample, distanceM,
     // The second beyond-target fix confirms a crossing that already happened.
     // Its interval is entirely after that crossing, not sprint performance.
     maxSpeedMps: beyondTargetCount >= 2 ? state.maxSpeedMps : Math.max(state.maxSpeedMps, speedMps),
-    acceptedSamples: state.acceptedSamples + 1, beyondTargetCount, crossingTimestampMs,
+    acceptedSamples: state.acceptedSamples + 1, beyondTargetCount, crossingTimestampMs, crossingIntervalMs,
     finishTimestampMs: beyondTargetCount >= 2 ? crossingTimestampMs : null,
     lastDecision: 'accepted',
   };
