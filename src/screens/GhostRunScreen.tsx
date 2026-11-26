@@ -59,6 +59,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   const [stepCount, setStepCount] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [summary, setSummary] = useState<DiagnosticSummary | null>(null);
+  const terminalReportRef = useRef<{ summary: DiagnosticSummary; recordedAt: string } | null>(null);
   const [interrupted, setInterrupted] = useState(false);
   const [saveToAccount, setSaveToAccount] = useState(true);
   const saveEnabledRef = useRef(true);
@@ -206,6 +207,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       motionTraceRef.current.length, gapCountRef.current,
       motionPermissionRef.current, interruptedRef.current,
       reason === 'finished');
+    terminalReportRef.current = { summary: summaryRow, recordedAt: new Date().toISOString() };
     setSummary(summaryRow);
     setLive(state);
     setNotice(message);
@@ -484,6 +486,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     }
     setCountdownAt(null);
     activeRef.current = first;
+    terminalReportRef.current = null;
     startedRef.current = startMs;
     gpsTraceRef.current = [];
     motionTraceRef.current = [];
@@ -612,6 +615,11 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       preparingRef.current = false;
       readyRef.current = null;
       activeRef.current = null;
+      terminalReportRef.current = null;
+      startedRef.current = null;
+      stepRef.current.reset();
+      lastMotionAt.current = null;
+      gapCountRef.current = 0;
       gpsTraceRef.current = [];
       motionTraceRef.current = [];
       gpsTraceOmittedRef.current = 0;
@@ -665,6 +673,8 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
 
   const exportJson = () => {
     if (!summary) return;
+    const terminal = terminalReportRef.current;
+    if (!terminal || terminal.summary !== summary) return;
     const state = activeRef.current;
     if (!state || (phaseRef.current !== 'finished' && phaseRef.current !== 'stopped')) return;
     // Export has no absolute GPS positions, user ID, email, or device identifier.
@@ -673,7 +683,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       note: 'Experimentelle Messung, weder offizieller Rekord noch Anti-Cheat-Nachweis.',
       raw_location_included: false,
       ...summary,
-      recorded_at: new Date().toISOString(),
+      recorded_at: terminal.recordedAt,
       diagnostics: ghostTraceDiagnostics(state, gpsTraceOmittedRef.current, firstMotionOmittedMsRef.current),
       gps: gpsTraceRef.current,
       motion: motionTraceRef.current,
@@ -690,6 +700,15 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     if (savePendingRef.current || phaseRef.current === 'running' || phaseRef.current === 'countdown') return;
     uncertainSaveRef.current = null;
     stopGps(); readyRef.current = null; activeRef.current = null;
+    terminalReportRef.current = null;
+    startedRef.current = null;
+    gpsTraceRef.current = [];
+    motionTraceRef.current = [];
+    gpsTraceOmittedRef.current = 0;
+    firstMotionOmittedMsRef.current = null;
+    stepRef.current.reset();
+    lastMotionAt.current = null;
+    gapCountRef.current = 0;
     setCountdownAt(null); setLive(null); setSummary(null); setStepCount(0);
     setAccuracyM(null); setSavedMessage(''); setSaveStatus('idle'); setMotionGaps(0);
     setCurrentPhase('idle'); setNotice('Bereit für deinen nächsten Ghost Run.');
