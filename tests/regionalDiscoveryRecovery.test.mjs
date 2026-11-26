@@ -5,13 +5,13 @@ const map=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'
 const regional=map.slice(map.indexOf('// A regional view'),map.indexOf('// Fetch only this authenticated host'));
 test('regional discovery serializes polls and prioritizes visible reconnect',()=>{
   assert.match(regional,/createDuelRecoveryQueue\(async \(\) => \{/);
-  assert.match(regional,/const whenVisible = \(\) => \{\s*if \(document.visibilityState === 'visible'\) queue.request\(\);/);
-  assert.match(regional,/setInterval\(\(\) => \{\s*if \(document.visibilityState === 'visible'\) queue.poll\(\);\s*\}, 90_000\)/);
+  assert.match(regional,/const whenRegionalVisible = \(\) => \{\s*if \(document.visibilityState === 'visible'\) regionalQueue.request\(\);/);
+  assert.match(regional,/setInterval\(\(\) => \{\s*if \(document.visibilityState === 'visible'\) regionalQueue.poll\(\);\s*\}, 90_000\)/);
   for(const event of ['visibilitychange','online']){
-    assert.ok(regional.includes("addEventListener('"+event+"', whenVisible)"));
-    assert.ok(regional.includes("removeEventListener('"+event+"', whenVisible)"));
+    assert.ok(regional.includes("addEventListener('"+event+"', whenRegionalVisible)"));
+    assert.ok(regional.includes("removeEventListener('"+event+"', whenRegionalVisible)"));
   }
-  assert.match(regional,/active = false;\s*queue.close\(\);\s*window.clearInterval\(id\)/);
+  assert.match(regional,/active = false;\s*regionalQueue.close\(\);\s*window.clearInterval\(id\)/);
 });
 test('regional responses cannot restore expired events or publish to retired accounts',()=>{
   assert.match(regional,/if \(!active \|\| error\) return;\s*if \(finishAccountRef.current !== authUser.id\) return;/);
