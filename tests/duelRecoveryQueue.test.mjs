@@ -47,3 +47,37 @@ test('map checks account and revision after both reads and closes the queue',()=
   assert.match(screen.slice(start,end),/recoveryRevisionRef.current \+= 1/);
  }
 });
+
+test('routine polls skip a slow recovery without scheduling an extra read',async()=>{
+ let calls=0;
+ const releases=[];
+ const queue=createDuelRecoveryQueue(async()=>{
+  calls++;
+  await new Promise(resolve=>releases.push(resolve));
+ });
+ queue.poll();queue.poll();queue.poll();
+ assert.equal(calls,1);
+ releases.shift()();await turn();assert.equal(calls,1);
+ queue.poll();assert.equal(calls,2);
+ releases.shift()();await turn();queue.close();
+});
+test('explicit reconnect still schedules one follow-up while routine polls are skipped',async()=>{
+ let calls=0;
+ const releases=[];
+ const queue=createDuelRecoveryQueue(async()=>{
+  calls++;
+  await new Promise(resolve=>releases.push(resolve));
+ });
+ queue.poll();queue.request();queue.request();queue.poll();
+ assert.equal(calls,1);
+ releases.shift()();await turn();assert.equal(calls,2);
+ queue.poll();queue.poll();
+ releases.shift()();await turn();assert.equal(calls,2);
+ queue.close();queue.poll();queue.request();assert.equal(calls,2);
+});
+test('map uses routine polls only for the interval and explicit requests for visible reconnect',()=>{
+ const screen=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'utf8');
+ const recovery=screen.slice(screen.indexOf('// Mobile Safari may suspend Realtime'),screen.indexOf('// No Realtime subscription'));
+ assert.match(recovery,/setInterval\(\(\) => \{ if \(document.visibilityState === 'visible'\) queue.poll\(\); \}, 4_000\)/);
+ assert.match(recovery,/const whenVisible = \(\) => \{\s*if \(document.visibilityState === 'visible'\) \{\s*queue.request\(\)/);
+});

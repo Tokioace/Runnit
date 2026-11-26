@@ -1425,7 +1425,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       }
     };
     queue.request();
-    const id = window.setInterval(() => { if (document.visibilityState === 'visible') queue.request(); }, 4_000);
+    const id = window.setInterval(() => { if (document.visibilityState === 'visible') queue.poll(); }, 4_000);
     document.addEventListener('visibilitychange', whenVisible);
     window.addEventListener('focus', whenVisible);
     window.addEventListener('online', whenVisible);
