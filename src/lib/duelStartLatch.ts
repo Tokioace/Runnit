@@ -15,3 +15,10 @@ export function createDuelStartLatch() {
     },
   };
 }
+
+/** Reuse the existing late-recovery window at both countdown admission and
+ * GO. Future scheduled starts are allowed; exactly 10 seconds late is not.
+ * This is a client recovery cutoff, not a clock synchronization guarantee. */
+export function isDuelStartRecoverable(startsAt: number, nowMs: number): boolean {
+  return Number.isFinite(startsAt) && Number.isFinite(nowMs) && startsAt > nowMs - 10_000;
+}
