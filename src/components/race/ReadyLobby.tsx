@@ -39,7 +39,7 @@ function RunnerCard({ name, role, ready, isMe, number }: {
 /** Fully optional presentation layer; readiness is still server-authoritative. */
 export default function ReadyLobby(props: ReadyLobbyProps) {
   const { hostName, challengerName, hostReady, challengerReady, isHost, targetDistanceM,
-    readyBusy, readyError, startMissed = false, soundEnabled, onReady, onSoundToggle, onBack, onAbort } = props;
+    readyBusy, readyError, startMissed = false, soundEnabled, onReady: requestReady, onSoundToggle, onBack: returnToMap, onAbort } = props;
   const [confirmAbort, setConfirmAbort] = useState(false);
   const [aborting, setAborting] = useState(false);
   const [abortError, setAbortError] = useState<string | null>(null);
@@ -51,7 +51,7 @@ export default function ReadyLobby(props: ReadyLobbyProps) {
     return () => lifetime.current.close();
   }, []);
   const confirmExit = async () => {
-    if (!lifetime.current.isActive() || abortPendingRef.current) return;
+    if (!lifetime.current.isActive() || abortPendingRef.current || readyBusy) return;
     const isLive = lifetime.current.capture();
     abortPendingRef.current = true;
     setAborting(true);
@@ -69,6 +69,14 @@ export default function ReadyLobby(props: ReadyLobbyProps) {
     }
   };
   const mineReady = isHost ? hostReady : challengerReady;
+  const onReady = () => {
+    if (!lifetime.current.isActive() || startMissed || mineReady || readyBusy || confirmAbort || abortPendingRef.current) return;
+    requestReady();
+  };
+  const onBack = () => {
+    if (!lifetime.current.isActive() || confirmAbort || abortPendingRef.current) return;
+    returnToMap();
+  };
   return (
     <div className="race-arcade-screen race-arcade-lobby" role="dialog" aria-modal="true"
       aria-labelledby="arcade-lobby-title">
@@ -99,7 +107,7 @@ export default function ReadyLobby(props: ReadyLobbyProps) {
               : <>START ERST WENN <strong>BEIDE</strong> READY SIND</>}
           </p>
           <button type="button" className="race-arcade-primary" onClick={onReady}
-            disabled={startMissed || mineReady || readyBusy}>
+            disabled={startMissed || mineReady || readyBusy || confirmAbort || aborting}>
             {startMissed ? 'START VERPASST' : readyBusy ? 'READY WIRD BESTÄTIGT…' : mineReady ? '✓ DU BIST READY — WARTE AUF GEGNER' : 'ICH BIN READY »'}
           </button>
           {readyError && !startMissed && <p className="race-arcade-error" role="alert">{readyError}</p>}
@@ -108,7 +116,7 @@ export default function ReadyLobby(props: ReadyLobbyProps) {
               <p>WIRKLICH ABBRECHEN? Das Rennen endet für beide Spieler und wird nicht gewertet.</p>
               <div className="race-arcade-confirm-actions">
                 <button type="button" disabled={aborting} onClick={() => setConfirmAbort(false)}>NEIN, WEITER</button>
-                <button type="button" disabled={aborting} onClick={() => { void confirmExit(); }}>
+                <button type="button" disabled={aborting || readyBusy} onClick={() => { void confirmExit(); }}>
                   {aborting ? 'WIRD ABGEBROCHEN…' : 'JA, DUELL ABBRECHEN'}
                 </button>
               </div>
@@ -119,7 +127,7 @@ export default function ReadyLobby(props: ReadyLobbyProps) {
               DUELL FÜR BEIDE ABBRECHEN
             </button>
           )}
-          <button className="race-arcade-link" type="button" onClick={onBack}>ZUR KARTE · LOBBY BLEIBT AKTIV</button>
+          <button className="race-arcade-link" type="button" disabled={confirmAbort || aborting} onClick={onBack}>ZUR KARTE · LOBBY BLEIBT AKTIV</button>
         </div>
       </div>
     </div>
