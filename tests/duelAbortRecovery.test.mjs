@@ -77,7 +77,11 @@ test('all three UIs confirm and use the shared server abort; no local-only termi
 
 test('terminal event clears running screen, lobby and old reopen pill on both phones', () => {
   const map = read('src/screens/MapScreen.tsx');
-  assert.match(map, /const activeDuelIdRef = useRef<string \| null>\(null\)/);
+  assert.match(map, /const \[initialActiveDuelId\] = useState\(\(\) => authUser \? readActiveDuelId\(authUser.id\) : null\);/);
+  assert.match(map, /const activeDuelIdRef = useRef<string \| null>\(initialActiveDuelId\)/);
+  const clear = map.slice(map.indexOf('const clearAbortedDuel ='), map.indexOf('const showCompletedDuel ='));
+  assert.match(clear, /activeDuelIdRef.current !== duelId\) return;/);
+  assert.match(clear, /endedDuelIdsRef.current.add\(duelId\);\s*activeDuelIdRef.current = null;/);
   assert.match(map, /const endedDuelIdsRef = useRef<Set<string>>\(new Set\(\)\)/);
   assert.match(map, /endedDuelIdsRef.current.has\(row.id\)/);
   assert.match(map, /const clearAbortedDuel = React.useCallback/);
