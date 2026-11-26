@@ -21,3 +21,11 @@ export function matchesGhostSave(payload: Record<string, unknown>, row: unknown)
   return Object.keys(payload).every(key =>
     Object.prototype.hasOwnProperty.call(record, key) && record[key] === payload[key]);
 }
+
+/** A queued retry belongs to the exact terminal measurement object, not
+ * merely another run with identical values. A reset retires that identity. */
+export function ownsGhostSaveReport<T extends object>(
+  terminal: { summary: T } | null, item: T, phase: string,
+): boolean {
+  return (phase === 'finished' || phase === 'stopped') && terminal !== null && terminal.summary === item;
+}
