@@ -121,6 +121,22 @@ export function isFreshLiveGpsFix(sample: GpsSample, receivedAtMs: number): bool
     sample.timestampMs <= receivedAtMs && receivedAtMs - sample.timestampMs <= 3000;
 }
 
+/** A gap is measured between accepted observations, not callback arrivals. */
+export function hasGpsObservationGap(previous: GpsSample | null, sample: GpsSample): boolean {
+  return previous !== null && sample.timestampMs - previous.timestampMs > 3000;
+}
+
+/** Retain accepted displacement and counts, but do not infer performance or
+ * confirm a crossing across an observation discontinuity. */
+export function separateGpsCrossingAfterGap(prior: GpsSprintState, next: GpsSprintState): GpsSprintState {
+  if (prior.finishTimestampMs !== null || next.lastDecision !== 'accepted' || next.lastAccepted === null) return next;
+  const beyond = next.distanceM >= next.targetMeters;
+  return { ...next, maxSpeedMps: prior.maxSpeedMps,
+    beyondTargetCount: beyond ? 1 : 0,
+    crossingTimestampMs: beyond ? next.lastAccepted.timestampMs : null,
+    crossingIntervalMs: null, finishTimestampMs: null };
+}
+
 /** Live browser fixes must be current on the same epoch clock. Simulations
  * deliberately keep using advanceGpsSprint without a wall-clock dependency. */
 export function advanceLiveGpsSprint(state: GpsSprintState, sample: GpsSample, receivedAtMs: number): GpsSprintState {
@@ -128,7 +144,9 @@ export function advanceLiveGpsSprint(state: GpsSprintState, sample: GpsSample, r
   if (!isFreshLiveGpsFix(sample, receivedAtMs)) {
     return reject(state, 'invalid-sample');
   }
-  return advanceGpsSprint(state, sample);
+  const next = advanceGpsSprint(state, sample);
+  return hasGpsObservationGap(state.lastAccepted, sample)
+    ? separateGpsCrossingAfterGap(state, next) : next;
 }
 
 export function runGpsSimulation(targetMeters: number, startedAtMs: number, samples: GpsSample[]): GpsSprintState {
