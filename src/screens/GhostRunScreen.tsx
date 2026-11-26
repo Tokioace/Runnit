@@ -50,7 +50,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   const [interrupted, setInterrupted] = useState(false);
   const [saveToAccount, setSaveToAccount] = useState(true);
   const saveEnabledRef = useRef(true);
-  const [saveStatus, setSaveStatus] = useState<'idle'|'saving'|'saved'|'error'>('idle');
+  const [saveStatus, setSaveStatus] = useState<'idle'|'saving'|'saved'|'error'|'unknown'>('idle');
   const [savedRuns, setSavedRuns] = useState<SavedRun[]>([]);
   const [savedMessage, setSavedMessage] = useState('');
   const [motionGaps, setMotionGaps] = useState(0);
@@ -67,6 +67,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   const interruptedRef = useRef(false);
   const motionPermissionRef = useRef<MotionPermission>('unavailable');
   const savedRef = useRef(false);
+  const savePendingRef = useRef(false);
   const lifetime = useRef(createMeasurementLifetime());
   const preparingRef = useRef(false);
   const unmountedRef = useRef(false);
@@ -101,20 +102,36 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     let assertAccount: () => void;
     try { assertAccount = beginAccountMutation(); } catch { return; }
     if (!measurementAccountCurrent(isLive, assertAccount)) return;
-    savedRef.current = true; // a run can never be written twice from duplicate callbacks
+    savedRef.current = true; // suppress duplicate callbacks for this run
+    savePendingRef.current = true;
     setSaveStatus('saving');
-    const { error } = await supabase.from('ghost_run_sessions').insert({
-      user_id: user.id, ...item, source: 'ios-web-beta',
-    });
+    setSavedMessage('');
+    let error: unknown = null;
+    let uncertain = false;
+    try {
+      const response = await supabase.from('ghost_run_sessions').insert({
+        user_id: user.id, ...item, source: 'ios-web-beta',
+      });
+      error = response.error;
+      // A missing HTTP response does not establish whether the insert committed.
+      uncertain = Boolean(response.error) && response.status === 0;
+    } catch {
+      uncertain = true;
+    }
     if (!measurementAccountCurrent(isLive, assertAccount)) return;
-    if (error) {
+    savePendingRef.current = false;
+    if (uncertain) {
+      setSaveStatus('unknown');
+      setSavedMessage('Speicherstatus unklar. Bitte JSON exportieren und deine letzten Solo-Messungen prüfen. Kein erneutes Speichern ohne Bestätigung.');
+      void refreshSaved().catch(() => {});
+    } else if (error) {
       savedRef.current = false;
       setSaveStatus('error');
       setSavedMessage('Privates Speichern fehlgeschlagen. Du kannst erneut speichern oder JSON exportieren.');
     } else {
       setSaveStatus('saved');
       setSavedMessage('Messzusammenfassung privat im Konto gespeichert. Keine Ranglistenwertung.');
-      void refreshSaved();
+      void refreshSaved().catch(() => {});
     }
   }, [user?.id, refreshSaved, beginAccountMutation]);
 
@@ -470,7 +487,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   };
 
   const reset = () => {
-    if (phaseRef.current === 'running' || phaseRef.current === 'countdown') return;
+    if (savePendingRef.current || phaseRef.current === 'running' || phaseRef.current === 'countdown') return;
     stopGps(); readyRef.current = null; activeRef.current = null;
     setCountdownAt(null); setLive(null); setSummary(null); setStepCount(0);
     setAccuracyM(null); setSavedMessage(''); setSaveStatus('idle'); setMotionGaps(0);
@@ -591,7 +608,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
                 {interrupted && <p className="runnit-ghost-alert">Safari-Unterbrechung erkannt. Sensorwerte können fehlen.</p>}
                 {saveStatus === 'error' && <button type="button" className="race-arcade-danger-link" onClick={() => { void saveSummary(showSummary); }}>SPEICHERN ERNEUT VERSUCHEN</button>}
                 <button type="button" className="race-arcade-primary" onClick={exportJson}><Download size={18} className="inline mr-2" /> DIAGNOSE-JSON EXPORTIEREN »</button>
-                <button type="button" className="runnit-ghost-secondary" onClick={reset}>NEUER GHOST RUN</button>
+                <button type="button" className="runnit-ghost-secondary" onClick={reset} disabled={saveStatus === 'saving'}>NEUER GHOST RUN</button>
                 <Link to="/map" className="runnit-ghost-secondary">ZUR KARTE</Link>
               </section>
             )}
