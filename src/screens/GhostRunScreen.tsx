@@ -1,6 +1,6 @@
 import { canStartGhostCountdown } from '../lib/ghostCountdown';
 import { createFinishRefresh } from '../lib/finishRefresh';
-import { isUncertainGhostSave, isGhostSaveConflict, matchesGhostSave } from '../lib/ghostSaveResponse';
+import { isUncertainGhostSave, isGhostSaveConflict, matchesGhostSave, ownsGhostSaveReport } from '../lib/ghostSaveResponse';
 import { createLatestRead } from '../lib/latestRead';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -131,6 +131,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
 
   const saveSummary = useCallback(async (item: DiagnosticSummary) => {
     if (!saveEnabledRef.current || !user?.id || savedRef.current || !lifetime.current.isActive()) return;
+    if (!ownsGhostSaveReport(terminalReportRef.current, item, phaseRef.current)) return;
     const isLive = lifetime.current.capture();
     let assertAccount: () => void;
     try { assertAccount = beginAccountMutation(); } catch { return; }
@@ -755,6 +756,8 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     stopGps(); readyRef.current = null; activeRef.current = null;
     terminalReportRef.current = null;
     startedRef.current = null;
+    saveIdRef.current = null;
+    savedRef.current = false;
     gpsTraceRef.current = [];
     motionTraceRef.current = [];
     gpsTraceOmittedRef.current = 0;
