@@ -11,7 +11,9 @@ test('confirmed completion is published before the potentially failing result RP
 });
 test('incomplete terminal results permit local exit but never abort or submit again',()=>{
  assert.match(source,/const terminalWithoutResult = status === 'abandoned' \|\| status === 'unavailable' \|\|\s*\(status === 'completed' && !completed\);/);
- assert.match(source,/if \(retryBusy \|\| completed \|\| terminalWithoutResult\) return;/);
+ const retry=source.slice(source.indexOf('const retrySubmission ='),source.indexOf('const abort ='));
+ assert.match(retry,/if \(retryBusy \|\| completed \|\| terminalWithoutResult \|\| ownTimeConfirmed\) return;/);
+ assert.ok(retry.indexOf('terminalWithoutResult || ownTimeConfirmed) return;') < retry.indexOf('await onRetrySubmit()'));
  assert.match(source,/if \(abortBusy \|\| completed \|\| terminalWithoutResult\) return;/);
  assert.match(source,/submissionError && !completed && !terminalWithoutResult/);
  assert.match(source,/\) : terminalWithoutResult \? \(\s*<button[^>]*onClick=\{onClose\}/);
