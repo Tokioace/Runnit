@@ -34,7 +34,7 @@ test('lobby shows both users and individual ready states, with audio unlock by t
   assert.match(lobby, /role="dialog" aria-modal="true"/);
   assert.match(lobby, /ready=\{hostReady\}/);
   assert.match(lobby, /ready=\{challengerReady\}/);
-  assert.match(lobby, /disabled=\{mineReady \|\| readyBusy\}/);
+  assert.match(lobby, /disabled=\{startMissed \|\| mineReady \|\| readyBusy\}/);
   assert.match(lobby, /START ERST WENN/);
   assert.match(lobby, /ICH BIN READY/);
 });

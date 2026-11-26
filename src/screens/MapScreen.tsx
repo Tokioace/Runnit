@@ -2114,8 +2114,11 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
           targetDistanceM={matchedDuel.targetDistanceM}
           readyBusy={readyBusy}
           readyError={readyError}
+          startMissed={matchedDuel.startAt !== null}
           soundEnabled={raceSoundEnabled}
           onReady={() => {
+            // A restored lobby with a confirmed start cannot be made Ready again.
+            if (matchedDuel.startAt !== null) return;
             // Unlock audio before the async Ready RPC (iOS user-gesture rule).
             if (raceSoundEnabled) unlockRaceAudio();
             // iOS requires the permission request to begin in this user gesture.

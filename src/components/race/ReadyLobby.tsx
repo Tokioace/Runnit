@@ -10,6 +10,7 @@ export type ReadyLobbyProps = {
   targetDistanceM: number;
   readyBusy: boolean;
   readyError: string | null;
+  startMissed?: boolean;
   soundEnabled: boolean;
   onReady: () => void;
   onSoundToggle: () => void;
@@ -38,7 +39,7 @@ function RunnerCard({ name, role, ready, isMe, number }: {
 /** Fully optional presentation layer; readiness is still server-authoritative. */
 export default function ReadyLobby(props: ReadyLobbyProps) {
   const { hostName, challengerName, hostReady, challengerReady, isHost, targetDistanceM,
-    readyBusy, readyError, soundEnabled, onReady, onSoundToggle, onBack, onAbort } = props;
+    readyBusy, readyError, startMissed = false, soundEnabled, onReady, onSoundToggle, onBack, onAbort } = props;
   const [confirmAbort, setConfirmAbort] = useState(false);
   const [aborting, setAborting] = useState(false);
   const [abortError, setAbortError] = useState<string | null>(null);
@@ -93,13 +94,15 @@ export default function ReadyLobby(props: ReadyLobbyProps) {
         </div>
         <div className="race-arcade-lobby-footer">
           <p className="race-arcade-help">
-            <span aria-hidden="true">◆</span> START ERST WENN <strong>BEIDE</strong> READY SIND
+            <span aria-hidden="true">◆</span> {startMissed
+              ? 'RENNSTART VERPASST. DUELL ABBRECHEN UND EIN NEUES RENNEN STARTEN.'
+              : <>START ERST WENN <strong>BEIDE</strong> READY SIND</>}
           </p>
           <button type="button" className="race-arcade-primary" onClick={onReady}
-            disabled={mineReady || readyBusy}>
-            {readyBusy ? 'READY WIRD BESTÄTIGT…' : mineReady ? '✓ DU BIST READY — WARTE AUF GEGNER' : 'ICH BIN READY »'}
+            disabled={startMissed || mineReady || readyBusy}>
+            {startMissed ? 'START VERPASST' : readyBusy ? 'READY WIRD BESTÄTIGT…' : mineReady ? '✓ DU BIST READY — WARTE AUF GEGNER' : 'ICH BIN READY »'}
           </button>
-          {readyError && <p className="race-arcade-error" role="alert">{readyError}</p>}
+          {readyError && !startMissed && <p className="race-arcade-error" role="alert">{readyError}</p>}
           {confirmAbort ? (
             <div className="race-arcade-confirm" role="alertdialog" aria-label="Duell abbrechen">
               <p>WIRKLICH ABBRECHEN? Das Rennen endet für beide Spieler und wird nicht gewertet.</p>
