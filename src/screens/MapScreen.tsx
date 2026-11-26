@@ -486,6 +486,7 @@ function HostRunDialog({
   const { t } = useI18n();
   const [distance, setDistance] = useState<number>(defaultDistance ?? 50);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [hostError, setHostError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -496,7 +497,8 @@ function HostRunDialog({
   }, [open, defaultDistance]);
 
   const submitHost = async () => {
-    if (submitting) return;
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setHostError(null);
     try {
@@ -518,6 +520,7 @@ function HostRunDialog({
         setHostError('Das Rennen konnte nicht gespeichert werden. Bitte versuche es erneut.');
       }
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -1571,7 +1574,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   // Only close the creation dialog after Supabase confirms the inserted row.
   const handleHostRun = async (distanceMeters: number) => {
     if (!requireRaceAccount()) return;
-    if (!authUser) {
+    if (!authUser || finishAccountRef.current !== authUser.id) {
       throw new Error('Anmeldung erforderlich.');
     }
     if (!userCoords || !hostLocation || !currentUser) {
@@ -1596,6 +1599,12 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       throw new Error('Du hast bereits ein aktives Event. Schließe zuerst dein vorheriges Rennen ab oder storniere es.');
     }
 
+    // GPS can change during the preflight. Do not submit a point that is
+    // outside the placement radius of the latest observed position.
+    const latestCoords = liveUserCoordsRef.current;
+    if (!latestCoords || !canHostAt(latestCoords, hostLocation)) {
+      throw new Error('Der gewählte Punkt liegt jetzt außerhalb deines 500-m-Radars. Bitte wähle erneut einen Punkt.');
+    }
     const { data, error } = await createDuel(supabase, {
       hostUserId: authUser.id,
       location: hostLocation,
