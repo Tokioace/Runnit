@@ -1,4 +1,4 @@
-import type { GpsSprintState } from './sprintGps';
+import type { GpsSample, GpsSprintState } from './sprintGps';
 
 export type MotionPermission = 'granted' | 'denied' | 'unavailable';
 export type DiagnosticSummary = {
@@ -60,5 +60,23 @@ export function ghostSummary(state: GpsSprintState, steps: number, imu: number, 
     max_speed_mps: safeNumber(state.maxSpeedMps),
     motion_permission: permission,
     interrupted,
+  };
+}
+
+/** Local diagnostic values: unknown is null, never a fabricated zero.
+ * Relative positions are approximate and do not change the sprint evaluator. */
+export function ghostRelativeGpsFix(sample: GpsSample, origin: GpsSample | null, startedAtMs: number) {
+  const validPosition = (p: GpsSample) =>
+    Number.isFinite(p.latitude) && p.latitude >= -90 && p.latitude <= 90 &&
+    Number.isFinite(p.longitude) && p.longitude >= -180 && p.longitude <= 180;
+  const validCoordinates = origin !== null && validPosition(origin) && validPosition(sample);
+  const deltaMs = sample.timestampMs - startedAtMs;
+  const validTime = Number.isFinite(deltaMs) && deltaMs >= 0;
+  return {
+    t_ms: validTime ? deltaMs : null,
+    east_m: validCoordinates ? safeNumber(((sample.longitude - origin.longitude + 540) % 360 - 180) *
+      111320 * Math.cos(origin.latitude * Math.PI / 180)) : null,
+    north_m: validCoordinates ? safeNumber((sample.latitude - origin.latitude) * 111320) : null,
+    accuracy_m: Number.isFinite(sample.accuracyM) && sample.accuracyM >= 0 ? safeNumber(sample.accuracyM) : null,
   };
 }
