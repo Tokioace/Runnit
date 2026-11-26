@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { scheduleArcadeStartSfx, unlockRaceAudio } from '../../lib/arcadeRaceAudio';
+import { createCountdownAudioSession } from '../../lib/countdownAudioSession';
 import { screenWakeLockMessage, type ScreenWakeLockStatus } from '../../lib/screenWakeLock';
 
 export const ARCADE_COUNTDOWN_COLORS = [
@@ -54,9 +55,16 @@ export default function RaceCountdown({ startsAt, targetDistanceM, soundEnabled,
       document.removeEventListener('visibilitychange', visibility);
     };
   }, [startsAt]);
+  const audioSession = useRef<ReturnType<typeof createCountdownAudioSession> | null>(null);
   useEffect(() => {
     if (!soundEnabled) return;
-    return scheduleArcadeStartSfx(startsAt);
+    const session = createCountdownAudioSession(() => scheduleArcadeStartSfx(startsAt), unlockRaceAudio);
+    audioSession.current = session;
+    session.start();
+    return () => {
+      audioSession.current = null;
+      session.close();
+    };
   }, [startsAt, soundEnabled]);
   const color = ARCADE_COUNTDOWN_COLORS[ARCADE_COUNTDOWN_SECONDS - Math.max(1, remaining)];
   const progress = Math.max(0, Math.min(100, (startsAt - Date.now()) / (ARCADE_COUNTDOWN_SECONDS * 1000) * 100));
@@ -89,7 +97,7 @@ export default function RaceCountdown({ startsAt, targetDistanceM, soundEnabled,
           <p className="race-arcade-sound-caption">◖)) &nbsp; 3 · 2 · 1 &nbsp; — &nbsp; BEEP · BEEP · GOOOO!</p>
           {wakeStatus !== 'idle' && <p className="race-arcade-wake">{screenWakeLockMessage(wakeStatus)}</p>}
           {soundEnabled && <button type="button" className="race-arcade-link"
-            onClick={() => { unlockRaceAudio(); scheduleArcadeStartSfx(startsAt); }}>
+            onClick={() => { void audioSession.current?.activate(); }}>
             TON AKTIVIEREN (iPHONE)
           </button>}
           {confirmAbort ? (

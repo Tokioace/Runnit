@@ -21,10 +21,14 @@ export function setRaceAudioMuted(muted: boolean) {
 }
 
 /** Call synchronously from the user's tap (iOS Safari gesture policy). */
-export function unlockRaceAudio(): void {
+export async function unlockRaceAudio(): Promise<boolean> {
   const ctx = audio();
-  if (!ctx) return;
-  if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
+  if (!ctx) return false;
+  try {
+    // resume() is invoked before the first await, inside the user gesture.
+    if (ctx.state !== 'running') await ctx.resume();
+    return ctx.state === 'running' && !isMuted;
+  } catch { return false; }
 }
 
 type Stop = () => void;
@@ -46,11 +50,13 @@ function tone(ctx: AudioContext, at: number, duration: number, startHz: number, 
 }
 
 /** Three rising warning beeps, then one long green-light GO sound. */
-export function scheduleArcadeStartSfx(startsAt: number): Stop {
+export function scheduleArcadeStartSfx(startsAt: number): Stop | null {
+  if (!Number.isFinite(startsAt)) return null;
   const ctx = audio();
-  if (!ctx || ctx.state !== 'running') return () => {};
+  if (!ctx || ctx.state !== 'running') return null;
   const stops: Stop[] = [];
   const secondsUntilStart = (startsAt - Date.now()) / 1000;
+  try {
   for (const [remaining, frequency] of [[3, 620], [2, 720], [1, 820]] as const) {
     const delay = secondsUntilStart - remaining;
     if (delay < -0.08) continue;
@@ -61,6 +67,10 @@ export function scheduleArcadeStartSfx(startsAt: number): Stop {
     const at = ctx.currentTime + Math.max(0, secondsUntilStart);
     stops.push(tone(ctx, at, 0.65, 950, 1450, 0.18, 'sawtooth'));
     stops.push(tone(ctx, at + 0.025, 0.6, 475, 725, 0.09, 'triangle'));
+  }
+  } catch {
+    stops.forEach(stop => stop());
+    return null;
   }
   return () => stops.forEach(stop => stop());
 }

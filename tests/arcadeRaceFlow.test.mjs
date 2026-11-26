@@ -60,7 +60,7 @@ test('original synthesized sound and finish UI do not claim a fake race win', ()
   const css = read('src/styles/raceArcade.css');
   assert.match(audio, /scheduleArcadeStartSfx\(startsAt: number\)/);
   assert.match(audio, /playArcadeFinishSfx\(\)/);
-  assert.match(audio, /if \(ctx\.state === 'suspended'\) void ctx.resume/);
+  assert.match(audio, /if \(ctx\.state !== 'running'\) await ctx.resume\(\)/);
   assert.match(audio, /\[\[3, 620\], \[2, 720\], \[1, 820\]\]/);
   assert.match(audio, /createBufferSource\(\)/);
   const finish = read('src/components/race/DuelFinishScreen.tsx');
