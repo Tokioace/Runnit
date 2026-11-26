@@ -86,12 +86,12 @@ function SpeedGauge({fraction,active,measured}:{
 }
 
 export default function StatsScreen({userId}:Props) {
- const {races,ghostSessions,totals,loading,error,refresh}=useRunnerHistory(userId);
+ const {races,ghostSessions,totals,loading,error,refresh,now}=useRunnerHistory(userId);
  const goal=useStatsGoal(userId);
  const [goalDraft,setGoalDraft]=useState(goal.goalM);
  const [saved,setSaved]=useState(false);
  const [active,setActive]=useState(false);
- const stats=useMemo(()=>calculateStatsOverview(races,ghostSessions),[races,ghostSessions]);
+ const stats=useMemo(()=>calculateStatsOverview(races,ghostSessions,now),[races,ghostSessions,now]);
  useEffect(()=>setGoalDraft(goal.goalM),[goal.goalM]);
  useEffect(()=>{
    setActive(false);
