@@ -88,16 +88,25 @@ export function archivedPersonalTimes(rows: readonly StoredArchivedPersonalTime[
   });
 }
 
+/** Reject malformed dates and records after the requested observation time. */
+export function isRecordedBy(stamp: string, asOfMs: number): boolean {
+  const time = Date.parse(stamp);
+  return Number.isFinite(time) && time <= asOfMs;
+}
+
 /** Only recorded sensor sessions and completed server-paired duels count.
  * This is NOT a daily pedometer, calorie estimator, or anti-cheat rating. */
 export function calculateActivityTotals(
   races: readonly RaceHistoryItem[],
   ghosts: readonly StoredGhostSession[],
   weekStartMs: number,
+  asOfMs: number = Infinity,
 ): ActivityTotals {
-  const finishedRaces = races.filter(r => r.completed);
+  const finishedRaces = races.filter(r => r.completed && Number.isFinite(r.timeMs) &&
+    r.timeMs > 0 && isRecordedBy(r.occurredAt, asOfMs));
   const finishedGhosts = ghosts.filter(g => g.run_state === 'finished' &&
-    Number.isFinite(g.elapsed_ms) && (g.elapsed_ms ?? 0) > 0);
+    Number.isFinite(g.elapsed_ms) && (g.elapsed_ms ?? 0) > 0 &&
+    isRecordedBy(g.created_at, asOfMs));
   // Include exactly the selected local week, even across DST boundaries.
   const weekEnd = new Date(weekStartMs);
   weekEnd.setDate(weekEnd.getDate() + 7);
