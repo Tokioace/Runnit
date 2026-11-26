@@ -102,7 +102,9 @@ export function advanceGpsSprint(state: GpsSprintState, sample: GpsSample): GpsS
   }
   return {
     ...state, lastAccepted: sample, distanceM,
-    maxSpeedMps: Math.max(state.maxSpeedMps, speedMps),
+    // The second beyond-target fix confirms a crossing that already happened.
+    // Its interval is entirely after that crossing, not sprint performance.
+    maxSpeedMps: beyondTargetCount >= 2 ? state.maxSpeedMps : Math.max(state.maxSpeedMps, speedMps),
     acceptedSamples: state.acceptedSamples + 1, beyondTargetCount, crossingTimestampMs,
     finishTimestampMs: beyondTargetCount >= 2 ? crossingTimestampMs : null,
     lastDecision: 'accepted',
