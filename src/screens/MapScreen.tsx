@@ -1,3 +1,4 @@
+import { classifyDuelJoinError } from '../lib/duelJoinError';
 import { canReleaseUnconfirmedDuelHint } from '../lib/duelRecoveryHint';
 import { mergeDuelReadiness } from '../lib/duelReadiness';
 import { createDuelStartLatch } from '../lib/duelStartLatch';
@@ -1800,7 +1801,13 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   // Joining and starting races are exclusively for signed-in accounts.
   const handleJoinRun = async (run: OpenRun) => {
     if (!requireRaceAccount()) return;
-    if (!currentUser || !authUser || joiningRunRef.current) return;
+    if (!currentUser || !authUser || joiningRunRef.current ||
+        finishAccountRef.current !== authUser.id) return;
+    if (race.status !== 'idle' || (activeDuelIdRef.current !== null &&
+        activeDuelIdRef.current !== unconfirmedRecoveryHintRef.current)) {
+      setRaceNotice('Du hast bereits ein aktives Duell. Schließe es zuerst ab.');
+      return;
+    }
 
     // Signed-in runners may try explicitly labeled, non-scored sample races.
     if (run.id.startsWith('demo-run-')) {
@@ -1824,16 +1831,21 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       applyMatchedDuel(confirmed);
       setRaceNotice(null);
     } catch (e) {
-      const message = e instanceof Error ? e.message.toLowerCase() : '';
-      if (message.includes('expired') || message.includes('unavailable') ||
-          message.includes('already joined') || message.includes('not found')) {
+      // Realtime may have confirmed a match before a lost RPC response.
+      if (finishAccountRef.current !== authUser.id ||
+          endedDuelIdsRef.current.has(run.id) || completedDuelIdsRef.current.has(run.id) ||
+          (activeDuelIdRef.current !== null &&
+            activeDuelIdRef.current !== unconfirmedRecoveryHintRef.current)) return;
+      const kind = classifyDuelJoinError(e);
+      if (kind === 'unavailable') {
         setOpenRuns(prev => prev.filter(r => r.id !== run.id));
         setDiscoveryRefreshTick(tick => tick + 1);
         setRaceNotice('Dieses Rennen ist bereits besetzt oder nicht mehr verfügbar.');
-      } else if (message.includes('login') || message.includes('permission') || message.includes('42501')) {
-        setRaceNotice('Bitte melde dich erneut an, um diesem Rennen beizutreten.');
+      } else if (kind === 'permission') {
+        setRaceNotice('Beitritt nicht erlaubt. Bitte prüfe deine Anmeldung.');
       } else {
-        setRaceNotice('Beitritt fehlgeschlagen. Bitte überprüfe die Verbindung und versuche es erneut.');
+        setDiscoveryRefreshTick(tick => tick + 1);
+        setRaceNotice('Beitritt nicht bestätigt. Bitte überprüfe die Verbindung und den Rennstatus.');
       }
     } finally {
       joiningRunRef.current = null;
