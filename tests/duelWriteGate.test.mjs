@@ -32,7 +32,7 @@ test('MapScreen uses one gate for both automatic or retried finish writes and ab
  const s=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'utf8');
  const send=s.slice(s.indexOf('const sendFinishedTime ='),s.indexOf('const retryFinishedTime ='));
  const abort=s.slice(s.indexOf('const confirmAbortMatchedDuel ='),s.indexOf('const confirmMatchReady ='));
- assert.match(send,/duelWriteGate.current.tryAcquire\(payload.duelId\);\s*if \(!releaseWrite\) return;/);
+ assert.match(send,/duelWriteGate.current.tryAcquire\(payload.duelId\);\s*if \(!releaseWrite\) \{\s*setFinishSubmissionError\([^)]*\);\s*return;/);
  assert.match(send,/finally \{[\s\S]*releaseWrite\(\);/);
  assert.match(abort,/duelWriteGate.current.tryAcquire\(duelId\);\s*if \(!releaseWrite\) throw/);
  assert.match(abort,/finally \{\s*releaseWrite\(\);/);
