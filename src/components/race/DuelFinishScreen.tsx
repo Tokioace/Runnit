@@ -57,20 +57,28 @@ export default function DuelFinishScreen({
     if (isDemo) return;
     let active = true;
     const request = createFinishRefresh(async () => {
-      const [duelResponse, resultsResponse] = await Promise.all([
-        supabase.from('duels')
-          .select('id, status, host_user_id, challenger_user_id')
-          .eq('id', duelId).maybeSingle(),
-        getDuelResults(supabase, duelId),
-      ]);
+      const duelResponse = await supabase.from('duels')
+        .select('id, status, host_user_id, challenger_user_id')
+        .eq('id', duelId).maybeSingle();
       if (!active) return;
-      if (duelResponse.error || resultsResponse.error || !duelResponse.data) {
+      if (duelResponse.error) {
         setFetchError('Rennstatus konnte nicht geladen werden. Die Anzeige versucht es erneut.');
         return;
       }
       const duel = duelResponse.data;
-      if (duel.host_user_id !== userId && duel.challenger_user_id !== userId) {
-        setFetchError('Du bist kein Teilnehmer dieses Rennens.');
+      if (!duel || (duel.host_user_id !== userId && duel.challenger_user_id !== userId)) {
+        // Confirmed absence or loss of membership invalidates the old snapshot.
+        setRows([]);
+        setHostId(null);
+        setChallengerId(null);
+        setStatus('unavailable');
+        setFetchError(duel ? 'Du bist kein Teilnehmer dieses Rennens.' : 'Dieses Rennen ist nicht mehr verfügbar.');
+        return;
+      }
+      const resultsResponse = await getDuelResults(supabase, duelId);
+      if (!active) return;
+      if (resultsResponse.error) {
+        setFetchError('Rennstatus konnte nicht geladen werden. Die Anzeige versucht es erneut.');
         return;
       }
       setHostId(duel.host_user_id);
