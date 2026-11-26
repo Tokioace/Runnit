@@ -48,6 +48,10 @@ test('a finished measurement cannot be reopened and a live abort failure install
  let s=apply(apply(beforeCrossing(),51,6000),60,7000);
  assert.equal(resumeDuelGpsMeasurement(s,start+8000),s);
  const source=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'utf8');
- const abort=source.slice(source.indexOf('function RaceOverlay('),source.indexOf('const watchIdRef ='));
+ const overlayStart=source.indexOf('function RaceOverlay(');
+ const abortStart=source.indexOf('const doAbort =',overlayStart);
+ const abortEnd=source.indexOf('const watchIdRef =',abortStart);
+ assert.ok(overlayStart>=0 && abortStart>overlayStart && abortEnd>abortStart);
+ const abort=source.slice(abortStart,abortEnd);
  assert.match(abort,/if \(!isLive\(\)\) return;\s*finishedRef.current = false;\s*measurementRef.current = resumeDuelGpsMeasurement\(measurementRef.current, Date.now\(\)\);/);
 });
