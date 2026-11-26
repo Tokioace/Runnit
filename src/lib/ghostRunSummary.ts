@@ -80,3 +80,27 @@ export function ghostRelativeGpsFix(sample: GpsSample, origin: GpsSample | null,
     accuracy_m: Number.isFinite(sample.accuracyM) && sample.accuracyM >= 0 ? safeNumber(sample.accuracyM) : null,
   };
 }
+
+/** Local export metadata only. The primed anchor is not in the live GPS trace,
+ * which may also include the confirmation fix after the estimated crossing.
+ * Motion omitted after the crossing does not truncate the exported sprint. */
+export function ghostTraceDiagnostics(state: GpsSprintState, gpsOmitted: number,
+  firstMotionOmittedMs: number | null) {
+  const origin = state.origin;
+  const age = origin === null ? NaN : state.startedAtMs - origin.timestampMs;
+  const last = state.lastAccepted;
+  const observed = last === null ? NaN : last.timestampMs - state.startedAtMs;
+  const cutoff = state.finishTimestampMs === null ? Infinity : state.finishTimestampMs - state.startedAtMs;
+  const motionTruncated = firstMotionOmittedMs !== null &&
+    Number.isFinite(firstMotionOmittedMs) && firstMotionOmittedMs >= 0 && firstMotionOmittedMs <= cutoff;
+  return {
+    startFixAgeMs: Number.isFinite(age) && age >= 0 ? age : null,
+    startFixAccuracyM: origin !== null && Number.isFinite(origin.accuracyM) && origin.accuracyM >= 0
+      ? origin.accuracyM : null,
+    observationMs: Number.isFinite(observed) ? Math.max(0, observed) : null,
+    crossingIntervalMs: state.finishTimestampMs !== null ? state.crossingIntervalMs : null,
+    gpsTraceOmitted: gpsOmitted,
+    motionTraceTruncated: motionTruncated,
+    motionTraceFirstOmittedMs: motionTruncated ? firstMotionOmittedMs : null,
+  };
+}
