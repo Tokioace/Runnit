@@ -1303,7 +1303,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       return;
     }
     let active = true;
-    const queue = createDuelRecoveryQueue(async () => {
+    const regionalQueue = createDuelRecoveryQueue(async () => {
       const { data, error } = await supabase
         .from('duels')
         .select('id, location, expires_at')
@@ -1319,21 +1319,21 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         return location ? [{ id: row.id as string, location, expiresAt: row.expires_at as string }] : [];
       }));
     });
-    const whenVisible = () => {
-      if (document.visibilityState === 'visible') queue.request();
+    const whenRegionalVisible = () => {
+      if (document.visibilityState === 'visible') regionalQueue.request();
     };
-    queue.request();
+    regionalQueue.request();
     const id = window.setInterval(() => {
-      if (document.visibilityState === 'visible') queue.poll();
+      if (document.visibilityState === 'visible') regionalQueue.poll();
     }, 90_000);
-    document.addEventListener('visibilitychange', whenVisible);
-    window.addEventListener('online', whenVisible);
+    document.addEventListener('visibilitychange', whenRegionalVisible);
+    window.addEventListener('online', whenRegionalVisible);
     return () => {
       active = false;
-      queue.close();
+      regionalQueue.close();
       window.clearInterval(id);
-      document.removeEventListener('visibilitychange', whenVisible);
-      window.removeEventListener('online', whenVisible);
+      document.removeEventListener('visibilitychange', whenRegionalVisible);
+      window.removeEventListener('online', whenRegionalVisible);
     };
   }, [authUser?.id, wideMapView]);
 
