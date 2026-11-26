@@ -108,8 +108,7 @@ export default function StatsScreen({userId}:Props) {
      title:'GHOST · '+g.target_distance_m+' M',time:formatStatsTime(g.elapsed_ms),
      sub:g.run_state==='finished'?'SOLO-TRAINING · ABGESCHLOSSEN':'TRAINING ABGEBROCHEN'})),
  ].sort((a,b)=>Date.parse(b.at)-Date.parse(a.at)).slice(0,12),[races,ghostSessions]);
- const soloSessions=ghostSessions.filter(g=>g.run_state==='finished' && typeof g.elapsed_ms==='number' && g.elapsed_ms>0);
- const soloDistance=soloSessions.length?soloSessions.reduce((n,g)=>n+(Number.isFinite(g.observed_distance_m)&&g.observed_distance_m>=0?g.observed_distance_m:0),0):null;
+
  const winRate=stats.completedDuels?Math.round(stats.wins/stats.completedDuels*100):null;
  const saveGoal=async()=>{
    setSaved(false);
@@ -171,7 +170,7 @@ export default function StatsScreen({userId}:Props) {
              <div className="stats-v2-compare-values">
                <div><strong>{stats.soloTrainings}</strong><small>TRAININGS</small></div>
                <div><strong>{stats.ghostTrainings}</strong><small>GHOST</small></div>
-               <div className="stats-v2-span-two"><strong>{formatStatsDistance(soloDistance)}</strong><small>SOLO-STRECKE</small></div>
+               <div className="stats-v2-span-two"><strong>{formatStatsDistance(stats.soloMeasuredDistanceM)}</strong><small>SOLO-STRECKE</small></div>
              </div>
            </div>
          </div>
