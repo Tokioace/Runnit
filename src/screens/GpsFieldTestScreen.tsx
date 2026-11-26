@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createMeasurementLifetime } from '../lib/measurementLifetime';
 import { Link } from 'react-router-dom';
 import { isNativeAuthRuntime } from '../lib/authRedirect';
 import { advanceGpsSprint, createGpsSprint, type GpsSample, type GpsSprintState } from '../lib/sprintGps';
@@ -32,6 +33,7 @@ export default function GpsFieldTestScreen() {
   const readyFixRef = useRef<GpsSample | null>(null);
   const stateRef = useRef<GpsSprintState | null>(null);
   const mountedRef = useRef(true);
+  const watchLifetime = useRef(createMeasurementLifetime());
 
   const setCurrentPhase = (next: Phase) => {
     phaseRef.current = next;
@@ -39,20 +41,20 @@ export default function GpsFieldTestScreen() {
   };
 
   const stopWatching = () => {
-    if (watchId.current !== null && typeof navigator !== 'undefined' && 'geolocation' in navigator) {
-      navigator.geolocation.clearWatch(watchId.current);
-      watchId.current = null;
+    // Retire queued success/error callbacks before releasing the native watch.
+    watchLifetime.current.close();
+    const id = watchId.current;
+    watchId.current = null;
+    if (id !== null && typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      try { navigator.geolocation.clearWatch(id); } catch { /* already retired */ }
     }
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     mountedRef.current = true;
     const pauseIfBackgrounded = () => {
       if (!document.hidden) return;
-      if (watchId.current !== null && 'geolocation' in navigator) {
-        navigator.geolocation.clearWatch(watchId.current);
-        watchId.current = null;
-      }
+      stopWatching();
       if (phaseRef.current === 'running') {
         phaseRef.current = 'stopped';
         setPhase('stopped');
@@ -64,10 +66,7 @@ export default function GpsFieldTestScreen() {
       }
     };
     const stopOnPageHide = () => {
-      if (watchId.current !== null && 'geolocation' in navigator) {
-        navigator.geolocation.clearWatch(watchId.current);
-        watchId.current = null;
-      }
+      stopWatching();
       const previous = phaseRef.current;
       if (mountedRef.current && previous === 'running') {
         phaseRef.current = 'stopped';
@@ -112,10 +111,12 @@ export default function GpsFieldTestScreen() {
     setReferenceText('');
     setCurrentPhase('acquiring');
     setStatus('Warte auf einen aktuellen, genauen Standort-Fix ...');
+    watchLifetime.current.open();
+    const isWatchLive = watchLifetime.current.capture();
 
     try {
       watchId.current = navigator.geolocation.watchPosition((pos) => {
-        if (!mountedRef.current) return;
+        if (!mountedRef.current || !isWatchLive()) return;
         const phaseNow = phaseRef.current;
         if (phaseNow !== 'acquiring' && phaseNow !== 'ready' && phaseNow !== 'running') return;
 
@@ -158,7 +159,7 @@ export default function GpsFieldTestScreen() {
           stopWatching();
         }
       }, (err) => {
-        if (!mountedRef.current) return;
+        if (!mountedRef.current || !isWatchLive()) return;
         const message = err.code === 1
           ? 'Standortzugriff verweigert. Bitte Browserberechtigung kontrollieren.'
           : err.code === 2
