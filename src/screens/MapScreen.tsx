@@ -1648,6 +1648,18 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       throw new Error('Renn-Erstellung wurde nicht bestätigt.');
     }
 
+    // Realtime may have already observed a match or terminal transition while
+    // the create response was in flight. Never restore that event as open.
+    if (knownNonOpenRunIdsRef.current.has(data.id)) {
+      setDiscoveryRefreshTick(tick => tick + 1);
+      return;
+    }
+    if (!isOpenEventAvailable(data.expires_at)) {
+      setDiscoveryRefreshTick(tick => tick + 1);
+      setRaceNotice('Die bestätigte Challenge ist bereits abgelaufen.');
+      return;
+    }
+
     // Display the confirmed creation without depending on realtime delivery.
     const created: OpenRun = {
       id: data.id,
