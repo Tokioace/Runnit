@@ -1239,16 +1239,27 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       try {
         const { data, error } = await getNearbyDuels(supabase, { userLocation: discoveryCoords, radiusKm: 5 });
         if (!isActive || error) return; // never replace real races with demo on a network failure
+        if (finishAccountRef.current !== authUser.id) return;
 
         let mapped: OpenRun[] = [];
         if (data && data.length > 0) {
           const hostIds = Array.from(new Set(data.map((d: any) => d.host_user_id).filter(Boolean)));
-          const { data: hostUsers } = await supabase
-            .from('users')
-            .select('id, username')
-            .in('id', hostIds);
-          if (!isActive) return;
-          const hostById = new Map<string, any>((hostUsers || []).map((u: any) => [u.id, u]));
+          // Nicknames are optional enrichment, not a prerequisite for
+          // showing a server-confirmed open challenge.
+          let hostUsers: Array<{ id: string; username: string }> = [];
+          if (hostIds.length > 0) {
+            try {
+              const { data: names, error: namesError } = await supabase
+                .from('users')
+                .select('id, username')
+                .in('id', hostIds);
+              if (!namesError && names) hostUsers = names;
+            } catch {
+              // A rejected nickname request must not discard valid races.
+            }
+          }
+          if (!isActive || finishAccountRef.current !== authUser.id) return;
+          const hostById = new Map<string, any>(hostUsers.map(u => [u.id, u]));
           mapped = data
             .filter((d: any) => d.status === 'open' &&
               (typeof d.expires_at !== 'string' || isOpenEventAvailable(d.expires_at)))
@@ -1269,8 +1280,10 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
             .filter((run): run is OpenRun => run !== null);
         }
 
-        if (isActive) setOpenRuns(previous => reconcileOpenRaces(previous, mapped, authUser.id)
+        if (isActive && finishAccountRef.current === authUser.id) setOpenRuns(previous => reconcileOpenRaces(previous, mapped, authUser.id)
           .filter(run => !knownNonOpenRunIdsRef.current.has(run.id)));
+      } catch {
+        // Preserve the last confirmed event feed on transport rejection.
       } finally {
         if (isActive) {
           discoveryLoadedRef.current = true;
