@@ -2074,9 +2074,13 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
               navigate('/login?next=%2Fmap');
               return false;
             }
-            setMatchOverlay(null);
+            if (finishAccountRef.current !== authUser.id ||
+                completedDuelIdsRef.current.has(matchOverlay.duelId) ||
+                (!matchOverlay.duelId.startsWith('demo-run-') && activeDuelIdRef.current !== matchOverlay.duelId)) return false;
             if (race.status === 'countdown' && race.duelId === matchOverlay.duelId &&
                 race.startsAt === matchOverlay.startsAt && !endedDuelIdsRef.current.has(race.duelId)) {
+              setMatchOverlay(previous => previous?.duelId === matchOverlay.duelId &&
+                previous.startsAt === matchOverlay.startsAt ? null : previous);
               // Use the exact server start timestamp rather than each phone's
               // callback timestamp for a synchronized, fair elapsed time.
               setRace({ status: 'running', duelId: race.duelId,
@@ -2098,6 +2102,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
           onAbort={() => confirmAbortMatchedDuel(race.duelId)}
           onFinish={(endedAt, metrics) => {
             if (finishAccountRef.current !== authUser.id || endedDuelIdsRef.current.has(race.duelId)) return;
+            if (completedDuelIdsRef.current.has(race.duelId) ||
+                (!race.duelId.startsWith('demo-run-') && activeDuelIdRef.current !== race.duelId)) return;
             const timeMs = Math.max(1, endedAt - race.startedAt);
             setRace({ status: 'finished', duelId: race.duelId,
               startedAt: race.startedAt, endedAt, targetDistanceM: race.targetDistanceM });
