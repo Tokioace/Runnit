@@ -1,3 +1,4 @@
+import { createMeasurementLifetime } from '../lib/measurementLifetime';
 import { classifyDuelJoinError } from '../lib/duelJoinError';
 import { canReleaseUnconfirmedDuelHint } from '../lib/duelRecoveryHint';
 import { mergeDuelReadiness } from '../lib/duelReadiness';
@@ -2307,12 +2308,20 @@ function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinis
   const motionCapture = useRef(new DuelMotionCapture(startedAt));
   const [liveStepCount, setLiveStepCount] = useState(0);
   const finishedRef = useRef(false);
+  const measurementLifetime = useRef(createMeasurementLifetime());
+  React.useLayoutEffect(() => {
+    const lifetime = measurementLifetime.current;
+    lifetime.open();
+    return () => lifetime.close();
+  }, []);
   const [confirmAbort, setConfirmAbort] = useState(false);
   const [abortBusy, setAbortBusy] = useState(false);
   const [abortError, setAbortError] = useState<string | null>(null);
   const abortBusyRef = useRef(false);
   const doAbort = async () => {
     if (abortBusyRef.current || finishedRef.current) return;
+    const isLive = measurementLifetime.current.capture();
+    if (!isLive()) return;
     abortBusyRef.current = true;
     finishedRef.current = true; // do not count GPS distance during termination
     setAbortBusy(true);
@@ -2320,6 +2329,7 @@ function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinis
     try {
       await onAbort(); // the parent clears race UI only after Supabase confirms
     } catch {
+      if (!isLive()) return;
       finishedRef.current = false;
       abortBusyRef.current = false;
       setAbortBusy(false);
@@ -2328,7 +2338,9 @@ function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinis
   };
   const watchIdRef = useRef<number | null>(null);
   useEffect(() => {
+    const isLive = measurementLifetime.current.capture();
     const id = setInterval(() => {
+      if (!isLive()) return;
       setElapsedMs(Math.max(0, Date.now() - startedAt));
     }, 50);
     return () => clearInterval(id);
@@ -2339,8 +2351,10 @@ function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinis
   useEffect(() => {
     if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
     let active = true;
+    const isLive = measurementLifetime.current.capture();
     const handle = (pos: GeolocationPosition) => {
       if (!active || finishedRef.current) return;
+      if (!isLive()) return;
       const next = advanceDuelGpsMeasurement(measurementRef.current, {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
@@ -2378,8 +2392,10 @@ function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinis
 
   // Shared foreground peak detector; no extrapolation across iOS sensor suspensions.
   useEffect(() => {
+    const isLive = measurementLifetime.current.capture();
     const handler = (event: DeviceMotionEvent) => {
       if (finishedRef.current) return;
+      if (!isLive()) return;
       if (document.visibilityState !== 'visible') return;
       const sample = motionEventSample(event, performance.timeOrigin, performance.now());
       if (!sample || !motionCapture.current.push(sample)) return;
