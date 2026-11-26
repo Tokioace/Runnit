@@ -331,8 +331,8 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     return () => window.clearTimeout(timer);
   }, [phase, countdownAt, onGps]);
 
-  const beginRun = () => {
-    if (!lifetime.current.isActive() || phaseRef.current !== 'countdown') return;
+  const beginRun = (): boolean => {
+    if (!lifetime.current.isActive() || phaseRef.current !== 'countdown') return false;
     const startMs = Date.now(); // actual clock when the countdown finishes, never a stale Safari timer
     const anchor = readyRef.current;
     // Countdown could have suspended in Safari. Do not silently start from stale GPS.
@@ -340,13 +340,13 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       setCountdownAt(null);
       setCurrentPhase('acquiring');
       setNotice('Startposition nach Countdown nicht mehr frisch. Bitte neuen GPS-Fix abwarten.');
-      return;
+      return false;
     }
     let first: GpsSprintState;
     try {
       first = primeGpsSprint(createGpsSprint(target, startMs), anchor);
     } catch {
-      setCurrentPhase('acquiring'); setNotice('GPS-Start fehlgeschlagen. Neu vorbereiten.'); return;
+      setCurrentPhase('acquiring'); setNotice('GPS-Start fehlgeschlagen. Neu vorbereiten.'); return false;
     }
     activeRef.current = first;
     startedRef.current = startMs;
@@ -361,6 +361,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     setMotionGaps(0); setStepCount(0); setSummary(null); setInterrupted(false); setSaveStatus('idle');
     setSavedMessage(''); setLive(first); setCurrentPhase('running');
     setNotice('RUN! Distanz über GPS, Schritte über Bewegungssensoren. Display eingeschaltet lassen.');
+    return true;
   };
 
   useEffect(() => {
