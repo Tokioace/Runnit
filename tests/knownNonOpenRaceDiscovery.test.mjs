@@ -20,3 +20,15 @@ test('confirmed local match and cancellation retire their markers without waitin
   assert.match(map,/completedDuelIdsRef.current.add\(row.id\);\s*knownNonOpenRunIdsRef.current.add\(row.id\)/);
   assert.match(map,/endedDuelIdsRef.current.add\(duelId\);\s*knownNonOpenRunIdsRef.current.add\(duelId\)/);
 });
+
+test('late host creation cannot republish an already matched or expired event',()=>{
+  const host=map.slice(map.indexOf('const handleHostRun ='),map.indexOf('const handleCancelHostedRun ='));
+  const response=host.indexOf('if (!data?.id');
+  const publish=host.indexOf('const created: OpenRun');
+  const guard=host.slice(response,publish);
+  assert.ok(response>=0 && publish>response);
+  assert.match(guard,/if \(knownNonOpenRunIdsRef.current.has\(data.id\)\) \{\s*setDiscoveryRefreshTick\(tick => tick \+ 1\);\s*return;\s*\}/);
+  assert.match(guard,/if \(!isOpenEventAvailable\(data.expires_at\)\) \{\s*setDiscoveryRefreshTick\(tick => tick \+ 1\);\s*setRaceNotice\([^\n]+\);\s*return;\s*\}/);
+  assert.ok(host.indexOf('setOpenRuns(previous => [created')>publish);
+  assert.ok(host.indexOf('setHostedOpenDuels(previous => [')>publish);
+});
