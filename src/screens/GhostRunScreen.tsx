@@ -1,3 +1,4 @@
+import { isUncertainGhostSave } from '../lib/ghostSaveResponse';
 import { createLatestRead } from '../lib/latestRead';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -121,8 +122,8 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
         user_id: user.id, ...item, source: 'ios-web-beta',
       });
       error = response.error;
-      // A missing HTTP response does not establish whether the insert committed.
-      uncertain = Boolean(response.error) && response.status === 0;
+      // A transport or gateway failure may arrive after the insert committed.
+      uncertain = isUncertainGhostSave(response.status, response.error);
     } catch {
       uncertain = true;
     }
