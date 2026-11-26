@@ -9,6 +9,7 @@ import { ghostSummary, safeNumber, type DiagnosticSummary, type MotionPermission
 import { isFreshStartFix, primeGpsSprint } from '../lib/gpsField';
 import { inspectGhostGpsFix, ghostGpsFixNotice, type GhostGpsFixIssue } from '../lib/ghostGpsReadiness';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
+import { motionEventSample } from '../lib/duelMotionEvidence';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage } from '../lib/screenWakeLock';
 import { unlockRaceAudio, playArcadeFinishSfx, setRaceAudioMuted } from '../lib/arcadeRaceAudio';
@@ -413,19 +414,23 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       if (!lifetime.current.isActive() || phaseRef.current !== 'running') return;
       const a = event.acceleration;
       if (!a || a.x == null || a.y == null || a.z == null) return;
-      const stamp = performance.now();
+      const sample = motionEventSample(event, performance.timeOrigin, performance.now());
+      const start = startedRef.current;
+      if (!sample || start === null || sample.timestampMs < start) return;
+      const stamp = sample.timestampMs;
       const last = lastMotionAt.current;
+      if (last !== null && stamp <= last) return;
       if (last !== null && stamp - last > 250) {
         gapCountRef.current += 1;
         setMotionGaps(gapCountRef.current);
       }
       lastMotionAt.current = stamp;
-      const magnitude = Math.hypot(a.x, a.y, a.z);
-      const updated = stepRef.current.push({ timestampMs: stamp, accelerationMagnitudeMps2: magnitude });
+      const magnitude = sample.accelerationMagnitudeMps2;
+      const updated = stepRef.current.push(sample);
       if (updated !== null) setStepCount(updated);
       if (motionTraceRef.current.length < MAX_MOTION_SAMPLES) {
         motionTraceRef.current.push({
-          t_ms: Math.max(0, Date.now() - (startedRef.current ?? Date.now())),
+          t_ms: stamp - start,
           ax: safeNumber(a.x), ay: safeNumber(a.y), az: safeNumber(a.z),
           magnitude: safeNumber(magnitude), steps: stepRef.current.count,
         });
