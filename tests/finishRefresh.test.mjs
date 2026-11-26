@@ -29,8 +29,28 @@ test('closing a result screen ignores late failure and refuses further reads',as
 test('finish screen owns its polling lifetime and guards successful responses',()=>{
  const source=readFileSync(new URL('../src/components/race/DuelFinishScreen.tsx',import.meta.url),'utf8');
  assert.match(source,/const request = createFinishRefresh\(async \(\) =>/);
- assert.match(source,/getDuelResults\(supabase, duelId\),\s*\]\);\s*if \(!active\) return;/);
+ assert.match(source,/\.eq\('id', duelId\)\.maybeSingle\(\);\s*if \(!active\) return;/);
+ assert.match(source,/const resultsResponse = await getDuelResults\(supabase, duelId\);\s*if \(!active\) return;/);
  assert.match(source,/const refresh = request.refresh;/);
  assert.match(source,/active = false;\s*request.close\(\);/);
  assert.match(source,/window.clearInterval\(timer\)/);
+});
+
+test('confirmed absence or nonmembership clears all previously displayed result data',()=>{
+ const source=readFileSync(new URL('../src/components/race/DuelFinishScreen.tsx',import.meta.url),'utf8');
+ const denied=source.slice(source.indexOf('if (!duel ||'),source.indexOf('const resultsResponse = await'));
+ assert.match(denied,/duel.host_user_id !== userId && duel.challenger_user_id !== userId/);
+ assert.match(denied,/setRows\(\[\]\);\s*setHostId\(null\);\s*setChallengerId\(null\);\s*setStatus\('unavailable'\);/);
+ assert.match(denied,/return;/);
+ assert.ok(source.indexOf('if (!duel ||') < source.indexOf('await getDuelResults(supabase, duelId)'));
+});
+test('temporary query errors remain distinct from confirmed access loss',()=>{
+ const source=readFileSync(new URL('../src/components/race/DuelFinishScreen.tsx',import.meta.url),'utf8');
+ const transient=source.slice(source.indexOf('if (duelResponse.error)'),source.indexOf('const duel = duelResponse.data'));
+ assert.match(transient,/setFetchError\(/);
+ assert.doesNotMatch(transient,/setRows|setStatus/);
+});
+test('a different duel cannot inherit the previous finish screen state',()=>{
+ const source=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'utf8');
+ assert.match(source,/<DuelFinishScreen\s+key=\{race.duelId\}/);
 });
