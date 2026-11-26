@@ -111,7 +111,7 @@ export default function DuelFinishScreen({
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void refresh();
     }, 3000);
-    const onVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
+    const onVisible = () => { if (document.visibilityState === 'visible') void refresh(true); };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
     window.addEventListener('online', onVisible);
