@@ -35,6 +35,9 @@ export type GpsSprintState = Readonly<{
   crossingIntervalMs: number | null;
   finishTimestampMs: number | null;
   lastDecision: GpsDecision | null;
+  /** Live-only aggregates of intervals >3 s between accepted fixes. */
+  observationGapCount?: number;
+  longestObservationGapMs?: number;
 }>;
 
 const MAX_ACCURACY_M = 15;
@@ -131,10 +134,28 @@ export function hasGpsObservationGap(previous: GpsSample | null, sample: GpsSamp
 export function separateGpsCrossingAfterGap(prior: GpsSprintState, next: GpsSprintState): GpsSprintState {
   if (prior.finishTimestampMs !== null || next.lastDecision !== 'accepted' || next.lastAccepted === null) return next;
   const beyond = next.distanceM >= next.targetMeters;
-  return { ...next, maxSpeedMps: prior.maxSpeedMps,
+  const gap = prior.lastAccepted !== null && hasGpsObservationGap(prior.lastAccepted, next.lastAccepted)
+    ? next.lastAccepted.timestampMs - prior.lastAccepted.timestampMs : null;
+  return { ...next,
+    ...(gap === null ? {} : {
+      observationGapCount: (prior.observationGapCount ?? 0) + 1,
+      longestObservationGapMs: Math.max(prior.longestObservationGapMs ?? 0, gap),
+    }),
+    maxSpeedMps: prior.maxSpeedMps,
     beyondTargetCount: beyond ? 1 : 0,
     crossingTimestampMs: beyond ? next.lastAccepted.timestampMs : null,
     crossingIntervalMs: null, finishTimestampMs: null };
+}
+
+/** Local measurement diagnostics, not evidence of verified race timing.
+ * Counts include the finish confirmation interval and exclude rejected fixes. */
+export function gpsGapDiagnostics(state: GpsSprintState) {
+  return {
+    gpsObservationGapCount: state.observationGapCount ?? 0,
+    gpsLongestObservationGapMs: state.longestObservationGapMs ?? null,
+    finishTimingMethod: state.finishTimestampMs === null ? null :
+      state.crossingIntervalMs === null ? 'observed-after-gap' : 'interpolated',
+  };
 }
 
 /** Live browser fixes must be current on the same epoch clock. Simulations
