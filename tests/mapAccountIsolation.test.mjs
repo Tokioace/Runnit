@@ -21,10 +21,16 @@ test('retired map account is cleared at layout cleanup, not a later network resp
 test('late host preflight, join, ready and abort cannot transition an old instance',()=>{
  const map=read('src/screens/MapScreen.tsx');
  assert.match(map,/if \(finishAccountRef.current !== authUser.id\) return;\s*if \(activeCheckError\)/);
- for(const call of ['joinDuel(supabase, run.id)','readyForDuel(supabase, matchedDuel.id)','abortMatchedDuel(supabase, duelId)','cancelHostedOpenDuel(supabase, run.id, authUser.id)']){
+ for(const call of ['joinDuel(supabase, run.id)','abortMatchedDuel(supabase, duelId)','cancelHostedOpenDuel(supabase, run.id, authUser.id)']){
   assert.ok(map.includes('await '+call+';\n      if (finishAccountRef.current !== authUser.id) return;')||
     map.includes('await '+call+';\n    if (finishAccountRef.current !== authUser.id) return;'),call);
  }
+ const start=map.indexOf('const confirmMatchReady =');
+ const end=map.indexOf('// Joining and starting races',start);
+ assert.ok(start>=0 && end>start);
+ const ready=map.slice(start,end);
+ assert.match(ready,/const stillCurrent = \(\) => finishAccountRef.current === authUser.id &&\s*activeDuelIdRef.current === matchedDuel.id &&\s*!endedDuelIdsRef.current.has\(matchedDuel.id\) &&\s*!completedDuelIdsRef.current.has\(matchedDuel.id\);/);
+ assert.match(ready,/await readyForDuel\(supabase, matchedDuel.id\);\s*if \(!stillCurrent\(\)\) return;/);
  assert.match(map,/onFinish=\{\(endedAt, metrics\) => \{\s*if \(finishAccountRef.current !== authUser.id \|\| endedDuelIdsRef.current.has\(race.duelId\)\) return;/);
 });
 test('retiring the map does not delete saved account-scoped finish or active race keys',()=>{
