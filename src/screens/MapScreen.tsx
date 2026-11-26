@@ -32,7 +32,7 @@ import { readActiveDuelId, rememberActiveDuelId, forgetActiveDuelId } from '../l
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { readPendingFinish, rememberPendingFinish, forgetPendingFinish, type PendingFinish } from '../lib/pendingDuelFinish.ts';
 import { DuelMotionCapture, requestDuelMotionPermission, motionEventSample } from '../lib/duelMotionEvidence';
-import { createDuelGpsMeasurement, advanceDuelGpsMeasurement, duelGpsMetrics } from '../lib/duelGpsMeasurement';
+import { createDuelGpsMeasurement, advanceDuelGpsMeasurement, duelGpsMetrics, resumeDuelGpsMeasurement } from '../lib/duelGpsMeasurement';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage, type ScreenWakeLockStatus } from '../lib/screenWakeLock';
 import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters } from '../lib/mapHostPlacement';
@@ -2331,6 +2331,7 @@ function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinis
     } catch {
       if (!isLive()) return;
       finishedRef.current = false;
+      measurementRef.current = resumeDuelGpsMeasurement(measurementRef.current, Date.now());
       abortBusyRef.current = false;
       setAbortBusy(false);
       setAbortError('Rennabbruch nicht bestätigt. Bitte Verbindung prüfen und erneut versuchen.');
