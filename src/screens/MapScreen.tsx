@@ -1,3 +1,4 @@
+import { createDuelWriteGate } from '../lib/duelWriteGate';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ArcadeMapLibreView from '../components/map/ArcadeMapLibreView';
@@ -801,6 +802,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   const [finishSubmissionError, setFinishSubmissionError] = useState<string | null>(null);
   const latestFinishPayloadRef = useRef<PendingFinish | null>(null);
   const finishSubmittingRef = useRef<PendingFinish | null>(null);
+  const duelWriteGate = useRef(createDuelWriteGate());
   // App keys this screen by account. Retire the old instance synchronously
   // during unmount, even before passive subscription cleanup runs.
   const finishAccountRef = useRef<string | null>(authUser?.id ?? null);
@@ -1640,6 +1642,11 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   const sendFinishedTime = async (payload: PendingFinish) => {
     if (finishSubmittingRef.current || finishAccountRef.current !== payload.userId ||
         latestFinishPayloadRef.current !== payload || endedDuelIdsRef.current.has(payload.duelId)) return;
+    const releaseWrite = duelWriteGate.current.tryAcquire(payload.duelId);
+    if (!releaseWrite) {
+      setFinishSubmissionError('Für dieses Duell läuft bereits eine Änderung. Bitte Zielzeit erneut speichern.');
+      return;
+    }
     finishSubmittingRef.current = payload;
     const stillCurrent = () => finishAccountRef.current === payload.userId &&
       latestFinishPayloadRef.current === payload && !endedDuelIdsRef.current.has(payload.duelId);
@@ -1667,6 +1674,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       if (stillCurrent()) setFinishSubmissionError('Netzwerkfehler. Bitte Zielzeit erneut speichern.');
     } finally {
       if (finishSubmittingRef.current === payload) finishSubmittingRef.current = null;
+      releaseWrite();
     }
   };
 
@@ -1679,13 +1687,19 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     if (!authUser || !duelId || duelId.startsWith('demo-run-')) {
       throw new Error('Du musst angemeldet sein, um dieses Rennen abzubrechen.');
     }
-    // Leave the countdown/race visible until Supabase confirms termination.
-    const confirmed = await abortMatchedDuel(supabase, duelId);
-    if (finishAccountRef.current !== authUser.id) return;
-    if (confirmed.id !== duelId || confirmed.status !== 'abandoned') {
-      throw new Error('Der Server hat den Abbruch nicht bestätigt.');
+    const releaseWrite = duelWriteGate.current.tryAcquire(duelId);
+    if (!releaseWrite) throw new Error('Für dieses Duell läuft bereits eine Änderung. Bitte erneut versuchen.');
+    try {
+      // Leave the countdown/race visible until Supabase confirms termination.
+      const confirmed = await abortMatchedDuel(supabase, duelId);
+      if (finishAccountRef.current !== authUser.id) return;
+      if (confirmed.id !== duelId || confirmed.status !== 'abandoned') {
+        throw new Error('Der Server hat den Abbruch nicht bestätigt.');
+      }
+      clearAbortedDuel(duelId, false);
+    } finally {
+      releaseWrite();
     }
-    clearAbortedDuel(duelId, false);
   };
 
   const confirmMatchReady = async () => {
