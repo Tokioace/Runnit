@@ -44,5 +44,9 @@ test('background and pagehide retire preparation and clear the watch before retu
   assert.match(block,/else if \(preparingRef.current \|\| phaseRef.current === 'acquiring' \|\| phaseRef.current === 'ready'\) \{\s*retirePreparation\(/);
   assert.match(block,/else if \(phaseRef.current === 'countdown'\) \{[\s\S]*?retirePreparation\(/);
  }
- assert.match(source,/gpsLifetime.current.close\(\);[^\n]*\n\s*const id = watchRef.current;\s*watchRef.current = null;[\s\S]*?clearWatch\(id\)/);
+ const stopStart=source.indexOf('const stopGps =');
+ const stopEnd=source.indexOf('const refreshSaved =',stopStart);
+ assert.ok(stopStart>=0&&stopEnd>stopStart);
+ const stop=source.slice(stopStart,stopEnd);
+ assert.match(stop,/gpsLifetime.current.close\(\);[^\n]*\n\s*latestPreparationFixMs.current = null;\s*const id = watchRef.current;\s*watchRef.current = null;[\s\S]*?clearWatch\(id\)/);
 });
