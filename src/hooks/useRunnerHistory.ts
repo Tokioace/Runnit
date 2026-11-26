@@ -103,9 +103,10 @@ export function useRunnerHistory(userId: string | null | undefined) {
     };
   }, [userId, revision, refresh]);
 
-  const totals = useMemo(() => calculateActivityTotals(
-    state.races, state.ghostSessions, currentLocalWeekStart()
-  ), [state.races, state.ghostSessions]);
+  const totals = useMemo(() => {
+    const now = new Date();
+    return calculateActivityTotals(state.races, state.ghostSessions, currentLocalWeekStart(now), now.getTime());
+  }, [state.races, state.ghostSessions]);
 
   return { ...state, totals, refresh };
 }
