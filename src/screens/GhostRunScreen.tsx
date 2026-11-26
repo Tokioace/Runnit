@@ -11,7 +11,7 @@ import { inspectGhostGpsFix, ghostGpsFixNotice, type GhostGpsFixIssue } from '..
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage } from '../lib/screenWakeLock';
-import { unlockRaceAudio, playArcadeFinishSfx } from '../lib/arcadeRaceAudio';
+import { unlockRaceAudio, playArcadeFinishSfx, setRaceAudioMuted } from '../lib/arcadeRaceAudio';
 import RaceCountdown, { ARCADE_COUNTDOWN_SECONDS } from '../components/race/RaceCountdown';
 import '../styles/raceArcade.css';
 import '../styles/ghostRun.css';
@@ -39,6 +39,9 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   const [fixIssue, setFixIssue] = useState<GhostGpsFixIssue>('missing');
   const [motionPermission, setMotionPermission] = useState<MotionPermission>('unavailable');
   const [soundEnabled, setSoundEnabled] = useState(true);
+  // AudioContext is shared with 1v1, but the controls are screen-local.
+  // Apply this screen's preference before its countdown effects can run.
+  useLayoutEffect(() => { setRaceAudioMuted(!soundEnabled); }, [soundEnabled]);
   const [countdownAt, setCountdownAt] = useState<number | null>(null);
   const [live, setLive] = useState<GpsSprintState | null>(null);
   const [stepCount, setStepCount] = useState(0);
@@ -310,7 +313,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       setNotice('GPS-Fix ist nicht mehr aktuell. Bitte auf ein neues Signal warten.');
       return;
     }
-    unlockRaceAudio(); // User gesture; do not require sound permission later.
+    if (soundEnabled) unlockRaceAudio(); // User gesture; do not require sound permission later.
     const start = Date.now() + ARCADE_COUNTDOWN_SECONDS * 1000;
     setCountdownAt(start);
     setCurrentPhase('countdown');
