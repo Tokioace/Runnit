@@ -30,8 +30,8 @@ test('watch success and error callbacks belong to a GPS lifetime retired before 
 test('automatic, manual and countdown one-shot GPS callbacks cannot mutate subsequent phases',()=>{
  assert.match(source,/!cancelled && isGpsLive\(\) && phaseRef.current === 'acquiring'/);
  assert.match(source,/const stillPreparing = \(\) => isGpsLive\(\) &&\s*\(phaseRef.current === 'acquiring' \|\| phaseRef.current === 'ready'\)/);
- assert.match(source,/if \(stillPreparing\(\)\) setNotice/);
- assert.match(source,/pos => \{ if \(stillPreparing\(\)\) onGps\(pos\); \}/);
+ assert.match(source,/if \(stillPreparing\(\) && phaseRef.current === 'acquiring'\) \{\s*setNotice/);
+ assert.match(source,/pos => \{\s*const current = stillPreparing\(\);\s*release\(\);\s*if \(current\) onGps\(pos\);/);
  assert.match(source,/const stillCounting = \(\) => !cancelled && isGpsLive\(\) && phaseRef.current === 'countdown'/);
  assert.match(source,/pos => \{ if \(stillCounting\(\)\) onGps\(pos\); \}/);
 });
