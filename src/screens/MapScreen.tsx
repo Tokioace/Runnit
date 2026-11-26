@@ -896,6 +896,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
 
   const closeCompletedDuel = React.useCallback((duelId: string) => {
     if (!authUser || finishAccountRef.current !== authUser.id) return;
+    if (endedDuelIdsRef.current.has(duelId) ||
+        (activeDuelIdRef.current !== null && activeDuelIdRef.current !== duelId)) return;
     recoveryRevisionRef.current += 1;
     endedDuelIdsRef.current.add(duelId);
     if (activeDuelIdRef.current === duelId) activeDuelIdRef.current = null;
@@ -1648,16 +1650,18 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   };
 
   const sendFinishedTime = async (payload: PendingFinish) => {
-    if (finishSubmittingRef.current || finishAccountRef.current !== payload.userId ||
-        latestFinishPayloadRef.current !== payload || endedDuelIdsRef.current.has(payload.duelId)) return;
+    const stillCurrent = () => finishAccountRef.current === payload.userId &&
+      latestFinishPayloadRef.current === payload &&
+      activeDuelIdRef.current === payload.duelId &&
+      !endedDuelIdsRef.current.has(payload.duelId) &&
+      !completedDuelIdsRef.current.has(payload.duelId);
+    if (finishSubmittingRef.current || !stillCurrent()) return;
     const releaseWrite = duelWriteGate.current.tryAcquire(payload.duelId);
     if (!releaseWrite) {
       setFinishSubmissionError('Für dieses Duell läuft bereits eine Änderung. Bitte Zielzeit erneut speichern.');
       return;
     }
     finishSubmittingRef.current = payload;
-    const stillCurrent = () => finishAccountRef.current === payload.userId &&
-      latestFinishPayloadRef.current === payload && !endedDuelIdsRef.current.has(payload.duelId);
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (!stillCurrent()) return;
@@ -1686,9 +1690,9 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     }
   };
 
-  const retryFinishedTime = async () => {
+  const retryFinishedTime = async (duelId: string) => {
     const payload = latestFinishPayloadRef.current;
-    if (payload) await sendFinishedTime(payload);
+    if (payload?.duelId === duelId) await sendFinishedTime(payload);
   };
 
   const confirmAbortMatchedDuel = async (duelId: string) => {
@@ -2129,7 +2133,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
           targetDistanceM={race.targetDistanceM}
           isDemo={race.duelId.startsWith('demo-run-')}
           submissionError={finishSubmissionError}
-          onRetrySubmit={retryFinishedTime}
+          onRetrySubmit={() => retryFinishedTime(race.duelId)}
           onAbort={() => confirmAbortMatchedDuel(race.duelId)}
           onClose={() => closeCompletedDuel(race.duelId)}
         />
