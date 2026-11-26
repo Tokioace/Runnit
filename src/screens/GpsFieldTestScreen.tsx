@@ -233,6 +233,8 @@ export default function GpsFieldTestScreen() {
       schema: 'runnit-gps-field-v1',
       ...report,
       staleFixesIgnored: skippedStale,
+      // Only report the interpolation bracket of a confirmed finish.
+      crossingIntervalMs: measurement?.finishTimestampMs != null ? measurement.crossingIntervalMs : null,
       referenceSeconds: comparison === null ? null : referenceValue,
       differenceSeconds: comparison,
       disclaimer: 'Experimental device GPS data. Not valid for leaderboards or verified races.',
