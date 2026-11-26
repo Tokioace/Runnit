@@ -842,6 +842,9 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   const recoveryRevisionRef = useRef(0);
   // Ignore late Realtime/poll responses for duels confirmed as terminated.
   const endedDuelIdsRef = useRef<Set<string>>(new Set());
+  // Open events never return to open after a confirmed non-open transition.
+  // Keep this separate from duel recovery: a map marker is not a race result.
+  const knownNonOpenRunIdsRef = useRef<Set<string>>(new Set());
   // Completed results remain visible until closed, but their lobby is already retired.
   const completedDuelIdsRef = useRef<Set<string>>(new Set());
   const [race, setRace] = useState<
@@ -951,6 +954,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     recoveryRevisionRef.current += 1;
     activeDuelIdRef.current = row.id;
     rememberActiveDuelId(authUser.id, row.id);
+    knownNonOpenRunIdsRef.current.add(row.id);
+    setRegionalRuns(previous => previous.filter(run => run.id !== row.id));
     setOpenRuns(previous => previous.filter(run => run.id !== row.id));
     setHostedOpenDuels(previous => previous.filter(run => run.id !== row.id));
     setCancelConfirmation(previous => previous?.id === row.id ? null : previous);
@@ -1257,7 +1262,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
             .filter((run): run is OpenRun => run !== null);
         }
 
-        if (isActive) setOpenRuns(previous => reconcileOpenRaces(previous, mapped, authUser.id));
+        if (isActive) setOpenRuns(previous => reconcileOpenRaces(previous, mapped, authUser.id)
+          .filter(run => !knownNonOpenRunIdsRef.current.has(run.id)));
       } finally {
         if (isActive) {
           discoveryLoadedRef.current = true;
@@ -1286,6 +1292,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         .limit(500);
       if (!active || error) return;
       setRegionalRuns((data ?? []).flatMap(row => {
+        if (knownNonOpenRunIdsRef.current.has(row.id)) return [];
         const location = parseGeographyPoint(row.location);
         return location ? [{ id: row.id as string, location, expiresAt: row.expires_at as string }] : [];
       }));
@@ -1307,11 +1314,12 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     let active = true;
     void listHostedOpenDuels(supabase, authUser.id)
       .then(runs => {
-        if (!active) return;
-        setHostedOpenDuels(runs);
+        if (!active || finishAccountRef.current !== authUser.id) return;
+        const open = runs.filter(run => !knownNonOpenRunIdsRef.current.has(run.id));
+        setHostedOpenDuels(open);
         setOpenRuns(previous => {
-          const restored: OpenRun[] = runs
-            .filter(run => Boolean(run.location))
+          const restored: OpenRun[] = open
+            .filter(run => Boolean(run.location) && !knownNonOpenRunIdsRef.current.has(run.id))
             .map(run => ({
               id: run.id,
               hostUserId: authUser.id,
@@ -1440,6 +1448,13 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
           const row: any = duelRealtimeRow(payload);
           if (finishAccountRef.current !== authUser.id) return;
           if (!row) return;
+
+          if (payload.eventType === 'DELETE' || row.status !== 'open') {
+            knownNonOpenRunIdsRef.current.add(row.id);
+            setRegionalRuns(previous => previous.filter(run => run.id !== row.id));
+          } else if (knownNonOpenRunIdsRef.current.has(row.id)) {
+            return; // a delayed open notification must not resurrect a retired marker
+          }
 
           // DELETE supplies only the old primary key. Remove known local
           // markers; do not infer match completion or participant identity.
@@ -1668,6 +1683,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       if (finishAccountRef.current !== authUser.id) return;
       const message = cancelHostedDuelMessage(result);
       if (result.status === 'cancelled') {
+        knownNonOpenRunIdsRef.current.add(run.id);
+        setRegionalRuns(previous => previous.filter(item => item.id !== run.id));
         setHostedOpenDuels(previous => previous.filter(item => item.id !== run.id));
         setOpenRuns(previous => previous.filter(item => item.id !== run.id));
         setCancelConfirmation(null);
@@ -1687,6 +1704,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
           setCancelError(null);
           setRaceNotice('Dein Gegner ist bereits beigetreten. Das Rennen kann nicht mehr als offene Challenge abgesagt werden.');
         } else if (latest && latest.status !== 'open') {
+          knownNonOpenRunIdsRef.current.add(run.id);
+          setRegionalRuns(previous => previous.filter(item => item.id !== run.id));
           setHostedOpenDuels(previous => previous.filter(item => item.id !== run.id));
           setOpenRuns(previous => previous.filter(item => item.id !== run.id));
           setCancelConfirmation(null);
@@ -1694,7 +1713,11 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
           setRaceNotice('Dieses Rennen ist nicht mehr offen und wurde von der Karte entfernt.');
         } else {
           void listHostedOpenDuels(supabase, authUser.id)
-            .then(runs => { setHostedOpenDuels(runs); setHostedDuelsLoadError(false); })
+            .then(runs => {
+              if (finishAccountRef.current !== authUser.id) return;
+              setHostedOpenDuels(runs.filter(item => !knownNonOpenRunIdsRef.current.has(item.id)));
+              setHostedDuelsLoadError(false);
+            })
             .catch(() => setHostedDuelsLoadError(true));
         }
       }
