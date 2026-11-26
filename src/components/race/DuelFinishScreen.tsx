@@ -114,12 +114,14 @@ export default function DuelFinishScreen({
     const onVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
+    window.addEventListener('online', onVisible);
     return () => {
       active = false;
       request.close();
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
+      window.removeEventListener('online', onVisible);
     };
   }, [supabase, duelId, userId, isDemo]);
 
@@ -133,12 +135,15 @@ export default function DuelFinishScreen({
     (status === 'completed' && !completed);
   const mine = uniqueResults.find(row => row.user_id === userId);
   const other = uniqueResults.find(row => row.user_id !== userId);
+  // A validated server result takes precedence over a lost write response.
+  // Only offer another write while the player's stored time is unconfirmed.
+  const ownTimeConfirmed = status === 'matched' && mine !== undefined;
   const resultTitle = isDemo ? 'TESTLAUF!' : outcome === 'won' ? 'DU GEWINNST!'
     : outcome === 'lost' ? 'DU VERLIERST!' : outcome === 'tie' ? 'UNENTSCHIEDEN!'
       : status === 'abandoned' ? 'DUELL ABGEBROCHEN!'
         : status === 'unavailable' ? 'RENNEN NICHT VERFÜGBAR' : 'ZIEL ERREICHT!';
   const retrySubmission = async () => {
-    if (retryBusy || completed || terminalWithoutResult) return;
+    if (retryBusy || completed || terminalWithoutResult || ownTimeConfirmed) return;
     setRetryBusy(true);
     try { await onRetrySubmit(); }
     finally { setRetryBusy(false); }
@@ -211,7 +216,7 @@ export default function DuelFinishScreen({
           </p>
         )}
         {(fetchError || resultDataError) && <p className="race-arcade-error" role="alert">{fetchError || resultDataError}</p>}
-        {submissionError && !completed && !terminalWithoutResult && (
+        {submissionError && !completed && !terminalWithoutResult && !ownTimeConfirmed && (
           <div className="race-arcade-result-retry">
             <p className="race-arcade-error" role="alert">{submissionError}</p>
             <button type="button" onClick={() => { void retrySubmission(); }} disabled={retryBusy}
