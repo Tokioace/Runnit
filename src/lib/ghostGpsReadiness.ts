@@ -39,3 +39,15 @@ export function ghostGpsFixNotice(info: GhostGpsFixInfo): string {
     default: return 'GPS-Daten sind unvollständig oder ungültig. Neuer Standort-Fix wird angefordert.';
   }
 }
+
+/** Track the latest chronologically plausible fix, even if its accuracy is poor.
+ * An invalid or future clock cannot move the watermark into the future. */
+export function ghostFixOrder(lastTimestampMs: number | null, sample: GpsSample, nowMs: number):
+  { ignore: boolean; timestampMs: number | null } {
+  const timestamp = sample.timestampMs;
+  if (!Number.isFinite(timestamp) || !Number.isFinite(nowMs) || timestamp > nowMs)
+    return { ignore: false, timestampMs: lastTimestampMs };
+  if (lastTimestampMs !== null && timestamp <= lastTimestampMs)
+    return { ignore: true, timestampMs: lastTimestampMs };
+  return { ignore: false, timestampMs: timestamp };
+}

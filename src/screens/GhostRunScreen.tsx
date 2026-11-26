@@ -11,7 +11,7 @@ import { createMeasurementLifetime, measurementAccountCurrent } from '../lib/mea
 import { createGpsSprint, advanceLiveGpsSprint, type GpsSprintState, type GpsSample } from '../lib/sprintGps';
 import { ghostSummary, ghostFinishMotion, safeNumber, type DiagnosticSummary, type MotionPermission } from '../lib/ghostRunSummary';
 import { isFreshStartFix, primeGpsSprint } from '../lib/gpsField';
-import { inspectGhostGpsFix, ghostGpsFixNotice, type GhostGpsFixIssue } from '../lib/ghostGpsReadiness';
+import { inspectGhostGpsFix, ghostGpsFixNotice, ghostFixOrder, type GhostGpsFixIssue } from '../lib/ghostGpsReadiness';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { motionEventSample } from '../lib/duelMotionEvidence';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
@@ -72,6 +72,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   const watchRef = useRef<number | null>(null);
   const activeRef = useRef<GpsSprintState | null>(null);
   const readyRef = useRef<GpsSample | null>(null);
+  const latestPreparationFixMs = useRef<number | null>(null);
   const startedRef = useRef<number | null>(null);
   const stepRef = useRef(new LiveStepPeakCounter());
   const gpsTraceRef = useRef<GpsTrace[]>([]);
@@ -98,6 +99,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   }, []);
   const stopGps = useCallback(() => {
     gpsLifetime.current.close(); // retire queued watch and one-shot callbacks first
+    latestPreparationFixMs.current = null;
     const id = watchRef.current;
     watchRef.current = null;
     if (id !== null && navigator.geolocation) {
@@ -222,11 +224,12 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     const current = phaseRef.current;
     const observedNow = Date.now();
     if (current === 'acquiring' || current === 'ready' || current === 'countdown') {
-      // watchPosition and getCurrentPosition may return out of order. Do not
-      // replace a newer valid anchor with an older cached Safari callback.
-      if (readyRef.current && sample.timestampMs < readyRef.current.timestampMs) return;
+      // An older callback cannot restore readiness after a newer poor fix.
+      const order = ghostFixOrder(latestPreparationFixMs.current, sample, observedNow);
+      if (order.ignore) return;
+      latestPreparationFixMs.current = order.timestampMs;
       const info = inspectGhostGpsFix(sample, observedNow);
-      setAccuracyM(sample.accuracyM);
+      setAccuracyM(info.accuracyM);
       setFixTimestampMs(Number.isFinite(sample.timestampMs) ? sample.timestampMs : null);
       setFixIssue(info.issue);
       if (info.issue === 'ready' && isFreshStartFix(sample, observedNow)) {
@@ -235,10 +238,14 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
           setCurrentPhase('ready');
           setNotice('GPS bereit. An die Startlinie stellen und Ghost Run starten.');
         }
-      } else if (current !== 'countdown') {
+      } else {
+        // Even during countdown, the last observed poor fix invalidates
+        // the old anchor. GO requires a subsequent valid fresh fix.
         readyRef.current = null;
-        setCurrentPhase('acquiring');
-        setNotice(ghostGpsFixNotice(info));
+        if (current !== 'countdown') {
+          setCurrentPhase('acquiring');
+          setNotice(ghostGpsFixNotice(info));
+        }
       }
       return;
     }
