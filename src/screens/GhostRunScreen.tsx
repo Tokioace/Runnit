@@ -43,6 +43,13 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   const [fixIssue, setFixIssue] = useState<GhostGpsFixIssue>('missing');
   const [motionPermission, setMotionPermission] = useState<MotionPermission>('unavailable');
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const soundEnabledRef = useRef(true);
+  const toggleSound = () => {
+    const enabled = !soundEnabledRef.current;
+    soundEnabledRef.current = enabled;
+    setRaceAudioMuted(!enabled);
+    setSoundEnabled(enabled);
+  };
   // AudioContext is shared with 1v1, but the controls are screen-local.
   // Apply this screen's preference before its countdown effects can run.
   useLayoutEffect(() => { setRaceAudioMuted(!soundEnabled); }, [soundEnabled]);
@@ -106,7 +113,11 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     }, setSavedRuns);
   }, [user?.id]);
   useEffect(() => { void refreshSaved(); }, [refreshSaved]);
-  useEffect(() => { saveEnabledRef.current = saveToAccount; }, [saveToAccount]);
+  const changeSavePreference = (enabled: boolean) => {
+    // Apply the user's selection before any queued GPS completion callback.
+    saveEnabledRef.current = enabled;
+    setSaveToAccount(enabled);
+  };
 
   const saveSummary = useCallback(async (item: DiagnosticSummary) => {
     if (!saveEnabledRef.current || !user?.id || savedRef.current || !lifetime.current.isActive()) return;
@@ -193,10 +204,10 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     setNotice(message);
     if (reason === 'finished' && !audioPlayedRef.current) {
       audioPlayedRef.current = true;
-      if (soundEnabled) playArcadeFinishSfx();
+      if (soundEnabledRef.current) playArcadeFinishSfx();
     }
     void saveSummary(summaryRow);
-  }, [setCurrentPhase, stopGps, saveSummary, soundEnabled]);
+  }, [setCurrentPhase, stopGps, saveSummary]);
 
   const onGps = useCallback((pos: GeolocationPosition) => {
     if (unmountedRef.current) return;
@@ -389,7 +400,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       setNotice('GPS-Fix ist nicht mehr aktuell. Bitte auf ein neues Signal warten.');
       return;
     }
-    if (soundEnabled) unlockRaceAudio(); // User gesture; do not require sound permission later.
+    if (soundEnabledRef.current) unlockRaceAudio(); // User gesture; do not require sound permission later.
     const start = Date.now() + ARCADE_COUNTDOWN_SECONDS * 1000;
     setCountdownAt(start);
     setCurrentPhase('countdown');
@@ -676,11 +687,11 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
                   </button>
                 )}
                 <button type="button" className="runnit-ghost-secondary"
-                  onClick={() => setSoundEnabled(value => !value)}>
+                  onClick={toggleSound}>
                   START- UND ZIELTON: {soundEnabled ? 'AN' : 'AUS'}
                 </button>
                 <label className="runnit-ghost-optin">
-                  <input type="checkbox" checked={saveToAccount} onChange={event => setSaveToAccount(event.target.checked)} />
+                  <input type="checkbox" checked={saveToAccount} onChange={event => changeSavePreference(event.target.checked)} />
                   Private Messzusammenfassung nach Laufende in meinem Konto speichern.
                 </label>
                 <p className="runnit-ghost-small">Keine Ranglistenwertung. Keine Roh-GPS-Koordinaten oder IMU-Rohdaten auf dem Server. Den vollständigen Messverlauf kannst du anschließend als JSON herunterladen.</p>
