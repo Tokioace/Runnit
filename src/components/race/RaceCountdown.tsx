@@ -15,7 +15,7 @@ export function countdownSecond(startsAt: number, now: number): number {
 }
 
 type Props = { startsAt: number; targetDistanceM: number; soundEnabled: boolean;
-  wakeStatus: ScreenWakeLockStatus | 'idle'; onDone: () => void; onAbort: () => Promise<void> };
+  wakeStatus: ScreenWakeLockStatus | 'idle'; onDone: () => boolean; onAbort: () => Promise<void> };
 
 export default function RaceCountdown({ startsAt, targetDistanceM, soundEnabled, wakeStatus, onDone, onAbort }: Props) {
   const [remaining, setRemaining] = useState(() => countdownSecond(startsAt, Date.now()));
@@ -36,6 +36,7 @@ export default function RaceCountdown({ startsAt, targetDistanceM, soundEnabled,
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
   const finishedRef = useRef(false);
+  const handedOffStart = useRef<number | null>(null);
   useEffect(() => {
     finishedRef.current = false;
     const tick = () => {
@@ -43,7 +44,7 @@ export default function RaceCountdown({ startsAt, targetDistanceM, soundEnabled,
       setRemaining(value => value === next ? value : next);
       if (next === 0 && !finishedRef.current) {
         finishedRef.current = true;
-        doneRef.current();
+        if (doneRef.current()) handedOffStart.current = startsAt;
       }
     };
     tick();
@@ -63,7 +64,7 @@ export default function RaceCountdown({ startsAt, targetDistanceM, soundEnabled,
     session.start();
     return () => {
       audioSession.current = null;
-      session.close();
+      session.close(handedOffStart.current === startsAt);
     };
   }, [startsAt, soundEnabled]);
   const color = ARCADE_COUNTDOWN_COLORS[ARCADE_COUNTDOWN_SECONDS - Math.max(1, remaining)];
