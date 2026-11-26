@@ -32,8 +32,8 @@ test('a new mode can enable audio after the previous mode muted the shared conte
 test('Ghost Run applies its own sound preference before countdown effects and respects mute at start and finish',()=>{
  const source=readFileSync(new URL('../src/screens/GhostRunScreen.tsx',import.meta.url),'utf8');
  assert.match(source,/useLayoutEffect\(\(\) => \{ setRaceAudioMuted\(!soundEnabled\); \}, \[soundEnabled\]\)/);
- assert.match(source,/if \(soundEnabled\) unlockRaceAudio\(\)/);
- assert.match(source,/if \(soundEnabled\) playArcadeFinishSfx\(\)/);
+ assert.match(source,/if \(soundEnabledRef.current\) unlockRaceAudio\(\)/);
+ assert.match(source,/if \(soundEnabledRef.current\) playArcadeFinishSfx\(\)/);
  assert.match(source,/soundEnabled=\{soundEnabled\} onDone=\{beginRun\}/);
  const map=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'utf8');
  assert.match(map,/setRaceAudioMuted\(!raceSoundEnabled\)/);
