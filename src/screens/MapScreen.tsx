@@ -33,6 +33,7 @@ import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { readPendingFinish, rememberPendingFinish, forgetPendingFinish, type PendingFinish } from '../lib/pendingDuelFinish.ts';
 import { DuelMotionCapture, requestDuelMotionPermission, motionEventSample } from '../lib/duelMotionEvidence';
 import { createDuelGpsMeasurement, advanceDuelGpsMeasurement, duelGpsMetrics, resumeDuelGpsMeasurement } from '../lib/duelGpsMeasurement';
+import { duelGpsLiveNotice, duelGpsErrorNotice } from '../lib/duelGpsStatus';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { screenWakeLockMessage, type ScreenWakeLockStatus } from '../lib/screenWakeLock';
 import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters } from '../lib/mapHostPlacement';
@@ -2294,6 +2295,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
 function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinish, onAbort }: { startedAt: number; targetDistanceM: number; startFix: Coordinates | null; wakeStatus: ScreenWakeLockStatus | 'idle'; onFinish: (endedAt: number, metrics?: DuelMetrics) => void; onAbort: () => Promise<void> }) {
   const [elapsedMs, setElapsedMs] = useState(Math.max(0, Date.now() - startedAt));
   const [displayDistanceM, setDisplayDistanceM] = useState(0);
+  const [gpsErrorNotice, setGpsErrorNotice] = useState<string | null>(null);
   const [maxSpeed, setMaxSpeed] = useState(0);
   const [initialMeasurement] = useState(() => createDuelGpsMeasurement(targetDistanceM, startedAt, startFix ? {
     latitude: startFix.lat,
@@ -2353,7 +2355,11 @@ function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinis
   // Use GPS fix timestamps, not callback arrival times. Keep measurement and
   // completion side effects outside React state updaters (which may be replayed).
   useEffect(() => {
-    if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
+    if (typeof window === 'undefined') return;
+    if (!('geolocation' in navigator)) {
+      setGpsErrorNotice('GPS wird auf diesem Gerät nicht unterstützt.');
+      return;
+    }
     let active = true;
     const isLive = measurementLifetime.current.capture();
     const handle = (pos: GeolocationPosition) => {
@@ -2367,6 +2373,7 @@ function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinis
       }, Date.now());
       measurementRef.current = next;
       if (next.sprint.lastDecision !== 'accepted') return;
+      setGpsErrorNotice(null);
       setMaxSpeed(next.sprint.maxSpeedMps);
       const distance = next.sprint.distanceM;
       setDisplayDistanceM(previous => previous + 0.35 * (distance - previous));
@@ -2378,13 +2385,21 @@ function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinis
             motionCapture.current.summarize(next.sprint.finishTimestampMs, next.sprint.targetMeters)));
       }
     };
+    const handleError = (error: GeolocationPositionError) => {
+      if (!active || !isLive() || finishedRef.current) return;
+      setGpsErrorNotice(duelGpsErrorNotice(error.code));
+    };
     try {
-      watchIdRef.current = navigator.geolocation.watchPosition(handle, () => {}, {
+      watchIdRef.current = navigator.geolocation.watchPosition(handle, handleError, {
         enableHighAccuracy: true,
         maximumAge: 0,
         timeout: 5000,
       });
-    } catch {}
+    } catch {
+      if (active && isLive() && !finishedRef.current) {
+        setGpsErrorNotice('GPS konnte nicht gestartet werden.');
+      }
+    }
     return () => {
       active = false;
       if (watchIdRef.current !== null) {
@@ -2412,6 +2427,7 @@ function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinis
 
   // GPS remains authoritative for measured distance. Live steps are diagnostics.
   const seconds = (elapsedMs / 1000).toFixed(2);
+  const gpsNotice = duelGpsLiveNotice(measurementRef.current.sprint, startedAt + elapsedMs, gpsErrorNotice);
   const progress = Math.max(0, Math.min(100, displayDistanceM / targetDistanceM * 100));
   return (
     <div className="race-arcade-screen race-arcade-live">
@@ -2438,7 +2454,7 @@ function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinis
           <div className="race-arcade-mini-stat">
             <span>GPS MAX SPEED</span><strong>{maxSpeed.toFixed(1)} m/s</strong>
           </div>
-          <p className="race-arcade-wake">GPS-Bewertung experimentell · nicht verifiziert</p>
+          <p className="race-arcade-wake">GPS-Bewertung experimentell · nicht verifiziert{gpsNotice ? ' · ' + gpsNotice : ''}</p>
         </div>
         {wakeStatus !== 'idle' && <p className="race-arcade-wake">{screenWakeLockMessage(wakeStatus)}</p>}
         {confirmAbort ? (
