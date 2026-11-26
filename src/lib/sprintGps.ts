@@ -109,6 +109,17 @@ export function advanceGpsSprint(state: GpsSprintState, sample: GpsSample): GpsS
   };
 }
 
+/** Live browser fixes must be current on the same epoch clock. Simulations
+ * deliberately keep using advanceGpsSprint without a wall-clock dependency. */
+export function advanceLiveGpsSprint(state: GpsSprintState, sample: GpsSample, receivedAtMs: number): GpsSprintState {
+  if (state.finishTimestampMs !== null) return { ...state, lastDecision: 'already-finished' };
+  if (!Number.isFinite(receivedAtMs) || !Number.isFinite(sample.timestampMs) ||
+      sample.timestampMs > receivedAtMs || receivedAtMs - sample.timestampMs > 3000) {
+    return reject(state, 'invalid-sample');
+  }
+  return advanceGpsSprint(state, sample);
+}
+
 export function runGpsSimulation(targetMeters: number, startedAtMs: number, samples: GpsSample[]): GpsSprintState {
   return samples.reduce(advanceGpsSprint, createGpsSprint(targetMeters, startedAtMs));
 }
