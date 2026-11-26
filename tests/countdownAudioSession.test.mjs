@@ -43,6 +43,20 @@ test('countdown owns manual activation and closes its session on effect cleanup'
  const source=readFileSync(new URL('../src/components/race/RaceCountdown.tsx',import.meta.url),'utf8');
  assert.match(source,/createCountdownAudioSession\(\(\) => scheduleArcadeStartSfx\(startsAt\), unlockRaceAudio\)/);
  assert.match(source,/void audioSession.current\?\.activate\(\)/);
- assert.match(source,/session.close\(\)/);
+ assert.match(source,/session.close\(handedOffStart.current === startsAt\)/);
  assert.doesNotMatch(source,/unlockRaceAudio\(\); scheduleArcadeStartSfx/);
+});
+
+test('only explicit successful handoff preserves the scheduled GO sound',()=>{
+ const stops=[];
+ const make=()=>createCountdownAudioSession(()=>preserve=>stops.push(preserve),async()=>true);
+ const normal=make();normal.start();normal.close(true);normal.close();
+ const abort=make();abort.start();abort.close();
+ assert.deepEqual(stops,[true,false]);
+});
+test('GO handoff is explicitly acknowledged by the matching live duel',()=>{
+ const source=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'utf8');
+ assert.match(source,/race.duelId === matchOverlay.duelId/);
+ assert.match(source,/race.startsAt === matchOverlay.startsAt && !endedDuelIdsRef.current.has\(race.duelId\)/);
+ assert.match(source,/startedAt: race.startsAt, targetDistanceM: race.targetDistanceM \}\);\s*return true;/);
 });
