@@ -1,3 +1,4 @@
+import { createFinishRefresh } from '../lib/finishRefresh';
 import { isUncertainGhostSave, isGhostSaveConflict, matchesGhostSave } from '../lib/ghostSaveResponse';
 import { createLatestRead } from '../lib/latestRead';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -72,6 +73,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   const motionPermissionRef = useRef<MotionPermission>('unavailable');
   const savedRef = useRef(false);
   const saveIdRef = useRef<string | null>(null);
+  const uncertainSaveRef = useRef<(DiagnosticSummary & { id: string; user_id: string; source: string }) | null>(null);
   const savePendingRef = useRef(false);
   const lifetime = useRef(createMeasurementLifetime());
   const gpsLifetime = useRef(createMeasurementLifetime());
@@ -151,8 +153,9 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     if (!measurementAccountCurrent(isLive, assertAccount)) return;
     savePendingRef.current = false;
     if (uncertain) {
+      uncertainSaveRef.current = payload;
       setSaveStatus('unknown');
-      setSavedMessage('Speicherstatus unklar. Bitte JSON exportieren und deine letzten Solo-Messungen prüfen. Kein erneutes Speichern ohne Bestätigung.');
+      setSavedMessage('Speicherstatus unklar. Beim Wiederverbinden wird der Lauf erneut geprüft. Bitte bei Bedarf JSON exportieren.');
       void refreshSaved().catch(() => {});
     } else if (error) {
       savedRef.current = false;
@@ -438,6 +441,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     stepRef.current.reset();
     savedRef.current = false;
     saveIdRef.current = null;
+    uncertainSaveRef.current = null;
     interruptedRef.current = false;
     audioPlayedRef.current = false;
     setMotionGaps(0); setStepCount(0); setSummary(null); setInterrupted(false); setSaveStatus('idle');
@@ -529,8 +533,52 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       activeRef.current = null;
       gpsTraceRef.current = [];
       motionTraceRef.current = [];
+      uncertainSaveRef.current = null;
     };
   }, [stopGps]);
+
+  // A lost response can also prevent the initial readback. Recheck only the
+  // exact unresolved payload on reconnect or foreground, without new writes.
+  useEffect(() => {
+    const payload = uncertainSaveRef.current;
+    if (saveStatus !== 'unknown' || !payload || payload.user_id !== user?.id ||
+        !lifetime.current.isActive()) return;
+    const isLive = lifetime.current.capture();
+    let assertAccount: () => void;
+    try { assertAccount = beginAccountMutation(); } catch { return; }
+    let active = true;
+    const current = () => active && uncertainSaveRef.current === payload &&
+      measurementAccountCurrent(isLive, assertAccount);
+    const refresh = createFinishRefresh(async () => {
+      if (!current()) return;
+      const { data, error } = await supabase.from('ghost_run_sessions')
+        .select('id,user_id,target_distance_m,run_state,elapsed_ms,observed_distance_m,steps_count,gps_accepted,gps_rejected,motion_samples,motion_gaps,max_speed_mps,motion_permission,interrupted,source')
+        .eq('user_id', payload.user_id).eq('id', payload.id).maybeSingle();
+      if (!current() || error || !matchesGhostSave(payload, data)) return;
+      uncertainSaveRef.current = null;
+      setSaveStatus('saved');
+      setSavedMessage('Messzusammenfassung privat im Konto gespeichert. Keine Ranglistenwertung.');
+      void refreshSaved().catch(() => {});
+    }, () => { /* retain unknown status */ });
+    const whenVisible = () => {
+      if (document.visibilityState === 'visible' && current()) void refresh.refresh();
+    };
+    window.addEventListener('online', whenVisible);
+    window.addEventListener('focus', whenVisible);
+    document.addEventListener('visibilitychange', whenVisible);
+    // A reconnect during an in-flight read may be coalesced; a slow visible
+    // retry covers that case while this unresolved report remains open.
+    const timer = window.setInterval(whenVisible, 15_000);
+    whenVisible();
+    return () => {
+      active = false;
+      refresh.close();
+      window.clearInterval(timer);
+      window.removeEventListener('online', whenVisible);
+      window.removeEventListener('focus', whenVisible);
+      document.removeEventListener('visibilitychange', whenVisible);
+    };
+  }, [saveStatus, user?.id, beginAccountMutation, refreshSaved]);
 
   const exportJson = () => {
     if (!summary) return;
@@ -554,6 +602,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
 
   const reset = () => {
     if (savePendingRef.current || phaseRef.current === 'running' || phaseRef.current === 'countdown') return;
+    uncertainSaveRef.current = null;
     stopGps(); readyRef.current = null; activeRef.current = null;
     setCountdownAt(null); setLive(null); setSummary(null); setStepCount(0);
     setAccuracyM(null); setSavedMessage(''); setSaveStatus('idle'); setMotionGaps(0);
