@@ -4,7 +4,7 @@ import { ArrowLeft, CheckCircle2, Download, Flag, Footprints, Gauge, PauseCircle
 import { supabase } from '../lib/supabaseClient';
 import type { UseSupabaseUserReturn } from '../hooks/useSupabaseUser';
 import { createMeasurementLifetime, measurementAccountCurrent } from '../lib/measurementLifetime';
-import { createGpsSprint, advanceGpsSprint, type GpsSprintState, type GpsSample } from '../lib/sprintGps';
+import { createGpsSprint, advanceLiveGpsSprint, type GpsSprintState, type GpsSample } from '../lib/sprintGps';
 import { ghostSummary, safeNumber, type DiagnosticSummary, type MotionPermission } from '../lib/ghostRunSummary';
 import { isFreshStartFix, primeGpsSprint } from '../lib/gpsField';
 import { inspectGhostGpsFix, ghostGpsFixNotice, type GhostGpsFixIssue } from '../lib/ghostGpsReadiness';
@@ -186,7 +186,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     }
     if (current !== 'running' || !activeRef.current) return;
     const prior = activeRef.current;
-    const next = advanceGpsSprint(prior, sample);
+    const next = advanceLiveGpsSprint(prior, sample, observedNow);
     activeRef.current = next;
     setLive(next);
     if (gpsTraceRef.current.length < MAX_GPS_SAMPLES) {

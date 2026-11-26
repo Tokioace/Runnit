@@ -44,7 +44,11 @@ test('Ghost Run is accessible from Home and saved solo sessions appear in Stats'
 test('solo run reuses real GPS evaluator and same live IMU peak detector as 1v1', () => {
   const ghost = source('src/screens/GhostRunScreen.tsx');
   const map = source('src/screens/MapScreen.tsx');
-  assert.match(ghost,/advanceGpsSprint\(prior, sample\)/);
+  assert.match(ghost,/advanceLiveGpsSprint\(prior, sample, observedNow\)/);
+  const gps = source('src/lib/sprintGps.ts');
+  const live = gps.slice(gps.indexOf('export function advanceLiveGpsSprint('), gps.indexOf('export function runGpsSimulation('));
+  assert.match(live,/sample\.timestampMs > receivedAtMs \|\| receivedAtMs - sample\.timestampMs > 3000/);
+  assert.match(live,/return advanceGpsSprint\(state, sample\);/);
   assert.match(ghost,/new LiveStepPeakCounter\(\)/);
   assert.match(map,/new LiveStepPeakCounter\(\)/);
   assert.match(ghost,/isFreshStartFix\(anchor, Date\.now\(\)\)/);
