@@ -1,3 +1,4 @@
+import { createLatestRead } from '../lib/latestRead';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Download, Flag, Footprints, Gauge, PauseCircle, Play, ShieldCheck, Timer, WifiOff } from 'lucide-react';
@@ -53,6 +54,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   const saveEnabledRef = useRef(true);
   const [saveStatus, setSaveStatus] = useState<'idle'|'saving'|'saved'|'error'|'unknown'>('idle');
   const [savedRuns, setSavedRuns] = useState<SavedRun[]>([]);
+  const savedRunsRead = useRef(createLatestRead<SavedRun[]>());
   const [savedMessage, setSavedMessage] = useState('');
   const [motionGaps, setMotionGaps] = useState(0);
   const phaseRef = useRef<Phase>('idle');
@@ -91,10 +93,13 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   const refreshSaved = useCallback(async () => {
     if (!user?.id || !lifetime.current.isActive()) return;
     const isLive = lifetime.current.capture();
-    const { data } = await supabase.from('ghost_run_sessions')
-      .select('id,created_at,target_distance_m,run_state,elapsed_ms,steps_count,observed_distance_m')
-      .eq('user_id', user.id).order('created_at', { ascending: false }).limit(6);
-    if (isLive() && data) setSavedRuns(data as SavedRun[]);
+    await savedRunsRead.current.run(isLive, async () => {
+      const { data, error } = await supabase.from('ghost_run_sessions')
+        .select('id,created_at,target_distance_m,run_state,elapsed_ms,steps_count,observed_distance_m')
+        .eq('user_id', user.id).order('created_at', { ascending: false }).limit(6);
+      if (error || !Array.isArray(data)) return null;
+      return data as SavedRun[];
+    }, setSavedRuns);
   }, [user?.id]);
   useEffect(() => { void refreshSaved(); }, [refreshSaved]);
   useEffect(() => { saveEnabledRef.current = saveToAccount; }, [saveToAccount]);
