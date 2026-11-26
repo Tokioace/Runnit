@@ -802,6 +802,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   const [cancelConfirmation, setCancelConfirmation] = useState<HostedOpenDuel | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancellingRunId, setCancellingRunId] = useState<string | null>(null);
+  const cancelHostedPendingRef = useRef(false);
   const [, setLoadingGhosts] = useState(false);
   const [loadingDuels, setLoadingDuels] = useState(false);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
@@ -1683,6 +1684,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   };
 
   const handleCancelHostedRun = (run: HostedOpenDuel) => {
+    if (cancelHostedPendingRef.current || !authUser || finishAccountRef.current !== authUser.id) return;
     if (!authUser || run.hostUserId !== authUser.id || run.id.startsWith('demo-run-')) return;
     // No window.confirm: embedded iOS Safari/PWA and Leaflet popups can dismiss
     // the native prompt before the user sees what happened.
@@ -1691,9 +1693,11 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   };
 
   const confirmCancelHostedRun = async () => {
+    if (cancelHostedPendingRef.current || !authUser || finishAccountRef.current !== authUser.id) return;
     const run = cancelConfirmation;
     if (!authUser || !run || run.hostUserId !== authUser.id || cancellingRunId) return;
     setCancellingRunId(run.id);
+    cancelHostedPendingRef.current = true;
     setCancelError(null);
     setRaceNotice(null);
     try {
@@ -1736,11 +1740,22 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
               setHostedOpenDuels(runs.filter(item => !knownNonOpenRunIdsRef.current.has(item.id)));
               setHostedDuelsLoadError(false);
             })
-            .catch(() => setHostedDuelsLoadError(true));
+            .catch(() => {
+              if (finishAccountRef.current === authUser.id) setHostedDuelsLoadError(true);
+            });
         }
       }
+    } catch {
+      // The follow-up status read may reject even though cancellation itself
+      // returns a structured result. Do not leave an unhandled promise or
+      // claim a successful cancellation without an authoritative response.
+      if (finishAccountRef.current !== authUser.id || knownNonOpenRunIdsRef.current.has(run.id)) return;
+      const message = 'Rennstatus konnte nicht geprüft werden. Bitte Verbindung prüfen und erneut versuchen.';
+      setCancelError(message);
+      setRaceNotice(message);
     } finally {
-      setCancellingRunId(null);
+      cancelHostedPendingRef.current = false;
+      if (finishAccountRef.current === authUser.id) setCancellingRunId(null);
     }
   };
 
@@ -2320,7 +2335,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
               {cancellingRunId ? 'ABSAGE WIRD BESTÄTIGT …' : 'JA, RENNEN ABSAGEN ›'}
             </button>
             <button type="button" disabled={Boolean(cancellingRunId)}
-              onClick={() => { setCancelConfirmation(null); setCancelError(null); }}
+              onClick={() => { if (cancelHostedPendingRef.current) return; setCancelConfirmation(null); setCancelError(null); }}
               className="runnit-cancel-keep">NEIN, RENNEN BEHALTEN</button>
           </section>
         </div>
