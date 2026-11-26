@@ -2,7 +2,7 @@ import { createMeasurementLifetime } from '../lib/measurementLifetime';
 import { classifyDuelJoinError } from '../lib/duelJoinError';
 import { canReleaseUnconfirmedDuelHint } from '../lib/duelRecoveryHint';
 import { mergeDuelReadiness, clearReadyRequest, readyRequestView } from '../lib/duelReadiness';
-import { createDuelStartLatch } from '../lib/duelStartLatch';
+import { createDuelStartLatch, isDuelStartRecoverable } from '../lib/duelStartLatch';
 import { createDuelWriteGate } from '../lib/duelWriteGate';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -819,7 +819,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     finishAccountRef.current = authUser?.id ?? null;
     return () => { finishAccountRef.current = null; };
   }, [authUser?.id]);
-  const [matchOverlay, setMatchOverlay] = useState<{ duelId: string; startsAt: number; targetDistanceM: number } | null>(null);
+  const [matchOverlay, setMatchOverlay] = useState<{ duelId: string; startsAt: number; targetDistanceM: number; lobby?: MatchedDuelState } | null>(null);
   const [matchedDuel, setMatchedDuel] = useState<MatchedDuelState | null>(null);
   const [dismissedMatchId, setDismissedMatchId] = useState<string | null>(null);
   const [readyBusyDuelId, setReadyBusy] = useState<string | null>(null);
@@ -975,12 +975,15 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
           endedAt: pending.startedAt + pending.timeMs, targetDistanceM });
         return;
       }
-      if (Number.isFinite(serverStart) && serverStart > Date.now() - 10_000 &&
+      if (isDuelStartRecoverable(serverStart, Date.now()) &&
           matchStartHandledRef.current !== key) {
         matchStartHandledRef.current = key;
         const startsAt = serverStart; // exact DB timestamp; late devices catch up instead of shifting GO
         setMatchedDuel(null);
-        setMatchOverlay({ duelId: row.id, startsAt, targetDistanceM });
+        setMatchOverlay({ duelId: row.id, startsAt, targetDistanceM, lobby: {
+          id: row.id, hostUserId: row.host_user_id, challengerUserId: row.challenger_user_id,
+          targetDistanceM, hostReady: row.host_ready === true, challengerReady: row.challenger_ready === true, startAt,
+        } });
         setRace({ status: 'countdown', duelId: row.id, startsAt, targetDistanceM });
       } else if (matchStartHandledRef.current !== key) {
         // Do not start an hours-old duel from a resumed Safari tab.
@@ -2160,6 +2163,17 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
                 race.startsAt === matchOverlay.startsAt && !endedDuelIdsRef.current.has(race.duelId)) {
               setMatchOverlay(previous => previous?.duelId === matchOverlay.duelId &&
                 previous.startsAt === matchOverlay.startsAt ? null : previous);
+              // A suspended browser can deliver GO long after the same
+              // recovery window used to admit a server countdown has closed.
+              if (!isDuelStartRecoverable(race.startsAt, Date.now())) {
+                setRace({ status: 'idle' });
+                setMatchedDuel(matchOverlay.lobby ?? null);
+                setDismissedMatchId(null);
+                setRaceNotice('Rennstart verpasst. Bitte das Duell abbrechen und neu starten.');
+                // Keep the confirmed match and handled-start key: no local
+                // abort, no automatic restart and no fabricated finish.
+                return false;
+              }
               // Use the exact server start timestamp rather than each phone's
               // callback timestamp for a synchronized, fair elapsed time.
               setRace({ status: 'running', duelId: race.duelId,
