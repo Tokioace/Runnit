@@ -12,6 +12,7 @@ import {
   gpsFieldErrorReason,
   gpsFieldObservationMs,
   gpsFieldDurationReached,
+  ownsGpsFieldReport,
   type GpsFieldStopReason,
 } from '../lib/gpsField';
 
@@ -299,6 +300,7 @@ export default function GpsFieldTestScreen() {
 
   const downloadReport = () => {
     if (!report || (phaseRef.current !== 'finished' && phaseRef.current !== 'stopped')) return;
+    if (!mountedRef.current || !ownsGpsFieldReport(measurement, stateRef.current, phase, phaseRef.current)) return;
     // A deliberate, user-triggered export with NO raw latitude/longitude or track.
     const exported = {
       schema: 'runnit-gps-field-v1',
