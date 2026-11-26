@@ -11,6 +11,7 @@ import {
   primeGpsSprint,
   gpsFieldErrorReason,
   gpsFieldObservationMs,
+  gpsFieldDurationReached,
   type GpsFieldStopReason,
 } from '../lib/gpsField';
 
@@ -100,9 +101,25 @@ export default function GpsFieldTestScreen() {
     };
   }, []);
 
+  const stopAtDurationLimit = (nowMs: number): boolean => {
+    const current = stateRef.current;
+    if (phaseRef.current !== 'running' || !current ||
+        !gpsFieldDurationReached(current.startedAtMs, nowMs)) return false;
+    stopReasonRef.current = 'duration-limit';
+    setCurrentPhase('stopped');
+    setStatus('Maximale Messdauer von fünf Minuten erreicht. Testlauf ohne bestätigten Zieleinlauf beendet.');
+    stopWatching();
+    return true;
+  };
+
   useEffect(() => {
     if (phase !== 'running') return;
-    const timer = window.setInterval(() => setTick(Date.now()), 100);
+    const isWatchLive = watchLifetime.current.capture();
+    const timer = window.setInterval(() => {
+      if (!mountedRef.current || !isWatchLive() || phaseRef.current !== 'running') return;
+      const now = Date.now();
+      if (!stopAtDurationLimit(now)) setTick(now);
+    }, 100);
     return () => window.clearInterval(timer);
   }, [phase]);
 
@@ -141,6 +158,9 @@ export default function GpsFieldTestScreen() {
           timestampMs: pos.timestamp,
         };
         const now = Date.now();
+        // The timer can be delayed by Safari; enforce the same limit before
+        // accepting a late GPS fix or confirming a finish.
+        if (phaseNow === 'running' && stopAtDurationLimit(now)) return;
         const preparing = phaseNow === 'acquiring' || phaseNow === 'ready';
         if (preparing) {
           const order = ghostFixOrder(latestPreparationFixMs.current, sample, now);
