@@ -83,7 +83,7 @@ export function compareWithReferenceSeconds(
 
 /** Explicit local field-test outcomes, never a ranking or verification flag. */
 export type GpsFieldStopReason = 'finish' | 'manual' | 'background' | 'pagehide' |
-  'permission-denied' | 'position-unavailable' | 'timeout' | 'gps-error';
+  'permission-denied' | 'position-unavailable' | 'timeout' | 'gps-error' | 'duration-limit';
 
 export function gpsFieldErrorReason(code: number): GpsFieldStopReason {
   return code === 1 ? 'permission-denied' : code === 2 ? 'position-unavailable' :
@@ -95,4 +95,11 @@ export function gpsFieldObservationMs(state: GpsSprintState): number | null {
   const last = state.lastAccepted?.timestampMs;
   if (last === undefined || !Number.isFinite(last) || !Number.isFinite(state.startedAtMs)) return null;
   return Math.max(0, last - state.startedAtMs);
+}
+
+/** A field trial is bounded like the solo diagnostic run, not a race record. */
+export const MAX_GPS_FIELD_RUN_MS = 5 * 60 * 1000;
+export function gpsFieldDurationReached(startedAtMs: number, nowMs: number): boolean {
+  return Number.isFinite(startedAtMs) && Number.isFinite(nowMs) &&
+    nowMs - startedAtMs >= MAX_GPS_FIELD_RUN_MS;
 }
