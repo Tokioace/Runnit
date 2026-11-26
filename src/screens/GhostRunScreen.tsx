@@ -287,6 +287,20 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     }
   }, [setCurrentPhase, stopRun, stopAtDurationLimit]);
 
+  const failGpsPreparation = useCallback((message: string) => {
+    preparationLifetime.current.close();
+    preparingRef.current = false;
+    stopGps();
+    countdownAtRef.current = null;
+    readyRef.current = null;
+    setCountdownAt(null);
+    setFixTimestampMs(null);
+    setFixIssue('missing');
+    setAccuracyM(null);
+    setCurrentPhase('error');
+    setNotice(message);
+  }, [stopGps, setCurrentPhase]);
+
   const onGpsError = useCallback((err: GeolocationPositionError) => {
     if (unmountedRef.current) return;
     const text = err.code === 1 ? 'Standort verweigert. Bitte Safari-Ortungsfreigabe prüfen.'
@@ -296,12 +310,10 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       interruptedRef.current = true;
       setInterrupted(true);
       stopRun('stopped', text + ' Der Lauf wurde nicht als Zielankunft gewertet.');
-    } else if (phaseRef.current !== 'finished' && phaseRef.current !== 'stopped') {
-      setCurrentPhase('error');
-      setNotice(text);
-      stopGps();
+    } else if (phaseRef.current === 'acquiring' || phaseRef.current === 'ready' || phaseRef.current === 'countdown') {
+      failGpsPreparation(text);
     }
-  }, [stopRun, setCurrentPhase, stopGps]);
+  }, [stopRun, failGpsPreparation]);
 
   const prepare = async () => {
     if (!user) { setNotice('Zum Speichern und Laufen bitte zuerst anmelden.'); return; }
@@ -365,9 +377,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
         GPS_OPTIONS,
       );
     } catch {
-      stopGps();
-      setCurrentPhase('error');
-      setNotice('GPS konnte nicht gestartet werden.');
+      failGpsPreparation('GPS konnte nicht gestartet werden.');
     }
     } catch {
       if (measurementAccountCurrent(isLive, assertAccount)) {
@@ -497,6 +507,10 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   const beginRun = (): boolean => {
     if (!lifetime.current.isActive() || phaseRef.current !== 'countdown') return false;
     if (countdownAt === null || countdownAtRef.current !== countdownAt) return false;
+    if (!gpsLifetime.current.isActive()) {
+      failGpsPreparation('GPS-Aufzeichnung beendet. Bitte Sensoren erneut freigeben.');
+      return false;
+    }
     const startMs = Date.now();
     countdownAtRef.current = null;
     if (!canStartGhostCountdown(countdownAt, startMs, document.visibilityState === 'visible')) {
@@ -747,6 +761,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     lastMotionAt.current = null;
     gapCountRef.current = 0;
     setCountdownAt(null); setLive(null); setSummary(null); setStepCount(0);
+    setFixTimestampMs(null); setFixIssue('missing');
     setAccuracyM(null); setSavedMessage(''); setSaveStatus('idle'); setMotionGaps(0);
     setCurrentPhase('idle'); setNotice('Bereit für deinen nächsten Ghost Run.');
   };
