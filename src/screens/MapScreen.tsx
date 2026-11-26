@@ -2388,6 +2388,9 @@ function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinis
     const handleError = (error: GeolocationPositionError) => {
       if (!active || !isLive() || finishedRef.current) return;
       setGpsErrorNotice(duelGpsErrorNotice(error.code));
+      // A reported GPS outage invalidates any unconfirmed crossing. The
+      // next accepted observation must be newer than the error boundary.
+      measurementRef.current = resumeDuelGpsMeasurement(measurementRef.current, Date.now());
     };
     try {
       watchIdRef.current = navigator.geolocation.watchPosition(handle, handleError, {
