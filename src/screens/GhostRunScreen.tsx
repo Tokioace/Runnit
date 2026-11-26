@@ -87,6 +87,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   const lifetime = useRef(createMeasurementLifetime());
   const gpsLifetime = useRef(createMeasurementLifetime());
   const preparingRef = useRef(false);
+  const preparationLifetime = useRef(createMeasurementLifetime());
   const unmountedRef = useRef(false);
   const audioPlayedRef = useRef(false);
   const wakeStatus = useScreenWakeLock(phase === 'running' || phase === 'countdown');
@@ -97,9 +98,10 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   }, []);
   const stopGps = useCallback(() => {
     gpsLifetime.current.close(); // retire queued watch and one-shot callbacks first
-    if (watchRef.current !== null && navigator.geolocation) {
-      navigator.geolocation.clearWatch(watchRef.current);
-      watchRef.current = null;
+    const id = watchRef.current;
+    watchRef.current = null;
+    if (id !== null && navigator.geolocation) {
+      try { navigator.geolocation.clearWatch(id); } catch { /* already retired */ }
     }
   }, []);
 
@@ -284,9 +286,14 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       setCurrentPhase('error'); setNotice('GPS benötigt HTTPS und ein Gerät mit Ortungsdiensten.'); return;
     }
     if (preparingRef.current || !lifetime.current.isActive()) return;
-    const isLive = lifetime.current.capture();
+    if (document.visibilityState !== 'visible' ||
+        (phaseRef.current !== 'idle' && phaseRef.current !== 'error')) return;
+    const isScreenLive = lifetime.current.capture();
     let assertAccount: () => void;
     try { assertAccount = beginAccountMutation(); } catch { return; }
+    preparationLifetime.current.open();
+    const isPreparing = preparationLifetime.current.capture();
+    const isLive = () => isScreenLive() && isPreparing() && document.visibilityState === 'visible';
     preparingRef.current = true;
     try {
     // iOS gesture: request motion permission before any await or timers.
@@ -397,6 +404,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
 
   const beginCountdown = () => {
     if (!lifetime.current.isActive() || phaseRef.current !== 'ready') return;
+    if (!gpsLifetime.current.isActive() || document.visibilityState !== 'visible') return;
     if (!isFreshStartFix(readyRef.current, Date.now())) {
       setCurrentPhase('acquiring');
       setNotice('GPS-Fix ist nicht mehr aktuell. Bitte auf ein neues Signal warten.');
@@ -519,7 +527,18 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     return () => window.clearInterval(timer);
   }, [phase, stopRun]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const retirePreparation = (message: string) => {
+      preparationLifetime.current.close();
+      preparingRef.current = false;
+      stopGps();
+      readyRef.current = null;
+      setFixTimestampMs(null);
+      setFixIssue('missing');
+      setAccuracyM(null);
+      setCurrentPhase('idle');
+      setNotice(message);
+    };
     const hidden = () => {
       if (document.visibilityState === 'visible') return;
       if (phaseRef.current === 'running') {
@@ -529,21 +548,24 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       } else if (phaseRef.current === 'countdown') {
         countdownAtRef.current = null;
         readyRef.current = null;
-        setCurrentPhase('acquiring');
         setCountdownAt(null);
-        setNotice('Countdown nach Hintergrundwechsel gestoppt. GPS erneut bestätigen.');
+        retirePreparation('Countdown nach Hintergrundwechsel gestoppt. Bitte Sensoren erneut freigeben.');
+      } else if (preparingRef.current || phaseRef.current === 'acquiring' || phaseRef.current === 'ready') {
+        retirePreparation('GPS bei Hintergrundwechsel beendet. Bitte Sensoren erneut freigeben.');
       }
     };
     const pageHide = () => {
       if (phaseRef.current === 'running') {
         interruptedRef.current = true;
+        setInterrupted(true);
         stopRun('stopped', 'Seite verlassen; Messung unvollständig.');
       } else if (phaseRef.current === 'countdown') {
         countdownAtRef.current = null;
         readyRef.current = null;
         setCountdownAt(null);
-        setCurrentPhase('acquiring');
-        setNotice('Countdown beim Verlassen der Seite gestoppt. GPS erneut bestätigen.');
+        retirePreparation('Countdown beim Verlassen der Seite gestoppt. Bitte Sensoren erneut freigeben.');
+      } else if (preparingRef.current || phaseRef.current === 'acquiring' || phaseRef.current === 'ready') {
+        retirePreparation('GPS beim Verlassen der Seite beendet. Bitte Sensoren erneut freigeben.');
       }
     };
     document.addEventListener('visibilitychange', hidden);
@@ -552,7 +574,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       document.removeEventListener('visibilitychange', hidden);
       window.removeEventListener('pagehide', pageHide);
     };
-  }, [stopRun, setCurrentPhase]);
+  }, [stopRun, setCurrentPhase, stopGps]);
   useLayoutEffect(() => {
     lifetime.current.open();
     unmountedRef.current = false;
@@ -563,6 +585,8 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       phaseRef.current = 'idle';
       stopGps();
       countdownAtRef.current = null;
+      preparationLifetime.current.close();
+      preparingRef.current = false;
       readyRef.current = null;
       activeRef.current = null;
       gpsTraceRef.current = [];
