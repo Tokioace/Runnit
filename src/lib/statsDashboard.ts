@@ -5,6 +5,7 @@ export type StatsOverview = {
   days: StatsDay[];
   completedDuels: number; wins: number; losses: number; ties: number;
   ghostTrainings: number; soloTrainings: number;
+  soloMeasuredDistanceM: number | null;
   totalRecordedDistanceM: number | null;
   weeklyMeasuredDistanceM: number | null;
   activeDaysThisWeek: number;
@@ -56,6 +57,7 @@ export function calculateStatsOverview(
   const activeDates = new Set<string>();
   let totalDistance = 0, totalMeasurements = 0;
   let weekDistance = 0, weekMeasurements = 0;
+  let soloDistance = 0, soloMeasurements = 0;
   const add = (stamp:string, distance:number|null|undefined) => {
     const key=dateKey(stamp);
     if (!key) return;
@@ -69,7 +71,13 @@ export function calculateStatsOverview(
     }
   };
   completed.forEach(r=>add(r.occurredAt,r.measuredDistanceM));
-  finishedGhosts.forEach(g=>add(g.created_at,g.observed_distance_m));
+  finishedGhosts.forEach(g=>{
+    add(g.created_at,g.observed_distance_m);
+    if(finiteNonnegative(g.observed_distance_m)){
+      soloDistance+=g.observed_distance_m;
+      soloMeasurements++;
+    }
+  });
 
   // An active streak includes today, or ends yesterday when no run yet today.
   const cursor = new Date(today);
@@ -91,6 +99,7 @@ export function calculateStatsOverview(
     ties:completed.filter(r=>r.outcome==='tie').length,
     ghostTrainings:finishedGhosts.length,
     soloTrainings:finishedGhosts.length,
+    soloMeasuredDistanceM:soloMeasurements?soloDistance:null,
     totalRecordedDistanceM:totalMeasurements?totalDistance:null,
     weeklyMeasuredDistanceM:weekMeasurements?weekDistance:null,
     activeDaysThisWeek:days.filter(d=>d.sessions>0).length,
