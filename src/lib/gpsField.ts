@@ -103,3 +103,13 @@ export function gpsFieldDurationReached(startedAtMs: number, nowMs: number): boo
   return Number.isFinite(startedAtMs) && Number.isFinite(nowMs) &&
     nowMs - startedAtMs >= MAX_GPS_FIELD_RUN_MS;
 }
+
+/** Export only the rendered terminal snapshot that is still current. A reset,
+ * replacement run or a not-yet-rendered terminal transition retires the caller. */
+export function ownsGpsFieldReport(
+  rendered: GpsSprintState | null, current: GpsSprintState | null,
+  renderedPhase: string, currentPhase: string,
+): boolean {
+  return rendered !== null && rendered === current && renderedPhase === currentPhase &&
+    (currentPhase === 'finished' || currentPhase === 'stopped');
+}
