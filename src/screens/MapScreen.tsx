@@ -1643,7 +1643,10 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     if (finishSubmittingRef.current || finishAccountRef.current !== payload.userId ||
         latestFinishPayloadRef.current !== payload || endedDuelIdsRef.current.has(payload.duelId)) return;
     const releaseWrite = duelWriteGate.current.tryAcquire(payload.duelId);
-    if (!releaseWrite) return;
+    if (!releaseWrite) {
+      setFinishSubmissionError('Für dieses Duell läuft bereits eine Änderung. Bitte Zielzeit erneut speichern.');
+      return;
+    }
     finishSubmittingRef.current = payload;
     const stillCurrent = () => finishAccountRef.current === payload.userId &&
       latestFinishPayloadRef.current === payload && !endedDuelIdsRef.current.has(payload.duelId);
