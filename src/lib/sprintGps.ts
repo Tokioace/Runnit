@@ -115,12 +115,17 @@ export function advanceGpsSprint(state: GpsSprintState, sample: GpsSample): GpsS
   };
 }
 
+/** All live GPS consumers share this epoch-clock freshness check. */
+export function isFreshLiveGpsFix(sample: GpsSample, receivedAtMs: number): boolean {
+  return Number.isFinite(receivedAtMs) && Number.isFinite(sample.timestampMs) &&
+    sample.timestampMs <= receivedAtMs && receivedAtMs - sample.timestampMs <= 3000;
+}
+
 /** Live browser fixes must be current on the same epoch clock. Simulations
  * deliberately keep using advanceGpsSprint without a wall-clock dependency. */
 export function advanceLiveGpsSprint(state: GpsSprintState, sample: GpsSample, receivedAtMs: number): GpsSprintState {
   if (state.finishTimestampMs !== null) return { ...state, lastDecision: 'already-finished' };
-  if (!Number.isFinite(receivedAtMs) || !Number.isFinite(sample.timestampMs) ||
-      sample.timestampMs > receivedAtMs || receivedAtMs - sample.timestampMs > 3000) {
+  if (!isFreshLiveGpsFix(sample, receivedAtMs)) {
     return reject(state, 'invalid-sample');
   }
   return advanceGpsSprint(state, sample);

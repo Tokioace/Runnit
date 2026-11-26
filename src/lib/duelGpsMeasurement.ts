@@ -1,4 +1,4 @@
-import { advanceGpsSprint, createGpsSprint, haversineMeters, type GpsSample, type GpsSprintState } from './sprintGps.ts';
+import { advanceGpsSprint, createGpsSprint, haversineMeters, isFreshLiveGpsFix, type GpsSample, type GpsSprintState } from './sprintGps.ts';
 import { isFreshStartFix, primeGpsSprint } from './gpsField.ts';
 import type { DuelMetrics } from '../db/submitDuelResult.ts';
 import type { DuelMotionEvidence } from './duelMotionEvidence.ts';
@@ -29,8 +29,7 @@ export function advanceDuelGpsMeasurement(state: DuelGpsMeasurement, sample: Gps
   }
   // A fresh callback can still contain an old fix. Never compare monotonic
   // performance.now() with epoch-based GeolocationPosition.timestamp.
-  if (!Number.isFinite(receivedAtMs) || !Number.isFinite(sample.timestampMs) ||
-      sample.timestampMs > receivedAtMs || receivedAtMs - sample.timestampMs > 3000) {
+  if (!isFreshLiveGpsFix(sample, receivedAtMs)) {
     return { ...state, staleFixes: state.staleFixes + 1,
       sprint: { ...state.sprint, rejectedSamples: state.sprint.rejectedSamples + 1, lastDecision: 'invalid-sample' } };
   }

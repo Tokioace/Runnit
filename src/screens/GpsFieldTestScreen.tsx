@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createMeasurementLifetime } from '../lib/measurementLifetime';
 import { Link } from 'react-router-dom';
 import { isNativeAuthRuntime } from '../lib/authRedirect';
-import { advanceGpsSprint, createGpsSprint, type GpsSample, type GpsSprintState } from '../lib/sprintGps';
+import { advanceGpsSprint, createGpsSprint, isFreshLiveGpsFix, type GpsSample, type GpsSprintState } from '../lib/sprintGps';
 import {
   compareWithReferenceSeconds,
   createExperimentalRunReport,
@@ -128,8 +128,7 @@ export default function GpsFieldTestScreen() {
           timestampMs: pos.timestamp,
         };
         const now = Date.now();
-        const freshnessMs = now - sample.timestampMs;
-        if (!Number.isFinite(freshnessMs) || freshnessMs < -1000 || freshnessMs > 3000) {
+        if (!isFreshLiveGpsFix(sample, now)) {
           setSkippedStale((n) => n + 1);
           setStatus('Veralteter GPS-Fix ignoriert. Bitte Bildschirm entsperrt lassen.');
           return;
