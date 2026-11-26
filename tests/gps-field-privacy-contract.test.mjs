@@ -9,8 +9,14 @@ test('GPS field measurement is explicitly user-initiated and stopped on backgrou
   assert.ok(source.includes('navigator.geolocation.watchPosition('), 'GPS watch should be started only by preparation');
   assert.ok(source.includes("document.addEventListener('visibilitychange', pauseIfBackgrounded)"));
   assert.ok(source.includes("window.addEventListener('pagehide', stopOnPageHide)"));
-  assert.ok(source.includes('navigator.geolocation.clearWatch(watchId.current)'));
-  assert.ok(source.includes('stopWatching();'), 'watch cleanup must remain available');
+  const cleanupStart = source.indexOf('const stopWatching =');
+  const cleanupEnd = source.indexOf('useLayoutEffect(() =>', cleanupStart);
+  assert.ok(cleanupStart >= 0 && cleanupEnd > cleanupStart);
+  const cleanup = source.slice(cleanupStart, cleanupEnd);
+  assert.match(cleanup, /watchLifetime.current.close\(\);\s*const id = watchId.current;\s*watchId.current = null;/);
+  assert.match(cleanup, /if \(id !== null && typeof navigator !== 'undefined' && 'geolocation' in navigator\) \{\s*try \{ navigator.geolocation.clearWatch\(id\);/);
+  assert.match(source, /const pauseIfBackgrounded = \(\) => \{\s*if \(!document.hidden\) return;\s*stopWatching\(\);/);
+  assert.match(source, /const stopOnPageHide = \(\) => \{\s*stopWatching\(\);/);
 });
 
 test('GPS field report export is explicitly requested and excludes raw track data', () => {
