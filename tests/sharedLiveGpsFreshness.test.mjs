@@ -26,11 +26,11 @@ test('field test checks shared freshness before preparation and running without 
  const callback=source.slice(a,b);
  const freshness=callback.indexOf('if (!isFreshLiveGpsFix(sample, now))');
  const anchor=callback.indexOf('if (isFreshStartFix(sample, now))');
- const run=callback.indexOf('advanceGpsSprint(previous, sample)');
+ const run=callback.indexOf('advanceLiveGpsSprint(previous, sample, now)');
  assert.ok(freshness>=0&&anchor>freshness&&run>anchor);
  const rejected=callback.slice(freshness,callback.indexOf('if (preparing) {\n          setLatestAccuracy',freshness));
  assert.match(rejected,/setSkippedStale\(\(n\) => n \+ 1\);[\s\S]*?return;\s*\}/);
  assert.equal((callback.match(/setSkippedStale\(/g)||[]).length,1);
- assert.doesNotMatch(rejected,/advanceGpsSprint\(|readyFixRef.current = sample/);
+ assert.doesNotMatch(rejected,/advanceLiveGpsSprint\(|advanceGpsSprint\(|readyFixRef.current = sample/);
  assert.doesNotMatch(source,/freshnessMs < -1000/);
 });
