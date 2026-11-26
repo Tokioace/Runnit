@@ -41,7 +41,7 @@ test('both the live timer and GPS callback enforce the limit and retire stale ti
  assert.ok(c>=0&&e>c);
  const callback=source.slice(c,e);
  const limit=callback.indexOf("if (phaseNow === 'running' && stopAtDurationLimit(now)) return;");
- const advance=callback.indexOf('advanceGpsSprint(previous, sample)');
+ const advance=callback.indexOf('advanceLiveGpsSprint(previous, sample, now)');
  assert.ok(limit>=0&&advance>limit);
  assert.match(source,/stopReason: stopReasonRef.current/);
 });
