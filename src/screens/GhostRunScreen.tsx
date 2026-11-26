@@ -69,6 +69,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   const savedRef = useRef(false);
   const savePendingRef = useRef(false);
   const lifetime = useRef(createMeasurementLifetime());
+  const gpsLifetime = useRef(createMeasurementLifetime());
   const preparingRef = useRef(false);
   const unmountedRef = useRef(false);
   const audioPlayedRef = useRef(false);
@@ -79,6 +80,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     if (!unmountedRef.current) setPhase(p);
   }, []);
   const stopGps = useCallback(() => {
+    gpsLifetime.current.close(); // retire queued watch and one-shot callbacks first
     if (watchRef.current !== null && navigator.geolocation) {
       navigator.geolocation.clearWatch(watchRef.current);
       watchRef.current = null;
@@ -270,9 +272,16 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       ? 'Sensormessung erlaubt. Warte auf einen aktuellen GPS-Fix.'
       : 'Schrittmessung nicht verfügbar. GPS kann separat gemessen werden.');
     stopGps();
+    gpsLifetime.current.open();
+    const isGpsLive = gpsLifetime.current.capture();
     try {
-      watchRef.current = navigator.geolocation.watchPosition(onGps, onGpsError, GPS_OPTIONS);
+      watchRef.current = navigator.geolocation.watchPosition(
+        pos => { if (isGpsLive()) onGps(pos); },
+        err => { if (isGpsLive()) onGpsError(err); },
+        GPS_OPTIONS,
+      );
     } catch {
+      stopGps();
       setCurrentPhase('error');
       setNotice('GPS konnte nicht gestartet werden.');
     }
@@ -291,12 +300,13 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     if (phase !== 'acquiring' || !navigator.geolocation) return;
     let cancelled = false;
     let pending = false;
+    const isGpsLive = gpsLifetime.current.capture();
     const requestFreshFix = () => {
-      if (cancelled || pending || document.visibilityState !== 'visible') return;
+      if (cancelled || pending || !isGpsLive() || phaseRef.current !== 'acquiring' || document.visibilityState !== 'visible') return;
       pending = true;
       try {
         navigator.geolocation.getCurrentPosition(
-          pos => { pending = false; if (!cancelled) onGps(pos); },
+          pos => { pending = false; if (!cancelled && isGpsLive() && phaseRef.current === 'acquiring') onGps(pos); },
           () => { pending = false; },
           { enableHighAccuracy: true, maximumAge: 0, timeout: 7000 },
         );
@@ -314,13 +324,21 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   }, [phase]);
 
   const requestGpsRefresh = () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation || !gpsLifetime.current.isActive()) return;
+    const isGpsLive = gpsLifetime.current.capture();
+    const stillPreparing = () => isGpsLive() &&
+      (phaseRef.current === 'acquiring' || phaseRef.current === 'ready');
+    const failed = () => {
+      if (stillPreparing()) setNotice('Noch kein frischer GPS-Fix. Bitte möglichst draußen erneut versuchen.');
+    };
     setNotice('Fordere eine neue GPS-Position an. Ein alter 4-m-Fix reicht für einen Sprintstart nicht aus.');
-    navigator.geolocation.getCurrentPosition(
-      onGps,
-      () => setNotice('Noch kein frischer GPS-Fix. Bitte möglichst draußen erneut versuchen.'),
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 },
-    );
+    try {
+      navigator.geolocation.getCurrentPosition(
+        pos => { if (stillPreparing()) onGps(pos); },
+        failed,
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 },
+      );
+    } catch { failed(); }
   };
 
   const beginCountdown = () => {
@@ -340,15 +358,20 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   // current GPS fix shortly before GO; never fabricate a newer timestamp.
   useEffect(() => {
     if (phase !== 'countdown' || countdownAt === null || !navigator.geolocation) return;
+    let cancelled = false;
+    const isGpsLive = gpsLifetime.current.capture();
+    const stillCounting = () => !cancelled && isGpsLive() && phaseRef.current === 'countdown';
     const timer = window.setTimeout(() => {
-      if (phaseRef.current !== 'countdown') return;
-      navigator.geolocation.getCurrentPosition(
-        onGps,
-        () => {}, // existing watch remains authoritative on error
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 2500 },
-      );
+      if (!stillCounting()) return;
+      try {
+        navigator.geolocation.getCurrentPosition(
+          pos => { if (stillCounting()) onGps(pos); },
+          () => {}, // existing watch remains authoritative on error
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 2500 },
+        );
+      } catch { /* existing watch remains authoritative */ }
     }, Math.max(0, countdownAt - Date.now() - 2300));
-    return () => window.clearTimeout(timer);
+    return () => { cancelled = true; window.clearTimeout(timer); };
   }, [phase, countdownAt, onGps]);
 
   const beginRun = (): boolean => {
