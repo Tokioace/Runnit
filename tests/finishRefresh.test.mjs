@@ -64,7 +64,7 @@ test('confirmed abandonment never depends on a result RPC',()=>{
 });
 test('terminal absence and cancellation allow a local exit without retrying or aborting the duel',()=>{
  const s=readFileSync(new URL('../src/components/race/DuelFinishScreen.tsx',import.meta.url),'utf8');
- assert.match(s,/const terminalWithoutResult = status === 'abandoned' \|\| status === 'unavailable';/);
+ assert.match(s,/const terminalWithoutResult = status === 'abandoned' \|\| status === 'unavailable' \|\|\s*\(status === 'completed' && !completed\);/);
  assert.match(s,/submissionError && !completed && !terminalWithoutResult/);
  assert.match(s,/!completed && !terminalWithoutResult && \(/);
  assert.match(s,/\) : terminalWithoutResult \? \(\s*<button[^>]*onClick=\{onClose\}/);

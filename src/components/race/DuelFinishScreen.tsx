@@ -84,6 +84,13 @@ export default function DuelFinishScreen({
         setFetchError(null);
         return;
       }
+      // Completion is authoritative even if the results request fails or hangs.
+      // Allow a local exit while continuing to poll for the two stored times.
+      if (duel.status === 'completed') {
+        setHostId(duel.host_user_id);
+        setChallengerId(duel.challenger_user_id);
+        setStatus('completed');
+      }
       const resultsResponse = await getDuelResults(supabase, duelId);
       if (!active) return;
       if (resultsResponse.error) {
@@ -122,7 +129,8 @@ export default function DuelFinishScreen({
     ? 'Widersprüchliche Rennergebnisse. Die Anzeige versucht es erneut.' : null;
   const outcome = determineDuelOutcome(uniqueResults, userId, status);
   const completed = isDemo || outcome !== 'pending';
-  const terminalWithoutResult = status === 'abandoned' || status === 'unavailable';
+  const terminalWithoutResult = status === 'abandoned' || status === 'unavailable' ||
+    (status === 'completed' && !completed);
   const mine = uniqueResults.find(row => row.user_id === userId);
   const other = uniqueResults.find(row => row.user_id !== userId);
   const resultTitle = isDemo ? 'TESTLAUF!' : outcome === 'won' ? 'DU GEWINNST!'
@@ -130,13 +138,13 @@ export default function DuelFinishScreen({
       : status === 'abandoned' ? 'DUELL ABGEBROCHEN!'
         : status === 'unavailable' ? 'RENNEN NICHT VERFÜGBAR' : 'ZIEL ERREICHT!';
   const retrySubmission = async () => {
-    if (retryBusy) return;
+    if (retryBusy || completed || terminalWithoutResult) return;
     setRetryBusy(true);
     try { await onRetrySubmit(); }
     finally { setRetryBusy(false); }
   };
   const abort = async () => {
-    if (abortBusy) return;
+    if (abortBusy || completed || terminalWithoutResult) return;
     setAbortBusy(true);
     setAbortError(null);
     try { await onAbort(); }
@@ -194,6 +202,12 @@ export default function DuelFinishScreen({
                 : 'DEINE ZIELZEIT WIRD ÜBERPRÜFT.'
               : 'WIR LADEN DIE BESTÄTIGTEN ERGEBNISSE BEIDER SPIELER.'}
             {' '}Der Ergebnisbildschirm bleibt offen, bis das gemeinsame Rennen abgeschlossen ist.
+          </p>
+        )}
+        {status === 'completed' && !completed && (
+          <p className="race-arcade-finish-note" role="status">
+            RENNEN ABGESCHLOSSEN. Die vollständigen Ergebnisse werden noch geladen.
+            Du kannst zur Karte zurückkehren, ohne das Rennen abzubrechen.
           </p>
         )}
         {(fetchError || resultDataError) && <p className="race-arcade-error" role="alert">{fetchError || resultDataError}</p>}
