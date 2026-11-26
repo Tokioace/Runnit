@@ -19,7 +19,7 @@
 ## Methodische Grenzen
 - GPS-Genauigkeit in Metern bezeichnet typischerweise horizontale **Positions**unsicherheit, nicht eine nachgewiesene Sprint-Distanz oder Zeitunsicherheit.
 - Das System misst Luftlinie ab erstem Start-Fix. Es garantiert weder, dass der Button-Klick mit der echten Bewegung übereinstimmt, noch eine geradlinige Laufbewegung.
-- Auf iOS kann der Browser Standort-Fixes verzögern oder drosseln. Wenn die Seite in den Hintergrund tritt, wird die Ortung bewusst gestoppt; die Messung ist dann nicht vollständig.
+- Auf iOS kann der Browser Standort-Fixes verzögern oder drosseln. Wenn die Seite während eines Laufs in den Hintergrund tritt oder ein GPS-Fehler auftritt, wird die Ortung bewusst gestoppt; die Messung ist dann nicht vollständig. Der bisherige Bericht bleibt bis zum bewussten Zurücksetzen exportierbar, solange die Seite im Speicher bleibt. Ein unvollständiger Lauf hat keine Zielzeit und ist nicht für den Referenzzeitvergleich auswertbar.
 - Zeitinterpolation zwischen Fixes kann einen systematischen oder zufälligen Messfehler enthalten. Sie ist kein Lichtschrankenersatz. Der lokale JSON-Export enthält bei bestätigtem Zieleinlauf `crossingIntervalMs`: die Zeitspanne zwischen den beiden akzeptierten GPS-Fixes, zwischen denen die Ziellinie interpoliert wurde. Bei fehlendem bestätigtem Ziel ist der Wert `null`. Eine lange Spanne zeigt geringe zeitliche Abtastung, ist aber weder eine kalibrierte Fehlergrenze noch ein Beleg für die tatsächliche Genauigkeit.
 - Die akzeptierten 15 m / 12 m/s und die zwei Ziel-Fixes sind **experimentelle Filterparameter**, keine nachgewiesenen Qualitätsgrenzen.
 - Ein grüner TypeScript-/Test-/Build-/CodeQL-Status beweist nicht, dass die Messung auf einem realen iPhone zuverlässig funktioniert.
