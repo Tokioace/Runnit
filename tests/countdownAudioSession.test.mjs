@@ -66,7 +66,18 @@ test('Ghost Run acknowledges handoff only after a valid GPS start',()=>{
  const start=source.indexOf('const beginRun = (): boolean => {');
  assert.ok(start>=0);
  const body=source.slice(start,source.indexOf('\n  };',start));
- assert.equal((body.match(/return false;/g)||[]).length,3);
+ const guards=[
+  /if \(!lifetime.current.isActive\(\) \|\| phaseRef.current !== 'countdown'\) return false;/,
+  /if \(countdownAt === null \|\| countdownAtRef.current !== countdownAt\) return false;/,
+  /if \(!canStartGhostCountdown\(countdownAt, startMs, document.visibilityState === 'visible'\)\) \{[^}]*return false;/,
+  /if \(!isFreshStartFix\(anchor, Date.now\(\)\)\) \{[^}]*return false;/,
+  /catch \{[^}]*return false;/
+ ];
+ const running=body.indexOf("setCurrentPhase('running')");
+ assert.ok(running>=0);
+ for(const guard of guards) assert.match(body.slice(0,running),guard);
+ assert.equal((body.match(/return true;/g)||[]).length,1);
+ assert.ok(body.indexOf('return true;')>running);
  assert.match(body,/if \(!isFreshStartFix\(anchor, Date.now\(\)\)\)/);
  assert.match(body,/setCurrentPhase\('running'\);[\s\S]*return true;/);
  assert.match(source,/onDone=\{beginRun\}/);
