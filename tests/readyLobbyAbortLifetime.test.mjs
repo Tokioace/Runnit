@@ -9,7 +9,7 @@ test('lobby abort claims synchronously and cannot publish after retirement',()=>
  const a=lobby.indexOf('const confirmExit ='),b=lobby.indexOf('const mineReady =',a);
  assert.ok(a>=0&&b>a);
  const abort=lobby.slice(a,b);
- assert.match(abort,/if \(!lifetime.current.isActive\(\) \|\| abortPendingRef.current\) return;\s*const isLive = lifetime.current.capture\(\);\s*abortPendingRef.current = true;/);
+ assert.match(abort,/if \(!lifetime.current.isActive\(\) \|\| abortPendingRef.current \|\| readyBusy\) return;\s*const isLive = lifetime.current.capture\(\);\s*abortPendingRef.current = true;/);
  assert.ok(abort.indexOf('abortPendingRef.current = true;')<abort.indexOf('await onAbort()'));
  assert.match(abort,/catch \{\s*if \(!isLive\(\)\) return;\s*setAbortError/);
  assert.match(abort,/finally \{\s*if \(isLive\(\)\) \{\s*abortPendingRef.current = false;\s*setAborting\(false\);/);
