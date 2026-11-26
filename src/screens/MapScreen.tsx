@@ -924,6 +924,9 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     if (!authUser || finishAccountRef.current !== authUser.id || row?.status !== 'matched' || typeof row.id !== 'string' ||
         endedDuelIdsRef.current.has(row.id) || completedDuelIdsRef.current.has(row.id) ||
         (row.host_user_id !== authUser.id && row.challenger_user_id !== authUser.id)) return;
+    // Preserve the current race or its unread result until it is retired.
+    // A different matched row can be recovered after that transition.
+    if (activeDuelIdRef.current !== null && activeDuelIdRef.current !== row.id) return;
     const startAt = typeof row.start_at === 'string' ? row.start_at : null;
     // Once a server start is observed, an older lobby row cannot reset it.
     if (!duelStartLatch.current.accept(row.id, startAt)) return;
@@ -1333,10 +1336,14 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         .limit(1)
         .maybeSingle();
       if (!current() || error) return;
-      if (data) {
+      const activeBeforeRecovery = activeDuelIdRef.current;
+      if (data && (!activeBeforeRecovery || data.id === activeBeforeRecovery) &&
+          !endedDuelIdsRef.current.has(data.id) && !completedDuelIdsRef.current.has(data.id)) {
         applyMatchedDuel(data);
         return;
       }
+      // A different match must not hide the current race or unread result.
+      // Check the original duel's status even when a newer match exists.
       // A race already in countdown/running hides the lobby. The active ref
       // remains and must be checked when another iPhone aborts the match.
       const activeId = activeDuelIdRef.current || readActiveDuelId(authUser.id);
