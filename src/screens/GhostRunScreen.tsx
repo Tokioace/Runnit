@@ -10,7 +10,7 @@ import type { UseSupabaseUserReturn } from '../hooks/useSupabaseUser';
 import { createMeasurementLifetime, measurementAccountCurrent } from '../lib/measurementLifetime';
 import { createGpsSprint, advanceLiveGpsSprint, type GpsSprintState, type GpsSample } from '../lib/sprintGps';
 import { ghostSummary, ghostFinishMotion, safeNumber, type DiagnosticSummary, type MotionPermission } from '../lib/ghostRunSummary';
-import { isFreshStartFix, primeGpsSprint } from '../lib/gpsField';
+import { isFreshStartFix, primeGpsSprint, gpsFieldDurationReached } from '../lib/gpsField';
 import { inspectGhostGpsFix, ghostGpsFixNotice, ghostFixOrder, type GhostGpsFixIssue } from '../lib/ghostGpsReadiness';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
 import { motionEventSample } from '../lib/duelMotionEvidence';
@@ -32,7 +32,6 @@ type SavedRun = {
 const GPS_OPTIONS: PositionOptions = { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 };
 const MAX_MOTION_SAMPLES = 30000;
 const MAX_GPS_SAMPLES = 3000;
-const MAX_RUN_MS = 5 * 60 * 1000;
 
 export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   const { user, loading, beginAccountMutation } = auth;
@@ -215,6 +214,14 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     void saveSummary(summaryRow);
   }, [setCurrentPhase, stopGps, saveSummary]);
 
+  const stopAtDurationLimit = useCallback((nowMs = Date.now()): boolean => {
+    const state = activeRef.current;
+    if (phaseRef.current !== 'running' || !state ||
+        !gpsFieldDurationReached(state.startedAtMs, nowMs)) return false;
+    stopRun('stopped', 'Maximale Messdauer erreicht. Unvollständiger Testlauf.');
+    return true;
+  }, [stopRun]);
+
   const onGps = useCallback((pos: GeolocationPosition) => {
     if (unmountedRef.current) return;
     const sample: GpsSample = {
@@ -250,6 +257,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       return;
     }
     if (current !== 'running' || !activeRef.current) return;
+    if (stopAtDurationLimit(observedNow)) return;
     const prior = activeRef.current;
     const next = advanceLiveGpsSprint(prior, sample, observedNow);
     activeRef.current = next;
@@ -269,7 +277,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     if (next.finishTimestampMs !== null) {
       stopRun('finished', 'ZIEL ERREICHT! Ghost Run abgeschlossen.');
     }
-  }, [setCurrentPhase, stopRun]);
+  }, [setCurrentPhase, stopRun, stopAtDurationLimit]);
 
   const onGpsError = useCallback((err: GeolocationPositionError) => {
     if (unmountedRef.current) return;
@@ -492,8 +500,10 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
 
   useEffect(() => {
     if (phase !== 'running') return;
+    const isGpsLive = gpsLifetime.current.capture();
     const handler = (event: DeviceMotionEvent) => {
-      if (!lifetime.current.isActive() || phaseRef.current !== 'running') return;
+      if (!lifetime.current.isActive() || phaseRef.current !== 'running' || !isGpsLive()) return;
+      if (stopAtDurationLimit()) return;
       const a = event.acceleration;
       if (!a || a.x == null || a.y == null || a.z == null) return;
       const sample = motionEventSample(event, performance.timeOrigin, performance.now());
@@ -520,19 +530,18 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     };
     window.addEventListener('devicemotion', handler, { passive: true });
     return () => window.removeEventListener('devicemotion', handler);
-  }, [phase]);
+  }, [phase, stopAtDurationLimit]);
 
   useEffect(() => {
     if (phase !== 'running') return;
+    const isGpsLive = gpsLifetime.current.capture();
     const timer = window.setInterval(() => {
+      if (!isGpsLive() || phaseRef.current !== 'running') return;
       const moment = Date.now();
-      setNow(moment);
-      if (moment - (startedRef.current ?? moment) > MAX_RUN_MS) {
-        stopRun('stopped', 'Maximale Messdauer erreicht. Unvollständiger Testlauf.');
-      }
+      if (!stopAtDurationLimit(moment)) setNow(moment);
     }, 75);
     return () => window.clearInterval(timer);
-  }, [phase, stopRun]);
+  }, [phase, stopAtDurationLimit]);
 
   useLayoutEffect(() => {
     const retirePreparation = (message: string) => {
