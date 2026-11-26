@@ -692,7 +692,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     const current = () => active && uncertainSaveRef.current === payload &&
       measurementAccountCurrent(isLive, assertAccount);
     const refresh = createFinishRefresh(async () => {
-      if (!current()) return;
+      if (!current() || document.visibilityState !== 'visible') return;
       const { data, error } = await supabase.from('ghost_run_sessions')
         .select('id,user_id,target_distance_m,run_state,elapsed_ms,observed_distance_m,steps_count,gps_accepted,gps_rejected,motion_samples,motion_gaps,max_speed_mps,motion_permission,interrupted,source')
         .eq('user_id', payload.user_id).eq('id', payload.id).maybeSingle();
@@ -703,14 +703,16 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       void refreshSaved().catch(() => {});
     }, () => { /* retain unknown status */ });
     const whenVisible = () => {
-      if (document.visibilityState === 'visible' && current()) void refresh.refresh();
+      if (document.visibilityState === 'visible' && current()) void refresh.refresh(true);
     };
     window.addEventListener('online', whenVisible);
     window.addEventListener('focus', whenVisible);
     document.addEventListener('visibilitychange', whenVisible);
-    // A reconnect during an in-flight read may be coalesced; a slow visible
-    // retry covers that case while this unresolved report remains open.
-    const timer = window.setInterval(whenVisible, 15_000);
+    // Explicit recovery queues one follow-up; routine polling drops overlap.
+    // The reader rechecks visibility and exact payload before any queued read.
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible' && current()) void refresh.refresh();
+    }, 15_000);
     whenVisible();
     return () => {
       active = false;
