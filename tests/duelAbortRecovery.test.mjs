@@ -81,7 +81,7 @@ test('terminal event clears running screen, lobby and old reopen pill on both ph
   assert.match(map, /const activeDuelIdRef = useRef<string \| null>\(initialActiveDuelId\)/);
   const clear = map.slice(map.indexOf('const clearAbortedDuel ='), map.indexOf('const showCompletedDuel ='));
   assert.match(clear, /activeDuelIdRef.current !== duelId\) return;/);
-  assert.match(clear, /endedDuelIdsRef.current.add\(duelId\);\s*activeDuelIdRef.current = null;/);
+  assert.match(clear, /endedDuelIdsRef.current.add\(duelId\);\s*knownNonOpenRunIdsRef.current.add\(duelId\);\s*setRegionalRuns\(previous => previous.filter\(run => run.id !== duelId\)\);\s*activeDuelIdRef.current = null;/);
   assert.match(map, /const endedDuelIdsRef = useRef<Set<string>>\(new Set\(\)\)/);
   assert.match(map, /endedDuelIdsRef.current.has\(row.id\)/);
   assert.match(map, /const clearAbortedDuel = React.useCallback/);
