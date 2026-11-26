@@ -1400,12 +1400,14 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     const id = window.setInterval(() => { if (document.visibilityState === 'visible') queue.request(); }, 4_000);
     document.addEventListener('visibilitychange', whenVisible);
     window.addEventListener('focus', whenVisible);
+    window.addEventListener('online', whenVisible);
     return () => {
       active = false;
       queue.close();
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', whenVisible);
       window.removeEventListener('focus', whenVisible);
+      window.removeEventListener('online', whenVisible);
     };
   }, [authUser?.id, applyMatchedDuel, clearAbortedDuel, showCompletedDuel]);
 
