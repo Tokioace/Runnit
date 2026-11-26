@@ -11,6 +11,7 @@ test('local coverage metadata separates primed start age, observed time and cros
  let s=primeGpsSprint(createGpsSprint(50,start),syntheticPoint(0,start-400,4.9));
  assert.deepEqual(ghostTraceDiagnostics(s,0,null),{
   startFixAgeMs:400,startFixAccuracyM:4.9,observationMs:0,crossingIntervalMs:null,
+  gpsObservationGapCount:0,gpsLongestObservationGapMs:null,finishTimingMethod:null,
   gpsTraceOmitted:0,motionTraceTruncated:false,motionTraceFirstOmittedMs:null
  });
  s=advanceGpsSprint(s,syntheticPoint(20,start+3000));
