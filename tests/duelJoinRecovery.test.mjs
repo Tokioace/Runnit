@@ -55,7 +55,7 @@ test('match does not start until both players are server-ready', () => {
   assert.match(readFileSync(new URL('../src/components/race/ReadyLobby.tsx', import.meta.url), 'utf8'), /START ERST WENN/);
   assert.match(map, /<ReadyLobby/);
   assert.match(map, /<RaceCountdown/);
-  assert.match(map, /if \(race\.status === 'countdown'\)/);
+  assert.match(map, /if \(race\.status === 'countdown' && race\.duelId === matchOverlay\.duelId &&\s*race\.startsAt === matchOverlay\.startsAt && !endedDuelIdsRef\.current\.has\(race\.duelId\)\)/);
   assert.match(backend, /CREATE OR REPLACE FUNCTION public\.join_duel/);
   assert.match(backend, /status = 'matched'/);
 });

@@ -50,29 +50,43 @@ function tone(ctx: AudioContext, at: number, duration: number, startHz: number, 
 }
 
 /** Three rising warning beeps, then one long green-light GO sound. */
-export function scheduleArcadeStartSfx(startsAt: number): Stop | null {
+export function scheduleArcadeStartSfx(startsAt: number): ((preserveGo?: boolean) => void) | null {
   if (!Number.isFinite(startsAt)) return null;
   const ctx = audio();
   if (!ctx || ctx.state !== 'running') return null;
-  const stops: Stop[] = [];
+  const warnings: Stop[] = [];
+  const go: Stop[] = [];
+  let goAt: number | null = null;
   const secondsUntilStart = (startsAt - Date.now()) / 1000;
   try {
-  for (const [remaining, frequency] of [[3, 620], [2, 720], [1, 820]] as const) {
-    const delay = secondsUntilStart - remaining;
-    if (delay < -0.08) continue;
-    const at = ctx.currentTime + Math.max(0, delay);
-    stops.push(tone(ctx, at, 0.16, frequency, frequency * 1.05, 0.12, 'square'));
-  }
-  if (secondsUntilStart >= -0.08) {
-    const at = ctx.currentTime + Math.max(0, secondsUntilStart);
-    stops.push(tone(ctx, at, 0.65, 950, 1450, 0.18, 'sawtooth'));
-    stops.push(tone(ctx, at + 0.025, 0.6, 475, 725, 0.09, 'triangle'));
-  }
+    for (const [remaining, frequency] of [[3, 620], [2, 720], [1, 820]] as const) {
+      const delay = secondsUntilStart - remaining;
+      if (delay < -0.08) continue;
+      const at = ctx.currentTime + Math.max(0, delay);
+      warnings.push(tone(ctx, at, 0.16, frequency, frequency * 1.05, 0.12, 'square'));
+    }
+    if (secondsUntilStart >= -0.08) {
+      const at = ctx.currentTime + Math.max(0, secondsUntilStart);
+      goAt = at;
+      go.push(tone(ctx, at, 0.65, 950, 1450, 0.18, 'sawtooth'));
+      go.push(tone(ctx, at + 0.025, 0.6, 475, 725, 0.09, 'triangle'));
+    }
   } catch {
-    stops.forEach(stop => stop());
+    [...warnings, ...go].forEach(stop => stop());
     return null;
   }
-  return () => stops.forEach(stop => stop());
+  return (preserveGo = false) => {
+    warnings.forEach(stop => stop());
+    const elapsed = Date.now() - startsAt;
+    // Only an explicit successful handoff may let the bounded GO sound finish.
+    // Do not leave a suspended or substantially delayed audio clock armed.
+    const audioElapsed = goAt === null ? NaN : (ctx.currentTime - goAt) * 1000;
+    const onTime = elapsed >= 0 && elapsed <= 700 && audioElapsed >= -80 &&
+      Math.abs(audioElapsed - elapsed) <= 150;
+    if (!preserveGo || isMuted || ctx.state !== 'running' || !onTime) {
+      go.forEach(stop => stop());
+    }
+  };
 }
 
 /** Sharp finish chime plus a short synthetic crowd-shaped noise swell. */
