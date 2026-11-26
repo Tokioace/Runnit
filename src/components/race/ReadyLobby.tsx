@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
+import { createMeasurementLifetime } from '../../lib/measurementLifetime';
 
 export type ReadyLobbyProps = {
   hostName: string;
@@ -41,16 +42,29 @@ export default function ReadyLobby(props: ReadyLobbyProps) {
   const [confirmAbort, setConfirmAbort] = useState(false);
   const [aborting, setAborting] = useState(false);
   const [abortError, setAbortError] = useState<string | null>(null);
+  const lifetime = useRef(createMeasurementLifetime());
+  const abortPendingRef = useRef(false);
+  useLayoutEffect(() => {
+    lifetime.current.open();
+    abortPendingRef.current = false;
+    return () => lifetime.current.close();
+  }, []);
   const confirmExit = async () => {
-    if (aborting) return;
+    if (!lifetime.current.isActive() || abortPendingRef.current) return;
+    const isLive = lifetime.current.capture();
+    abortPendingRef.current = true;
     setAborting(true);
     setAbortError(null);
     try {
       await onAbort();
     } catch {
+      if (!isLive()) return;
       setAbortError('Rennabbruch nicht bestätigt. Bitte Verbindung prüfen und erneut versuchen.');
     } finally {
-      setAborting(false);
+      if (isLive()) {
+        abortPendingRef.current = false;
+        setAborting(false);
+      }
     }
   };
   const mineReady = isHost ? hostReady : challengerReady;
