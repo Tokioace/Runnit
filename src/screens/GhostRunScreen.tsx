@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabaseClient';
 import type { UseSupabaseUserReturn } from '../hooks/useSupabaseUser';
 import { createMeasurementLifetime, measurementAccountCurrent } from '../lib/measurementLifetime';
 import { createGpsSprint, advanceLiveGpsSprint, type GpsSprintState, type GpsSample } from '../lib/sprintGps';
-import { ghostSummary, ghostFinishMotion, ghostRelativeGpsFix, safeNumber, type DiagnosticSummary, type MotionPermission } from '../lib/ghostRunSummary';
+import { ghostSummary, ghostFinishMotion, ghostRelativeGpsFix, ghostTraceDiagnostics, safeNumber, type DiagnosticSummary, type MotionPermission } from '../lib/ghostRunSummary';
 import { isFreshStartFix, primeGpsSprint, gpsFieldDurationReached } from '../lib/gpsField';
 import { inspectGhostGpsFix, ghostGpsFixNotice, ghostFixOrder, type GhostGpsFixIssue } from '../lib/ghostGpsReadiness';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
@@ -76,6 +76,8 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   const stepRef = useRef(new LiveStepPeakCounter());
   const gpsTraceRef = useRef<GpsTrace[]>([]);
   const motionTraceRef = useRef<MotionTrace[]>([]);
+  const gpsTraceOmittedRef = useRef(0);
+  const firstMotionOmittedMsRef = useRef<number | null>(null);
   const lastMotionAt = useRef<number | null>(null);
   const gapCountRef = useRef(0);
   const interruptedRef = useRef(false);
@@ -272,6 +274,8 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
         distance_m: safeNumber(next.distanceM),
         decision: next.lastDecision ?? 'unknown',
       });
+    } else {
+      gpsTraceOmittedRef.current += 1;
     }
     if (next.finishTimestampMs !== null) {
       stopRun('finished', 'ZIEL ERREICHT! Ghost Run abgeschlossen.');
@@ -483,6 +487,8 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     startedRef.current = startMs;
     gpsTraceRef.current = [];
     motionTraceRef.current = [];
+    gpsTraceOmittedRef.current = 0;
+    firstMotionOmittedMsRef.current = null;
     gapCountRef.current = 0;
     lastMotionAt.current = null;
     stepRef.current.reset();
@@ -525,6 +531,8 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
           ax: safeNumber(a.x), ay: safeNumber(a.y), az: safeNumber(a.z),
           magnitude: safeNumber(magnitude), steps: stepRef.current.count,
         });
+      } else if (firstMotionOmittedMsRef.current === null) {
+        firstMotionOmittedMsRef.current = stamp - start;
       }
     };
     window.addEventListener('devicemotion', handler, { passive: true });
@@ -606,6 +614,8 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       activeRef.current = null;
       gpsTraceRef.current = [];
       motionTraceRef.current = [];
+      gpsTraceOmittedRef.current = 0;
+      firstMotionOmittedMsRef.current = null;
       uncertainSaveRef.current = null;
     };
   }, [stopGps]);
@@ -655,6 +665,8 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
 
   const exportJson = () => {
     if (!summary) return;
+    const state = activeRef.current;
+    if (!state || (phaseRef.current !== 'finished' && phaseRef.current !== 'stopped')) return;
     // Export has no absolute GPS positions, user ID, email, or device identifier.
     const report = {
       schema: 'runnit-ghost-diagnostic-v1',
@@ -662,6 +674,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       raw_location_included: false,
       ...summary,
       recorded_at: new Date().toISOString(),
+      diagnostics: ghostTraceDiagnostics(state, gpsTraceOmittedRef.current, firstMotionOmittedMsRef.current),
       gps: gpsTraceRef.current,
       motion: motionTraceRef.current,
     };
