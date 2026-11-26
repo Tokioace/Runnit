@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabaseClient';
 import type { UseSupabaseUserReturn } from '../hooks/useSupabaseUser';
 import { createMeasurementLifetime, measurementAccountCurrent } from '../lib/measurementLifetime';
 import { createGpsSprint, advanceLiveGpsSprint, type GpsSprintState, type GpsSample } from '../lib/sprintGps';
-import { ghostSummary, ghostFinishMotion, safeNumber, type DiagnosticSummary, type MotionPermission } from '../lib/ghostRunSummary';
+import { ghostSummary, ghostFinishMotion, ghostRelativeGpsFix, safeNumber, type DiagnosticSummary, type MotionPermission } from '../lib/ghostRunSummary';
 import { isFreshStartFix, primeGpsSprint, gpsFieldDurationReached } from '../lib/gpsField';
 import { inspectGhostGpsFix, ghostGpsFixNotice, ghostFixOrder, type GhostGpsFixIssue } from '../lib/ghostGpsReadiness';
 import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
@@ -23,7 +23,7 @@ import '../styles/ghostRun.css';
 
 type Phase = 'idle' | 'acquiring' | 'ready' | 'countdown' | 'running' | 'finished' | 'stopped' | 'error';
 type Target = 50 | 75 | 100;
-type GpsTrace = { t_ms: number; east_m: number | null; north_m: number | null; accuracy_m: number; distance_m: number; decision: string };
+type GpsTrace = { t_ms: number | null; east_m: number | null; north_m: number | null; accuracy_m: number | null; distance_m: number; decision: string };
 type MotionTrace = { t_ms: number; ax: number; ay: number; az: number; magnitude: number; steps: number };
 type SavedRun = {
   id: string; created_at: string; target_distance_m: number; run_state: 'finished' | 'stopped';
@@ -263,13 +263,12 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     activeRef.current = next;
     setLive(next);
     if (gpsTraceRef.current.length < MAX_GPS_SAMPLES) {
-      const origin = next.origin;
-      const radians = Math.PI / 180;
+      const fix = ghostRelativeGpsFix(sample, next.origin, next.startedAtMs);
       gpsTraceRef.current.push({
-        t_ms: Math.max(0, sample.timestampMs - next.startedAtMs),
-        east_m: origin ? safeNumber((sample.longitude - origin.longitude) * 111320 * Math.cos(origin.latitude * radians)) : null,
-        north_m: origin ? safeNumber((sample.latitude - origin.latitude) * 111320) : null,
-        accuracy_m: safeNumber(sample.accuracyM),
+        t_ms: fix.t_ms,
+        east_m: fix.east_m,
+        north_m: fix.north_m,
+        accuracy_m: fix.accuracy_m,
         distance_m: safeNumber(next.distanceM),
         decision: next.lastDecision ?? 'unknown',
       });
