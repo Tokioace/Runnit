@@ -1,3 +1,4 @@
+import { canReleaseUnconfirmedDuelHint } from '../lib/duelRecoveryHint';
 import { mergeDuelReadiness } from '../lib/duelReadiness';
 import { createDuelStartLatch } from '../lib/duelStartLatch';
 import { createDuelWriteGate } from '../lib/duelWriteGate';
@@ -827,6 +828,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   // or discovery can replace it. Storage is a recovery hint, not a server result.
   const [initialActiveDuelId] = useState(() => authUser ? readActiveDuelId(authUser.id) : null);
   const activeDuelIdRef = useRef<string | null>(initialActiveDuelId);
+  const unconfirmedRecoveryHintRef = useRef<string | null>(initialActiveDuelId);
   const recoveryRevisionRef = useRef(0);
   // Ignore late Realtime/poll responses for duels confirmed as terminated.
   const endedDuelIdsRef = useRef<Set<string>>(new Set());
@@ -847,6 +849,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     recoveryRevisionRef.current += 1;
     endedDuelIdsRef.current.add(duelId);
     activeDuelIdRef.current = null;
+    unconfirmedRecoveryHintRef.current = null;
     if (authUser) {
       forgetActiveDuelId(authUser.id, duelId);
       forgetPendingFinish(authUser.id, duelId);
@@ -879,6 +882,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     const active = activeDuelIdRef.current;
     if (active && active !== row.id) return;
     completedDuelIdsRef.current.add(row.id);
+    unconfirmedRecoveryHintRef.current = null;
     recoveryRevisionRef.current += 1;
     activeDuelIdRef.current = row.id;
     rememberActiveDuelId(authUser.id, row.id);
@@ -903,6 +907,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     recoveryRevisionRef.current += 1;
     endedDuelIdsRef.current.add(duelId);
     if (activeDuelIdRef.current === duelId) activeDuelIdRef.current = null;
+    if (unconfirmedRecoveryHintRef.current === duelId) unconfirmedRecoveryHintRef.current = null;
     if (authUser) {
       forgetActiveDuelId(authUser.id, duelId);
       forgetPendingFinish(authUser.id, duelId);
@@ -932,6 +937,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     const startAt = typeof row.start_at === 'string' ? row.start_at : null;
     // Once a server start is observed, an older lobby row cannot reset it.
     if (!duelStartLatch.current.accept(row.id, startAt)) return;
+    unconfirmedRecoveryHintRef.current = null;
     recoveryRevisionRef.current += 1;
     activeDuelIdRef.current = row.id;
     rememberActiveDuelId(authUser.id, row.id);
@@ -1358,6 +1364,22 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         .select('id, status, host_user_id, challenger_user_id, start_at, target_distance_m, host_ready, challenger_ready')
         .eq('id', activeId).maybeSingle();
       if (!current() || statusError || activeDuelIdRef.current !== activeId) return;
+      // Absence alone is not a terminal result. A saved, never-confirmed hint
+      // may yield to a different confirmed match only when no finish is at risk.
+      if (latest === null &&
+          canReleaseUnconfirmedDuelHint({
+            activeId, hintId: unconfirmedRecoveryHintRef.current,
+            candidate: data, userId: authUser.id,
+            candidateRetired: !!data && (endedDuelIdsRef.current.has(data.id) || completedDuelIdsRef.current.has(data.id)),
+            hasPendingFinish: latestFinishPayloadRef.current?.duelId === activeId ||
+              readPendingFinish(authUser.id, activeId) !== null,
+          })) {
+        activeDuelIdRef.current = null;
+        unconfirmedRecoveryHintRef.current = null;
+        forgetActiveDuelId(authUser.id, activeId);
+        applyMatchedDuel(data);
+        return;
+      }
       // Never infer termination from a missing row or a failed/RLS-hidden read.
       if (latest && (latest.host_user_id !== authUser.id && latest.challenger_user_id !== authUser.id)) return;
       if (latest?.status === 'abandoned') {
