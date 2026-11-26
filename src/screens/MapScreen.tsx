@@ -2086,6 +2086,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
 
       {race.status === 'finished' && authUser && (
         <DuelFinishScreen
+          key={race.duelId}
           supabase={supabase}
           duelId={race.duelId}
           userId={authUser.id}
