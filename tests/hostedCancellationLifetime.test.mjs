@@ -17,3 +17,13 @@ test('rejected status recovery reports an error only to the current account and 
   assert.match(confirm,/finally \{\s*cancelHostedPendingRef.current = false;\s*if \(finishAccountRef.current === authUser.id\) setCancellingRunId\(null\);/);
   assert.match(confirm,/\.catch\(\(\) => \{\s*if \(finishAccountRef.current === authUser.id\) setHostedDuelsLoadError\(true\);/);
 });
+
+test('expired or confirmed non-open events cannot open or submit a stale cancellation dialog',()=>{
+  const open=map.slice(map.indexOf('const handleCancelHostedRun ='),map.indexOf('const confirmCancelHostedRun ='));
+  assert.match(open,/if \(knownNonOpenRunIdsRef.current.has\(run.id\) \|\|\s*\(run.expiresAt && !isOpenEventAvailable\(run.expiresAt\)\)\) return;/);
+  assert.match(confirm,/if \(knownNonOpenRunIdsRef.current.has\(run.id\) \|\|\s*\(run.expiresAt && !isOpenEventAvailable\(run.expiresAt\)\)\) \{\s*setCancelConfirmation\(previous => previous\?\.id === run.id \? null : previous\);\s*return;\s*\}\s*setCancellingRunId\(run.id\);/);
+});
+test('realtime and local expiry retire only stale dialogs without interrupting a pending local cancellation',()=>{
+  assert.match(map,/if \(payload.eventType === 'DELETE' \|\| row.status !== 'open' \|\|\s*\(typeof row.expires_at === 'string' && !isOpenEventAvailable\(row.expires_at\)\)\) \{\s*setCancelConfirmation\(previous => previous\?\.id === row.id \? null : previous\);/);
+  assert.match(map,/if \(!cancelHostedPendingRef.current\) \{\s*setCancelConfirmation\(previous => previous\?\.expiresAt &&\s*!isOpenEventAvailable\(previous.expiresAt, now\) \? null : previous\);/);
+});

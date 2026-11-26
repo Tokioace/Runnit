@@ -1491,6 +1491,12 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
             return; // a delayed open notification must not resurrect a retired marker
           }
 
+          // Retire only the dialog for the affected event, never a new one.
+          if (payload.eventType === 'DELETE' || row.status !== 'open' ||
+              (typeof row.expires_at === 'string' && !isOpenEventAvailable(row.expires_at))) {
+            setCancelConfirmation(previous => previous?.id === row.id ? null : previous);
+          }
+
           // DELETE supplies only the old primary key. Remove known local
           // markers; do not infer match completion or participant identity.
           if (payload.eventType === 'DELETE') {
@@ -1582,6 +1588,12 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   useEffect(() => {
     const pruneExpired = () => {
       const now = Date.now();
+      // Let an in-flight cancellation resolve; otherwise an expired event
+      // must not leave a stale confirmation dialog covering the map.
+      if (!cancelHostedPendingRef.current) {
+        setCancelConfirmation(previous => previous?.expiresAt &&
+          !isOpenEventAvailable(previous.expiresAt, now) ? null : previous);
+      }
       // Return the previous array when nothing expires: a 1Hz deadline
       // check must NOT rerender the entire MapLibre scene every second.
       setOpenRuns(previous => {
@@ -1714,6 +1726,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   const handleCancelHostedRun = (run: HostedOpenDuel) => {
     if (cancelHostedPendingRef.current || !authUser || finishAccountRef.current !== authUser.id) return;
     if (!authUser || run.hostUserId !== authUser.id || run.id.startsWith('demo-run-')) return;
+    if (knownNonOpenRunIdsRef.current.has(run.id) ||
+        (run.expiresAt && !isOpenEventAvailable(run.expiresAt))) return;
     // No window.confirm: embedded iOS Safari/PWA and Leaflet popups can dismiss
     // the native prompt before the user sees what happened.
     setCancelError(null);
@@ -1724,6 +1738,11 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     if (cancelHostedPendingRef.current || !authUser || finishAccountRef.current !== authUser.id) return;
     const run = cancelConfirmation;
     if (!authUser || !run || run.hostUserId !== authUser.id || cancellingRunId) return;
+    if (knownNonOpenRunIdsRef.current.has(run.id) ||
+        (run.expiresAt && !isOpenEventAvailable(run.expiresAt))) {
+      setCancelConfirmation(previous => previous?.id === run.id ? null : previous);
+      return;
+    }
     setCancellingRunId(run.id);
     cancelHostedPendingRef.current = true;
     setCancelError(null);
