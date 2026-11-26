@@ -6,7 +6,7 @@ const map=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'
 test('missed start is shown in the existing lobby status and disables readiness regardless of previous flags',()=>{
  assert.match(lobby,/startMissed = false/);
  assert.match(lobby,/startMissed\s*\? 'RENNSTART VERPASST\. DUELL ABBRECHEN UND EIN NEUES RENNEN STARTEN\.'/);
- assert.match(lobby,/disabled=\{startMissed \|\| mineReady \|\| readyBusy\}/);
+ assert.match(lobby,/disabled=\{startMissed \|\| mineReady \|\| readyBusy \|\| confirmAbort \|\| aborting\}/);
  assert.match(lobby,/startMissed \? 'START VERPASST' : readyBusy \?/);
  assert.match(lobby,/readyError && !startMissed &&/);
 });
@@ -28,4 +28,16 @@ test('missed-start lobby retains the explicit server-confirmed abort and return-
  assert.match(lobby,/onClick=\{onBack\}/);
  assert.match(map,/onAbort=\{\(\) => confirmAbortMatchedDuel\(matchedDuel.id\)\}/);
  assert.match(map,/setMatchedDuel\(matchOverlay.lobby \?\? null\);/);
+});
+
+test('abort confirmation locks competing lobby actions until cancelled or resolved',()=>{
+ assert.match(lobby,/disabled=\{startMissed \|\| mineReady \|\| readyBusy \|\| confirmAbort \|\| aborting\}/);
+ assert.match(lobby,/disabled=\{confirmAbort \|\| aborting\} onClick=\{onBack\}/);
+ const ready=lobby.slice(lobby.indexOf('const onReady ='),lobby.indexOf('const onBack ='));
+ const back=lobby.slice(lobby.indexOf('const onBack ='),lobby.indexOf('  return (',lobby.indexOf('const onBack =')));
+ assert.match(ready,/confirmAbort \|\| abortPendingRef.current\) return;[\s\S]*requestReady\(\);/);
+ assert.match(back,/confirmAbort \|\| abortPendingRef.current\) return;[\s\S]*returnToMap\(\);/);
+ assert.match(lobby,/abortPendingRef.current \|\| readyBusy\) return;/);
+ assert.match(lobby,/disabled=\{aborting \|\| readyBusy\} onClick=\{\(\) => \{ void confirmExit\(\); \}\}/);
+ assert.match(lobby,/disabled=\{aborting\} onClick=\{\(\) => setConfirmAbort\(false\)\}/);
 });
