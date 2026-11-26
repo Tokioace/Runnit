@@ -40,7 +40,10 @@ test('ghost preparation checks both asynchronous boundaries before starting GPS'
 });
 test('ghost retirement stops sensors and drops in-memory measurements, not saved account rows',()=>{
  const ghost=read('src/screens/GhostRunScreen.tsx');
- const block=ghost.slice(ghost.indexOf('useLayoutEffect(() => {'),ghost.indexOf('const exportJson'));
+ const start=ghost.indexOf('useLayoutEffect(() => {\n    lifetime.current.open();');
+ const end=ghost.indexOf('}, [stopGps]);',start);
+ assert.ok(start>=0 && end>start,'measurement lifetime effect must exist');
+ const block=ghost.slice(start,end);
  assert.match(block,/lifetime.current.close\(\);\s*unmountedRef.current = true;\s*phaseRef.current = 'idle';\s*stopGps\(\)/);
  assert.match(block,/gpsTraceRef.current = \[\];\s*motionTraceRef.current = \[\]/);
  assert.doesNotMatch(block,/supabase|localStorage/);
