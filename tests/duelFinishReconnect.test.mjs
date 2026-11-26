@@ -5,7 +5,7 @@ import {validateDuelResultRows} from '../src/lib/duelOutcome.ts';
 import {createFinishRefresh} from '../src/lib/finishRefresh.ts';
 const source=readFileSync(new URL('../src/components/race/DuelFinishScreen.tsx',import.meta.url),'utf8');
 test('reconnect refreshes result reads immediately and unregisters with the screen',()=>{
- assert.match(source,/const onVisible = \(\) => \{ if \(document.visibilityState === 'visible'\) void refresh\(\); \};/);
+ assert.match(source,/const onVisible = \(\) => \{ if \(document.visibilityState === 'visible'\) void refresh\(true\); \};/);
  assert.match(source,/window.addEventListener\('online', onVisible\);/);
  assert.match(source,/active = false;\s*request.close\(\);[\s\S]*?window.removeEventListener\('online', onVisible\);/);
 });
