@@ -1,7 +1,7 @@
 import { createMeasurementLifetime } from '../lib/measurementLifetime';
 import { classifyDuelJoinError } from '../lib/duelJoinError';
 import { canReleaseUnconfirmedDuelHint } from '../lib/duelRecoveryHint';
-import { mergeDuelReadiness } from '../lib/duelReadiness';
+import { mergeDuelReadiness, clearReadyRequest, readyRequestView } from '../lib/duelReadiness';
 import { createDuelStartLatch } from '../lib/duelStartLatch';
 import { createDuelWriteGate } from '../lib/duelWriteGate';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -822,8 +822,12 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   const [matchOverlay, setMatchOverlay] = useState<{ duelId: string; startsAt: number; targetDistanceM: number } | null>(null);
   const [matchedDuel, setMatchedDuel] = useState<MatchedDuelState | null>(null);
   const [dismissedMatchId, setDismissedMatchId] = useState<string | null>(null);
-  const [readyBusy, setReadyBusy] = useState(false);
-  const [readyError, setReadyError] = useState<string | null>(null);
+  const [readyBusyDuelId, setReadyBusy] = useState<string | null>(null);
+  const [readyErrorForDuel, setReadyError] = useState<{ duelId: string; message: string } | null>(null);
+  const ownReady = matchedDuel !== null && (matchedDuel.hostUserId === authUser?.id
+    ? matchedDuel.hostReady : matchedDuel.challengerReady);
+  const { busy: readyBusy, error: readyError } = readyRequestView(
+    matchedDuel?.id ?? null, ownReady, readyBusyDuelId, readyErrorForDuel);
   const [raceSoundEnabled, setRaceSoundEnabled] = useState(true);
   useEffect(() => { setRaceAudioMuted(!raceSoundEnabled); }, [raceSoundEnabled]);
   const [matchedNames, setMatchedNames] = useState<Record<string, string>>({});
@@ -1782,7 +1786,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     if (!stillCurrent()) return;
     const releaseWrite = duelWriteGate.current.tryAcquire(matchedDuel.id);
     if (!releaseWrite) return;
-    setReadyBusy(true);
+    setReadyBusy(matchedDuel.id);
     setReadyError(null);
     try {
       const { data, error } = await readyForDuel(supabase, matchedDuel.id);
@@ -1793,10 +1797,13 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       }
       applyMatchedDuel(data);
     } catch {
-      if (stillCurrent()) setReadyError('Bereitschaft konnte nicht gespeichert werden. Bitte erneut versuchen.');
+      if (stillCurrent()) setReadyError({ duelId: matchedDuel.id,
+        message: 'Bereitschaft konnte nicht gespeichert werden. Bitte erneut versuchen.' });
     } finally {
       releaseWrite();
-      if (finishAccountRef.current === authUser.id) setReadyBusy(false);
+      if (finishAccountRef.current === authUser.id) {
+        setReadyBusy(previous => clearReadyRequest(previous, matchedDuel.id));
+      }
     }
   };
 
