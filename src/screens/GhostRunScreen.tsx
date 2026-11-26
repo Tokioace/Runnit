@@ -73,6 +73,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   const activeRef = useRef<GpsSprintState | null>(null);
   const readyRef = useRef<GpsSample | null>(null);
   const latestPreparationFixMs = useRef<number | null>(null);
+  const manualGpsRequestRef = useRef<symbol | null>(null);
   const startedRef = useRef<number | null>(null);
   const stepRef = useRef(new LiveStepPeakCounter());
   const gpsTraceRef = useRef<GpsTrace[]>([]);
@@ -104,6 +105,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     latestPreparationFixMs.current = null;
     const id = watchRef.current;
     watchRef.current = null;
+    manualGpsRequestRef.current = null;
     if (id !== null && navigator.geolocation) {
       try { navigator.geolocation.clearWatch(id); } catch { /* already retired */ }
     }
@@ -405,17 +407,32 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   }, [phase]);
 
   const requestGpsRefresh = () => {
-    if (!navigator.geolocation || !gpsLifetime.current.isActive()) return;
+    if (!navigator.geolocation || !gpsLifetime.current.isActive() ||
+        phaseRef.current !== 'acquiring' || document.visibilityState !== 'visible' ||
+        manualGpsRequestRef.current !== null) return;
     const isGpsLive = gpsLifetime.current.capture();
+    const token = Symbol('manual GPS refresh');
+    manualGpsRequestRef.current = token;
     const stillPreparing = () => isGpsLive() &&
-      (phaseRef.current === 'acquiring' || phaseRef.current === 'ready');
+      (phaseRef.current === 'acquiring' || phaseRef.current === 'ready') &&
+      manualGpsRequestRef.current === token && document.visibilityState === 'visible';
+    const release = () => {
+      if (manualGpsRequestRef.current === token) manualGpsRequestRef.current = null;
+    };
     const failed = () => {
-      if (stillPreparing()) setNotice('Noch kein frischer GPS-Fix. Bitte möglichst draußen erneut versuchen.');
+      if (stillPreparing() && phaseRef.current === 'acquiring') {
+        setNotice('Noch kein frischer GPS-Fix. Bitte möglichst draußen erneut versuchen.');
+      }
+      release();
     };
     setNotice('Fordere eine neue GPS-Position an. Ein alter 4-m-Fix reicht für einen Sprintstart nicht aus.');
     try {
       navigator.geolocation.getCurrentPosition(
-        pos => { if (stillPreparing()) onGps(pos); },
+        pos => {
+          const current = stillPreparing();
+          release();
+          if (current) onGps(pos);
+        },
         failed,
         { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 },
       );
@@ -432,6 +449,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     }
     if (soundEnabledRef.current) unlockRaceAudio(); // User gesture; do not require sound permission later.
     const start = Date.now() + ARCADE_COUNTDOWN_SECONDS * 1000;
+    manualGpsRequestRef.current = null;
     countdownAtRef.current = start;
     setCountdownAt(start);
     setCurrentPhase('countdown');
@@ -443,7 +461,8 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     if (phase !== 'countdown' || countdownAt === null || !navigator.geolocation) return;
     let cancelled = false;
     const isGpsLive = gpsLifetime.current.capture();
-    const stillCounting = () => !cancelled && isGpsLive() && phaseRef.current === 'countdown';
+    const stillCounting = () => !cancelled && isGpsLive() && phaseRef.current === 'countdown' &&
+      countdownAtRef.current === countdownAt && document.visibilityState === 'visible';
     const timer = window.setTimeout(() => {
       if (!stillCounting()) return;
       try {
@@ -854,8 +873,12 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
           soundEnabled={soundEnabled} onDone={beginRun} onAbort={async () => {
             if (phaseRef.current !== 'countdown' || countdownAtRef.current !== countdownAt) return;
             countdownAtRef.current = null;
-            setCountdownAt(null); setCurrentPhase('ready');
-            setNotice('Solo-Countdown abgebrochen, kein Rennen gespeichert.');
+            setCountdownAt(null);
+            const fresh = isFreshStartFix(readyRef.current, Date.now());
+            if (!fresh) readyRef.current = null;
+            setCurrentPhase(fresh ? 'ready' : 'acquiring');
+            setNotice(fresh ? 'Solo-Countdown abgebrochen, kein Rennen gespeichert.'
+              : 'Solo-Countdown abgebrochen. Bitte auf einen neuen GPS-Fix warten.');
           }} />
       )}
     </main>
