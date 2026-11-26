@@ -1699,16 +1699,25 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     if (!authUser || !duelId || duelId.startsWith('demo-run-')) {
       throw new Error('Du musst angemeldet sein, um dieses Rennen abzubrechen.');
     }
+    const stillCurrent = () => finishAccountRef.current === authUser.id &&
+      activeDuelIdRef.current === duelId &&
+      !endedDuelIdsRef.current.has(duelId) &&
+      !completedDuelIdsRef.current.has(duelId);
+    if (!stillCurrent()) throw new Error('Dieses Duell ist nicht mehr aktiv.');
     const releaseWrite = duelWriteGate.current.tryAcquire(duelId);
     if (!releaseWrite) throw new Error('Für dieses Duell läuft bereits eine Änderung. Bitte erneut versuchen.');
     try {
       // Leave the countdown/race visible until Supabase confirms termination.
       const confirmed = await abortMatchedDuel(supabase, duelId);
       if (finishAccountRef.current !== authUser.id) return;
+      if (!stillCurrent()) return;
       if (confirmed.id !== duelId || confirmed.status !== 'abandoned') {
         throw new Error('Der Server hat den Abbruch nicht bestätigt.');
       }
       clearAbortedDuel(duelId, false);
+    } catch (error) {
+      // Realtime may already have retired this duel while the RPC was pending.
+      if (stillCurrent()) throw error;
     } finally {
       releaseWrite();
     }
