@@ -4,6 +4,7 @@ import { getDuelResults } from '../../db/getDuelResults';
 import { playArcadeFinishSfx } from '../../lib/arcadeRaceAudio';
 
 import { determineDuelOutcome } from '../../lib/duelOutcome';
+import { createFinishRefresh } from '../../lib/finishRefresh';
 
 export type DuelResultRow = {
   user_id: string;
@@ -55,7 +56,7 @@ export default function DuelFinishScreen({
   useEffect(() => {
     if (isDemo) return;
     let active = true;
-    const refresh = async () => {
+    const request = createFinishRefresh(async () => {
       const [duelResponse, resultsResponse] = await Promise.all([
         supabase.from('duels')
           .select('id, status, host_user_id, challenger_user_id')
@@ -79,7 +80,10 @@ export default function DuelFinishScreen({
           : duel.status === 'abandoned' ? 'abandoned' : 'unavailable');
       setRows((resultsResponse.data ?? []) as DuelResultRow[]);
       setFetchError(null);
-    };
+    }, () => {
+      if (active) setFetchError('Rennstatus konnte nicht geladen werden. Die Anzeige versucht es erneut.');
+    });
+    const refresh = request.refresh;
     void refresh();
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void refresh();
@@ -89,6 +93,7 @@ export default function DuelFinishScreen({
     window.addEventListener('focus', onVisible);
     return () => {
       active = false;
+      request.close();
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
