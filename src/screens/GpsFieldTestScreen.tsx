@@ -76,9 +76,9 @@ export default function GpsFieldTestScreen() {
         phaseRef.current = 'idle';
         setPhase('idle');
         setStatus('GPS beim Verlassen der Seite beendet. Bitte erneut vorbereiten.');
-      } else {
-        phaseRef.current = 'idle';
       }
+      // Safari may restore this page from its back/forward cache. Preserve
+      // the terminal phase and report rather than silently resetting the ref.
     };
     document.addEventListener('visibilitychange', pauseIfBackgrounded);
     window.addEventListener('pagehide', stopOnPageHide);
@@ -164,8 +164,10 @@ export default function GpsFieldTestScreen() {
           : err.code === 2
             ? 'GPS-Position nicht verfügbar. Bitte draußen erneut versuchen.'
             : 'GPS-Zeitüberschreitung. Erneut vorbereiten.';
-        setStatus(message);
-        setCurrentPhase('error');
+        const wasRunning = phaseRef.current === 'running';
+        setStatus(wasRunning ? 'Testlauf ohne bestätigten Zieleinlauf beendet. ' + message : message);
+        // Keep an interrupted run available for inspection and explicit export.
+        setCurrentPhase(wasRunning ? 'stopped' : 'error');
         stopWatching();
       }, GPS_OPTIONS);
     } catch {
@@ -227,7 +229,7 @@ export default function GpsFieldTestScreen() {
     : null;
 
   const downloadReport = () => {
-    if (!report || phase === 'running') return;
+    if (!report || (phaseRef.current !== 'finished' && phaseRef.current !== 'stopped')) return;
     // A deliberate, user-triggered export with NO raw latitude/longitude or track.
     const exported = {
       schema: 'runnit-gps-field-v1',
