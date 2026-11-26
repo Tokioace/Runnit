@@ -13,7 +13,10 @@ export function createDuelRecoveryQueue(task:()=>Promise<void>){
   }finally{running=false;}
  }
  return {
+  // Explicit focus/reconnect signals deserve one follow-up. Routine polls
+  // can wait for the next interval instead of keeping a slow connection busy.
   request:()=>{if(closed)return;pending=true;void drain();},
+  poll:()=>{if(closed||running)return;pending=true;void drain();},
   close:()=>{closed=true;pending=false;},
  };
 }
