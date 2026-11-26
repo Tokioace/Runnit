@@ -15,7 +15,7 @@ export type DuelResultRow = {
   max_speed_mps?: number | null;
 };
 
-type Status = 'loading' | 'matched' | 'completed' | 'abandoned' | 'unavailable';
+type Status = 'loading' | 'matched' | 'completed' | 'abandoned' | 'unavailable' | 'unexpected';
 type Props = {
   supabase: SupabaseClient;
   duelId: string;
@@ -75,6 +75,15 @@ export default function DuelFinishScreen({
         setFetchError(duel ? 'Du bist kein Teilnehmer dieses Rennens.' : 'Dieses Rennen ist nicht mehr verfügbar.');
         return;
       }
+      // A confirmed cancellation is terminal even if the results RPC is unavailable.
+      if (duel.status === 'abandoned') {
+        setRows([]);
+        setHostId(duel.host_user_id);
+        setChallengerId(duel.challenger_user_id);
+        setStatus('abandoned');
+        setFetchError(null);
+        return;
+      }
       const resultsResponse = await getDuelResults(supabase, duelId);
       if (!active) return;
       if (resultsResponse.error) {
@@ -84,8 +93,7 @@ export default function DuelFinishScreen({
       setHostId(duel.host_user_id);
       setChallengerId(duel.challenger_user_id);
       setStatus(duel.status === 'completed' ? 'completed'
-        : duel.status === 'matched' ? 'matched'
-          : duel.status === 'abandoned' ? 'abandoned' : 'unavailable');
+        : duel.status === 'matched' ? 'matched' : 'unexpected');
       setRows((resultsResponse.data ?? []) as DuelResultRow[]);
       setFetchError(null);
     }, () => {
@@ -114,11 +122,13 @@ export default function DuelFinishScreen({
     Number.isFinite(row.time_ms) && row.time_ms > 0);
   const outcome = determineDuelOutcome(uniqueResults, userId, status);
   const completed = isDemo || outcome !== 'pending';
+  const terminalWithoutResult = status === 'abandoned' || status === 'unavailable';
   const mine = uniqueResults.find(row => row.user_id === userId);
   const other = uniqueResults.find(row => row.user_id !== userId);
   const resultTitle = isDemo ? 'TESTLAUF!' : outcome === 'won' ? 'DU GEWINNST!'
     : outcome === 'lost' ? 'DU VERLIERST!' : outcome === 'tie' ? 'UNENTSCHIEDEN!'
-      : 'ZIEL ERREICHT!';
+      : status === 'abandoned' ? 'DUELL ABGEBROCHEN!'
+        : status === 'unavailable' ? 'RENNEN NICHT VERFÜGBAR' : 'ZIEL ERREICHT!';
   const retrySubmission = async () => {
     if (retryBusy) return;
     setRetryBusy(true);
@@ -146,7 +156,7 @@ export default function DuelFinishScreen({
         <div className="race-arcade-finish-flag" aria-hidden="true">🏁</div>
         <h2 id="duel-finish-title" className="race-arcade-finish-title">{resultTitle}</h2>
         <p className="race-arcade-sound-caption">
-          {completed ? 'RESULTS // RACE COMPLETE' : 'FINISH // WAITING FOR RIVAL'}
+          {completed ? 'RESULTS // RACE COMPLETE' : terminalWithoutResult ? 'RESULTS // CLOSED' : 'FINISH // WAITING FOR RIVAL'}
         </p>
 
         <div className="race-arcade-finish-result">
@@ -154,10 +164,10 @@ export default function DuelFinishScreen({
           {completed && !isDemo ? (
             <p className="race-arcade-finish-time">{displayTime(mine?.time_ms)}</p>
           ) : (
-            <p className="race-arcade-finish-time">{isDemo ? 'DEMO' : 'FINISH'}</p>
+            <p className="race-arcade-finish-time">{isDemo ? 'DEMO' : terminalWithoutResult ? '—' : 'FINISH'}</p>
           )}
           <p className="race-arcade-finish-label">
-            {isDemo ? 'NICHT GEWERTETER TESTLAUF' : completed ? 'DEINE ZEIT' : 'ERGEBNIS WIRD ERMITTELT'}
+            {isDemo ? 'NICHT GEWERTETER TESTLAUF' : completed ? 'DEINE ZEIT' : terminalWithoutResult ? 'KEIN BESTÄTIGTES ERGEBNIS' : 'ERGEBNIS WIRD ERMITTELT'}
           </p>
         </div>
 
@@ -177,7 +187,7 @@ export default function DuelFinishScreen({
           </div>
         )}
 
-        {!completed && (
+        {!completed && !terminalWithoutResult && (
           <p className="race-arcade-finish-note" role="status">
             {status === 'matched'
               ? mine ? 'DEINE ZEIT GESPEICHERT. WIR WARTEN AUF DEN ZIELLAUF DEINES GEGNERS.'
@@ -187,7 +197,7 @@ export default function DuelFinishScreen({
           </p>
         )}
         {fetchError && <p className="race-arcade-error" role="alert">{fetchError}</p>}
-        {submissionError && !completed && (
+        {submissionError && !completed && !terminalWithoutResult && (
           <div className="race-arcade-result-retry">
             <p className="race-arcade-error" role="alert">{submissionError}</p>
             <button type="button" onClick={() => { void retrySubmission(); }} disabled={retryBusy}
@@ -204,9 +214,9 @@ export default function DuelFinishScreen({
           <button type="button" className="race-arcade-primary" onClick={onClose}>
             ERGEBNIS SCHLIESSEN · ZUR KARTE »
           </button>
-        ) : status === 'abandoned' ? (
+        ) : terminalWithoutResult ? (
           <button type="button" className="race-arcade-primary" onClick={onClose}>
-            ABGEBROCHEN · ZUR KARTE »
+            {status === 'abandoned' ? 'ABGEBROCHEN · ZUR KARTE »' : 'ZUR KARTE »'}
           </button>
         ) : (
           <div className="race-arcade-finish-actions">
