@@ -50,10 +50,12 @@ export function advanceDuelGpsMeasurement(state: DuelGpsMeasurement, sample: Gps
   const previous = state.sprint.lastAccepted;
   const sprint = advanceGpsSprint(state.sprint, sample);
   if (sprint.lastDecision !== 'accepted') return { ...state, sprint };
-  if (state.resumeAfterMs !== undefined) {
-    // Do not interpolate a crossing or calculate performance over the
-    // intentional observation gap. A new beyond-target fix is only a
-    // candidate, using its observed timestamp as a conservative estimate.
+  const observationGap = previous !== null && sample.timestampMs - previous.timestampMs > 3000;
+  if (state.resumeAfterMs !== undefined || observationGap) {
+    // Do not interpolate a crossing or calculate performance over a reported
+    // interruption or a silent gap between accepted observations. A new
+    // beyond-target fix is only a candidate, using its observed timestamp
+    // as a conservative estimate.
     const beyond = sprint.distanceM >= sprint.targetMeters;
     return { ...state, resumeAfterMs: undefined, previousSpeedMps: null,
       accuracySum: state.accuracySum + sample.accuracyM,
@@ -67,16 +69,10 @@ export function advanceDuelGpsMeasurement(state: DuelGpsMeasurement, sample: Gps
   // Keep confirmation diagnostics, but exclude the post-crossing interval from peak acceleration.
   if (previous && sprint.finishTimestampMs === null) {
     const dt = (sample.timestampMs - previous.timestampMs) / 1000;
-    // A long observation gap gives an interval average, not a current speed.
-    // Do not compare acceleration across that gap or against its average on
-    // the following fix. Preserve the last reliable peak.
-    if (dt > 3) {
-      speed = null;
-    } else {
-      speed = haversineMeters(previous, sample) / dt;
-      if (state.previousSpeedMps !== null) {
-        maxAccel = Math.max(maxAccel, Math.abs(speed - state.previousSpeedMps) / dt);
-      }
+    // Observation gaps were handled above, before using interval averages.
+    speed = haversineMeters(previous, sample) / dt;
+    if (state.previousSpeedMps !== null) {
+      maxAccel = Math.max(maxAccel, Math.abs(speed - state.previousSpeedMps) / dt);
     }
   }
   return { ...state, sprint, accuracySum: state.accuracySum + sample.accuracyM,
