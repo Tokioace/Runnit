@@ -8,6 +8,9 @@ import {
   createExperimentalRunReport,
   isFreshStartFix,
   primeGpsSprint,
+  gpsFieldErrorReason,
+  gpsFieldObservationMs,
+  type GpsFieldStopReason,
 } from '../lib/gpsField';
 
 type Phase = 'idle' | 'acquiring' | 'ready' | 'running' | 'finished' | 'stopped' | 'error';
@@ -29,6 +32,7 @@ export default function GpsFieldTestScreen() {
   const [skippedStale, setSkippedStale] = useState(0);
 
   const phaseRef = useRef<Phase>('idle');
+  const stopReasonRef = useRef<GpsFieldStopReason | null>(null);
   const watchId = useRef<number | null>(null);
   const readyFixRef = useRef<GpsSample | null>(null);
   const stateRef = useRef<GpsSprintState | null>(null);
@@ -56,6 +60,7 @@ export default function GpsFieldTestScreen() {
       if (!document.hidden) return;
       stopWatching();
       if (phaseRef.current === 'running') {
+        stopReasonRef.current = 'background';
         phaseRef.current = 'stopped';
         setPhase('stopped');
         setStatus('Lauf wegen Hintergrundwechsel abgebrochen. GPS wurde beendet.');
@@ -69,6 +74,7 @@ export default function GpsFieldTestScreen() {
       stopWatching();
       const previous = phaseRef.current;
       if (mountedRef.current && previous === 'running') {
+        stopReasonRef.current = 'pagehide';
         phaseRef.current = 'stopped';
         setPhase('stopped');
         setStatus('Lauf beim Verlassen der Seite abgebrochen. GPS wurde beendet.');
@@ -103,6 +109,7 @@ export default function GpsFieldTestScreen() {
       return;
     }
     stopWatching();
+    stopReasonRef.current = null;
     readyFixRef.current = null;
     stateRef.current = null;
     setMeasurement(null);
@@ -153,6 +160,7 @@ export default function GpsFieldTestScreen() {
         stateRef.current = next;
         setMeasurement(next);
         if (next.finishTimestampMs !== null) {
+          stopReasonRef.current = 'finish';
           setCurrentPhase('finished');
           setStatus('Zieleinlauf geschätzt. GPS-Aufzeichnung beendet.');
           stopWatching();
@@ -165,6 +173,7 @@ export default function GpsFieldTestScreen() {
             ? 'GPS-Position nicht verfügbar. Bitte draußen erneut versuchen.'
             : 'GPS-Zeitüberschreitung. Erneut vorbereiten.';
         const wasRunning = phaseRef.current === 'running';
+        if (wasRunning) stopReasonRef.current = gpsFieldErrorReason(err.code);
         setStatus(wasRunning ? 'Testlauf ohne bestätigten Zieleinlauf beendet. ' + message : message);
         // Keep an interrupted run available for inspection and explicit export.
         setCurrentPhase(wasRunning ? 'stopped' : 'error');
@@ -202,6 +211,7 @@ export default function GpsFieldTestScreen() {
 
   const stop = () => {
     if (phaseRef.current !== 'running') return;
+    stopReasonRef.current = 'manual';
     setCurrentPhase('stopped');
     setStatus('Manuell beendet – kein bestätigter Zieleinlauf.');
     stopWatching();
@@ -209,6 +219,7 @@ export default function GpsFieldTestScreen() {
 
   const reset = () => {
     stopWatching();
+    stopReasonRef.current = null;
     readyFixRef.current = null;
     stateRef.current = null;
     setCurrentPhase('idle');
@@ -235,6 +246,8 @@ export default function GpsFieldTestScreen() {
       schema: 'runnit-gps-field-v1',
       ...report,
       staleFixesIgnored: skippedStale,
+      stopReason: stopReasonRef.current,
+      observationMs: measurement ? gpsFieldObservationMs(measurement) : null,
       // Only report the interpolation bracket of a confirmed finish.
       crossingIntervalMs: measurement?.finishTimestampMs != null ? measurement.crossingIntervalMs : null,
       referenceSeconds: comparison === null ? null : referenceValue,

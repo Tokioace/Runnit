@@ -80,3 +80,19 @@ export function compareWithReferenceSeconds(
   ) return null;
   return report.durationSeconds - referenceSeconds;
 }
+
+/** Explicit local field-test outcomes, never a ranking or verification flag. */
+export type GpsFieldStopReason = 'finish' | 'manual' | 'background' | 'pagehide' |
+  'permission-denied' | 'position-unavailable' | 'timeout' | 'gps-error';
+
+export function gpsFieldErrorReason(code: number): GpsFieldStopReason {
+  return code === 1 ? 'permission-denied' : code === 2 ? 'position-unavailable' :
+    code === 3 ? 'timeout' : 'gps-error';
+}
+
+/** Relative observation span only, not a finish time or a raw timestamp. */
+export function gpsFieldObservationMs(state: GpsSprintState): number | null {
+  const last = state.lastAccepted?.timestampMs;
+  if (last === undefined || !Number.isFinite(last) || !Number.isFinite(state.startedAtMs)) return null;
+  return Math.max(0, last - state.startedAtMs);
+}
