@@ -39,7 +39,8 @@ export function advanceDuelGpsMeasurement(state: DuelGpsMeasurement, sample: Gps
   if (sprint.lastDecision !== 'accepted') return { ...state, sprint };
   let speed = state.previousSpeedMps;
   let maxAccel = state.maxAccelMps2;
-  if (previous) {
+  // Keep confirmation diagnostics, but exclude the post-crossing interval from peak acceleration.
+  if (previous && sprint.finishTimestampMs === null) {
     const dt = (sample.timestampMs - previous.timestampMs) / 1000;
     speed = haversineMeters(previous, sample) / dt;
     if (state.previousSpeedMps !== null) {
