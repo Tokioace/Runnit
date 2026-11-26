@@ -1,4 +1,4 @@
-import { isUncertainGhostSave } from '../lib/ghostSaveResponse';
+import { isUncertainGhostSave, isGhostSaveConflict, matchesGhostSave } from '../lib/ghostSaveResponse';
 import { createLatestRead } from '../lib/latestRead';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -71,6 +71,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   const interruptedRef = useRef(false);
   const motionPermissionRef = useRef<MotionPermission>('unavailable');
   const savedRef = useRef(false);
+  const saveIdRef = useRef<string | null>(null);
   const savePendingRef = useRef(false);
   const lifetime = useRef(createMeasurementLifetime());
   const gpsLifetime = useRef(createMeasurementLifetime());
@@ -111,6 +112,14 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     let assertAccount: () => void;
     try { assertAccount = beginAccountMutation(); } catch { return; }
     if (!measurementAccountCurrent(isLive, assertAccount)) return;
+    try {
+      saveIdRef.current ??= crypto.randomUUID();
+    } catch {
+      setSaveStatus('error');
+      setSavedMessage('Sichere Lauf-ID nicht verfügbar. Bitte JSON exportieren oder erneut versuchen.');
+      return;
+    }
+    const payload = { id: saveIdRef.current, user_id: user.id, ...item, source: 'ios-web-beta' };
     savedRef.current = true; // suppress duplicate callbacks for this run
     savePendingRef.current = true;
     setSaveStatus('saving');
@@ -118,14 +127,26 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     let error: unknown = null;
     let uncertain = false;
     try {
-      const response = await supabase.from('ghost_run_sessions').insert({
-        user_id: user.id, ...item, source: 'ios-web-beta',
-      });
+      const response = await supabase.from('ghost_run_sessions').insert(payload);
       error = response.error;
       // A transport or gateway failure may arrive after the insert committed.
       uncertain = isUncertainGhostSave(response.status, response.error);
+      if (isGhostSaveConflict(response.error)) uncertain = true;
     } catch {
       uncertain = true;
+    }
+    // The primary key identifies this measurement, not a similar recent run.
+    // A failed or empty read cannot authorize another blind insert.
+    if (uncertain && measurementAccountCurrent(isLive, assertAccount)) {
+      try {
+        const { data, error: readError } = await supabase.from('ghost_run_sessions')
+          .select('id,user_id,target_distance_m,run_state,elapsed_ms,observed_distance_m,steps_count,gps_accepted,gps_rejected,motion_samples,motion_gaps,max_speed_mps,motion_permission,interrupted,source')
+          .eq('user_id', user.id).eq('id', payload.id).maybeSingle();
+        if (!readError && matchesGhostSave(payload, data)) {
+          uncertain = false;
+          error = null;
+        }
+      } catch { /* keep ambiguous status */ }
     }
     if (!measurementAccountCurrent(isLive, assertAccount)) return;
     savePendingRef.current = false;
@@ -416,6 +437,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     lastMotionAt.current = null;
     stepRef.current.reset();
     savedRef.current = false;
+    saveIdRef.current = null;
     interruptedRef.current = false;
     audioPlayedRef.current = false;
     setMotionGaps(0); setStepCount(0); setSummary(null); setInterrupted(false); setSaveStatus('idle');
