@@ -825,6 +825,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   const recoveryRevisionRef = useRef(0);
   // Ignore late Realtime/poll responses for duels confirmed as terminated.
   const endedDuelIdsRef = useRef<Set<string>>(new Set());
+  // Completed results remain visible until closed, but their lobby is already retired.
+  const completedDuelIdsRef = useRef<Set<string>>(new Set());
   const [race, setRace] = useState<
     | { status: 'idle' }
     | { status: 'countdown'; duelId: string; startsAt: number; targetDistanceM: number }
@@ -871,6 +873,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         (row.host_user_id !== authUser.id && row.challenger_user_id !== authUser.id)) return;
     const active = activeDuelIdRef.current;
     if (active && active !== row.id) return;
+    completedDuelIdsRef.current.add(row.id);
     recoveryRevisionRef.current += 1;
     activeDuelIdRef.current = row.id;
     rememberActiveDuelId(authUser.id, row.id);
@@ -914,7 +917,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   // foreground recovery all use this same idempotent transition.
   const applyMatchedDuel = React.useCallback((row: any) => {
     if (!authUser || finishAccountRef.current !== authUser.id || row?.status !== 'matched' || typeof row.id !== 'string' ||
-        endedDuelIdsRef.current.has(row.id) ||
+        endedDuelIdsRef.current.has(row.id) || completedDuelIdsRef.current.has(row.id) ||
         (row.host_user_id !== authUser.id && row.challenger_user_id !== authUser.id)) return;
     recoveryRevisionRef.current += 1;
     activeDuelIdRef.current = row.id;
@@ -1707,20 +1710,28 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     const mine = matchedDuel.hostUserId === authUser.id
       ? matchedDuel.hostReady : matchedDuel.challengerReady;
     if (mine) return;
+    const stillCurrent = () => finishAccountRef.current === authUser.id &&
+      activeDuelIdRef.current === matchedDuel.id &&
+      !endedDuelIdsRef.current.has(matchedDuel.id) &&
+      !completedDuelIdsRef.current.has(matchedDuel.id);
+    if (!stillCurrent()) return;
+    const releaseWrite = duelWriteGate.current.tryAcquire(matchedDuel.id);
+    if (!releaseWrite) return;
     setReadyBusy(true);
     setReadyError(null);
     try {
       const { data, error } = await readyForDuel(supabase, matchedDuel.id);
-      if (finishAccountRef.current !== authUser.id) return;
+      if (!stillCurrent()) return;
       if (error) throw error;
       if (!data || data.id !== matchedDuel.id || data.status !== 'matched') {
         throw new Error('Der Server hat den Bereitschaftsstatus nicht bestätigt.');
       }
       applyMatchedDuel(data);
     } catch {
-      setReadyError('Bereitschaft konnte nicht gespeichert werden. Bitte erneut versuchen.');
+      if (stillCurrent()) setReadyError('Bereitschaft konnte nicht gespeichert werden. Bitte erneut versuchen.');
     } finally {
-      setReadyBusy(false);
+      releaseWrite();
+      if (finishAccountRef.current === authUser.id) setReadyBusy(false);
     }
   };
 
