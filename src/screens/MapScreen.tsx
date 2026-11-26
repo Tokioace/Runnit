@@ -2331,7 +2331,10 @@ function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinis
     } catch {
       if (!isLive()) return;
       finishedRef.current = false;
-      measurementRef.current = resumeDuelGpsMeasurement(measurementRef.current, Date.now());
+      const resumedAtMs = Date.now();
+      measurementRef.current = resumeDuelGpsMeasurement(measurementRef.current, resumedAtMs);
+      liveStepCounter.current.resumeAfter(resumedAtMs);
+      motionCapture.current.resumeAfter(resumedAtMs);
       abortBusyRef.current = false;
       setAbortBusy(false);
       setAbortError('Rennabbruch nicht bestätigt. Bitte Verbindung prüfen und erneut versuchen.');
