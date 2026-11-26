@@ -1,4 +1,5 @@
 import type { GpsSample, GpsSprintState } from './sprintGps';
+import { gpsGapDiagnostics } from './sprintGps.ts';
 
 export type MotionPermission = 'granted' | 'denied' | 'unavailable';
 export type DiagnosticSummary = {
@@ -99,6 +100,7 @@ export function ghostTraceDiagnostics(state: GpsSprintState, gpsOmitted: number,
       ? origin.accuracyM : null,
     observationMs: Number.isFinite(observed) ? Math.max(0, observed) : null,
     crossingIntervalMs: state.finishTimestampMs !== null ? state.crossingIntervalMs : null,
+    ...gpsGapDiagnostics(state),
     gpsTraceOmitted: gpsOmitted,
     motionTraceTruncated: motionTruncated,
     motionTraceFirstOmittedMs: motionTruncated ? firstMotionOmittedMs : null,
