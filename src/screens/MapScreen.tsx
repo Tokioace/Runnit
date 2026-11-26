@@ -823,8 +823,10 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   const joiningRunRef = useRef<string | null>(null);
   const matchStartHandledRef = useRef<string | null>(null);
   const duelStartLatch = useRef(createDuelStartLatch());
-  // Keep the server-confirmed duel ID even after READY hides its lobby.
-  const activeDuelIdRef = useRef<string | null>(null);
+  // The account-keyed screen must reserve the saved duel before Realtime
+  // or discovery can replace it. Storage is a recovery hint, not a server result.
+  const [initialActiveDuelId] = useState(() => authUser ? readActiveDuelId(authUser.id) : null);
+  const activeDuelIdRef = useRef<string | null>(initialActiveDuelId);
   const recoveryRevisionRef = useRef(0);
   // Ignore late Realtime/poll responses for duels confirmed as terminated.
   const endedDuelIdsRef = useRef<Set<string>>(new Set());
@@ -1353,7 +1355,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         return;
       }
       const { data: latest, error: statusError } = await supabase.from('duels')
-        .select('id, status, host_user_id, challenger_user_id, start_at, target_distance_m')
+        .select('id, status, host_user_id, challenger_user_id, start_at, target_distance_m, host_ready, challenger_ready')
         .eq('id', activeId).maybeSingle();
       if (!current() || statusError || activeDuelIdRef.current !== activeId) return;
       // Never infer termination from a missing row or a failed/RLS-hidden read.
@@ -1362,6 +1364,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         clearAbortedDuel(activeId, true);
       } else if (latest?.status === 'completed') {
         showCompletedDuel(latest);
+      } else if (latest?.status === 'matched') {
+        applyMatchedDuel(latest);
       }
     });
     const whenVisible = () => {
