@@ -60,3 +60,14 @@ test('GO handoff is explicitly acknowledged by the matching live duel',()=>{
  assert.match(source,/race.startsAt === matchOverlay.startsAt && !endedDuelIdsRef.current.has\(race.duelId\)/);
  assert.match(source,/startedAt: race.startsAt, targetDistanceM: race.targetDistanceM \}\);\s*return true;/);
 });
+
+test('Ghost Run acknowledges handoff only after a valid GPS start',()=>{
+ const source=readFileSync(new URL('../src/screens/GhostRunScreen.tsx',import.meta.url),'utf8');
+ const start=source.indexOf('const beginRun = (): boolean => {');
+ assert.ok(start>=0);
+ const body=source.slice(start,source.indexOf('\n  };',start));
+ assert.equal((body.match(/return false;/g)||[]).length,3);
+ assert.match(body,/if \(!isFreshStartFix\(anchor, Date.now\(\)\)\)/);
+ assert.match(body,/setCurrentPhase\('running'\);[\s\S]*return true;/);
+ assert.match(source,/onDone=\{beginRun\}/);
+});
