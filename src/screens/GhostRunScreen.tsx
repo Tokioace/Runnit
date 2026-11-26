@@ -1,3 +1,4 @@
+import { canStartGhostCountdown } from '../lib/ghostCountdown';
 import { createFinishRefresh } from '../lib/finishRefresh';
 import { isUncertainGhostSave, isGhostSaveConflict, matchesGhostSave } from '../lib/ghostSaveResponse';
 import { createLatestRead } from '../lib/latestRead';
@@ -54,6 +55,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
   // Apply this screen's preference before its countdown effects can run.
   useLayoutEffect(() => { setRaceAudioMuted(!soundEnabled); }, [soundEnabled]);
   const [countdownAt, setCountdownAt] = useState<number | null>(null);
+  const countdownAtRef = useRef<number | null>(null);
   const [live, setLive] = useState<GpsSprintState | null>(null);
   const [stepCount, setStepCount] = useState(0);
   const [now, setNow] = useState(Date.now());
@@ -402,6 +404,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     }
     if (soundEnabledRef.current) unlockRaceAudio(); // User gesture; do not require sound permission later.
     const start = Date.now() + ARCADE_COUNTDOWN_SECONDS * 1000;
+    countdownAtRef.current = start;
     setCountdownAt(start);
     setCurrentPhase('countdown');
   };
@@ -428,7 +431,16 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
 
   const beginRun = (): boolean => {
     if (!lifetime.current.isActive() || phaseRef.current !== 'countdown') return false;
-    const startMs = Date.now(); // actual clock when the countdown finishes, never a stale Safari timer
+    if (countdownAt === null || countdownAtRef.current !== countdownAt) return false;
+    const startMs = Date.now();
+    countdownAtRef.current = null;
+    if (!canStartGhostCountdown(countdownAt, startMs, document.visibilityState === 'visible')) {
+      readyRef.current = null;
+      setCountdownAt(null);
+      setCurrentPhase('acquiring');
+      setNotice('Countdown unterbrochen oder zu spät beendet. Bitte GPS erneut bestätigen und neu starten.');
+      return false;
+    }
     const anchor = readyRef.current;
     // Countdown could have suspended in Safari. Do not silently start from stale GPS.
     if (!isFreshStartFix(anchor, Date.now())) {
@@ -441,8 +453,10 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     try {
       first = primeGpsSprint(createGpsSprint(target, startMs), anchor);
     } catch {
+      setCountdownAt(null);
       setCurrentPhase('acquiring'); setNotice('GPS-Start fehlgeschlagen. Neu vorbereiten.'); return false;
     }
+    setCountdownAt(null);
     activeRef.current = first;
     startedRef.current = startMs;
     gpsTraceRef.current = [];
@@ -513,6 +527,8 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
         setInterrupted(true);
         stopRun('stopped', 'Safari wurde in den Hintergrund versetzt. Lauf nicht als beendet gewertet.');
       } else if (phaseRef.current === 'countdown') {
+        countdownAtRef.current = null;
+        readyRef.current = null;
         setCurrentPhase('acquiring');
         setCountdownAt(null);
         setNotice('Countdown nach Hintergrundwechsel gestoppt. GPS erneut bestätigen.');
@@ -522,6 +538,12 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       if (phaseRef.current === 'running') {
         interruptedRef.current = true;
         stopRun('stopped', 'Seite verlassen; Messung unvollständig.');
+      } else if (phaseRef.current === 'countdown') {
+        countdownAtRef.current = null;
+        readyRef.current = null;
+        setCountdownAt(null);
+        setCurrentPhase('acquiring');
+        setNotice('Countdown beim Verlassen der Seite gestoppt. GPS erneut bestätigen.');
       }
     };
     document.addEventListener('visibilitychange', hidden);
@@ -540,6 +562,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       unmountedRef.current = true;
       phaseRef.current = 'idle';
       stopGps();
+      countdownAtRef.current = null;
       readyRef.current = null;
       activeRef.current = null;
       gpsTraceRef.current = [];
@@ -756,8 +779,10 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
         )}
       </div>
       {phase === 'countdown' && countdownAt !== null && (
-        <RaceCountdown startsAt={countdownAt} targetDistanceM={target} wakeStatus={wakeStatus}
+        <RaceCountdown key={countdownAt} startsAt={countdownAt} targetDistanceM={target} wakeStatus={wakeStatus}
           soundEnabled={soundEnabled} onDone={beginRun} onAbort={async () => {
+            if (phaseRef.current !== 'countdown' || countdownAtRef.current !== countdownAt) return;
+            countdownAtRef.current = null;
             setCountdownAt(null); setCurrentPhase('ready');
             setNotice('Solo-Countdown abgebrochen, kein Rennen gespeichert.');
           }} />
