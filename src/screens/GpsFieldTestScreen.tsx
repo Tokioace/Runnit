@@ -3,7 +3,7 @@ import { createMeasurementLifetime } from '../lib/measurementLifetime';
 import { ghostFixOrder, inspectGhostGpsFix, ghostGpsFixNotice } from '../lib/ghostGpsReadiness';
 import { Link } from 'react-router-dom';
 import { isNativeAuthRuntime } from '../lib/authRedirect';
-import { advanceLiveGpsSprint, createGpsSprint, isFreshLiveGpsFix, type GpsSample, type GpsSprintState } from '../lib/sprintGps';
+import { advanceLiveGpsSprint, createGpsSprint, isFreshLiveGpsFix, gpsGapDiagnostics, type GpsSample, type GpsSprintState } from '../lib/sprintGps';
 import {
   compareWithReferenceSeconds,
   createExperimentalRunReport,
@@ -308,6 +308,7 @@ export default function GpsFieldTestScreen() {
       observationMs: measurement ? gpsFieldObservationMs(measurement) : null,
       // Only report the interpolation bracket of a confirmed finish.
       crossingIntervalMs: measurement?.finishTimestampMs != null ? measurement.crossingIntervalMs : null,
+      ...(measurement ? gpsGapDiagnostics(measurement) : {}),
       referenceSeconds: comparison === null ? null : referenceValue,
       differenceSeconds: comparison,
       disclaimer: 'Experimental device GPS data. Not valid for leaderboards or verified races.',
