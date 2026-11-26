@@ -2031,6 +2031,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       {/* Server-synchronized countdown, never triggered before both READY. */}
       {matchOverlay && (
         <RaceCountdown
+          key={matchOverlay.duelId}
           wakeStatus={wakeStatus}
           startsAt={matchOverlay.startsAt}
           targetDistanceM={matchOverlay.targetDistanceM}
@@ -2041,15 +2042,18 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
               setMatchOverlay(null);
               setRace({ status: 'idle' });
               navigate('/login?next=%2Fmap');
-              return;
+              return false;
             }
             setMatchOverlay(null);
-            if (race.status === 'countdown') {
+            if (race.status === 'countdown' && race.duelId === matchOverlay.duelId &&
+                race.startsAt === matchOverlay.startsAt && !endedDuelIdsRef.current.has(race.duelId)) {
               // Use the exact server start timestamp rather than each phone's
               // callback timestamp for a synchronized, fair elapsed time.
               setRace({ status: 'running', duelId: race.duelId,
                 startedAt: race.startsAt, targetDistanceM: race.targetDistanceM });
+              return true;
             }
+            return false;
           }}
         />
       )}
