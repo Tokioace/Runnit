@@ -11,6 +11,7 @@ export type DuelGpsMeasurement = Readonly<{
   maxAccelMps2: number;
   usedPrestartFix: boolean;
   staleFixes: number;
+  resumeAfterMs?: number;
 }>;
 
 export function createDuelGpsMeasurement(targetM: number, startedAtMs: number, startFix: GpsSample | null): DuelGpsMeasurement {
@@ -23,6 +24,15 @@ export function createDuelGpsMeasurement(targetM: number, startedAtMs: number, s
     maxAccelMps2: 0, usedPrestartFix: false, staleFixes: 0 };
 }
 
+/** A rejected abort resumes the same race, but not the interrupted
+ * crossing or speed observation. Require new fixes after the pause. */
+export function resumeDuelGpsMeasurement(state: DuelGpsMeasurement, resumedAtMs: number): DuelGpsMeasurement {
+  if (state.sprint.finishTimestampMs !== null || !Number.isFinite(resumedAtMs)) return state;
+  return { ...state, resumeAfterMs: Math.max(resumedAtMs, state.resumeAfterMs ?? -Infinity),
+    previousSpeedMps: null, sprint: { ...state.sprint, beyondTargetCount: 0,
+      crossingTimestampMs: null, crossingIntervalMs: null } };
+}
+
 export function advanceDuelGpsMeasurement(state: DuelGpsMeasurement, sample: GpsSample, receivedAtMs: number): DuelGpsMeasurement {
   if (state.sprint.finishTimestampMs !== null) {
     return { ...state, sprint: { ...state.sprint, lastDecision: 'already-finished' } };
@@ -33,9 +43,25 @@ export function advanceDuelGpsMeasurement(state: DuelGpsMeasurement, sample: Gps
     return { ...state, staleFixes: state.staleFixes + 1,
       sprint: { ...state.sprint, rejectedSamples: state.sprint.rejectedSamples + 1, lastDecision: 'invalid-sample' } };
   }
+  if (state.resumeAfterMs !== undefined && sample.timestampMs <= state.resumeAfterMs) {
+    return { ...state, staleFixes: state.staleFixes + 1,
+      sprint: { ...state.sprint, rejectedSamples: state.sprint.rejectedSamples + 1, lastDecision: 'invalid-sample' } };
+  }
   const previous = state.sprint.lastAccepted;
   const sprint = advanceGpsSprint(state.sprint, sample);
   if (sprint.lastDecision !== 'accepted') return { ...state, sprint };
+  if (state.resumeAfterMs !== undefined) {
+    // Do not interpolate a crossing or calculate performance over the
+    // intentional observation gap. A new beyond-target fix is only a
+    // candidate, using its observed timestamp as a conservative estimate.
+    const beyond = sprint.distanceM >= sprint.targetMeters;
+    return { ...state, resumeAfterMs: undefined, previousSpeedMps: null,
+      accuracySum: state.accuracySum + sample.accuracyM,
+      sprint: { ...sprint, maxSpeedMps: state.sprint.maxSpeedMps,
+        beyondTargetCount: beyond ? 1 : 0,
+        crossingTimestampMs: beyond ? sample.timestampMs : null,
+        crossingIntervalMs: null, finishTimestampMs: null } };
+  }
   let speed = state.previousSpeedMps;
   let maxAccel = state.maxAccelMps2;
   // Keep confirmation diagnostics, but exclude the post-crossing interval from peak acceleration.
