@@ -1,4 +1,4 @@
-import { advanceGpsSprint, createGpsSprint, haversineMeters, isFreshLiveGpsFix, type GpsSample, type GpsSprintState } from './sprintGps.ts';
+import { advanceGpsSprint, createGpsSprint, haversineMeters, isFreshLiveGpsFix, hasGpsObservationGap, separateGpsCrossingAfterGap, type GpsSample, type GpsSprintState } from './sprintGps.ts';
 import { isFreshStartFix, primeGpsSprint } from './gpsField.ts';
 import type { DuelMetrics } from '../db/submitDuelResult.ts';
 import type { DuelMotionEvidence } from './duelMotionEvidence.ts';
@@ -50,19 +50,15 @@ export function advanceDuelGpsMeasurement(state: DuelGpsMeasurement, sample: Gps
   const previous = state.sprint.lastAccepted;
   const sprint = advanceGpsSprint(state.sprint, sample);
   if (sprint.lastDecision !== 'accepted') return { ...state, sprint };
-  const observationGap = previous !== null && sample.timestampMs - previous.timestampMs > 3000;
+  const observationGap = hasGpsObservationGap(previous, sample);
   if (state.resumeAfterMs !== undefined || observationGap) {
     // Do not interpolate a crossing or calculate performance over a reported
     // interruption or a silent gap between accepted observations. A new
     // beyond-target fix is only a candidate, using its observed timestamp
     // as a conservative estimate.
-    const beyond = sprint.distanceM >= sprint.targetMeters;
     return { ...state, resumeAfterMs: undefined, previousSpeedMps: null,
       accuracySum: state.accuracySum + sample.accuracyM,
-      sprint: { ...sprint, maxSpeedMps: state.sprint.maxSpeedMps,
-        beyondTargetCount: beyond ? 1 : 0,
-        crossingTimestampMs: beyond ? sample.timestampMs : null,
-        crossingIntervalMs: null, finishTimestampMs: null } };
+      sprint: separateGpsCrossingAfterGap(state.sprint, sprint) };
   }
   let speed = state.previousSpeedMps;
   let maxAccel = state.maxAccelMps2;
