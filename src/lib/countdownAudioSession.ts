@@ -1,4 +1,4 @@
-type Stop = () => void;
+type Stop = (preserveGo?: boolean) => void;
 
 /** Own a single scheduled countdown. Permission and audio resume may finish
  * after the countdown has been removed, so retire the continuation on close. */
@@ -24,12 +24,12 @@ export function createCountdownAudioSession(
       } catch { /* Audio failure must not affect a race. */ }
       finally { pending = false; }
     },
-    close() {
+    close(preserveGo = false) {
       if (closed) return;
       closed = true;
       const previous = stop;
       stop = null;
-      previous?.();
+      previous?.(preserveGo);
     },
   };
 }
