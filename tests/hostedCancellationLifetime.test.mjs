@@ -15,7 +15,8 @@ test('hosted cancellation claims synchronously before the first request and prev
 test('rejected status recovery reports an error only to the current account and releases the request lock',()=>{
   assert.match(confirm,/catch \{[\s\S]*?if \(finishAccountRef.current !== authUser.id \|\| knownNonOpenRunIdsRef.current.has\(run.id\)\) return;\s*const message = 'Rennstatus konnte nicht geprüft werden/);
   assert.match(confirm,/finally \{\s*cancelHostedPendingRef.current = false;\s*if \(finishAccountRef.current === authUser.id\) setCancellingRunId\(null\);/);
-  assert.match(confirm,/\.catch\(\(\) => \{\s*if \(hostedReadCurrent\(\)\) setHostedDuelsLoadError\(true\);/);
+  const initial=map.slice(map.indexOf('// Fetch only this authenticated host'),map.indexOf('// Mobile Safari may suspend Realtime'));
+  assert.match(initial,/\.catch\(\(\) => \{\s*if \(!hostedReadCurrent\(\)\) return;\s*setHostedDuelsLoadError\(true\);/);
 });
 
 test('expired or confirmed non-open events cannot open or submit a stale cancellation dialog',()=>{
@@ -43,8 +44,8 @@ test('older hosted snapshots cannot overwrite confirmed local creations',()=>{
   assert.match(initial,/const hostedRevision = hostedCreationRevisionRef.current;\s*const hostedReadCurrent = \(\) => active && finishAccountRef.current === authUser.id &&\s*hostedCreationRevisionRef.current === hostedRevision;/);
   assert.match(initial,/\.then\(runs => \{\s*if \(!hostedReadCurrent\(\)\) return;/);
   assert.match(initial,/\.catch\(\(\) => \{\s*if \(!hostedReadCurrent\(\)\) return;/);
-  assert.match(confirm,/const hostedRevision = hostedCreationRevisionRef.current;\s*const hostedReadCurrent = \(\) => finishAccountRef.current === authUser.id &&\s*hostedCreationRevisionRef.current === hostedRevision;/);
-  assert.match(confirm,/\.then\(runs => \{\s*if \(!hostedReadCurrent\(\)\) return;/);
+  assert.match(confirm,/requestHostedDiscoveryRef.current\?\.\(\);/);
+  assert.doesNotMatch(confirm,/listHostedOpenDuels\(/);
 });
 
 test('owned event discovery retries after visible reconnect without overlapping queued reads',()=>{
@@ -55,4 +56,12 @@ test('owned event discovery retries after visible reconnect without overlapping 
   assert.match(initial,/document.addEventListener\('visibilitychange', whenHostedVisible\);/);
   assert.match(initial,/window.addEventListener\('online', whenHostedVisible\);/);
   assert.match(initial,/active = false;\s*hostedDiscoveryQueue.close\(\);\s*document.removeEventListener\('visibilitychange', whenHostedVisible\);\s*window.removeEventListener\('online', whenHostedVisible\);/);
+});
+
+test('cancellation and reconnect use the same hosted discovery queue with lifetime cleanup',()=>{
+  const initial=map.slice(map.indexOf('// Fetch only this authenticated host'),map.indexOf('// Mobile Safari may suspend Realtime'));
+  assert.match(map,/const requestHostedDiscoveryRef = useRef<\(\(\) => void\) \| null>\(null\)/);
+  assert.match(initial,/requestHostedDiscoveryRef.current = hostedDiscoveryQueue.request;/);
+  assert.match(initial,/if \(requestHostedDiscoveryRef.current === hostedDiscoveryQueue.request\) \{\s*requestHostedDiscoveryRef.current = null;/);
+  assert.match(confirm,/else \{\s*\/\/ Share the lifecycle queue[^\n]*\n\s*\/\/[^\n]*\n\s*requestHostedDiscoveryRef.current\?\.\(\);/);
 });
