@@ -46,3 +46,13 @@ test('older hosted snapshots cannot overwrite confirmed local creations',()=>{
   assert.match(confirm,/const hostedRevision = hostedCreationRevisionRef.current;\s*const hostedReadCurrent = \(\) => finishAccountRef.current === authUser.id &&\s*hostedCreationRevisionRef.current === hostedRevision;/);
   assert.match(confirm,/\.then\(runs => \{\s*if \(!hostedReadCurrent\(\)\) return;/);
 });
+
+test('owned event discovery retries after visible reconnect without overlapping queued reads',()=>{
+  const initial=map.slice(map.indexOf('// Fetch only this authenticated host'),map.indexOf('// Mobile Safari may suspend Realtime'));
+  assert.match(initial,/const hostedDiscoveryQueue = createDuelRecoveryQueue\(async \(\) => \{\s*const hostedRevision = hostedCreationRevisionRef.current;/);
+  assert.match(initial,/await listHostedOpenDuels\(supabase, authUser.id\)/);
+  assert.match(initial,/const whenHostedVisible = \(\) => \{\s*if \(document.visibilityState === 'visible'\) hostedDiscoveryQueue.request\(\);\s*\};\s*hostedDiscoveryQueue.request\(\);/);
+  assert.match(initial,/document.addEventListener\('visibilitychange', whenHostedVisible\);/);
+  assert.match(initial,/window.addEventListener\('online', whenHostedVisible\);/);
+  assert.match(initial,/active = false;\s*hostedDiscoveryQueue.close\(\);\s*document.removeEventListener\('visibilitychange', whenHostedVisible\);\s*window.removeEventListener\('online', whenHostedVisible\);/);
+});
