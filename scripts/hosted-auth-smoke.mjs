@@ -18,7 +18,7 @@ export function readConfig(env){
  requireThat(accounts[0].id!==accounts[1].id&&accounts[0].email.toLowerCase()!==accounts[1].email.toLowerCase(),'Distinct accounts required');
  return {url:'https://'+ref+'.supabase.co',key,accounts};
 }
-export async function runAuthSmoke(config,request=fetch){
+export async function runAuthSmoke(config,request=fetch,now=Date.now){
  const {url,key,accounts}=config;
  requireThat(/^https:\/\/[a-z]{20}\.supabase\.co$/.test(url)&&!url.includes(PROD),'Non-production URL required');
  requireThat(/^sb_publishable_[A-Za-z0-9_-]{16,128}$/.test(key),'Publishable key required');
@@ -45,7 +45,12 @@ export async function runAuthSmoke(config,request=fetch){
   live.set(claims.session_id,token);
   requireThat(data.user?.id===account.id&&data.user?.email?.toLowerCase()===account.email.toLowerCase()&&data.user?.is_anonymous!==true,'Unexpected test identity');
   requireThat(typeof data.refresh_token==='string'&&data.refresh_token.length>0,'Missing refresh token');
-  return {token,refresh:data.refresh_token,id:claims.session_id};
+  requireThat(Number.isSafeInteger(claims.exp),'Missing or invalid access token expiry');
+  return {token,refresh:data.refresh_token,id:claims.session_id,exp:claims.exp};
+ }
+ function requireUnexpired(current){
+  // Keep a clock-skew margin and test on both sides of the HTTP requests.
+  requireThat(current.exp*1000-now()>=30000,'Access token expiry too close to prove revocation');
  }
  async function login(account){
   return session(await json(await call('/auth/v1/token?grant_type=password',{method:'POST',body:{email:account.email,password:account.password}}),'Password sign-in'),account);
@@ -125,12 +130,22 @@ export async function runAuthSmoke(config,request=fetch){
   await denied(prefs+b.id,tokenA);
   await denied(prefs+a.id,tokenB);
   await denied(prefs+a.id,undefined);
+  // Both token generations must actually be usable immediately before logout.
+  // Otherwise an already-invalid token could give a false revocation result.
+  for(const current of [first,refreshed]){
+   requireUnexpired(current);
+   own(await rows('runner_stats_preferences',current.token,'user_id=eq.'+a.id),a.id,'user_id');
+   own(await rows('users',current.token,'id=eq.'+a.id),a.id,'id');
+   requireUnexpired(current);
+  }
   await logout(refreshed);
   // Test both access token generations and the last refresh credential after logout.
   // Do not reuse a rotated token on a live session: Supabase allows a reuse window.
-  for(const token of new Set([first.token,refreshed.token])){
-   await denied(prefs+a.id,token);
-   await denied('/rest/v1/users?select=id&id=eq.'+a.id,token);
+  for(const current of [first,refreshed]){
+   requireUnexpired(current);
+   await denied(prefs+a.id,current.token);
+   await denied('/rest/v1/users?select=id&id=eq.'+a.id,current.token);
+   requireUnexpired(current);
   }
   await rejectedRefresh(refreshed,a);
   own(await rows('runner_stats_preferences',tokenA2,'user_id=eq.'+a.id),a.id,'user_id');
@@ -140,7 +155,7 @@ export async function runAuthSmoke(config,request=fetch){
   await logout(secondRefreshed);await logout(peer);
   report={passwordSignIn:true,privateOwnRows:true,crossAccountDenied:true,guestDenied:true,
    publicNicknameReadable:true,privateProfileColumnsDenied:true,guestProfileDenied:true,
-   revokedBearerDenied:true,independentSessionRetained:true,localLogout:true,
+   revokedBearerDenied:true,revocationBeforeTokenExpiry:true,independentSessionRetained:true,localLogout:true,
    refreshRotation:true,revokedRefreshDenied:true,independentRefreshRetained:true};
  }finally{
   // Attempt cleanup of only sessions created by this run, including failed runs.
