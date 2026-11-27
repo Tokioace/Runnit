@@ -1783,10 +1783,14 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         setRaceNotice(message);
         // A zero-row update can mean the opponent already joined. Query the
         // authoritative row, close the stale cancel dialog and recover its match.
-        const { data: latest } = await supabase.from('duels')
+        const { data: latest, error: readbackError } = await supabase.from('duels')
           .select('id, status, host_user_id, challenger_user_id, target_distance_m, host_ready, challenger_ready, start_at')
-          .eq('id', run.id).maybeSingle();
+          .eq('id', run.id).eq('host_user_id', authUser.id).maybeSingle();
         if (finishAccountRef.current !== authUser.id) return;
+        if (readbackError) throw readbackError;
+        if (latest && (latest.id !== run.id || latest.host_user_id !== authUser.id)) {
+          throw new Error('Rennstatus nicht für dieses Event bestätigt.');
+        }
         if (latest?.status === 'matched') {
           applyMatchedDuel(latest);
           setCancelError(null);
@@ -1798,7 +1802,10 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
           setOpenRuns(previous => previous.filter(item => item.id !== run.id));
           setCancelConfirmation(null);
           setCancelError(null);
-          setRaceNotice('Dieses Rennen ist nicht mehr offen und wurde von der Karte entfernt.');
+          // A readback can confirm cancellation after the write response was lost.
+          setRaceNotice(latest.status === 'cancelled'
+            ? 'Dein Rennen ist laut Server abgesagt.'
+            : 'Dieses Rennen ist nicht mehr offen und wurde von der Karte entfernt.');
         } else {
           void listHostedOpenDuels(supabase, authUser.id)
             .then(runs => {
