@@ -1567,7 +1567,10 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
 
           setOpenRuns((prev) => {
             const copy = [...prev];
-            if (payload.eventType === 'DELETE' || (payload.eventType === 'UPDATE' && row.status !== 'open')) {
+            // INSERT can also carry a non-open row, and a queued open
+            // update may execute after a later message has retired its ID.
+            if (payload.eventType === 'DELETE' || row.status !== 'open' ||
+                knownNonOpenRunIdsRef.current.has(row.id)) {
               return copy.filter((r) => r.id !== row.id);
             }
             // INSERT or UPDATE open; cron or client may deliver an expired
