@@ -50,7 +50,7 @@ export function ghostSummary(state: GpsSprintState, steps: number, imu: number, 
     target_distance_m: state.targetMeters,
     run_state: completed ? 'finished' : 'stopped',
     elapsed_ms: completed
-      ? Math.max(1, (state.finishTimestampMs as number) - state.startedAtMs)
+      ? Math.max(1, Math.round((state.finishTimestampMs as number) - state.startedAtMs))
       : null,
     observed_distance_m: safeNumber(state.distanceM),
     steps_count: Math.max(0, Math.floor(steps)),
