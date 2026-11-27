@@ -43,3 +43,24 @@ test('history initializes signed-in accounts as loading and guards staged reads'
  assert.ok(s.includes('if (!active) return;\n        for (let i'));
  assert.ok(s.includes('active = false;'));
 });
+
+test('history distinguishes valid empty server lists from absent or malformed responses',()=>{
+ const s=readFileSync(new URL('../src/hooks/useRunnerHistory.ts',import.meta.url),'utf8');
+ const first=s.match(/if \(!Array.isArray\(ownResultResponse.data\) \|\| !Array.isArray\(ghostResponse.data\)\) \{\s*throw new Error\('Invalid history response'\);\s*\}/);
+ assert.ok(first);
+ const initial=new Function('ownResultResponse','ghostResponse',first[0]+'return true;');
+ assert.equal(initial({data:[]},{data:[]}),true);
+ for(const invalid of [null,undefined,{},'bad',42]){
+  assert.throws(()=>initial({data:invalid},{data:[]}),/Invalid history response/);
+  assert.throws(()=>initial({data:[]},{data:invalid}),/Invalid history response/);
+ }
+ for(const stage of ['duel','paired','archived']){
+  const guard=s.match(new RegExp("if \\(!Array\\.isArray\\(response\\.data\\)\\) throw new Error\\('Invalid "+stage+" history response'\\);"));
+  assert.ok(guard,stage);
+  const check=new Function('response',guard[0]+'return true;');
+  assert.equal(check({data:[]}),true);
+  for(const invalid of [null,undefined,{},'bad',42]) assert.throws(()=>check({data:invalid}),/Invalid .* history response/);
+ }
+ assert.doesNotMatch(s,/Response\.data \?\? \[\]|response\.data \?\? \[\]/);
+ assert.match(s,/catch \{\s*if \(active\) setState\(\{[\s\S]*?error: 'Deine gespeicherten Ergebnisse konnten nicht geladen werden/);
+});
