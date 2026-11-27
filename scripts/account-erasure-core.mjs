@@ -27,7 +27,7 @@ async function counts(client, userId) {
   if (duels.error || !Number.isSafeInteger(duels.count) || duels.count < 0) throw new Error('Cannot verify duels');
   return Object.fromEntries([...list,['duels',duels.count]]);
 }
-export async function processTestErasure(client, {url,ref,userId,syntheticOnly,expectedEmail,execute=false,confirmation=''}) {
+export async function processTestErasure(client, {url,ref,userId,syntheticOnly,expectedEmail,execute=false,confirmation='',sessionProbe}) {
   validateTestTarget(url,ref,userId);
   if (syntheticOnly !== 'synthetic-only' || typeof expectedEmail !== 'string' ||
       !/^runnit-test-[a-z0-9._+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(expectedEmail))
@@ -56,6 +56,8 @@ export async function processTestErasure(client, {url,ref,userId,syntheticOnly,e
   // request and archive schema before even a synthetic deletion is allowed.
   const gate = assertResult(await client.rpc('runnit_test_erasure_gate'),'Erasure schema not verified');
   if (gate !== true) throw new Error('Erasure schema not ready');
+  if (execute && (!sessionProbe || typeof sessionProbe.before!=='function' || typeof sessionProbe.after!=='function')) throw new Error('Stale-session probe required before deletion');
+  if (sessionProbe) await sessionProbe.before();
   if (!execute) return {status:'dry-run',counts:before};
   const deleted = await client.auth.admin.deleteUser(userId,false);
   if (deleted.error) throw new Error('Auth deletion not confirmed; inspect request before retrying');
@@ -63,5 +65,6 @@ export async function processTestErasure(client, {url,ref,userId,syntheticOnly,e
   if (!afterAuth.error || afterAuth.error.status !== 404) throw new Error('Auth absence not verified');
   const after = await counts(client,userId);
   if (Object.values(after).some(n=>n!==0)) throw new Error('Residual data detected; do not confirm completion');
-  return {status:'verified-test-erasure',counts:after,notificationRequired:true};
+  await sessionProbe.after();
+  return {status:'verified-test-erasure',counts:after,notificationRequired:true,controlDuelSessionDenied:true};
 }
