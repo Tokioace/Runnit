@@ -846,6 +846,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   const activeDuelIdRef = useRef<string | null>(initialActiveDuelId);
   const unconfirmedRecoveryHintRef = useRef<string | null>(initialActiveDuelId);
   const recoveryRevisionRef = useRef(0);
+  const requestMatchRecoveryRef = useRef<(() => void) | null>(null);
   // Ignore late Realtime/poll responses for duels confirmed as terminated.
   const endedDuelIdsRef = useRef<Set<string>>(new Set());
   // Open events never return to open after a confirmed non-open transition.
@@ -1475,6 +1476,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         applyMatchedDuel(latest);
       }
     });
+    requestMatchRecoveryRef.current = queue.request;
     const whenVisible = () => {
       if (document.visibilityState === 'visible') {
         queue.request();
@@ -1493,6 +1495,9 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       document.removeEventListener('visibilitychange', whenVisible);
       window.removeEventListener('focus', whenVisible);
       window.removeEventListener('online', whenVisible);
+      if (requestMatchRecoveryRef.current === queue.request) {
+        requestMatchRecoveryRef.current = null;
+      }
     };
   }, [authUser?.id, applyMatchedDuel, clearAbortedDuel, showCompletedDuel]);
 
@@ -2067,6 +2072,9 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         setDiscoveryRefreshTick(tick => tick + 1);
         setRaceNotice('Beitritt nicht bestätigt. Bitte überprüfe die Verbindung und den Rennstatus.');
       }
+      // A lost join acknowledgement (or an unavailable retry) can hide a
+      // committed match. Reuse the existing serialized recovery, not the RPC.
+      if (kind !== 'permission') requestMatchRecoveryRef.current?.();
     } finally {
       joiningRunRef.current = null;
     }
