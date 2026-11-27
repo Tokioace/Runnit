@@ -80,3 +80,24 @@ test('personal history rejects duplicate, foreign and invalid row identities',()
  assert.match(s,/if \(!hasUniqueOwnedHistoryRows\(ownResultResponse.data, 'duel_id', userId!\) \|\|\s*!hasUniqueOwnedHistoryRows\(ghostResponse.data, 'id', userId!\)\) \{\s*throw new Error\('Contradictory personal history response'\);/);
  assert.ok(s.indexOf('if (!hasUniqueOwnedHistoryRows')<s.indexOf('const ids ='));
 });
+
+test('visible online recovery refreshes history and removes its listener on retirement',()=>{
+ const s=readFileSync(new URL('../src/hooks/useRunnerHistory.ts',import.meta.url),'utf8');
+ const block=s.slice(s.indexOf('const onFocus ='),s.indexOf('// Calendar boundaries'));
+ assert.match(block,/window.addEventListener\('online', onFocus\)/);
+ assert.match(block,/active = false;[\s\S]*?window.removeEventListener\('online', onFocus\)/);
+ const handler=block.match(/const onFocus = (\(\) => \{[^\n]+\});/);
+ assert.ok(handler);
+ let refreshes=0;
+ const doc={visibilityState:'visible'};
+ const onFocus=new Function('document','refresh','return '+handler[1])(doc,()=>refreshes++);
+ onFocus();
+ assert.equal(refreshes,1);
+ doc.visibilityState='hidden';
+ onFocus();
+ assert.equal(refreshes,1);
+ doc.visibilityState='visible';
+ onFocus();
+ assert.equal(refreshes,2);
+ assert.doesNotMatch(block,/setInterval/);
+});
