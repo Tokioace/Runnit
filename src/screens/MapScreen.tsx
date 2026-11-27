@@ -1449,7 +1449,9 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       if (data && (!activeBeforeRecovery || data.id === activeBeforeRecovery) &&
           !endedDuelIdsRef.current.has(data.id) && !completedDuelIdsRef.current.has(data.id)) {
         applyMatchedDuel(data);
-        return;
+        // An accepted transition advances the revision. A rejected candidate
+        // must not prevent the exact active-duel status check below.
+        if (!current()) return;
       }
       // A different match must not hide the current race or unread result.
       // Check the original duel's status even when a newer match exists.
