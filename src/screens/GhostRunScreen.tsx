@@ -119,9 +119,25 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     const isLive = () => measurementAccountCurrent(isScreenLive, assertAccount);
     await savedRunsRead.current.run(isLive, async () => {
       const { data, error } = await supabase.from('ghost_run_sessions')
-        .select('id,created_at,target_distance_m,run_state,elapsed_ms,steps_count,observed_distance_m')
+        .select('id,user_id,created_at,target_distance_m,run_state,elapsed_ms,steps_count,observed_distance_m')
         .eq('user_id', user.id).order('created_at', { ascending: false }).limit(6);
       if (error || !Array.isArray(data)) return null;
+      // Do not replace the last valid history with a contradictory snapshot.
+      const seen = new Set<string>();
+      for (const row of data) {
+        if (!row || row.user_id !== user.id ||
+            typeof row.id !== 'string' || !row.id.trim() || seen.has(row.id) ||
+            typeof row.created_at !== 'string' || !Number.isFinite(Date.parse(row.created_at)) ||
+            ![50, 75, 100].includes(row.target_distance_m) ||
+            (row.run_state !== 'finished' && row.run_state !== 'stopped') ||
+            (row.run_state === 'finished'
+              ? !Number.isInteger(row.elapsed_ms) || row.elapsed_ms <= 0 || row.elapsed_ms > 3600000
+              : row.elapsed_ms !== null) ||
+            !Number.isInteger(row.steps_count) || row.steps_count < 0 || row.steps_count > 100000 ||
+            !Number.isFinite(row.observed_distance_m) || row.observed_distance_m < 0 ||
+            row.observed_distance_m >= 10000) return null;
+        seen.add(row.id);
+      }
       return data as SavedRun[];
     }, setSavedRuns);
   }, [user?.id, beginAccountMutation]);
