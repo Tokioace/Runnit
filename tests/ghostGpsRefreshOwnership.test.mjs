@@ -25,5 +25,8 @@ test('countdown GPS callback requires exact active countdown and abort restores 
  assert.match(source,/pos => \{ if \(stillCounting\(\)\) onGps\(pos\); \}/);
  const a=source.indexOf('onAbort={async () => {',source.indexOf('<RaceCountdown')),b=source.indexOf('}} />',a);
  assert.ok(a>=0&&b>a);
- assert.match(source.slice(a,b),/const fresh = isFreshStartFix\(readyRef.current, Date.now\(\)\);\s*if \(!fresh\) readyRef.current = null;\s*setCurrentPhase\(fresh \? 'ready' : 'acquiring'\);/);
+ const abort=source.slice(a,b);
+ assert.match(abort,/const atMs = Date.now\(\);\s*const anchor = readyRef.current;\s*const fresh = isFreshStartFix\(anchor, atMs\);\s*setNow\(atMs\);/);
+ assert.match(abort,/if \(!fresh\) \{[\s\S]*?if \(anchor !== null\) setFixIssue\(inspectGhostGpsFix\(anchor, atMs\).issue\);\s*readyRef.current = null;\s*\}\s*setCurrentPhase\(fresh \? 'ready' : 'acquiring'\);/);
+ assert.doesNotMatch(abort,/setFixIssue\('missing'\)/);
 });
