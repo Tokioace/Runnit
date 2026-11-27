@@ -99,8 +99,8 @@ jobs:
           PY
           docker cp /tmp/runnit-preflight-ci.sql "$DB_CONTAINER:/tmp/db/release-candidates/release_preflight_ci.sql"
           python3 scripts/build-release-rehearsal.py --output "$RUNNER_TEMP/release_bundle"
-          python3 scripts/build-release-rehearsal.py --output "$RUNNER_TEMP/release_bundle_repeat"
-          diff -r "$RUNNER_TEMP/release_bundle" "$RUNNER_TEMP/release_bundle_repeat"
+          python3 scripts/test_release_rehearsal.py
+          python3 scripts/build-release-rehearsal.py --verify "$RUNNER_TEMP/release_bundle"
           docker cp "$RUNNER_TEMP/release_bundle" "$DB_CONTAINER:/tmp/db/release-candidates/release_bundle"
           docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_schema_test -v ON_ERROR_STOP=1 -f /tmp/db/release-candidates/test_fresh_schema.sql
       - name: Complete actual-schema race and rehearse account erasure

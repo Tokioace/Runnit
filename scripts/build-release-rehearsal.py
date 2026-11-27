@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import tempfile
 
 ORDER = (
     "duel_result_guard.sql", "beta_ranking_guard.sql",
@@ -73,9 +74,32 @@ $runnit_bundle_preflight$;
                 "input_sha256": inputs, "output_sha256": outputs}
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
+def verify(source, bundle):
+    """Rebuild from reviewed source and compare every artifact, not just its manifest."""
+    expected_names = {"manifest.json", "rehearse-install.sql", "rehearse-rollback.sql"}
+    if bundle.is_symlink() or not bundle.is_dir():
+        raise ValueError("Expected a regular rehearsal bundle directory")
+    if {item.name for item in bundle.iterdir()} != expected_names:
+        raise ValueError("Unexpected or missing rehearsal bundle files")
+    with tempfile.TemporaryDirectory() as tmp:
+        expected = Path(tmp) / "expected"
+        generate(source, expected)
+        for name in sorted(expected_names):
+            actual = bundle / name
+            if actual.is_symlink() or not actual.is_file():
+                raise ValueError("Invalid rehearsal bundle file: " + name)
+            if actual.read_bytes() != (expected / name).read_bytes():
+                raise ValueError("Rehearsal bundle differs from reviewed source: " + name)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=Path, default=Path("db/release-candidates"))
-    parser.add_argument("--output", type=Path, required=True)
+    operation = parser.add_mutually_exclusive_group(required=True)
+    operation.add_argument("--output", type=Path)
+    operation.add_argument("--verify", type=Path)
     args = parser.parse_args()
-    generate(args.source, args.output)
+    if args.verify is not None:
+        verify(args.source, args.verify)
+        print("Disposable rehearsal bundle matches reviewed source")
+    else:
+        generate(args.source, args.output)
