@@ -88,3 +88,15 @@ test('observation gaps and stop reasons remain visible without excluding any att
  assert.equal(group.meanAbsoluteErrorSeconds,2);
  assert.equal(group.unconfirmedFinishRate,.4);
 });
+
+
+test('clock-interrupted trials remain unsuccessful attempted runs',()=>{
+ const trials=plan();
+ attach(trials[0],{...finished(50),finished:false,stopReason:'clock-change',durationSeconds:null,referenceSeconds:null,differenceSeconds:null,finishTimingMethod:null,crossingIntervalMs:null});
+ const group=summarizeFieldTrials(trials).distances[0];
+ assert.equal(group.attempted,1);
+ assert.equal(group.unfinished,1);
+ assert.equal(group.stopReasons['clock-change'],1);
+ assert.equal(group.unconfirmedFinishRate,1);
+ assert.equal(group.compared,0);
+});
