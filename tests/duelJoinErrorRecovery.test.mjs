@@ -53,3 +53,14 @@ test('only an unavailable join rejection retires all discovery markers without r
  const other=join.slice(join.indexOf("} else if (kind === 'permission')"));
  assert.doesNotMatch(other,/knownNonOpenRunIdsRef.current.add|setRegionalRuns|setOpenRuns|setHostedOpenDuels/);
 });
+
+test('ambiguous or unavailable join rejection requests immediate serialized match recovery',()=>{
+ const map=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'utf8');
+ const join=map.slice(map.indexOf('const handleJoinRun ='),map.indexOf('// Both views use the exact same secure callbacks'));
+ const recovery=map.slice(map.indexOf('// Mobile Safari may suspend Realtime'),map.indexOf('// No Realtime subscription'));
+ assert.match(map,/const requestMatchRecoveryRef = useRef<\(\(\) => void\) \| null>\(null\)/);
+ assert.match(recovery,/requestMatchRecoveryRef.current = queue.request;/);
+ assert.match(recovery,/if \(requestMatchRecoveryRef.current === queue.request\) \{\s*requestMatchRecoveryRef.current = null;/);
+ assert.match(join,/if \(kind !== 'permission'\) requestMatchRecoveryRef.current\?\.\(\);\s*\} finally \{\s*joiningRunRef.current = null;/);
+ assert.equal((join.match(/await joinDuel\(/g)??[]).length,1);
+});
