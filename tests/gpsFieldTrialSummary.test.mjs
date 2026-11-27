@@ -66,3 +66,25 @@ test('rejects IDs outside documented trial slots',()=>{
   assert.throws(()=>summarizeFieldTrials(trials),/trial slot/);
  }
 });
+
+
+test('observation gaps and stop reasons remain visible without excluding any attempted trial',()=>{
+ const trials=plan();
+ attach(trials[0],finished(50,10,9));
+ attach(trials[1],{...finished(50,12,9),finishTimingMethod:'observed-after-gap',crossingIntervalMs:null,gpsObservationGapCount:1,gpsLongestObservationGapMs:4000});
+ attach(trials[2],{...finished(50,11,9),gpsObservationGapCount:1,gpsLongestObservationGapMs:3500});
+ attach(trials[3],{...finished(50),finished:false,stopReason:'timeout',durationSeconds:null,referenceSeconds:null,differenceSeconds:null,finishTimingMethod:null,crossingIntervalMs:null,gpsObservationGapCount:1,gpsLongestObservationGapMs:5000});
+ trials[4].outcome='failed-no-export';
+ const group=summarizeFieldTrials(trials).distances[0];
+ assert.equal(group.attempted,5);
+ assert.equal(group.withObservationGap,3);
+ assert.equal(group.interpolated,2);
+ assert.equal(group.observedAfterGap,1);
+ assert.deepEqual(group.stopReasons,{finish:3,timeout:1});
+ assert.equal(group.withObservationGapErrors.compared,2);
+ assert.equal(group.withObservationGapErrors.meanAbsoluteErrorSeconds,2.5);
+ assert.equal(group.withoutObservationGapErrors.compared,1);
+ assert.equal(group.withoutObservationGapErrors.meanAbsoluteErrorSeconds,1);
+ assert.equal(group.meanAbsoluteErrorSeconds,2);
+ assert.equal(group.unconfirmedFinishRate,.4);
+});
