@@ -20,7 +20,7 @@ REQUIRED = ("RunnitBridgeViewController()", "registerPluginInstance(RunnitSessio
             "registerPluginInstance(RunnitSensorProbe())", "struct RunnitSprintEstimator",
             "struct RunnitMotionCapture")
 
-def validate_bundled_assets(web: Path, bundled: Path):
+def validate_bundled_assets(web: Path, bundled: Path, *, exact: bool = False):
     """Every original web asset must be copied byte-for-byte into the native app."""
     assert web.is_dir() and not web.is_symlink(), "missing or linked web asset directory"
     assert bundled.is_dir() and not bundled.is_symlink(), "missing or linked bundled asset directory"
@@ -34,7 +34,11 @@ def validate_bundled_assets(web: Path, bundled: Path):
         destination = bundled / relative
         assert destination.is_file(), "missing bundled asset: " + str(relative)
         assert hashlib.sha256(source.read_bytes()).digest() == hashlib.sha256(destination.read_bytes()).digest(), "bundled asset mismatch: " + str(relative)
-    # Capacitor may add its own generated support files to the bundle.
+    if exact:
+        expected = {p.relative_to(web) for p in web.rglob("*") if p.is_file()}
+        actual = {p.relative_to(bundled) for p in bundled.rglob("*") if p.is_file()}
+        assert actual == expected, "unexpected compiled bundled asset"
+    # During preparation Capacitor may add its own generated support files.
 
 def read_config(path: Path):
     assert path.is_file() and not path.is_symlink(), "missing or linked Capacitor config"
@@ -144,6 +148,10 @@ def validate_compiled_app(web: Path, app: Path, source_config: Path, generated_c
     binary = app / executable
     assert binary.is_file() and not binary.is_symlink() and binary.stat().st_size > 0, "compiled executable missing"
     validate_bundled_assets(web, app / "public")
+    # Compare against the prepared native public tree, including generated scripts.
+    prepared_public = generated_config.parent / "public"
+    validate_bundled_assets(web, prepared_public)
+    validate_bundled_assets(prepared_public, app / "public", exact=True)
     validate_compiled_config(source_config, generated_config, app / "capacitor.config.json")
     validate_preview_privacy(source_config.parent / PRIVACY_NAME, app / PRIVACY_NAME)
 

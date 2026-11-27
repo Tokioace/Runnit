@@ -82,7 +82,13 @@ class CompiledAppTest(unittest.TestCase):
         self.privacy_source.write_bytes((Path(__file__).resolve().parents[1] / verifier.PRIVACY_NAME).read_bytes())
         (self.app / verifier.PRIVACY_NAME).write_bytes(self.privacy_source.read_bytes())
         self.source_config = root / "capacitor.config.json"
-        self.generated_config = root / "generated.json"
+        self.generated_config = root / "generated" / "capacitor.config.json"
+        self.prepared_public = self.generated_config.parent / "public"
+        self.prepared_public.mkdir(parents=True)
+        for folder in (self.prepared_public, self.app / "public"):
+            (folder / "index.html").write_bytes(b"html")
+            (folder / "app.js").write_bytes(b"script")
+            (folder / "cordova.js").write_bytes(b"generated support")
         self.compiled_config = self.app / "capacitor.config.json"
         self.config = {"appId": "com.tokioace.runnit.preview", "webDir": "www",
                        "server": {"hostname": "localhost", "iosScheme": "capacitor"},
@@ -134,6 +140,27 @@ class CompiledAppTest(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, "bundled asset mismatch"):
             self.verify()
 
+
+
+    def test_missing_generated_support_file_in_compiled_app(self):
+        (self.app / "public/cordova.js").unlink()
+        with self.assertRaisesRegex(AssertionError, "missing bundled asset"):
+            self.verify()
+
+    def test_modified_generated_support_file_in_compiled_app(self):
+        (self.app / "public/cordova.js").write_bytes(b"modified")
+        with self.assertRaisesRegex(AssertionError, "bundled asset mismatch"):
+            self.verify()
+
+    def test_unexpected_compiled_script_fails(self):
+        (self.app / "public/unexpected.js").write_bytes(b"unexpected")
+        with self.assertRaisesRegex(AssertionError, "unexpected compiled bundled asset"):
+            self.verify()
+
+    def test_prepared_asset_must_match_web_source(self):
+        (self.prepared_public / "app.js").write_bytes(b"modified")
+        with self.assertRaisesRegex(AssertionError, "bundled asset mismatch"):
+            self.verify()
 
     def test_remote_url_in_generated_config(self):
         self.generated_config.write_text(json.dumps({**self.config, "server": {"url": "https://example.invalid"}}))
