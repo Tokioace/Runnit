@@ -46,7 +46,7 @@ export function summarizeFieldTrials(trials) {
   for (const trial of trials) {
     requireThat(trial && typeof trial === 'object' &&
       Object.keys(trial).every(k => ['id','distanceMeters','outcome','report'].includes(k)) &&
-      /^T[0-9]{2}$/.test(trial.id) && !seen.has(trial.id), 'Invalid or repeated trial slot');
+      typeof trial.id === 'string' && /^T[0-9]{2}$/.test(trial.id) && !seen.has(trial.id), 'Invalid or repeated trial slot');
     seen.add(trial.id);
     const group = groups.find(g => g.distance === trial.distanceMeters);
     requireThat(group, 'Invalid trial distance');
@@ -73,7 +73,7 @@ export function summarizeFieldTrials(trials) {
     acceptance:'not-assessed',
     distances:groups.map(({errors,...g}) => ({
       ...g, compared:errors.length,
-      finishFailureRate:g.attempted ? (g.noExport+g.unfinished)/g.attempted : null,
+      unconfirmedFinishRate:g.attempted ? (g.noExport+g.unfinished)/g.attempted : null,
       unevaluableRate:g.attempted ? (g.attempted-errors.length)/g.attempted : null,
       meanSignedErrorSeconds:errors.length ? errors.reduce((a,b)=>a+b,0)/errors.length : null,
       meanAbsoluteErrorSeconds:errors.length ? errors.reduce((a,b)=>a+Math.abs(b),0)/errors.length : null,
