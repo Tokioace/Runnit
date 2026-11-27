@@ -26,20 +26,30 @@ export function previewEnvironment(env){
   throw Error('Only a Supabase publishable key is allowed');
  return {...flags,VITE_SUPABASE_URL:'https://'+ref+'.supabase.co',VITE_SUPABASE_ANON_KEY:key};
 }
+function isApprovedTestConfig(config){
+ return typeof config?.VITE_SUPABASE_URL==='string'&&
+  /^https:\/\/[a-z]{20}\.supabase\.co$/.test(config.VITE_SUPABASE_URL)&&
+  config.VITE_SUPABASE_URL!=='https://'+PRODUCTION_REF+'.supabase.co'&&
+  typeof config.VITE_SUPABASE_ANON_KEY==='string'&&
+  /^sb_publishable_[A-Za-z0-9_-]{16,128}$/.test(config.VITE_SUPABASE_ANON_KEY);
+}
 export async function checkTestBackend(config,request=fetch){
+ if(!isApprovedTestConfig(config))throw Error('Invalid test backend configuration');
  // Read-only Auth settings endpoint; this validates API reachability, not RLS
  // or whether the operator actually populated the approved project safely.
  let response;
  try{
   response=await request(config.VITE_SUPABASE_URL+'/auth/v1/settings',{
    method:'GET',headers:{apikey:config.VITE_SUPABASE_ANON_KEY},
-   redirect:'error',signal:AbortSignal.timeout(10000)
+   redirect:'error',cache:'no-store',signal:AbortSignal.timeout(10000)
   });
  }catch{throw Error('Test backend unreachable');}
  if(!response.ok)throw Error('Test backend rejected public credential');
 }
 // Inspect the actual build output, not only the environment supplied to Vite.
 export function verifyPreviewBundle(directory,config){
+ const offline=config?.VITE_SUPABASE_URL==='https://runnit-preview.invalid'&&config?.VITE_SUPABASE_ANON_KEY==='preview-not-a-real-key';
+ if(!offline&&!isApprovedTestConfig(config))throw Error('Invalid preview backend configuration');
  const root=lstatSync(directory);
  if(!root.isDirectory()||root.isSymbolicLink())throw Error('Invalid preview output directory');
  if(!lstatSync(join(directory,'index.html')).isFile())throw Error('Missing preview entry');
@@ -52,6 +62,13 @@ export function verifyPreviewBundle(directory,config){
    if(!entry.isFile())throw Error('Invalid preview asset');
    const bytes=readFileSync(file);
    if(bytes.includes(PRODUCTION_REF))throw Error('Production project reference found in preview');
+   // Expected configuration alone is not enough: another embedded project
+   // URL or private credential can coexist with it in a stale/mixed build.
+   const content=bytes.toString('utf8');
+   for(const match of content.matchAll(/https?:\/\/[a-z0-9]{20}\.supabase\.co\b/gi)){
+    if(match[0]!==config.VITE_SUPABASE_URL)throw Error('Unexpected Supabase project URL in preview');
+   }
+   if(/\bsb_secret_[A-Za-z0-9_-]{16,}\b/.test(content))throw Error('Private Supabase key found in preview');
    if(/\.(?:js|mjs)$/.test(entry.name)){
     hasUrl ||= bytes.includes(config.VITE_SUPABASE_URL);
     hasKey ||= bytes.includes(config.VITE_SUPABASE_ANON_KEY);

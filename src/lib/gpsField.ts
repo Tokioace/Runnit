@@ -83,7 +83,7 @@ export function compareWithReferenceSeconds(
 
 /** Explicit local field-test outcomes, never a ranking or verification flag. */
 export type GpsFieldStopReason = 'finish' | 'manual' | 'background' | 'pagehide' |
-  'permission-denied' | 'position-unavailable' | 'timeout' | 'gps-error' | 'duration-limit';
+  'permission-denied' | 'position-unavailable' | 'timeout' | 'gps-error' | 'duration-limit' | 'clock-change';
 
 export function gpsFieldErrorReason(code: number): GpsFieldStopReason {
   return code === 1 ? 'permission-denied' : code === 2 ? 'position-unavailable' :
@@ -112,4 +112,16 @@ export function ownsGpsFieldReport(
 ): boolean {
   return rendered !== null && rendered === current && renderedPhase === currentPhase &&
     (currentPhase === 'finished' || currentPhase === 'stopped');
+}
+
+
+/** Wall time is needed for GPS timestamps; monotonic time independently
+ * detects clock corrections that would invalidate a field-trial duration. */
+export function gpsFieldClockChanged(
+  startedWallMs: number, startedMonotonicMs: number, nowWallMs: number, nowMonotonicMs: number,
+): boolean {
+  if (![startedWallMs, startedMonotonicMs, nowWallMs, nowMonotonicMs].every(Number.isFinite)) return true;
+  const wall = nowWallMs - startedWallMs;
+  const monotonic = nowMonotonicMs - startedMonotonicMs;
+  return wall < 0 || monotonic < 0 || Math.abs(wall - monotonic) > 1000;
 }
