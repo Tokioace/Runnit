@@ -2010,6 +2010,11 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       if (!data || data.id !== matchedDuel.id || data.status !== 'matched') {
         throw new Error('Der Server hat den Bereitschaftsstatus nicht bestätigt.');
       }
+      if (data.host_user_id !== matchedDuel.hostUserId ||
+          data.challenger_user_id !== matchedDuel.challengerUserId ||
+          (authUser.id === matchedDuel.hostUserId ? data.host_ready !== true : data.challenger_ready !== true)) {
+        throw new Error('Der Server hat die eigene Bereitschaft nicht eindeutig bestätigt.');
+      }
       applyMatchedDuel(data);
     } catch {
       if (stillCurrent()) setReadyError({ duelId: matchedDuel.id,
