@@ -85,6 +85,15 @@ export async function runAuthSmoke(config,request=fetch){
   const data=await json(response,'Denied read');
   requireThat(Array.isArray(data)&&data.length===0,'Protected data visible');
  }
+ // Column-level access is a different boundary from row-level isolation.
+ // A 200 with [] is not evidence that a restricted column grant is absent.
+ async function deniedProfileColumn(column,id,token){
+  const response=await call('/rest/v1/users?select='+column+'&id=eq.'+id,{token});
+  requireThat(response.status===403&&!response.ok,'Restricted profile column not explicitly denied');
+  let error;
+  try{error=await response.json();}catch{throw Error('Invalid profile permission rejection');}
+  requireThat(error?.code==='42501','Profile column privilege rejection not established');
+ }
  const [a,b]=accounts;
  let report;
  try{
@@ -94,6 +103,20 @@ export async function runAuthSmoke(config,request=fetch){
   const tokenA=refreshed.token,tokenA2=second.token,tokenB=peer.token;
   own(await rows('users',tokenA,'id=eq.'+a.id),a.id,'id');
   own(await rows('users',tokenB,'id=eq.'+b.id),b.id,'id');
+  // The privacy contract grants authenticated SELECT only on id and username.
+  // Check a public nickname read as positive control, then explicitly test
+  // each restricted column and the wildcard on both known synthetic profiles.
+  for(const [actor,peerAccount,token] of [[a,b,tokenA],[b,a,tokenB]]){
+   const data=await json(await call('/rest/v1/users?select=id,username&id=eq.'+peerAccount.id,{token}),'Public nickname read');
+   requireThat(Array.isArray(data),'Unexpected nickname response');
+   own(data,peerAccount.id,'id');
+   requireThat(typeof data[0].username==='string'&&Object.keys(data[0]).every(key=>key==='id'||key==='username'),'Unexpected public profile fields');
+   for(const column of ['location','city','country','joined_at','*']){
+    await deniedProfileColumn(column,actor.id,token);
+    await deniedProfileColumn(column,peerAccount.id,token);
+   }
+  }
+  await denied('/rest/v1/users?select=id&id=eq.'+a.id,undefined);
   // Profiles may be intentionally public to authenticated users; private
   // preference rows are the actual cross-user privacy assertion.
   own(await rows('runner_stats_preferences',tokenA,'user_id=eq.'+a.id),a.id,'user_id');
@@ -116,6 +139,7 @@ export async function runAuthSmoke(config,request=fetch){
   own(await rows('runner_stats_preferences',secondRefreshed.token,'user_id=eq.'+a.id),a.id,'user_id');
   await logout(secondRefreshed);await logout(peer);
   report={passwordSignIn:true,privateOwnRows:true,crossAccountDenied:true,guestDenied:true,
+   publicNicknameReadable:true,privateProfileColumnsDenied:true,guestProfileDenied:true,
    revokedBearerDenied:true,independentSessionRetained:true,localLogout:true,
    refreshRotation:true,revokedRefreshDenied:true,independentRefreshRetained:true};
  }finally{
