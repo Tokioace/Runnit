@@ -25,7 +25,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Execute isolated SQL fixture
         env:
           DB_CONTAINER: ${{ job.services.postgres.id }}
@@ -83,7 +83,7 @@ jobs:
           --health-timeout 5s
           --health-retries 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Replay repository schema and staged candidates in disposable PostGIS
         env:
           DB_CONTAINER: ${{ job.services.postgres.id }}
@@ -116,7 +116,7 @@ jobs:
           docker cp "$RUNNER_TEMP/runnit-cleanup-function.sql" "$DB_CONTAINER:/tmp/runnit-cleanup-function.sql"
           docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_schema_test -v ON_ERROR_STOP=1 -f /tmp/db/release-candidates/test_stale_duel_cleanup.sql
       - name: Archive reviewed disposable release bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: runnit-db-rehearsal-bundle
           path: ${{ runner.temp }}/release_bundle/
