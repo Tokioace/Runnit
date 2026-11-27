@@ -1025,20 +1025,29 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   useEffect(() => {
     if (!matchedDuel || !authUser) return;
     let active = true;
-    void supabase.from('users').select('id, username')
-      .in('id', [matchedDuel.hostUserId, matchedDuel.challengerUserId])
-      .then(({ data }) => {
-        if (!active) return;
+    const participantIds = [matchedDuel.hostUserId, matchedDuel.challengerUserId];
+    setMatchedNames({});
+    void (async () => {
+      try {
+        const { data, error } = await supabase.from('users').select('id, username')
+          .in('id', participantIds);
+        if (!active || error || !Array.isArray(data)) return;
         const resolved: Record<string, string> = {};
-        for (const row of data ?? []) {
-          if (typeof row.id === 'string' && typeof row.username === 'string' && row.username.trim()) {
+        const seen = new Set<string>();
+        for (const row of data) {
+          if (!row || typeof row.id !== 'string' || !participantIds.includes(row.id) || seen.has(row.id)) return;
+          seen.add(row.id);
+          if (typeof row.username === 'string' && row.username.trim()) {
             resolved[row.id] = row.username.trim().slice(0, 36);
           }
         }
         setMatchedNames(resolved);
-      });
+      } catch {
+        // Optional nicknames must never interrupt lobby readiness.
+      }
+    })();
     return () => { active = false; };
-  }, [matchedDuel?.id, authUser?.id]);
+  }, [matchedDuel?.id, matchedDuel?.hostUserId, matchedDuel?.challengerUserId, authUser?.id]);
 
   // Derive current user display - Demo mode with generated user
   useEffect(() => {
