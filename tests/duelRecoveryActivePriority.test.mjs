@@ -23,3 +23,13 @@ test('the completed overlay remains recoverable until the local close clears its
  assert.match(close,/endedDuelIdsRef.current.add\(duelId\);\s*if \(activeDuelIdRef.current === duelId\) activeDuelIdRef.current = null;/);
  assert.match(close,/forgetActiveDuelId\(authUser.id, duelId\)/);
 });
+
+test('a mismatched status row cannot retire or complete the active duel',()=>{
+ const recover=map.slice(map.indexOf('const queue = createDuelRecoveryQueue'),map.indexOf('const whenVisible ='));
+ assert.match(recover,/if \(!current\(\) \|\| statusError \|\| activeDuelIdRef.current !== activeId\) return;\s*\/\/[^\n]+\n\s*if \(latest && latest.id !== activeId\) return;/);
+ const guard=recover.indexOf('if (latest && latest.id !== activeId) return;');
+ assert.ok(guard>=0);
+ for(const transition of ['canReleaseUnconfirmedDuelHint({','clearAbortedDuel(activeId, true)','showCompletedDuel(latest)','applyMatchedDuel(latest)']){
+  assert.ok(recover.indexOf(transition)>guard);
+ }
+});

@@ -1450,6 +1450,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         .select('id, status, host_user_id, challenger_user_id, start_at, target_distance_m, host_ready, challenger_ready')
         .eq('id', activeId).maybeSingle();
       if (!current() || statusError || activeDuelIdRef.current !== activeId) return;
+      // A different row cannot confirm the state of this active duel.
+      if (latest && latest.id !== activeId) return;
       // Absence alone is not a terminal result. A saved, never-confirmed hint
       // may yield to a different confirmed match only when no finish is at risk.
       if (latest === null &&
