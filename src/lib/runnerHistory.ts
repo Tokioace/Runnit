@@ -45,6 +45,23 @@ export function hasUniqueOwnedHistoryRows(
   return true;
 }
 
+/** Match the private Ghost Run history's persisted measurement bounds. */
+export function hasValidGhostHistoryMeasurements(rows: readonly unknown[]): boolean {
+  return rows.every(item => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+    const row = item as StoredGhostSession;
+    return typeof row.created_at === 'string' && Number.isFinite(Date.parse(row.created_at)) &&
+      [50, 75, 100].includes(row.target_distance_m) &&
+      (row.run_state === 'finished'
+        ? typeof row.elapsed_ms === 'number' && Number.isInteger(row.elapsed_ms) &&
+          row.elapsed_ms > 0 && row.elapsed_ms <= 3600000
+        : row.run_state === 'stopped' && row.elapsed_ms === null) &&
+      Number.isInteger(row.steps_count) && row.steps_count >= 0 && row.steps_count <= 100000 &&
+      Number.isFinite(row.observed_distance_m) && row.observed_distance_m >= 0 &&
+      row.observed_distance_m < 10000;
+  });
+}
+
 /** Reject duplicate, unsolicited or foreign duel metadata before paired RPCs.
  * Missing rows can be legitimate after deletion; they never authorize a result. */
 export function hasRequestedDuelMetadata(
