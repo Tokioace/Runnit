@@ -32,6 +32,10 @@ function displayTime(ms: number | null | undefined) {
   return Number.isFinite(ms) && (ms ?? 0) > 0 ? ((ms as number) / 1000).toFixed(2) + 's' : '—';
 }
 
+function displayRunnerName(value: unknown): string {
+  return typeof value === 'string' ? value.trim() || 'RUNNER' : 'RUNNER';
+}
+
 export default function DuelFinishScreen({
   supabase, duelId, userId, targetDistanceM, isDemo, submissionError,
   onRetrySubmit, onAbort, onClose,
@@ -104,11 +108,15 @@ export default function DuelFinishScreen({
         setFetchError('Rennstatus konnte nicht geladen werden. Die Anzeige versucht es erneut.');
         return;
       }
+      if (!Array.isArray(resultsResponse.data)) {
+        setFetchError('Rennergebnisse konnten nicht eindeutig geladen werden. Die Anzeige versucht es erneut.');
+        return;
+      }
       setHostId(duel.host_user_id);
       setChallengerId(duel.challenger_user_id);
       setStatus(duel.status === 'completed' ? 'completed'
         : duel.status === 'matched' ? 'matched' : 'unexpected');
-      setRows((resultsResponse.data ?? []) as DuelResultRow[]);
+      setRows(resultsResponse.data as DuelResultRow[]);
       setFetchError(null);
     }, () => {
       if (active) setFetchError('Rennstatus konnte nicht geladen werden. Die Anzeige versucht es erneut.');
@@ -202,13 +210,13 @@ export default function DuelFinishScreen({
         {!isDemo && (
           <div className="race-arcade-result-versus" aria-live="polite">
             <div className={'race-arcade-result-runner ' + (outcome === 'won' ? 'winner' : '')}>
-              <span>DU · {mine?.username || 'RUNNER'}</span>
+              <span>DU · {displayRunnerName(mine?.username)}</span>
               <strong>{displayTime(mine?.time_ms)}</strong>
               <small>{outcome === 'won' ? '1. PLATZ' : outcome === 'tie' ? 'GLEICHSTAND' : 'DEINE ZEIT'}</small>
             </div>
             <div className="race-arcade-result-vs">VS</div>
             <div className={'race-arcade-result-runner ' + (outcome === 'lost' ? 'winner' : '')}>
-              <span>GEGNER · {other?.username || 'RUNNER'}</span>
+              <span>GEGNER · {displayRunnerName(other?.username)}</span>
               <strong>{displayTime(other?.time_ms)}</strong>
               <small>{outcome === 'lost' ? '1. PLATZ' : outcome === 'tie' ? 'GLEICHSTAND' : 'GEGNERZEIT'}</small>
             </div>
