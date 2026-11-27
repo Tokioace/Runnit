@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createFinishRefresh} from '../src/lib/finishRefresh.ts';
+import {validateDuelResultRows} from '../src/lib/duelOutcome.ts';
 
 test('poll, focus and visibility triggers cannot overlap a pending result read',async()=>{
  let calls=0,release;
@@ -91,7 +92,7 @@ test('a wrong duel ID is rejected before participant, terminal or result process
 test('missing or malformed result lists are read failures and retain prior results',()=>{
  const source=readFileSync(new URL('../src/components/race/DuelFinishScreen.tsx',import.meta.url),'utf8');
  const start=source.indexOf('if (!Array.isArray(resultsResponse.data))');
- const end=source.indexOf('setHostId(duel.host_user_id);',start);
+ const end=source.indexOf('// Do not replace a confirmed snapshot',start);
  assert.ok(start>=0&&end>start);
  const guard=source.slice(start,end);
  assert.doesNotMatch(guard,/setRows|setStatus|setHostId|setChallengerId/);
@@ -114,4 +115,23 @@ test('malformed optional participant names cannot crash the result display',()=>
  assert.equal(display(' Runner A '),'Runner A');
  assert.match(source,/displayRunnerName\(mine\?\.username\)/);
  assert.match(source,/displayRunnerName\(other\?\.username\)/);
+});
+
+test('contradictory participant snapshots cannot replace confirmed finish rows',()=>{
+ const source=readFileSync(new URL('../src/components/race/DuelFinishScreen.tsx',import.meta.url),'utf8');
+ const start=source.indexOf('if (validateDuelResultRows(resultsResponse.data');
+ const end=source.indexOf('setHostId(duel.host_user_id);',start);
+ assert.ok(start>=0&&end>start);
+ const guard=source.slice(start,end);
+ assert.doesNotMatch(guard,/setRows|setStatus|setHostId|setChallengerId/);
+ assert.ok(end<source.indexOf('setRows(resultsResponse.data as DuelResultRow[]);',end));
+ const check=new Function('resultsResponse','duel','validateDuelResultRows','setFetchError',guard.replace(' as DuelResultRow[]','')+'return true;');
+ const duel={host_user_id:'host',challenger_user_id:'challenger'};
+ const a={user_id:'host',time_ms:9000},b={user_id:'challenger',time_ms:10000};
+ for(const rows of [[a,a],[a,{...b,user_id:'foreign'}],[a,{...b,time_ms:0}],[a,{...b,time_ms:NaN}],[null],[a,b,b]]){
+  let error;
+  assert.equal(check({data:rows},duel,validateDuelResultRows,x=>{error=x;}),undefined);
+  assert.match(error,/Widersprüchliche Rennergebnisse/);
+ }
+ for(const rows of [[],[a],[a,b],[b,a]]) assert.equal(check({data:rows},duel,validateDuelResultRows,()=>assert.fail('valid rows rejected')),true);
 });
