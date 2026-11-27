@@ -68,3 +68,23 @@ test('visible reconnect and foreground refresh the private history without perma
  assert.match(read,/return \(\) => \{\s*request.close\(\);/);
  assert.doesNotMatch(read,/setInterval|\.insert\(/);
 });
+
+test('malformed, duplicate or other-account Ghost Run history rows cannot replace a valid snapshot',()=>{
+ const source=readFileSync(new URL('../src/screens/GhostRunScreen.tsx',import.meta.url),'utf8');
+ const read=source.slice(source.indexOf('const refreshSaved ='),source.indexOf('const saveSummary ='));
+ assert.match(read,/\.select\('id,user_id,created_at,target_distance_m,run_state,elapsed_ms,steps_count,observed_distance_m'\)/);
+ const start=read.indexOf('if (error || !Array.isArray(data)) return null;');
+ const end=read.indexOf('return data as SavedRun[];',start);
+ assert.ok(start>=0&&end>start);
+ const check=new Function('error','data','user',read.slice(start,end).replace('new Set<string>()','new Set()')+'return data;');
+ const valid={id:'run-a',user_id:'a',created_at:'2026-11-27T18:00:00Z',target_distance_m:50,run_state:'finished',elapsed_ms:9000,steps_count:30,observed_distance_m:51};
+ const user={id:'a'};
+ for(const rows of [null,{},[null],[valid,valid],[{...valid,user_id:'b'}],[{...valid,id:''}],[{...valid,created_at:'invalid'}],[{...valid,target_distance_m:60}],[{...valid,run_state:'unknown'}],[{...valid,elapsed_ms:NaN}],[{...valid,elapsed_ms:0}],[{...valid,run_state:'stopped'}],[{...valid,steps_count:-1}],[{...valid,observed_distance_m:Infinity}]]){
+  assert.equal(check(null,rows,user),null);
+ }
+ assert.equal(check({message:'offline'},[valid],user),null);
+ assert.deepEqual(check(null,[],user),[]);
+ assert.deepEqual(check(null,[valid],user),[valid]);
+ const stopped={...valid,id:'run-b',run_state:'stopped',elapsed_ms:null};
+ assert.deepEqual(check(null,[valid,stopped],user),[valid,stopped]);
+});
