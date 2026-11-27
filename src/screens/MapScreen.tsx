@@ -835,6 +835,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   useEffect(() => { setRaceAudioMuted(!raceSoundEnabled); }, [raceSoundEnabled]);
   const [matchedNames, setMatchedNames] = useState<Record<string, string>>({});
   const joiningRunRef = useRef<string | null>(null);
+  const hostingRunPendingRef = useRef(false);
   const matchStartHandledRef = useRef<string | null>(null);
   const duelStartLatch = useRef(createDuelStartLatch());
   // The account-keyed screen must reserve the saved duel before Realtime
@@ -1639,7 +1640,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       activeDuelIdRef.current !== unconfirmedRecoveryHintRef.current);
 
   const openHostRunAt = (point: Coordinates) => {
-    if (!requireRaceAccount()) return;
+    if (!requireRaceAccount() || hostingRunPendingRef.current) return;
     setRaceNotice(null);
     if (race.status !== 'idle' || hasConfirmedOrJoiningDuel()) {
       setRaceNotice('Du hast bereits ein aktives Duell. Schließe es zuerst ab.');
@@ -1675,77 +1676,83 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       throw new Error('Der gewählte Punkt liegt jetzt außerhalb deines 500-m-Radars. Bitte wähle erneut einen Punkt.');
     }
 
-    // Friendly preflight for the UI. The UNIQUE PARTIAL INDEX in Postgres
-    // is still the real atomic protection against racing double-clicks,
-    // extra tabs, malicious HTTP requests and concurrent devices.
-    const { data: activeHosted, error: activeCheckError } = await supabase
-      .from('duels')
-      .select('id, status')
-      .eq('host_user_id', authUser.id)
-      .in('status', ['open', 'matched'])
-      .limit(1);
-    if (finishAccountRef.current !== authUser.id) return;
-    if (activeCheckError) throw activeCheckError;
-    if (activeHosted?.length) {
-      throw new Error('Du hast bereits ein aktives Event. Schließe zuerst dein vorheriges Rennen ab oder storniere es.');
-    }
+    if (hostingRunPendingRef.current) throw new Error('Ein Event wird bereits gespeichert.');
+    hostingRunPendingRef.current = true;
+    try {
+      // Friendly preflight for the UI. The UNIQUE PARTIAL INDEX in Postgres
+      // is still the real atomic protection against racing double-clicks,
+      // extra tabs, malicious HTTP requests and concurrent devices.
+      const { data: activeHosted, error: activeCheckError } = await supabase
+        .from('duels')
+        .select('id, status')
+        .eq('host_user_id', authUser.id)
+        .in('status', ['open', 'matched'])
+        .limit(1);
+      if (finishAccountRef.current !== authUser.id) return;
+      if (activeCheckError) throw activeCheckError;
+      if (activeHosted?.length) {
+        throw new Error('Du hast bereits ein aktives Event. Schließe zuerst dein vorheriges Rennen ab oder storniere es.');
+      }
 
-    // A match or join may arrive while the host preflight is in flight.
-    if (hasConfirmedOrJoiningDuel()) {
-      throw new Error('Du hast bereits ein aktives Event. Schließe zuerst dein Duell ab.');
-    }
+      // A match or join may arrive while the host preflight is in flight.
+      if (hasConfirmedOrJoiningDuel()) {
+        throw new Error('Du hast bereits ein aktives Event. Schließe zuerst dein Duell ab.');
+      }
 
-    // GPS can change during the preflight. Do not submit a point that is
-    // outside the placement radius of the latest observed position.
-    const latestCoords = liveUserCoordsRef.current;
-    if (!latestCoords || !canHostAt(latestCoords, hostLocation)) {
-      throw new Error('Der gewählte Punkt liegt jetzt außerhalb deines 500-m-Radars. Bitte wähle erneut einen Punkt.');
-    }
-    const { data, error } = await createDuel(supabase, {
-      hostUserId: authUser.id,
-      location: hostLocation,
-      distanceKm: 1,
-      targetDistanceM: distanceMeters,
-    });
-    if (finishAccountRef.current !== authUser.id) return;
-    if (error) throw error;
-    if (!data?.id || data.status !== 'open' || !data.expires_at) {
-      throw new Error('Renn-Erstellung wurde nicht bestätigt.');
-    }
+      // GPS can change during the preflight. Do not submit a point that is
+      // outside the placement radius of the latest observed position.
+      const latestCoords = liveUserCoordsRef.current;
+      if (!latestCoords || !canHostAt(latestCoords, hostLocation)) {
+        throw new Error('Der gewählte Punkt liegt jetzt außerhalb deines 500-m-Radars. Bitte wähle erneut einen Punkt.');
+      }
+      const { data, error } = await createDuel(supabase, {
+        hostUserId: authUser.id,
+        location: hostLocation,
+        distanceKm: 1,
+        targetDistanceM: distanceMeters,
+      });
+      if (finishAccountRef.current !== authUser.id) return;
+      if (error) throw error;
+      if (!data?.id || data.status !== 'open' || !data.expires_at) {
+        throw new Error('Renn-Erstellung wurde nicht bestätigt.');
+      }
 
-    // Realtime may have already observed a match or terminal transition while
-    // the create response was in flight. Never restore that event as open.
-    if (knownNonOpenRunIdsRef.current.has(data.id)) {
-      setDiscoveryRefreshTick(tick => tick + 1);
-      return;
-    }
-    if (!isOpenEventAvailable(data.expires_at)) {
-      setDiscoveryRefreshTick(tick => tick + 1);
-      setRaceNotice('Die bestätigte Challenge ist bereits abgelaufen.');
-      return;
-    }
+      // Realtime may have already observed a match or terminal transition while
+      // the create response was in flight. Never restore that event as open.
+      if (knownNonOpenRunIdsRef.current.has(data.id)) {
+        setDiscoveryRefreshTick(tick => tick + 1);
+        return;
+      }
+      if (!isOpenEventAvailable(data.expires_at)) {
+        setDiscoveryRefreshTick(tick => tick + 1);
+        setRaceNotice('Die bestätigte Challenge ist bereits abgelaufen.');
+        return;
+      }
 
-    // Display the confirmed creation without depending on realtime delivery.
-    const created: OpenRun = {
-      id: data.id,
-      hostUserId: authUser.id,
-      hostUsername: currentUser.username,
-      distanceMeters,
-      location: hostLocation,
-      createdAt: data.created_at,
-      expiresAt: data.expires_at,
-      targetDistanceM: distanceMeters,
-    };
-    hostedCreationRevisionRef.current += 1;
-    setOpenRuns(previous => [created, ...previous.filter(run => run.id !== created.id)]);
-    setHostedOpenDuels(previous => [
-      { id: created.id, hostUserId: authUser.id, distanceMeters,
-        createdAt: created.createdAt ?? null, expiresAt: created.expiresAt,
-        location: created.location },
-      ...previous.filter(run => run.id !== created.id),
-    ]);
-    setHostedDuelsLoadError(false);
-    setRaceNotice(`Dein ${distanceMeters}-m-Event ist 60 Minuten offen. Sobald jemand beitritt, endet das Wartefenster.`);
+      // Display the confirmed creation without depending on realtime delivery.
+      const created: OpenRun = {
+        id: data.id,
+        hostUserId: authUser.id,
+        hostUsername: currentUser.username,
+        distanceMeters,
+        location: hostLocation,
+        createdAt: data.created_at,
+        expiresAt: data.expires_at,
+        targetDistanceM: distanceMeters,
+      };
+      hostedCreationRevisionRef.current += 1;
+      setOpenRuns(previous => [created, ...previous.filter(run => run.id !== created.id)]);
+      setHostedOpenDuels(previous => [
+        { id: created.id, hostUserId: authUser.id, distanceMeters,
+          createdAt: created.createdAt ?? null, expiresAt: created.expiresAt,
+          location: created.location },
+        ...previous.filter(run => run.id !== created.id),
+      ]);
+      setHostedDuelsLoadError(false);
+      setRaceNotice(`Dein ${distanceMeters}-m-Event ist 60 Minuten offen. Sobald jemand beitritt, endet das Wartefenster.`);
+    } finally {
+      hostingRunPendingRef.current = false;
+    }
   };
 
   const handleCancelHostedRun = (run: HostedOpenDuel) => {
@@ -1956,6 +1963,11 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     if (race.status !== 'idle' || (activeDuelIdRef.current !== null &&
         activeDuelIdRef.current !== unconfirmedRecoveryHintRef.current)) {
       setRaceNotice('Du hast bereits ein aktives Duell. Schließe es zuerst ab.');
+      return;
+    }
+
+    if (hostingRunPendingRef.current) {
+      setRaceNotice('Dein Event wird gerade gespeichert. Bitte warte auf die Bestätigung.');
       return;
     }
 
