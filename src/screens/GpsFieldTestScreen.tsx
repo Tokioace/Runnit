@@ -12,6 +12,7 @@ import {
   gpsFieldErrorReason,
   gpsFieldObservationMs,
   gpsFieldDurationReached,
+  gpsFieldClockChanged,
   ownsGpsFieldReport,
   type GpsFieldStopReason,
 } from '../lib/gpsField';
@@ -40,6 +41,7 @@ export default function GpsFieldTestScreen() {
   const readyFixRef = useRef<GpsSample | null>(null);
   const latestPreparationFixMs = useRef<number | null>(null);
   const stateRef = useRef<GpsSprintState | null>(null);
+  const monotonicStart = useRef<number | null>(null);
   const mountedRef = useRef(true);
   const watchLifetime = useRef(createMeasurementLifetime());
 
@@ -104,8 +106,17 @@ export default function GpsFieldTestScreen() {
 
   const stopAtDurationLimit = (nowMs: number): boolean => {
     const current = stateRef.current;
-    if (phaseRef.current !== 'running' || !current ||
-        !gpsFieldDurationReached(current.startedAtMs, nowMs)) return false;
+    if (phaseRef.current !== 'running' || !current) return false;
+    const monoNow = performance.now();
+    const monoStart = monotonicStart.current;
+    if (monoStart === null || gpsFieldClockChanged(current.startedAtMs, monoStart, nowMs, monoNow)) {
+      stopReasonRef.current = 'clock-change';
+      setCurrentPhase('stopped');
+      setStatus('Systemuhr verändert. Testlauf ohne bestätigte Zielzeit beendet.');
+      stopWatching();
+      return true;
+    }
+    if (!gpsFieldDurationReached(monoStart, monoNow)) return false;
     stopReasonRef.current = 'duration-limit';
     setCurrentPhase('stopped');
     setStatus('Maximale Messdauer von fünf Minuten erreicht. Testlauf ohne bestätigten Zieleinlauf beendet.');
@@ -136,6 +147,7 @@ export default function GpsFieldTestScreen() {
     stopReasonRef.current = null;
     readyFixRef.current = null;
     stateRef.current = null;
+    monotonicStart.current = null;
     setMeasurement(null);
     setLatestAccuracy(null);
     setSkippedStale(0);
@@ -250,6 +262,7 @@ export default function GpsFieldTestScreen() {
   const start = () => {
     if (phaseRef.current !== 'ready' || !watchLifetime.current.isActive() || document.hidden) return;
     const atMs = Date.now();
+    const atMonotonicMs = performance.now();
     const anchor = readyFixRef.current;
     if (!isFreshStartFix(anchor, atMs)) {
       expireReadyFix(atMs);
@@ -257,6 +270,7 @@ export default function GpsFieldTestScreen() {
     }
     try {
       const primed = primeGpsSprint(createGpsSprint(target, atMs), anchor);
+      monotonicStart.current = atMonotonicMs;
       stateRef.current = primed;
       setMeasurement(primed);
       setTick(atMs);
@@ -281,6 +295,7 @@ export default function GpsFieldTestScreen() {
     stopReasonRef.current = null;
     readyFixRef.current = null;
     stateRef.current = null;
+    monotonicStart.current = null;
     setCurrentPhase('idle');
     setMeasurement(null);
     setLatestAccuracy(null);
