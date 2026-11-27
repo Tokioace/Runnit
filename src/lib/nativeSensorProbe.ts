@@ -72,11 +72,23 @@ export function createNativeProbe(bridge:Bridge){
     if(raw.status==='permission-requested')return 'permission-requested';
     if(raw.status==='permission-denied')return 'permission-denied';
    }
-   return report(raw);
+   const started=report(raw);
+   if(started.status!=='running'||started.sprint!==undefined)throw new Error('Invalid sensor start confirmation');
+   return started;
   },
-  async arm(id:string,target:50|75|100){if(!uuid.test(id)||![50,75,100].includes(target))throw new Error('Invalid sprint request');return report(await invoke('armSprint',{runId:id,targetM:String(target)}),id);},
+  async arm(id:string,target:50|75|100){
+   if(!uuid.test(id)||![50,75,100].includes(target))throw new Error('Invalid sprint request');
+   const armed=report(await invoke('armSprint',{runId:id,targetM:String(target)}),id);
+   if(armed.status!=='running'||armed.sprint?.targetM!==target||armed.sprint.invalid||armed.sprint.finishMs!==null)throw new Error('Invalid sprint start confirmation');
+   return armed;
+  },
   async read(id:string){if(!uuid.test(id))throw new Error('Invalid probe ID');return report(await invoke('readProbe',{runId:id}),id);},
-  async stop(id:string){if(!uuid.test(id))throw new Error('Invalid probe ID');return report(await invoke('stopProbe',{runId:id}),id);},
+  async stop(id:string){
+   if(!uuid.test(id))throw new Error('Invalid probe ID');
+   const stopped=report(await invoke('stopProbe',{runId:id}),id);
+   if(stopped.status==='running')throw new Error('Invalid sensor stop confirmation');
+   return stopped;
+  },
  };
 }
 export function nativeProbeForWindow(){
