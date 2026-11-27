@@ -1,7 +1,8 @@
 name: iOS preview preparation
 on:
   pull_request:
-    branches: [develop]
+    branches: [develop, main]
+    # The native shell bundles the entire web application, not just native-specific files.
     paths:
       - 'native/ios-preview/**'
       - '.github/workflows/ios-preview.yml'
@@ -9,18 +10,16 @@ on:
       - 'scripts/build-native-preview-web.mjs'
       - 'scripts/verify-ios-project.py'
       - 'scripts/smoke-ios-preview.sh'
-      - 'src/lib/nativePreviewSmoke.ts'
       - 'scripts/install-ios-vault.py'
-      - 'src/lib/nativeAuthStorage.ts'
-      - 'src/lib/nativeSensorProbe.ts'
-      - 'src/lib/nativeSensorConsistency.ts'
-      - 'src/screens/NativeSensorScreen.tsx'
-      - 'src/screens/GpsFieldTestScreen.tsx'
-      - 'src/App.tsx'
-      - 'src/lib/authRedirect.ts'
-      - 'src/lib/supabaseClient.ts'
-      - 'src/hooks/useSupabaseUser.ts'
-      - 'src/components/auth/**'
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.*'
+      - 'tsconfig*.json'
+      - 'tailwind.config.*'
+      - 'postcss.config.*'
   workflow_dispatch:
     inputs:
       build_simulator:
