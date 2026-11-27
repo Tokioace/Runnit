@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import {processTestErasure,validateTestTarget} from '../scripts/account-erasure-core.mjs';
 const userId='00000000-0000-4000-8000-000000000011';
 const ref='aaaaaaaaaaaaaaaaaaaa',url='https://'+ref+'.supabase.co';
-const opts={ref,url,userId};
-function mock({request=true,active=0,gate=true,provider='email',residual=false,failDelete=false}={}){
+const expectedEmail='runnit-test-erasure@example.invalid';
+const opts={ref,url,userId,expectedEmail,syntheticOnly:'synthetic-only'};
+function mock({request=true,active=0,gate=true,provider='email',residual=false,failDelete=false,email=expectedEmail,anonymous=false}={}){
  let deleted=false,calls=0;
  const client={auth:{admin:{
-   getUserById:async()=>deleted?{error:{status:404}}:{data:{user:{id:userId,email_confirmed_at:'2026-11-25',identities:[{provider}]}}},
+   getUserById:async()=>deleted?{error:{status:404}}:{data:{user:{id:userId,email,is_anonymous:anonymous,email_confirmed_at:'2026-11-25',identities:[{provider}]}}},
    deleteUser:async(id,soft)=>{calls++;assert.equal(id,userId);assert.equal(soft,false);if(failDelete)return {error:{status:500}};deleted=true;return {data:{}};}
  }},rpc:async()=>({data:gate}),from(table){
    let matched=false;
@@ -40,4 +41,14 @@ test('failed admin response or remaining records cannot report completion',async
  for(const options of [{failDelete:true},{residual:true}]){
    const m=mock(options);await assert.rejects(processTestErasure(m.client,{...opts,execute:true,confirmation:'DELETE SYNTHETIC '+userId}));assert.equal(m.calls(),1);
  }
+});
+
+test('erasure requires explicit synthetic project confirmation and matching synthetic email',async()=>{
+ for(const patch of [{syntheticOnly:undefined},{syntheticOnly:'production'},{expectedEmail:undefined},{expectedEmail:'ordinary@example.invalid'},{expectedEmail:'runnit-test-other@example.invalid'}]){
+  const m=mock();await assert.rejects(processTestErasure(m.client,{...opts,...patch,execute:true,confirmation:'DELETE SYNTHETIC '+userId}));assert.equal(m.calls(),0);
+ }
+ for(const config of [{email:'ordinary@example.invalid'},{email:null},{anonymous:true}]){
+  const m=mock(config);await assert.rejects(processTestErasure(m.client,{...opts,execute:true,confirmation:'DELETE SYNTHETIC '+userId}));assert.equal(m.calls(),0);
+ }
+ const m=mock({email:expectedEmail.toUpperCase()});assert.equal((await processTestErasure(m.client,opts)).status,'dry-run');assert.equal(m.calls(),0);
 });
