@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createFinishRefresh } from '../lib/finishRefresh';
 import { supabase } from '../lib/supabaseClient';
 import { mapWithConcurrency } from '../lib/mapWithConcurrency';
 import {
@@ -20,10 +21,10 @@ const EMPTY: HistoryState = { races: [], ghostSessions: [], loading: false, erro
  * A failed request stays visible as an error instead of becoming false zeroes. */
 export function useRunnerHistory(userId: string | null | undefined) {
   const [state, setState] = useState<HistoryState>(() => userId ? { ...EMPTY, loading: true } : EMPTY);
-  const [revision, reload] = useState(0);
+  const requestRefresh = useRef<(() => void) | null>(null);
   const [clockRevision, tickClock] = useState(0);
 
-  const refresh = useCallback(() => reload(n => n + 1), []);
+  const refresh = useCallback(() => requestRefresh.current?.(), []);
 
   useEffect(() => {
     if (!userId) {
@@ -31,8 +32,9 @@ export function useRunnerHistory(userId: string | null | undefined) {
       return;
     }
     let active = true;
-    setState(prev => ({ ...prev, loading: true, error: null }));
     async function read() {
+      if (!active) return;
+      setState(prev => ({ ...prev, loading: true, error: null }));
       try {
         const [ownResultResponse, ghostResponse] = await Promise.all([
           supabase.from('duel_results')
@@ -103,18 +105,23 @@ export function useRunnerHistory(userId: string | null | undefined) {
         });
       }
     }
-    void read();
+    const queue = createFinishRefresh(read, () => {});
+    const request = () => { void queue.refresh(true); };
+    requestRefresh.current = request;
+    void queue.refresh();
     const onFocus = () => { if (document.visibilityState === 'visible') refresh(); };
     window.addEventListener('focus', onFocus);
     window.addEventListener('online', onFocus);
     document.addEventListener('visibilitychange', onFocus);
     return () => {
       active = false;
+      queue.close();
+      if (requestRefresh.current === request) requestRefresh.current = null;
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('online', onFocus);
       document.removeEventListener('visibilitychange', onFocus);
     };
-  }, [userId, revision, refresh]);
+  }, [userId, refresh]);
 
   // Calendar boundaries and clock corrections must update existing records
   // even when the screen stays open. This clock does not trigger network reads.
