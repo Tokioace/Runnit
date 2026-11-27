@@ -28,12 +28,12 @@ export function createNativeAuthStorage(bridge?:Bridge) {
       if(!result||typeof result!=='object'||!('value' in result))throw new Error('Invalid native session response');
       const value=result.value;
       if(value===null)return null;
-      if(typeof value==='string')return value;
+      if(typeof value==='string'&&new TextEncoder().encode(value).byteLength<=262144)return value;
       throw new Error('Invalid native session response');
     },
     async setItem(key:string,value:string):Promise<void>{
       checkKey(key);
-      if(typeof value!=='string'||value.length>262144)throw new Error('Invalid native session value');
+      if(typeof value!=='string'||new TextEncoder().encode(value).byteLength>262144)throw new Error('Invalid native session value');
       if(!bridge){volatile.set(key,value);return;}
       await invoke('writeSession',{key,value});
     },
