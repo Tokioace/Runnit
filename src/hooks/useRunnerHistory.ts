@@ -88,11 +88,12 @@ export function useRunnerHistory(userId: string | null | undefined) {
         let archive: RaceHistoryItem[] = [];
         if (import.meta.env.VITE_ACCOUNT_DELETION_REQUESTS_ENABLED === 'true') {
           const response = await supabase.from('archived_personal_duel_times')
-            .select('id,occurred_at,target_distance_m,time_ms,steps_count,distance_m')
+            .select('id,user_id,occurred_at,target_distance_m,time_ms,steps_count,distance_m')
             .eq('user_id', userId).order('occurred_at', { ascending:false }).limit(150);
           if (response.error) throw response.error;
           if (!active) return;
           if (!Array.isArray(response.data)) throw new Error('Invalid archived history response');
+          if (!hasUniqueOwnedHistoryRows(response.data, 'id', userId!)) throw new Error('Contradictory archived history response');
           archive = archivedPersonalTimes(response.data as StoredArchivedPersonalTime[]);
         }
         if (active) setState({

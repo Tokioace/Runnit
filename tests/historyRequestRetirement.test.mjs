@@ -189,3 +189,20 @@ test('account switches hide old personal history before effects or requests sett
  assert.match(s,/return \{ races: visibleState.races, ghostSessions: visibleState.ghostSessions,\s*loading: visibleState.loading, error: visibleState.error,/);
  assert.equal((s.match(/if \(active\) setState\(\{\s*ownerId: userId!,/g)||[]).length,2);
 });
+
+test('archived personal times validate ownership and uniqueness before history conversion',()=>{
+ const s=readFileSync(new URL('../src/hooks/useRunnerHistory.ts',import.meta.url),'utf8');
+ const archive=s.slice(s.indexOf("supabase.from('archived_personal_duel_times')"),s.indexOf('if (active) setState({'));
+ assert.match(archive,/\.select\('id,user_id,occurred_at,target_distance_m,time_ms,steps_count,distance_m'\)/);
+ assert.match(archive,/\.eq\('user_id', userId\)/);
+ assert.match(archive,/if \(!active\) return;/);
+ const guard=archive.match(/if \(!hasUniqueOwnedHistoryRows\(response.data, 'id', userId!\)\) throw new Error\('Contradictory archived history response'\);/);
+ assert.ok(guard);
+ assert.ok(archive.indexOf(guard[0])<archive.indexOf('archive = archivedPersonalTimes'));
+ const check=new Function('response','userId','hasUniqueOwnedHistoryRows',guard[0].replace('userId!','userId')+'return true;');
+ const own={id:'a',user_id:'owner',time_ms:8000};
+ for(const rows of [[],[own],[own,{...own,id:'b'}]]) assert.equal(check({data:rows},'owner',hasUniqueOwnedHistoryRows),true);
+ for(const rows of [[own,own],[{...own,user_id:'foreign'}],[{...own,user_id:undefined}],[{...own,id:''}],[{...own,id:42}],[null],[[]]]) {
+   assert.throws(()=>check({data:rows},'owner',hasUniqueOwnedHistoryRows),/Contradictory archived history response/);
+ }
+});
