@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { mapWithConcurrency } from '../lib/mapWithConcurrency';
 import {
-  calculateActivityTotals, currentLocalWeekStart, raceHistoryFromServer, archivedPersonalTimes,
+  calculateActivityTotals, currentLocalWeekStart, raceHistoryFromServer, archivedPersonalTimes, hasUniqueOwnedHistoryRows,
   type StoredArchivedPersonalTime,
   type PairedResult, type RaceHistoryItem, type StoredDuel,
   type StoredDuelResult, type StoredGhostSession,
@@ -39,7 +39,7 @@ export function useRunnerHistory(userId: string | null | undefined) {
             .select('duel_id,user_id,time_ms,steps_count,distance_m,created_at')
             .eq('user_id', userId).order('created_at', { ascending: false }).limit(150),
           supabase.from('ghost_run_sessions')
-            .select('id,created_at,target_distance_m,run_state,elapsed_ms,observed_distance_m,steps_count,motion_permission')
+            .select('id,user_id,created_at,target_distance_m,run_state,elapsed_ms,observed_distance_m,steps_count,motion_permission')
             .eq('user_id', userId).order('created_at', { ascending: false }).limit(150),
         ]);
         if (!active) return;
@@ -47,6 +47,10 @@ export function useRunnerHistory(userId: string | null | undefined) {
         if (ghostResponse.error) throw ghostResponse.error;
         if (!Array.isArray(ownResultResponse.data) || !Array.isArray(ghostResponse.data)) {
           throw new Error('Invalid history response');
+        }
+        if (!hasUniqueOwnedHistoryRows(ownResultResponse.data, 'duel_id', userId!) ||
+            !hasUniqueOwnedHistoryRows(ghostResponse.data, 'id', userId!)) {
+          throw new Error('Contradictory personal history response');
         }
         const own = ownResultResponse.data as StoredDuelResult[];
         const ids = Array.from(new Set(own.map(row => row.duel_id).filter(Boolean)));

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {mapWithConcurrency} from '../src/lib/mapWithConcurrency.ts';
+import {hasUniqueOwnedHistoryRows} from '../src/lib/runnerHistory.ts';
 
 test('a rejected worker prevents other in-flight workers from launching more queued reads',async()=>{
  const started=[];let release,rejectFirst;
@@ -63,4 +64,19 @@ test('history distinguishes valid empty server lists from absent or malformed re
  }
  assert.doesNotMatch(s,/Response\.data \?\? \[\]|response\.data \?\? \[\]/);
  assert.match(s,/catch \{\s*if \(active\) setState\(\{[\s\S]*?error: 'Deine gespeicherten Ergebnisse konnten nicht geladen werden/);
+});
+
+test('personal history rejects duplicate, foreign and invalid row identities',()=>{
+ for(const key of ['id','duel_id']){
+  const a={[key]:'a',user_id:'owner'},b={[key]:'b',user_id:'owner'};
+  assert.equal(hasUniqueOwnedHistoryRows([],key,'owner'),true);
+  assert.equal(hasUniqueOwnedHistoryRows([a,b],key,'owner'),true);
+  for(const rows of [[a,a],[a,{...a,time_ms:9000}],[{...a,user_id:'other'}],[{...a,user_id:undefined}],[{...a,[key]:''}],[{...a,[key]:42}],[null],[[]]]){
+   assert.equal(hasUniqueOwnedHistoryRows(rows,key,'owner'),false);
+  }
+ }
+ const s=readFileSync(new URL('../src/hooks/useRunnerHistory.ts',import.meta.url),'utf8');
+ assert.match(s,/\.select\('id,user_id,created_at,target_distance_m,run_state,elapsed_ms,observed_distance_m,steps_count,motion_permission'\)/);
+ assert.match(s,/if \(!hasUniqueOwnedHistoryRows\(ownResultResponse.data, 'duel_id', userId!\) \|\|\s*!hasUniqueOwnedHistoryRows\(ghostResponse.data, 'id', userId!\)\) \{\s*throw new Error\('Contradictory personal history response'\);/);
+ assert.ok(s.indexOf('if (!hasUniqueOwnedHistoryRows')<s.indexOf('const ids ='));
 });
