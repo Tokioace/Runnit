@@ -25,3 +25,10 @@ export function parseApprovedLegalPages(raw:unknown, enabled:unknown): LegalPage
   return {version:value.version.trim(),privacy:pages.privacy!,terms:pages.terms!,imprint:pages.imprint!};
  }catch{return null;}
 }
+
+/** Fail the build rather than silently omit explicitly enabled legal pages. */
+export function assertLegalBuildConfiguration(raw:unknown, enabled:unknown): void {
+ if(enabled==='true'&&!parseApprovedLegalPages(raw,enabled)){
+  throw new Error('Enabled legal pages require valid approved privacy, terms and imprint configuration.');
+ }
+}
