@@ -45,7 +45,10 @@ export function useRunnerHistory(userId: string | null | undefined) {
         if (!active) return;
         if (ownResultResponse.error) throw ownResultResponse.error;
         if (ghostResponse.error) throw ghostResponse.error;
-        const own = (ownResultResponse.data ?? []) as StoredDuelResult[];
+        if (!Array.isArray(ownResultResponse.data) || !Array.isArray(ghostResponse.data)) {
+          throw new Error('Invalid history response');
+        }
+        const own = ownResultResponse.data as StoredDuelResult[];
         const ids = Array.from(new Set(own.map(row => row.duel_id).filter(Boolean)));
         let duels: StoredDuel[] = [];
         if (ids.length) {
@@ -54,7 +57,8 @@ export function useRunnerHistory(userId: string | null | undefined) {
             .in('id', ids);
           if (!active) return;
           if (response.error) throw response.error;
-          duels = (response.data ?? []) as StoredDuel[];
+          if (!Array.isArray(response.data)) throw new Error('Invalid duel history response');
+          duels = response.data as StoredDuel[];
         }
         const pairedResults = new Map<string, readonly PairedResult[]>();
         const completed = duels.filter(duel => duel.status === 'completed');
@@ -69,7 +73,8 @@ export function useRunnerHistory(userId: string | null | undefined) {
         for (let i = 0; i < completed.length; i++) {
           const response = pairResponses[i];
           if (response.error) throw response.error;
-          pairedResults.set(completed[i].id, (response.data ?? []) as PairedResult[]);
+          if (!Array.isArray(response.data)) throw new Error('Invalid paired history response');
+          pairedResults.set(completed[i].id, response.data as PairedResult[]);
         }
         let archive: RaceHistoryItem[] = [];
         if (import.meta.env.VITE_ACCOUNT_DELETION_REQUESTS_ENABLED === 'true') {
@@ -78,12 +83,13 @@ export function useRunnerHistory(userId: string | null | undefined) {
             .eq('user_id', userId).order('occurred_at', { ascending:false }).limit(150);
           if (response.error) throw response.error;
           if (!active) return;
-          archive = archivedPersonalTimes((response.data ?? []) as StoredArchivedPersonalTime[]);
+          if (!Array.isArray(response.data)) throw new Error('Invalid archived history response');
+          archive = archivedPersonalTimes(response.data as StoredArchivedPersonalTime[]);
         }
         if (active) setState({
           races: [...raceHistoryFromServer(userId!, own, duels, pairedResults), ...archive]
             .sort((a,b)=>Date.parse(b.occurredAt)-Date.parse(a.occurredAt)).slice(0,150),
-          ghostSessions: (ghostResponse.data ?? []) as StoredGhostSession[],
+          ghostSessions: ghostResponse.data as StoredGhostSession[],
           loading: false, error: null,
         });
       } catch {
