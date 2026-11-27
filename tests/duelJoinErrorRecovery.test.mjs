@@ -40,3 +40,16 @@ test('stale event click cannot request a join after confirmed closure or local e
  assert.match(preflight,/setSelectedRunId\(previous => previous === run.id \? null : previous\)/);
  assert.match(preflight,/setDiscoveryRefreshTick\(tick => tick \+ 1\);\s*setRaceNotice\([^\n]+\);\s*return;\s*\}/);
 });
+
+test('only an unavailable join rejection retires all discovery markers without retiring the duel itself',()=>{
+ const map=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'utf8');
+ const join=map.slice(map.indexOf('const handleJoinRun ='),map.indexOf('// Both views use the exact same secure callbacks'));
+ const unavailable=join.slice(join.indexOf("if (kind === 'unavailable')"),join.indexOf("} else if (kind === 'permission')"));
+ assert.match(unavailable,/knownNonOpenRunIdsRef.current.add\(run.id\)/);
+ assert.match(unavailable,/setRegionalRuns\(previous => previous.filter\(item => item.id !== run.id\)\)/);
+ assert.match(unavailable,/setHostedOpenDuels\(previous => previous.filter\(item => item.id !== run.id\)\)/);
+ assert.match(unavailable,/setSelectedRunId\(previous => previous === run.id \? null : previous\)/);
+ assert.doesNotMatch(unavailable,/endedDuelIdsRef.current.add|completedDuelIdsRef.current.add|forgetActiveDuelId|forgetPendingFinish/);
+ const other=join.slice(join.indexOf("} else if (kind === 'permission')"));
+ assert.doesNotMatch(other,/knownNonOpenRunIdsRef.current.add|setRegionalRuns|setOpenRuns|setHostedOpenDuels/);
+});
