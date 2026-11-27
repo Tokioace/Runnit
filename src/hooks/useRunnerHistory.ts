@@ -10,17 +10,19 @@ import {
 } from '../lib/runnerHistory';
 
 type HistoryState = {
+  ownerId: string | null;
   races: RaceHistoryItem[];
   ghostSessions: StoredGhostSession[];
   loading: boolean; error: string | null;
 };
-const EMPTY: HistoryState = { races: [], ghostSessions: [], loading: false, error: null };
+const EMPTY: HistoryState = { ownerId: null, races: [], ghostSessions: [], loading: false, error: null };
+const LOADING: HistoryState = { ...EMPTY, loading: true };
 
 /** Loads only the authenticated player's persisted data. No demo data.
  * Opponent outcomes come from the authorized get_duel_results RPC.
  * A failed request stays visible as an error instead of becoming false zeroes. */
 export function useRunnerHistory(userId: string | null | undefined) {
-  const [state, setState] = useState<HistoryState>(() => userId ? { ...EMPTY, loading: true } : EMPTY);
+  const [state, setState] = useState<HistoryState>(() => userId ? { ...LOADING, ownerId: userId } : EMPTY);
   const requestRefresh = useRef<(() => void) | null>(null);
   const [clockRevision, tickClock] = useState(0);
 
@@ -34,7 +36,7 @@ export function useRunnerHistory(userId: string | null | undefined) {
     let active = true;
     async function read() {
       if (!active) return;
-      setState(prev => ({ ...prev, loading: true, error: null }));
+      setState(prev => ({ ...(prev.ownerId === userId ? prev : EMPTY), ownerId: userId!, loading: true, error: null }));
       try {
         const [ownResultResponse, ghostResponse] = await Promise.all([
           supabase.from('duel_results')
@@ -94,6 +96,7 @@ export function useRunnerHistory(userId: string | null | undefined) {
           archive = archivedPersonalTimes(response.data as StoredArchivedPersonalTime[]);
         }
         if (active) setState({
+          ownerId: userId!,
           races: [...raceHistoryFromServer(userId!, own, duels, pairedResults), ...archive]
             .sort((a,b)=>Date.parse(b.occurredAt)-Date.parse(a.occurredAt)).slice(0,150),
           ghostSessions: ghostResponse.data as StoredGhostSession[],
@@ -101,6 +104,7 @@ export function useRunnerHistory(userId: string | null | undefined) {
         });
       } catch {
         if (active) setState({
+          ownerId: userId!,
           races: [], ghostSessions: [], loading: false,
           error: 'Deine gespeicherten Ergebnisse konnten nicht geladen werden. Bitte erneut versuchen.',
         });
@@ -141,11 +145,15 @@ export function useRunnerHistory(userId: string | null | undefined) {
     };
   }, [userId]);
 
-  const now = useMemo(() => new Date(), [state.races, state.ghostSessions, clockRevision]);
+  // Effects run after render. Never expose a previous account's history even
+  // for the first render after a switch or while the new account is loading.
+  const visibleState = state.ownerId === (userId || null) ? state : userId ? LOADING : EMPTY;
+  const now = useMemo(() => new Date(), [visibleState.races, visibleState.ghostSessions, clockRevision]);
   const totals = useMemo(() => {
-    return calculateActivityTotals(state.races, state.ghostSessions, currentLocalWeekStart(now), now.getTime());
-  }, [state.races, state.ghostSessions, now]);
+    return calculateActivityTotals(visibleState.races, visibleState.ghostSessions, currentLocalWeekStart(now), now.getTime());
+  }, [visibleState.races, visibleState.ghostSessions, now]);
 
-  return { ...state, totals, refresh, now };
+  return { races: visibleState.races, ghostSessions: visibleState.ghostSessions,
+    loading: visibleState.loading, error: visibleState.error, totals, refresh, now };
 }
 

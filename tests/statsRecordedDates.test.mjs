@@ -37,5 +37,5 @@ test('live history uses an explicit observation time while historical week queri
  const future={...ghost,created_at:iso(1000)};
  assert.equal(calculateActivityTotals([],[future],currentLocalWeekStart(now)).weeklySessions,1);
  const source=readFileSync(new URL('../src/hooks/useRunnerHistory.ts',import.meta.url),'utf8');
- assert.match(source,/calculateActivityTotals\(state.races, state.ghostSessions, currentLocalWeekStart\(now\), now.getTime\(\)\)/);
+ assert.match(source,/calculateActivityTotals\(visibleState.races, visibleState.ghostSessions, currentLocalWeekStart\(now\), now.getTime\(\)\)/);
 });
