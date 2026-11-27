@@ -4,7 +4,7 @@ import {
   createGpsSprint, advanceGpsSprint, syntheticPoint,
 } from '../src/lib/sprintGps.ts';
 import {
-  isFreshStartFix, primeGpsSprint, createExperimentalRunReport, compareWithReferenceSeconds,
+  isFreshStartFix, primeGpsSprint, createExperimentalRunReport, compareWithReferenceSeconds, gpsFieldClockChanged,
 } from '../src/lib/gpsField.ts';
 
 const START = 1_800_000_000_000;
@@ -78,4 +78,16 @@ test('independent stopwatch comparison rejects missing and impossible reference 
     assert.equal(compareWithReferenceSeconds(report, n), null);
   }
   assert.equal(compareWithReferenceSeconds(createExperimentalRunReport('simulation', createGpsSprint(50, START)), 6.25), null);
+});
+
+
+test('field test distinguishes clock correction from monotonic elapsed time', () => {
+  const start = 1800000000000;
+  assert.equal(gpsFieldClockChanged(start,100,start+10000,10100),false);
+  assert.equal(gpsFieldClockChanged(start,100,start+11000,10100),false);
+  assert.equal(gpsFieldClockChanged(start,100,start+11001,10100),true);
+  assert.equal(gpsFieldClockChanged(start,100,start+8999,10100),true);
+  assert.equal(gpsFieldClockChanged(start,100,start-1,10100),true);
+  assert.equal(gpsFieldClockChanged(start,100,start+10000,99),true);
+  assert.equal(gpsFieldClockChanged(start,100,NaN,10100),true);
 });
