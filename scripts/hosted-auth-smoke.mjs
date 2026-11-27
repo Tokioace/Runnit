@@ -3,6 +3,14 @@ import {pathToFileURL} from 'node:url';
 const PROD='fcbffqcmvgdojsdfwgyt';
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function requireThat(condition,message){if(!condition)throw Error(message);}
+function validateAccounts(accounts){
+ requireThat(Array.isArray(accounts)&&accounts.length===2,'Two explicit synthetic accounts required');
+ for(const account of accounts){
+  requireThat(account&&typeof account.email==='string'&&/^runnit-test-[a-z0-9._+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(account.email),'Explicit synthetic test email required');
+  requireThat(typeof account.password==='string'&&account.password.length>=12&&typeof account.id==='string'&&UUID.test(account.id),'Explicit test identity and password required');
+ }
+ requireThat(accounts[0].id.toLowerCase()!==accounts[1].id.toLowerCase()&&accounts[0].email.toLowerCase()!==accounts[1].email.toLowerCase(),'Distinct accounts required');
+}
 export function readConfig(env){
  const ref=env.RUNNIT_NATIVE_TEST_REF,key=env.RUNNIT_NATIVE_TEST_PUBLISHABLE_KEY;
  requireThat(env.RUNNIT_NATIVE_TEST_DATA_CONFIRMED==='synthetic-only','Synthetic test project confirmation required');
@@ -15,19 +23,20 @@ export function readConfig(env){
   requireThat(typeof password==='string'&&password.length>=12&&UUID.test(id||''),'Explicit test identity and password required');
   return {email,password,id};
  });
- requireThat(accounts[0].id!==accounts[1].id&&accounts[0].email.toLowerCase()!==accounts[1].email.toLowerCase(),'Distinct accounts required');
+ validateAccounts(accounts);
  return {url:'https://'+ref+'.supabase.co',key,accounts};
 }
 export async function runAuthSmoke(config,request=fetch,now=Date.now){
  const {url,key,accounts}=config;
  requireThat(/^https:\/\/[a-z]{20}\.supabase\.co$/.test(url)&&!url.includes(PROD),'Non-production URL required');
  requireThat(/^sb_publishable_[A-Za-z0-9_-]{16,128}$/.test(key),'Publishable key required');
+ validateAccounts(accounts);
  const live=new Map();
  async function call(path,{token,method='GET',body}={}){
   const headers={apikey:key,accept:'application/json'};
   if(token)headers.authorization='Bearer '+token;
   if(body!==undefined)headers['content-type']='application/json';
-  try{return await request(url+path,{method,headers,redirect:'error',signal:AbortSignal.timeout(10000),...(body===undefined?{}:{body:JSON.stringify(body)})});}
+  try{return await request(url+path,{method,headers,redirect:'error',cache:'no-store',signal:AbortSignal.timeout(10000),...(body===undefined?{}:{body:JSON.stringify(body)})});}
   catch{throw Error('Test API request failed');}
  }
  async function json(response,label){
@@ -43,6 +52,7 @@ export async function runAuthSmoke(config,request=fetch,now=Date.now){
   // Actual token validity is exercised by the protected server requests.
   requireThat(UUID.test(claims?.session_id||'')&&claims?.sub===account.id,'Unexpected session claims');
   live.set(claims.session_id,token);
+  requireThat(claims.role==='authenticated','Unexpected access token role');
   requireThat(data.user?.id===account.id&&data.user?.email?.toLowerCase()===account.email.toLowerCase()&&data.user?.is_anonymous!==true,'Unexpected test identity');
   requireThat(typeof data.refresh_token==='string'&&data.refresh_token.length>0,'Missing refresh token');
   requireThat(Number.isSafeInteger(claims.exp),'Missing or invalid access token expiry');
