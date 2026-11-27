@@ -23,7 +23,7 @@ test('backend preflight is a bounded read-only Auth settings request without red
  const config=previewEnvironment(testEnv);
  await checkTestBackend(config,async(url,options)=>{
   assert.equal(url,'https://abcdefghijklmnopqrst.supabase.co/auth/v1/settings');
-  assert.equal(options.method,'GET');assert.equal(options.redirect,'error');
+  assert.equal(options.method,'GET');assert.equal(options.redirect,'error');assert.equal(options.cache,'no-store');
   assert.equal(options.headers.apikey,config.VITE_SUPABASE_ANON_KEY);
   assert.ok(options.signal);return {ok:true};
  });
@@ -68,4 +68,24 @@ test('missing output and linked assets fail closed',t=>{
  assert.throws(()=>verifyPreviewBundle(join(dir,'missing'),config));
  symlinkSync(js,join(dir,'linked.js'));
  assert.throws(()=>verifyPreviewBundle(dir,config),/Linked preview asset/);
+});
+
+
+test('direct preflight rejects unapproved targets and credentials before network',async()=>{
+ const config=previewEnvironment(testEnv);
+ for(const patch of [
+  {VITE_SUPABASE_URL:'https://fcbffqcmvgdojsdfwgyt.supabase.co'},
+  {VITE_SUPABASE_URL:'https://example.invalid'},
+  {VITE_SUPABASE_URL:config.VITE_SUPABASE_URL+'/extra'},
+  {VITE_SUPABASE_ANON_KEY:'sb_secret_never'},
+ ]){
+  let calls=0;
+  await assert.rejects(checkTestBackend({...config,...patch},async()=>{calls++;return {ok:true};}),/Invalid test backend configuration/);
+  assert.equal(calls,0);
+ }
+});
+test('bundle cannot be validated using a non-approved backend configuration',t=>{
+ const config={VITE_SUPABASE_URL:'https://example.invalid',VITE_SUPABASE_ANON_KEY:'sb_secret_synthetic'};
+ const {dir}=bundleFixture(t,config);
+ assert.throws(()=>verifyPreviewBundle(dir,config),/Invalid preview backend configuration/);
 });
