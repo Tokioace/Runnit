@@ -112,6 +112,11 @@ export default function DuelFinishScreen({
         setFetchError('Rennergebnisse konnten nicht eindeutig geladen werden. Die Anzeige versucht es erneut.');
         return;
       }
+      // Do not replace a confirmed snapshot with contradictory participant rows.
+      if (validateDuelResultRows(resultsResponse.data as DuelResultRow[], duel.host_user_id, duel.challenger_user_id) === null) {
+        setFetchError('Widersprüchliche Rennergebnisse. Die Anzeige versucht es erneut.');
+        return;
+      }
       setHostId(duel.host_user_id);
       setChallengerId(duel.challenger_user_id);
       setStatus(duel.status === 'completed' ? 'completed'
