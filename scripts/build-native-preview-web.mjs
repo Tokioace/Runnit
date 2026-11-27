@@ -62,6 +62,13 @@ export function verifyPreviewBundle(directory,config){
    if(!entry.isFile())throw Error('Invalid preview asset');
    const bytes=readFileSync(file);
    if(bytes.includes(PRODUCTION_REF))throw Error('Production project reference found in preview');
+   // Expected configuration alone is not enough: another embedded project
+   // URL or private credential can coexist with it in a stale/mixed build.
+   const content=bytes.toString('utf8');
+   for(const match of content.matchAll(/https?:\/\/[a-z0-9]{20}\.supabase\.co\b/gi)){
+    if(match[0]!==config.VITE_SUPABASE_URL)throw Error('Unexpected Supabase project URL in preview');
+   }
+   if(/\bsb_secret_[A-Za-z0-9_-]{16,}\b/.test(content))throw Error('Private Supabase key found in preview');
    if(/\.(?:js|mjs)$/.test(entry.name)){
     hasUrl ||= bytes.includes(config.VITE_SUPABASE_URL);
     hasKey ||= bytes.includes(config.VITE_SUPABASE_ANON_KEY);
