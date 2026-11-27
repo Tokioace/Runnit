@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {mapWithConcurrency} from '../src/lib/mapWithConcurrency.ts';
 import {createFinishRefresh} from '../src/lib/finishRefresh.ts';
-import {hasUniqueOwnedHistoryRows} from '../src/lib/runnerHistory.ts';
+import {hasUniqueOwnedHistoryRows,hasRequestedDuelMetadata} from '../src/lib/runnerHistory.ts';
 
 test('a rejected worker prevents other in-flight workers from launching more queued reads',async()=>{
  const started=[];let release,rejectFirst;
@@ -144,4 +144,15 @@ test('history uses one queue per account and retires its public refresh callback
  assert.match(s,/active = false;\s*queue.close\(\);\s*if \(requestRefresh.current === request\) requestRefresh.current = null;/);
  assert.match(s,/\}, \[userId, refresh\]\);/);
  assert.doesNotMatch(s,/reload\(n => n \+ 1\)/);
+});
+
+test('duel metadata must match requested IDs and the current participant before paired RPCs',()=>{
+ const a={id:'a',host_user_id:'owner',challenger_user_id:'rival'};
+ const b={id:'b',host_user_id:'rival',challenger_user_id:'owner'};
+ for(const rows of [[],[a],[b],[a,b]]) assert.equal(hasRequestedDuelMetadata(rows,['a','b'],'owner'),true);
+ for(const rows of [[a,a],[a,{...a,status:'completed'}],[{...a,id:'c'}],[{...a,host_user_id:'other'}],[null],[[]],[{}],[{...a,id:42}]])
+  assert.equal(hasRequestedDuelMetadata(rows,['a','b'],'owner'),false);
+ const s=readFileSync(new URL('../src/hooks/useRunnerHistory.ts',import.meta.url),'utf8');
+ assert.match(s,/if \(!hasRequestedDuelMetadata\(response.data, ids, userId!\)\) throw new Error\('Contradictory duel history response'\);/);
+ assert.ok(s.indexOf('if (!hasRequestedDuelMetadata')<s.indexOf('const pairResponses ='));
 });
