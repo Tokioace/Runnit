@@ -533,6 +533,10 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     countdownAtRef.current = null;
     if (!canStartGhostCountdown(countdownAt, startMs, document.visibilityState === 'visible')) {
       readyRef.current = null;
+      setFixIssue('missing');
+      setFixTimestampMs(null);
+      setAccuracyM(null);
+      setNow(startMs);
       setCountdownAt(null);
       setCurrentPhase('acquiring');
       setNotice('Countdown unterbrochen oder zu spät beendet. Bitte GPS erneut bestätigen und neu starten.');
@@ -540,7 +544,10 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     }
     const anchor = readyRef.current;
     // Countdown could have suspended in Safari. Do not silently start from stale GPS.
-    if (!isFreshStartFix(anchor, Date.now())) {
+    if (!isFreshStartFix(anchor, startMs)) {
+      readyRef.current = null;
+      setFixIssue(inspectGhostGpsFix(anchor, startMs).issue);
+      setNow(startMs);
       setCountdownAt(null);
       setCurrentPhase('acquiring');
       setNotice('Startposition nach Countdown nicht mehr frisch. Bitte neuen GPS-Fix abwarten.');
@@ -550,6 +557,11 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     try {
       first = primeGpsSprint(createGpsSprint(target, startMs), anchor);
     } catch {
+      readyRef.current = null;
+      setFixIssue('missing');
+      setFixTimestampMs(null);
+      setAccuracyM(null);
+      setNow(startMs);
       setCountdownAt(null);
       setCurrentPhase('acquiring'); setNotice('GPS-Start fehlgeschlagen. Neu vorbereiten.'); return false;
     }
