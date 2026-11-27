@@ -107,6 +107,13 @@ export default function GpsFieldTestScreen() {
   const stopAtDurationLimit = (nowMs: number): boolean => {
     const current = stateRef.current;
     if (phaseRef.current !== 'running' || !current) return false;
+    if (document.hidden) {
+      stopReasonRef.current = 'background';
+      setCurrentPhase('stopped');
+      setStatus('Lauf wegen Hintergrundwechsel abgebrochen. GPS wurde beendet.');
+      stopWatching();
+      return true;
+    }
     const monoNow = performance.now();
     const monoStart = monotonicStart.current;
     if (monoStart === null || gpsFieldClockChanged(current.startedAtMs, monoStart, nowMs, monoNow)) {
