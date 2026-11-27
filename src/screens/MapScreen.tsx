@@ -800,6 +800,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   const [hostedOpenDuels, setHostedOpenDuels] = useState<HostedOpenDuel[]>([]);
   // An older hosted snapshot cannot overwrite a confirmed local creation.
   const hostedCreationRevisionRef = useRef(0);
+  const requestHostedDiscoveryRef = useRef<(() => void) | null>(null);
   const [hostedDuelsLoadError, setHostedDuelsLoadError] = useState(false);
   const [cancelConfirmation, setCancelConfirmation] = useState<HostedOpenDuel | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
@@ -1382,6 +1383,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
           setHostedDuelsLoadError(true);
         });
     });
+    requestHostedDiscoveryRef.current = hostedDiscoveryQueue.request;
     const whenHostedVisible = () => {
       if (document.visibilityState === 'visible') hostedDiscoveryQueue.request();
     };
@@ -1393,6 +1395,9 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       hostedDiscoveryQueue.close();
       document.removeEventListener('visibilitychange', whenHostedVisible);
       window.removeEventListener('online', whenHostedVisible);
+      if (requestHostedDiscoveryRef.current === hostedDiscoveryQueue.request) {
+        requestHostedDiscoveryRef.current = null;
+      }
     };
   }, [authUser?.id]);
 
@@ -1834,18 +1839,9 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
             ? 'Dein Rennen ist laut Server abgesagt.'
             : 'Dieses Rennen ist nicht mehr offen und wurde von der Karte entfernt.');
         } else {
-          const hostedRevision = hostedCreationRevisionRef.current;
-          const hostedReadCurrent = () => finishAccountRef.current === authUser.id &&
-            hostedCreationRevisionRef.current === hostedRevision;
-          void listHostedOpenDuels(supabase, authUser.id)
-            .then(runs => {
-              if (!hostedReadCurrent()) return;
-              setHostedOpenDuels(runs.filter(item => !knownNonOpenRunIdsRef.current.has(item.id)));
-              setHostedDuelsLoadError(false);
-            })
-            .catch(() => {
-              if (hostedReadCurrent()) setHostedDuelsLoadError(true);
-            });
+          // Share the lifecycle queue so reconnect and cancel follow-up reads
+          // never overlap or publish owned snapshots out of order.
+          requestHostedDiscoveryRef.current?.();
         }
       }
     } catch {
