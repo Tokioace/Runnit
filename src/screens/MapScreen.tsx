@@ -1909,6 +1909,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       return;
     }
     finishSubmittingRef.current = payload;
+    let writeAttempted = false;
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (!stillCurrent()) return;
@@ -1916,8 +1917,12 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         setFinishSubmissionError('Bitte erneut anmelden, bevor du deine Zielzeit speicherst.');
         return;
       }
+      writeAttempted = true;
       const { error } = await submitDuelResult(supabase, payload.duelId, payload.timeMs, payload.metrics);
       if (!stillCurrent()) return;
+      // The other runner may already have finished. Read the authoritative
+      // outcome immediately, including after a rejected acknowledgement.
+      requestMatchRecoveryRef.current?.();
       if (error) {
         if (error.code === '23514') {
           setFinishSubmissionError('Der Server hat die Messung nicht akzeptiert. Bitte Rennstatus prüfen.');
@@ -1931,6 +1936,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       setFinishSubmissionError(null);
     } catch {
       if (stillCurrent()) setFinishSubmissionError('Netzwerkfehler. Bitte Zielzeit erneut speichern.');
+      if (writeAttempted && stillCurrent()) requestMatchRecoveryRef.current?.();
     } finally {
       if (finishSubmittingRef.current === payload) finishSubmittingRef.current = null;
       releaseWrite();
