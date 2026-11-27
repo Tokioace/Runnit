@@ -89,3 +89,20 @@ test('bundle cannot be validated using a non-approved backend configuration',t=>
  const {dir}=bundleFixture(t,config);
  assert.throws(()=>verifyPreviewBundle(dir,config),/Invalid preview backend configuration/);
 });
+
+
+test('mixed preview output with additional project URL or private key fails closed',t=>{
+ const config=previewEnvironment(testEnv);
+ const {dir,js}=bundleFixture(t,config);
+ const expected=JSON.stringify([config.VITE_SUPABASE_URL,config.VITE_SUPABASE_ANON_KEY]);
+ for(const [extra,reason] of [
+  ['https://zyxwvutsrqponmlkjihg.supabase.co',/Unexpected Supabase project URL/],
+  ['http://abcdefghijklmnopqrst.supabase.co',/Unexpected Supabase project URL/],
+  ['sb_secret_'+ 'synthetic_example_123456789',/Private Supabase key/],
+ ]){
+  writeFileSync(js,expected+'\n'+JSON.stringify(extra));
+  assert.throws(()=>verifyPreviewBundle(dir,config),reason);
+ }
+ writeFileSync(js,expected);
+ verifyPreviewBundle(dir,config);
+});
