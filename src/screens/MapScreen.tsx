@@ -1959,6 +1959,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       clearAbortedDuel(duelId, false);
     } catch (error) {
       // Realtime may already have retired this duel while the RPC was pending.
+      // A lost acknowledgement must trigger a read, not another abort write.
+      if (stillCurrent()) requestMatchRecoveryRef.current?.();
       if (stillCurrent()) throw error;
     } finally {
       releaseWrite();
@@ -1990,6 +1992,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     } catch {
       if (stillCurrent()) setReadyError({ duelId: matchedDuel.id,
         message: 'Bereitschaft konnte nicht gespeichert werden. Bitte erneut versuchen.' });
+      // The Ready write may already have committed despite a lost response.
+      if (stillCurrent()) requestMatchRecoveryRef.current?.();
     } finally {
       releaseWrite();
       if (finishAccountRef.current === authUser.id) {

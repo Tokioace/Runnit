@@ -17,3 +17,13 @@ test('late successful abort cannot clear an obsolete or completed duel',()=>{
 test('late errors are ignored only for retired duels and the write gate always releases',()=>{
  assert.match(abort,/catch \(error\) \{[\s\S]*?if \(stillCurrent\(\)\) throw error;\s*\} finally \{\s*releaseWrite\(\);/);
 });
+
+test('ambiguous abort and Ready responses request immediate read-only recovery for the current duel',()=>{
+ const ready=source.slice(source.indexOf('const confirmMatchReady ='),source.indexOf('// Joining and starting races'));
+ const abortCatch=abort.slice(abort.indexOf('} catch (error) {'));
+ const readyCatch=ready.slice(ready.indexOf('} catch {'));
+ assert.match(abortCatch,/if \(stillCurrent\(\)\) requestMatchRecoveryRef.current\?\.\(\);\s*if \(stillCurrent\(\)\) throw error;/);
+ assert.match(readyCatch,/if \(stillCurrent\(\)\) requestMatchRecoveryRef.current\?\.\(\);\s*\} finally \{\s*releaseWrite\(\);/);
+ assert.doesNotMatch(abortCatch,/clearAbortedDuel\(|abortMatchedDuel\(/);
+ assert.doesNotMatch(readyCatch,/applyMatchedDuel\(|readyForDuel\(/);
+});
