@@ -48,3 +48,16 @@ test('owned open events and websocket resubscription refresh the shared hosted l
  assert.ok(realtime.indexOf('knownNonOpenRunIdsRef.current.has(row.id)')<realtime.indexOf('hostedCreationRevisionRef.current += 1;'));
  assert.match(realtime,/\.subscribe\(status => \{\s*if \(!lifetime.isActive\(\) \|\| finishAccountRef.current !== authUser.id\) return;[\s\S]*?if \(status === 'SUBSCRIBED'\) requestHostedDiscoveryRef.current\?\.\(\);/);
 });
+
+test('local marker publication rejects non-open inserts and open callbacks queued before retirement',()=>{
+ const screen=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'utf8');
+ const realtime=screen.slice(screen.indexOf('// No Realtime subscription'),screen.indexOf('// The server is the authority for expiration'));
+ const update=realtime.slice(realtime.indexOf('setOpenRuns((prev) => {'),realtime.indexOf('.subscribe(status =>'));
+ assert.match(update,/if \(payload.eventType === 'DELETE' \|\| row.status !== 'open' \|\|\s*knownNonOpenRunIdsRef.current.has\(row.id\)\) \{\s*return copy.filter\(\(r\) => r.id !== row.id\);\s*\}/);
+ assert.ok(update.indexOf("row.status !== 'open'")<update.indexOf('const updated: OpenRun'));
+ assert.ok(update.indexOf('knownNonOpenRunIdsRef.current.has(row.id)')<update.indexOf('const updated: OpenRun'));
+ for(const status of ['matched','completed','abandoned','cancelled','expired']){
+  const next={id,host_user_id:host,challenger_user_id:peer,status,location:'POINT(9 48)'};
+  assert.deepEqual(duelRealtimeRow(event('INSERT',{},next)),next);
+ }
+});
