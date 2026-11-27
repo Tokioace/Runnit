@@ -51,3 +51,24 @@ test('ghost retirement stops sensors and drops in-memory measurements, not saved
  assert.match(save,/beginAccountMutation\(\)/);
  assert.equal((save.match(/if \(!measurementAccountCurrent\(isLive, assertAccount\)\) return;/g)||[]).length,2);
 });
+
+test('Ghost Run only proceeds after a successful empty active-duel list',()=>{
+ const ghost=read('src/screens/GhostRunScreen.tsx');
+ const prepare=ghost.slice(ghost.indexOf('const prepare ='),ghost.indexOf('// iOS may keep'));
+ assert.match(prepare,/if \(duelsError \|\| !Array.isArray\(activeDuels\)\) \{\s*setCurrentPhase\('error'\);\s*setNotice\([^;]+\);\s*return;\s*\}/);
+ assert.match(prepare,/if \(activeDuels.length\) \{\s*setCurrentPhase\('error'\);\s*setNotice\([^;]+\);\s*return;\s*\}/);
+ const guard=prepare.indexOf('if (duelsError || !Array.isArray(activeDuels))');
+ const existing=prepare.indexOf('if (activeDuels.length)');
+ const watch=prepare.indexOf('navigator.geolocation.watchPosition(');
+ assert.ok(guard>=0 && guard<existing && existing<watch);
+ // Exercise the actual guard block with malformed and valid response shapes.
+ const block=prepare.slice(guard,prepare.indexOf('readyRef.current = null;',existing));
+ const check=new Function('duelsError','activeDuels','setCurrentPhase','setNotice',block+'return true;');
+ for(const rows of [null,undefined,{},'',false,42,[{}],[{id:'existing'}]]){
+  const phases=[];
+  assert.equal(check(null,rows,x=>phases.push(x),()=>{}),undefined);
+  assert.deepEqual(phases,['error']);
+ }
+ assert.equal(check({message:'offline'},[],()=>{},()=>{}),undefined);
+ assert.equal(check(null,[],()=>assert.fail('valid empty list rejected'),()=>{}),true);
+});
