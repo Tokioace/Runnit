@@ -12,7 +12,7 @@ test('matched realtime and join transitions cannot replace another active duel',
 test('recovery checks the current duel when a different or retired matched row is returned',()=>{
  const recover=map.slice(map.indexOf('const queue = createDuelRecoveryQueue'),map.indexOf('const whenVisible ='));
  assert.match(recover,/if \(!current\(\) \|\| error\) return;\s*const activeBeforeRecovery = activeDuelIdRef.current;/);
- assert.match(recover,/if \(data && \(!activeBeforeRecovery \|\| data.id === activeBeforeRecovery\) &&\s*!endedDuelIdsRef.current.has\(data.id\) && !completedDuelIdsRef.current.has\(data.id\)\) \{\s*applyMatchedDuel\(data\);\s*return;\s*\}/);
+ assert.match(recover,/if \(data && \(!activeBeforeRecovery \|\| data.id === activeBeforeRecovery\) &&\s*!endedDuelIdsRef.current.has\(data.id\) && !completedDuelIdsRef.current.has\(data.id\)\) \{\s*applyMatchedDuel\(data\);\s*(?:\/\/[^\n]*\n\s*)*if \(!current\(\)\) return;\s*\}/);
  assert.match(recover,/const activeId = activeDuelIdRef.current \|\| readActiveDuelId\(authUser.id\)/);
  assert.match(recover,/\.eq\('id', activeId\).maybeSingle\(\)/);
  assert.match(recover,/if \(!current\(\) \|\| statusError \|\| activeDuelIdRef.current !== activeId\) return;/);
