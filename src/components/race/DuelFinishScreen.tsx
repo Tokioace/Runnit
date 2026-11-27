@@ -46,6 +46,7 @@ export default function DuelFinishScreen({
   const [confirmAbort, setConfirmAbort] = useState(false);
   const [abortError, setAbortError] = useState<string | null>(null);
   const playedRef = useRef(false);
+  const pendingActionRef = useRef<'retry' | 'abort' | null>(null);
 
   useEffect(() => {
     if (playedRef.current) return;
@@ -144,16 +145,24 @@ export default function DuelFinishScreen({
         : status === 'unavailable' ? 'RENNEN NICHT VERFÜGBAR' : 'ZIEL ERREICHT!';
   const retrySubmission = async () => {
     if (retryBusy || completed || terminalWithoutResult || ownTimeConfirmed) return;
+    if (pendingActionRef.current !== null) return;
+    pendingActionRef.current = 'retry';
     setRetryBusy(true);
     try { await onRetrySubmit(); }
-    finally { setRetryBusy(false); }
+    finally {
+      pendingActionRef.current = null;
+      setRetryBusy(false);
+    }
   };
   const abort = async () => {
     if (abortBusy || completed || terminalWithoutResult) return;
+    if (pendingActionRef.current !== null) return;
+    pendingActionRef.current = 'abort';
     setAbortBusy(true);
     setAbortError(null);
     try { await onAbort(); }
     catch {
+      pendingActionRef.current = null;
       setAbortError('Abbruch nicht bestätigt. Prüfe deine Verbindung und versuche es erneut.');
       setAbortBusy(false);
     }
@@ -219,7 +228,7 @@ export default function DuelFinishScreen({
         {submissionError && !completed && !terminalWithoutResult && !ownTimeConfirmed && (
           <div className="race-arcade-result-retry">
             <p className="race-arcade-error" role="alert">{submissionError}</p>
-            <button type="button" onClick={() => { void retrySubmission(); }} disabled={retryBusy}
+            <button type="button" onClick={() => { void retrySubmission(); }} disabled={retryBusy || abortBusy}
               className="race-arcade-danger-link">
               {retryBusy ? 'ERNEUTER VERSUCH …' : 'ZIELZEIT ERNEUT SPEICHERN'}
             </button>
@@ -244,14 +253,14 @@ export default function DuelFinishScreen({
                 <p>DUELL FÜR BEIDE ABBRECHEN? Bisherige Zeiten werden nicht gewertet.</p>
                 <div className="race-arcade-confirm-actions">
                   <button type="button" disabled={abortBusy} onClick={() => setConfirmAbort(false)}>NEIN</button>
-                  <button type="button" disabled={abortBusy} onClick={() => { void abort(); }}>
+                  <button type="button" disabled={abortBusy || retryBusy} onClick={() => { void abort(); }}>
                     {abortBusy ? 'WIRD ABGEBROCHEN…' : 'JA, ABBRECHEN'}
                   </button>
                 </div>
                 {abortError && <p className="race-arcade-error" role="alert">{abortError}</p>}
               </div>
             ) : (
-              <button type="button" className="race-arcade-danger-link" onClick={() => setConfirmAbort(true)}>
+              <button type="button" className="race-arcade-danger-link" disabled={retryBusy || abortBusy} onClick={() => setConfirmAbort(true)}>
                 DUELL ABBRECHEN, STATT ZU WARTEN
               </button>
             )}
