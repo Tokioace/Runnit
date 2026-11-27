@@ -53,3 +53,21 @@ test('native storage rejects malformed bridge payloads rather than coercing them
   await assert.rejects(adapter.getItem(key),/Invalid native session response/);
  }
 });
+
+
+test('vault byte limits agree for ASCII and multibyte UTF-8 including memory-only fallback',async()=>{
+ const max='é'.repeat(131072),tooLarge=max+'é';
+ let writes=0;
+ const native=createNativeAuthStorage({nativePromise:async(plugin,method)=>{
+  if(method==='writeSession')writes++;
+  if(method==='readSession')return {value:tooLarge};
+ }});
+ await native.setItem(key,max);
+ await assert.rejects(native.setItem(key,tooLarge),/Invalid native session value/);
+ assert.equal(writes,1);
+ await assert.rejects(native.getItem(key),/Invalid native session response/);
+ const memory=createNativeAuthStorage();
+ await memory.setItem(key,max);
+ await assert.rejects(memory.setItem(key,tooLarge),/Invalid native session value/);
+ assert.equal(await memory.getItem(key),max);
+});
