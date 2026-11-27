@@ -960,7 +960,13 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     // Preserve the current race or its unread result until it is retired.
     // A different matched row can be recovered after that transition.
     if (activeDuelIdRef.current !== null && activeDuelIdRef.current !== row.id) return;
+    // A matched race requires two distinct participants and a coherent start.
+    if (typeof row.host_user_id !== 'string' || !row.host_user_id.trim() ||
+        typeof row.challenger_user_id !== 'string' || !row.challenger_user_id.trim() ||
+        row.host_user_id === row.challenger_user_id ||
+        (row.start_at !== null && typeof row.start_at !== 'string')) return;
     const startAt = typeof row.start_at === 'string' ? row.start_at : null;
+    if (startAt !== null && (row.host_ready !== true || row.challenger_ready !== true)) return;
     // Once a server start is observed, an older lobby row cannot reset it.
     if (!duelStartLatch.current.accept(row.id, startAt)) return;
     unconfirmedRecoveryHintRef.current = null;
