@@ -23,3 +23,12 @@ test('closing an obsolete result cannot clear the active race or its countdown s
  assert.match(close,/forgetActiveDuelId\(authUser.id, duelId\)/);
  assert.match(close,/forgetPendingFinish\(authUser.id, duelId\)/);
 });
+
+test('finish submission requests immediate read-only recovery only after attempting the write',()=>{
+ const send=source.slice(source.indexOf('const sendFinishedTime ='),source.indexOf('const retryFinishedTime ='));
+ assert.match(send,/let writeAttempted = false;\s*try \{/);
+ assert.match(send,/writeAttempted = true;\s*const \{ error \} = await submitDuelResult\([^;]*\);\s*if \(!stillCurrent\(\)\) return;[\s\S]*?requestMatchRecoveryRef.current\?\.\(\);\s*if \(error\)/);
+ assert.match(send,/if \(writeAttempted && stillCurrent\(\)\) requestMatchRecoveryRef.current\?\.\(\);\s*\} finally \{/);
+ assert.equal((send.match(/await submitDuelResult\(/g)??[]).length,1);
+ assert.doesNotMatch(send,/forgetPendingFinish\(|showCompletedDuel\(|clearAbortedDuel\(/);
+});
