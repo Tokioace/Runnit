@@ -45,6 +45,24 @@ export function hasUniqueOwnedHistoryRows(
   return true;
 }
 
+/** Reject duplicate, unsolicited or foreign duel metadata before paired RPCs.
+ * Missing rows can be legitimate after deletion; they never authorize a result. */
+export function hasRequestedDuelMetadata(
+  rows: readonly unknown[], requestedIds: readonly string[], userId: string,
+): boolean {
+  const requested = new Set(requestedIds);
+  const seen = new Set<string>();
+  for (const item of rows) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+    const row = item as Record<string, unknown>;
+    const id = row.id;
+    if (typeof id !== 'string' || !requested.has(id) || seen.has(id) ||
+        (row.host_user_id !== userId && row.challenger_user_id !== userId)) return false;
+    seen.add(id);
+  }
+  return true;
+}
+
 export function raceHistoryFromServer(
   userId: string,
   results: readonly StoredDuelResult[],
