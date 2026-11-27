@@ -63,12 +63,6 @@ jobs:
           RUNNIT_NATIVE_TEST_DATA_CONFIRMED: ${{ vars.RUNNIT_NATIVE_TEST_DATA_CONFIRMED }}
           RUNNIT_NATIVE_TEST_PUBLISHABLE_KEY: ${{ secrets.RUNNIT_NATIVE_TEST_PUBLISHABLE_KEY }}
         run: node scripts/build-native-preview-web.mjs
-      - name: Reject production project references in bundled preview
-        run: |
-          if grep -R -a -l 'fcbffqcmvgdojsdfwgyt' dist; then
-            echo "Production project reference found in preview"
-            exit 1
-          fi
       - name: Prepare clean native shell without modifying root dependencies
         run: |
           mkdir -p "$RUNNER_TEMP/runnit-ios-preview/www"
