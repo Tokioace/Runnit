@@ -1624,6 +1624,11 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         // A websocket can reconnect without a browser online/visibility event.
         if (status === 'SUBSCRIBED') requestHostedDiscoveryRef.current?.();
         if (status === 'SUBSCRIBED') requestRegionalDiscoveryRef.current?.();
+        // Recover missed Ready/start/terminal transitions even when the
+        // websocket reconnects while the browser remains online.
+        if (status === 'SUBSCRIBED' && document.visibilityState === 'visible') {
+          requestMatchRecoveryRef.current?.();
+        }
       });
     return () => {
       lifetime.close();
