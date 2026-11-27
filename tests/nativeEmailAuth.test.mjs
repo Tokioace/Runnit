@@ -23,3 +23,24 @@ test('native UI and SDK both gate unfinished callback paths',()=>{
  assert.match(read('src/lib/supabaseClient.ts'),/detectSessionInUrl: !isNativeAuthRuntime\(\)/);
  assert.match(read('src/components/auth/WelcomeAuthScreen.tsx'),/\{!nativeAuth && <button/);
 });
+
+test('native forgotten-password guidance uses existing account OTP and guarded profile password change',()=>{
+ const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+ const welcome=read('src/components/auth/WelcomeAuthScreen.tsx');
+ assert.match(welcome,/nativeAuth \? 'Passwort vergessen\? E-Mail-Code verwenden' : 'Lieber ohne Passwort\? Anmeldelink oder Code verwenden'/);
+ assert.match(welcome,/Profil → Konto → Passwort ändern/);
+ assert.match(welcome,/Ohne Code oder gültiges Passwort kannst du dich in dieser iOS-Vorschau noch nicht anmelden/);
+ assert.match(welcome,/await verifyEmailOtp\(verificationEmail, otpCode\)/);
+ assert.match(read('src/lib/authRedirect.ts'),/if \(isBundledIosLocation\(href\)\) return \{ shouldCreateUser: false \}/);
+ const profile=read('src/screens/ProfileScreen.tsx');
+ assert.match(profile,/open\('account'\)/);
+ assert.match(profile,/changePassword=\{changePassword\}/);
+ const details=read('src/components/profile/AccountDetailsPanel.tsx');
+ assert.match(details,/Passwort ändern/);
+ assert.match(details,/await changePassword\(newPassword\)/);
+ const hook=read('src/hooks/useSupabaseUser.ts');
+ const change=hook.slice(hook.indexOf('const changePassword ='),hook.indexOf('const updateDisplayName ='));
+ assert.ok(change.indexOf('await confirmMutationIdentity')>=0);
+ assert.ok(change.indexOf('await confirmMutationIdentity')<change.indexOf('supabase.auth.updateUser({ password })'));
+ assert.match(change,/data.user\?\.id !== user\?\.id/);
+});

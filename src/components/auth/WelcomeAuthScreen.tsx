@@ -174,7 +174,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
               <AccountAuthPanel signIn={signIn} signUp={signUp} initialMode={initialMode} hideModeSwitch />
               {initialMode === 'signin' && (
                 <button type="button" onClick={openEmail} className="min-h-11 w-full rounded-xl text-center text-xs font-bold text-cyan-200 hover:text-white">
-                  {nativeAuth ? 'Lieber ohne Passwort? E-Mail-Code verwenden' : 'Lieber ohne Passwort? Anmeldelink oder Code verwenden'}
+                  {nativeAuth ? 'Passwort vergessen? E-Mail-Code verwenden' : 'Lieber ohne Passwort? Anmeldelink oder Code verwenden'}
                 </button>
               )}
               {!nativeAuth && <button type="button" onClick={() => { setEmailMode('hidden'); setError(null); setNotice(null); }}
@@ -212,7 +212,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
                 <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Zur Anmeldung mit Passwort
               </button>
               <h2 className="text-lg font-extrabold">Ohne Passwort anmelden</h2>
-              <p className="text-xs leading-5 text-white/60">{nativeAuth ? 'Fordere für dein bestehendes Konto einen sechsstelligen E-Mail-Code an. Der direkte Anmeldelink wird in der iOS-Vorschau noch nicht unterstützt.' : 'Du erhältst einen Anmeldelink. Alternativ kannst du den sechsstelligen Code eingeben, falls er in der E-Mail steht.'}</p>
+              <p className="text-xs leading-5 text-white/60">{nativeAuth ? 'Melde dich mit dem sechsstelligen E-Mail-Code in deinem bestehenden Konto an. Danach kannst du unter Profil → Konto → Passwort ändern ein neues Passwort setzen. Der direkte Anmeldelink wird in der iOS-Vorschau noch nicht unterstützt.' : 'Du erhältst einen Anmeldelink. Alternativ kannst du den sechsstelligen Code eingeben, falls er in der E-Mail steht.'}</p>
               <form onSubmit={event => { void submitEmail(event); }} className="space-y-3">
                 <label htmlFor="welcome-email" className="block text-xs font-bold text-white/75">E-Mail-Adresse</label>
                 <input id="welcome-email" type="email" required autoComplete="email" inputMode="email"
@@ -241,7 +241,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
                     className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-sm font-extrabold text-slate-950 disabled:opacity-50">
                     {pending === 'otp' ? 'Code wird geprüft …' : 'Mit Code anmelden'}
                   </button>
-                  <p className="text-[11px] leading-5 text-white/55">{nativeAuth ? 'Falls du nur einen Link erhältst, fehlt der Code in der Supabase-Mailvorlage. Nutze bis dahin dein Passwort.' : 'Der Code funktioniert im selben Browser. Falls du nur einen Link erhältst, muss die Supabase-Mailvorlage einen Code enthalten.'}</p>
+                  <p className="text-[11px] leading-5 text-white/55">{nativeAuth ? 'Falls du nur einen Link erhältst, muss die E-Mail-Code-Vorlage zuerst eingerichtet werden. Ohne Code oder gültiges Passwort kannst du dich in dieser iOS-Vorschau noch nicht anmelden.' : 'Der Code funktioniert im selben Browser. Falls du nur einen Link erhältst, muss die Supabase-Mailvorlage einen Code enthalten.'}</p>
                 </form>
               )}
             </section>
