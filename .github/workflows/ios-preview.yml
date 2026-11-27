@@ -42,8 +42,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: '22'
           cache: npm
@@ -84,7 +84,7 @@ jobs:
         run: |
           swiftc native/ios-preview/RunnitSprintEstimator.swift native/ios-preview/tests/main.swift -o "$RUNNER_TEMP/runnit-sprint-tests"
           "$RUNNER_TEMP/runnit-sprint-tests"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: runnit-ios-preview-input
           path: ${{ runner.temp }}/runnit-ios-project.tar.gz
@@ -98,10 +98,11 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 30
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: '22'
-      - uses: actions/download-artifact@v4
+          package-manager-cache: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: runnit-ios-preview-input
           path: ${{ runner.temp }}/runnit-ios-preview
@@ -117,13 +118,13 @@ jobs:
       - name: Package simulator app with executable permissions
         working-directory: ${{ runner.temp }}/runnit-ios-preview
         run: tar -czf runnit-ios-simulator-app.tar.gz -C derived/Build/Products/Debug-iphonesimulator App.app
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: runnit-ios-simulator-app
           path: ${{ runner.temp }}/runnit-ios-preview/runnit-ios-simulator-app.tar.gz
           retention-days: 7
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
           name: runnit-ios-smoke-diagnostics
