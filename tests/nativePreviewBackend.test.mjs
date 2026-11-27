@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {previewEnvironment,checkTestBackend} from '../scripts/build-native-preview-web.mjs';
+import {mkdtempSync,mkdirSync,writeFileSync,rmSync,symlinkSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {previewEnvironment,checkTestBackend,verifyPreviewBundle} from '../scripts/build-native-preview-web.mjs';
 const testEnv={RUNNIT_NATIVE_BACKEND_MODE:'test',GITHUB_EVENT_NAME:'workflow_dispatch',GITHUB_REF:'refs/heads/develop',RUNNIT_NATIVE_TEST_REF:'abcdefghijklmnopqrst',RUNNIT_NATIVE_TEST_PUBLISHABLE_KEY:'sb_publishable_synthetic_test_key_123456',RUNNIT_NATIVE_TEST_DATA_CONFIRMED:'synthetic-only'};
 test('default build uses offline preview even if other test variables exist',()=>{
  const out=previewEnvironment({...testEnv,RUNNIT_NATIVE_BACKEND_MODE:'offline'});
@@ -26,4 +29,43 @@ test('backend preflight is a bounded read-only Auth settings request without red
  });
  await assert.rejects(checkTestBackend(config,async()=>({ok:false})),/rejected/);
  await assert.rejects(checkTestBackend(config,async()=>{throw Error('private details');}),/unreachable/);
+});
+
+function bundleFixture(t,config){
+ const dir=mkdtempSync(join(tmpdir(),'runnit-preview-'));
+ t.after(()=>rmSync(dir,{recursive:true,force:true}));
+ mkdirSync(join(dir,'assets'));
+ writeFileSync(join(dir,'index.html'),'<html></html>');
+ const js=join(dir,'assets','index.js');
+ writeFileSync(js,JSON.stringify([config.VITE_SUPABASE_URL,config.VITE_SUPABASE_ANON_KEY]));
+ return {dir,js};
+}
+test('actual preview bundle includes expected offline or approved test configuration',t=>{
+ for(const config of [previewEnvironment({}),previewEnvironment(testEnv)]){
+  const {dir}=bundleFixture(t,config);
+  verifyPreviewBundle(dir,config);
+ }
+});
+test('missing or incorrect backend config in JavaScript cannot pass',t=>{
+ const config=previewEnvironment({});
+ const {dir,js}=bundleFixture(t,config);
+ for(const content of [config.VITE_SUPABASE_URL,config.VITE_SUPABASE_ANON_KEY,'unrelated bundle']){
+  writeFileSync(js,content);
+  assert.throws(()=>verifyPreviewBundle(dir,config),/Expected preview backend configuration/);
+ }
+ writeFileSync(join(dir,'fake.txt'),JSON.stringify(config));
+ assert.throws(()=>verifyPreviewBundle(dir,config),/Expected preview backend configuration/);
+});
+test('known production reference in any bundled file fails',t=>{
+ const config=previewEnvironment({});
+ const {dir}=bundleFixture(t,config);
+ writeFileSync(join(dir,'assets','extra.bin'),Buffer.from('fcbffqcmvgdojsdfwgyt'));
+ assert.throws(()=>verifyPreviewBundle(dir,config),/Production project reference/);
+});
+test('missing output and linked assets fail closed',t=>{
+ const config=previewEnvironment({});
+ const {dir,js}=bundleFixture(t,config);
+ assert.throws(()=>verifyPreviewBundle(join(dir,'missing'),config));
+ symlinkSync(js,join(dir,'linked.js'));
+ assert.throws(()=>verifyPreviewBundle(dir,config),/Linked preview asset/);
 });
