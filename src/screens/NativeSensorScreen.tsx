@@ -8,6 +8,7 @@ export default function NativeSensorScreen(){
  const generation=useRef(0);
  const run=useRef<string|null>(null);
  const starting=useRef(false);
+ const mounted=useRef(false);
  const [busy,setBusy]=useState(false);
  const [target,setTarget]=useState<50|75|100>(50);
  const [reference,setReference]=useState('');
@@ -19,12 +20,14 @@ export default function NativeSensorScreen(){
  const stop=async ()=>{
   const ticket=++generation.current;
   const id=run.current;run.current=null;
+  if(starting.current&&mounted.current)setNotice('Start unterbrochen. Bitte nach Rückkehr erneut starten.');
   if(id&&api.current){
    try{const result=await api.current.stop(id);if(ticket===generation.current)setReport(result);}
-   catch{if(ticket===generation.current)setNotice('Stopp nicht bestätigt. Die native Zeitbegrenzung bleibt aktiv.');}
+   catch{if(ticket===generation.current&&mounted.current){setReport(null);setNotice('Stopp nicht bestätigt. Die native Zeitbegrenzung bleibt aktiv.');}}
   }
  };
  useEffect(()=>{
+  mounted.current=true;
   api.current=nativeProbeForWindow();
   const hide=()=>{if(document.hidden){void stop();}};
   const leave=()=>{void stop();};
@@ -44,6 +47,7 @@ export default function NativeSensorScreen(){
    }).finally(()=>{reading=false;});
   },500);
   return ()=>{
+   mounted.current=false;
    ++generation.current;
    const id=run.current;run.current=null;
    if(id&&api.current)void api.current.stop(id).catch(()=>{});
@@ -59,7 +63,7 @@ export default function NativeSensorScreen(){
   try{
    const result=await bridge.start();
    if(ticket!==generation.current||document.hidden){
-    if(typeof result!=='string')void bridge.stop(result.runId).catch(()=>{});
+    if(typeof result!=='string')await bridge.stop(result.runId).catch(()=>{});
     return;
    }
    if(typeof result==='string'){
@@ -68,7 +72,13 @@ export default function NativeSensorScreen(){
    run.current=result.status==='running'?result.runId:null;setReport(result);
    setNotice('Messung läuft. Kein Upload, keine Ranglistenwertung.');
   }catch{if(ticket===generation.current)setNotice('Sensoren konnten nicht gestartet werden.');}
-  finally{starting.current=false;if(ticket===generation.current)setBusy(false);else if(!document.hidden)setBusy(false);}
+  finally{
+   starting.current=false;
+   // A background transition retires the generation, not the pending start lock.
+   // Release it even when the document is still hidden; otherwise no later
+   // foreground event clears busy and the start button stays disabled.
+   if(mounted.current)setBusy(false);
+  }
  };
  const arm=async ()=>{
   const id=run.current,bridge=api.current,ticket=generation.current;
@@ -79,7 +89,7 @@ export default function NativeSensorScreen(){
    if(ticket!==generation.current||id!==run.current)return;
    setReport(result);setNotice('Testlauf gestartet. Gerade Strecke, Display nicht während des Laufens beachten.');
   }catch{if(ticket===generation.current)setNotice('Start nicht möglich: frisches GPS-Signal und mindestens 15 s Restzeit erforderlich.');}
-  finally{arming.current=false;setArmBusy(false);}
+  finally{arming.current=false;if(mounted.current)setArmBusy(false);}
  };
  const sprint=report?.sprint;
  const analysis=report?.motionAnalysis;
