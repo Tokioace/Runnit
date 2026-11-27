@@ -81,3 +81,21 @@ test('map uses routine polls only for the interval and explicit requests for vis
  assert.match(recovery,/setInterval\(\(\) => \{ if \(document.visibilityState === 'visible'\) queue.poll\(\); \}, 4_000\)/);
  assert.match(recovery,/const whenVisible = \(\) => \{\s*if \(document.visibilityState === 'visible'\) \{\s*queue.request\(\)/);
 });
+
+test('a rejected candidate does not suppress the exact active-duel status read',()=>{
+ const screen=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'utf8');
+ const recover=screen.slice(screen.indexOf('const queue = createDuelRecoveryQueue'),screen.indexOf('const whenVisible ='));
+ const start=recover.indexOf('const activeBeforeRecovery =');
+ const end=recover.indexOf('// A different match',start);
+ assert.ok(start>=0&&end>start);
+ const check=new Function('data','activeDuelIdRef','endedDuelIdsRef','completedDuelIdsRef','applyMatchedDuel','current',recover.slice(start,end)+'return "fallback";');
+ for(const accepted of [true,false]){
+  let revision=0,calls=0;
+  const result=check({id:'active'},{current:'active'},{current:new Set()},{current:new Set()},()=>{calls++;if(accepted)revision++;},()=>revision===0);
+  assert.equal(calls,1);
+  assert.equal(result,accepted?undefined:'fallback');
+ }
+ assert.match(recover,/\.eq\('id', activeId\)\.maybeSingle\(\)/);
+ const transition=screen.slice(screen.indexOf('const applyMatchedDuel ='),screen.indexOf('// Display only profile nicknames'));
+ assert.ok(transition.indexOf('duelStartLatch.current.accept')<transition.indexOf('recoveryRevisionRef.current += 1'));
+});
