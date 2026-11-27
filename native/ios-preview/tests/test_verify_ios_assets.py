@@ -1,5 +1,6 @@
 """Synthetic web asset copy regression tests; no iOS SDK needed."""
 import importlib.util
+import plistlib
 from pathlib import Path
 import tempfile
 import unittest
@@ -58,6 +59,66 @@ class BundledAssetsTest(unittest.TestCase):
     def test_missing_entry_fails(self):
         (self.web / "index.html").unlink()
         with self.assertRaisesRegex(AssertionError, "missing web entry"):
+            self.verify()
+
+
+class CompiledAppTest(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        root = Path(self.temp.name)
+        self.web = root / "www"
+        self.app = root / "App.app"
+        for folder in (self.web, self.app / "public"):
+            folder.mkdir(parents=True)
+            (folder / "index.html").write_bytes(b"html")
+            (folder / "app.js").write_bytes(b"script")
+        self.manifest = {"CFBundleIdentifier": "com.tokioace.runnit.preview",
+                         "CFBundleExecutable": "App", **verifier.PURPOSES}
+        self.write_manifest()
+        (self.app / "App").write_bytes(b"synthetic binary")
+
+    def write_manifest(self):
+        (self.app / "Info.plist").write_bytes(plistlib.dumps(self.manifest))
+
+    def verify(self):
+        verifier.validate_compiled_app(self.web, self.app)
+
+    def test_valid_compiled_app(self):
+        self.verify()
+
+    def test_wrong_bundle_id(self):
+        self.manifest["CFBundleIdentifier"] = "com.example.other"
+        self.write_manifest()
+        with self.assertRaisesRegex(AssertionError, "compiled bundle identifier mismatch"):
+            self.verify()
+
+    def test_missing_permission(self):
+        del self.manifest["NSMotionUsageDescription"]
+        self.write_manifest()
+        with self.assertRaisesRegex(AssertionError, "compiled permission description mismatch"):
+            self.verify()
+
+    def test_unexpected_background_permission(self):
+        self.manifest["UIBackgroundModes"] = ["location"]
+        self.write_manifest()
+        with self.assertRaisesRegex(AssertionError, "unexpected compiled background"):
+            self.verify()
+
+    def test_missing_executable(self):
+        (self.app / "App").unlink()
+        with self.assertRaisesRegex(AssertionError, "compiled executable missing"):
+            self.verify()
+
+    def test_invalid_executable_path(self):
+        self.manifest["CFBundleExecutable"] = "../outside"
+        self.write_manifest()
+        with self.assertRaisesRegex(AssertionError, "invalid compiled executable name"):
+            self.verify()
+
+    def test_corrupt_compiled_asset(self):
+        (self.app / "public/app.js").write_bytes(b"corrupt")
+        with self.assertRaisesRegex(AssertionError, "bundled asset mismatch"):
             self.verify()
 
 

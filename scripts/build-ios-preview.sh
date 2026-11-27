@@ -27,4 +27,4 @@ plutil -lint ios/App/App/Info.plist
 xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
   -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath "$PWD/derived" CODE_SIGNING_ALLOWED=NO build
-test -d derived/Build/Products/Debug-iphonesimulator/App.app
+python3 verify-ios-project.py --verify-built-app

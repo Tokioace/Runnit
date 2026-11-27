@@ -60,6 +60,22 @@ def validate():
             assert entry.get("resolved", "").startswith("https://registry.npmjs.org/"), "unexpected npm source"
             assert entry.get("integrity", "").startswith("sha512-"), "missing npm integrity"
 
+def validate_compiled_app(web: Path, app: Path):
+    """Check the actual compiled product before launching or packaging it."""
+    assert app.is_dir() and not app.is_symlink(), "compiled app missing"
+    manifest = plistlib.loads((app / "Info.plist").read_bytes())
+    assert manifest.get("CFBundleIdentifier") == "com.tokioace.runnit.preview", "compiled bundle identifier mismatch"
+    for key, value in PURPOSES.items():
+        assert manifest.get(key) == value, "compiled permission description mismatch"
+    assert not any(key in manifest for key in (
+        "NSLocationAlwaysUsageDescription", "NSLocationAlwaysAndWhenInUseUsageDescription",
+        "NSMicrophoneUsageDescription", "UIBackgroundModes")), "unexpected compiled background/extra permissions"
+    executable = manifest.get("CFBundleExecutable")
+    assert isinstance(executable, str) and executable not in ("", ".", "..") and Path(executable).name == executable, "invalid compiled executable name"
+    binary = app / executable
+    assert binary.is_file() and not binary.is_symlink() and binary.stat().st_size > 0, "compiled executable missing"
+    validate_bundled_assets(web, app / "public")
+
 def hashes():
     files = [ROOT / "package.json", ROOT / "package-lock.json", ROOT / "capacitor.config.json",
              ROOT / "build-ios-preview.sh", ROOT / "verify-ios-project.py", ROOT / "smoke-ios-preview.sh"]
@@ -78,6 +94,8 @@ if __name__ == "__main__":
     elif sys.argv[1:] == ["--verify"]:
         validate()
         assert json.loads(MANIFEST.read_text()) == hashes(), "prepared project input changed"
+    elif sys.argv[1:] == ["--verify-built-app"]:
+        validate_compiled_app(ROOT / "www", ROOT / "derived/Build/Products/Debug-iphonesimulator/App.app")
     else:
-        raise SystemExit("Use --prepare or --verify")
+        raise SystemExit("Use --prepare, --verify or --verify-built-app")
     print("Preview project structure and input integrity verified")
