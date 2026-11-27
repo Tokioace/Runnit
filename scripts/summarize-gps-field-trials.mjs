@@ -30,7 +30,7 @@ function validateReport(report, distance) {
   if (!report.finished) {
     requireThat(report.durationSeconds === null && report.referenceSeconds === null &&
       report.differenceSeconds === null && report.stopReason !== 'finish' && report.finishTimingMethod === null && report.crossingIntervalMs === null, 'Inconsistent unfinished report');
-    return { finished: false, error: null };
+    return { finished: false, error: null, gap: report.gpsObservationGapCount > 0, method: null };
   }
   requireThat(report.stopReason === 'finish' && positive(report.durationSeconds) &&
     report.durationSeconds <= 300 && report.observedDistanceMeters >= distance && report.acceptedSamples >= 3, 'Invalid finish time');
@@ -38,13 +38,13 @@ function validateReport(report, distance) {
     report.finishTimingMethod === 'observed-after-gap' && report.crossingIntervalMs === null && report.gpsObservationGapCount > 0, 'Inconsistent finish timing');
   if (report.referenceSeconds === null) {
     requireThat(report.differenceSeconds === null, 'Inconsistent reference comparison');
-    return { finished: true, error: null };
+    return { finished: true, error: null, gap: report.gpsObservationGapCount > 0, method: report.finishTimingMethod };
   }
   requireThat(positive(report.referenceSeconds) && report.referenceSeconds <= 180 &&
     Number.isFinite(report.differenceSeconds), 'Invalid reference comparison');
   const error = report.durationSeconds - report.referenceSeconds;
   requireThat(Math.abs(error - report.differenceSeconds) <= 1e-6, 'Inconsistent reference difference');
-  return { finished: true, error };
+  return { finished: true, error, gap: report.gpsObservationGapCount > 0, method: report.finishTimingMethod };
 }
 
 export function summarizeFieldTrials(trials) {
@@ -52,7 +52,8 @@ export function summarizeFieldTrials(trials) {
     'Record 30–50 preplanned trial slots');
   const seen = new Set();
   const groups = distances.map(distance => ({distance,planned:0,attempted:0,notRun:0,
-    noExport:0,unfinished:0,finished:0,withoutReference:0,errors:[]}));
+    noExport:0,unfinished:0,finished:0,withoutReference:0,withObservationGap:0,
+    interpolated:0,observedAfterGap:0,stopReasons:{},errors:[],gapErrors:[],continuousErrors:[]}));
   for (const trial of trials) {
     requireThat(trial && typeof trial === 'object' &&
       Object.keys(trial).every(k => ['id','distanceMeters','outcome','report'].includes(k)) &&
@@ -70,24 +71,34 @@ export function summarizeFieldTrials(trials) {
     requireThat(trial.outcome === 'report', 'Invalid trial outcome');
     const result = validateReport(trial.report, group.distance);
     group.attempted++;
+    group.stopReasons[trial.report.stopReason]=(group.stopReasons[trial.report.stopReason]??0)+1;
+    if(result.gap) group.withObservationGap++;
     if (!result.finished) group.unfinished++;
     else {
       group.finished++;
+      if(result.method==='interpolated')group.interpolated++;
+      else group.observedAfterGap++;
       if (result.error === null) group.withoutReference++;
-      else group.errors.push(result.error);
+      else {
+        group.errors.push(result.error);
+        (result.gap?group.gapErrors:group.continuousErrors).push(result.error);
+      }
     }
   }
   requireThat(groups.every(g => g.planned >= 10), 'Plan at least ten slots per distance');
+  const errorSummary = errors => ({compared:errors.length,
+    meanSignedErrorSeconds:errors.length ? errors.reduce((a,b)=>a+b,0)/errors.length : null,
+    meanAbsoluteErrorSeconds:errors.length ? errors.reduce((a,b)=>a+Math.abs(b),0)/errors.length : null,
+    maxAbsoluteErrorSeconds:errors.length ? Math.max(...errors.map(Math.abs)) : null});
   return {
     scope:'experimental-browser-gps-only',
     acceptance:'not-assessed',
-    distances:groups.map(({errors,...g}) => ({
-      ...g, compared:errors.length,
+    distances:groups.map(({errors,gapErrors,continuousErrors,...g}) => ({
+      ...g, ...errorSummary(errors),
+      withObservationGapErrors:errorSummary(gapErrors),
+      withoutObservationGapErrors:errorSummary(continuousErrors),
       unconfirmedFinishRate:g.attempted ? (g.noExport+g.unfinished)/g.attempted : null,
-      unevaluableRate:g.attempted ? (g.attempted-errors.length)/g.attempted : null,
-      meanSignedErrorSeconds:errors.length ? errors.reduce((a,b)=>a+b,0)/errors.length : null,
-      meanAbsoluteErrorSeconds:errors.length ? errors.reduce((a,b)=>a+Math.abs(b),0)/errors.length : null,
-      maxAbsoluteErrorSeconds:errors.length ? Math.max(...errors.map(Math.abs)) : null
+      unevaluableRate:g.attempted ? (g.attempted-errors.length)/g.attempted : null
     }))
   };
 }
