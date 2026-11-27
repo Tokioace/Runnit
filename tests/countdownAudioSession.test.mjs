@@ -70,15 +70,17 @@ test('Ghost Run acknowledges handoff only after a valid GPS start',()=>{
   /if \(!lifetime.current.isActive\(\) \|\| phaseRef.current !== 'countdown'\) return false;/,
   /if \(countdownAt === null \|\| countdownAtRef.current !== countdownAt\) return false;/,
   /if \(!canStartGhostCountdown\(countdownAt, startMs, document.visibilityState === 'visible'\)\) \{[^}]*return false;/,
-  /if \(!isFreshStartFix\(anchor, Date.now\(\)\)\) \{[^}]*return false;/,
+  /if \(!isFreshStartFix\(anchor, startMs\)\) \{[^}]*return false;/,
   /catch \{[^}]*return false;/
  ];
+ assert.match(body,/const startMs = Date\.now\(\);/);
+ assert.ok(body.indexOf('const startMs = Date.now();')<body.indexOf('isFreshStartFix(anchor, startMs)'));
  const running=body.indexOf("setCurrentPhase('running')");
  assert.ok(running>=0);
  for(const guard of guards) assert.match(body.slice(0,running),guard);
  assert.equal((body.match(/return true;/g)||[]).length,1);
  assert.ok(body.indexOf('return true;')>running);
- assert.match(body,/if \(!isFreshStartFix\(anchor, Date.now\(\)\)\)/);
+ assert.match(body,/if \(!isFreshStartFix\(anchor, startMs\)\)/);
  assert.match(body,/setCurrentPhase\('running'\);[\s\S]*return true;/);
  assert.match(source,/onDone=\{beginRun\}/);
 });

@@ -28,3 +28,11 @@ test('background, pagehide and explicit abort retire the countdown synchronously
  }
  assert.match(source,/onAbort=\{async \(\) => \{\s*if \(phaseRef.current !== 'countdown' \|\| countdownAtRef.current !== countdownAt\) return;\s*countdownAtRef.current = null;/);
 });
+
+test('failed GO clears invalid GPS readiness and uses the same observed start clock',()=>{
+ const begin=source.slice(source.indexOf('const beginRun ='),source.indexOf('useEffect(() =>',source.indexOf('const beginRun =')));
+ assert.match(begin,/if \(!canStartGhostCountdown\(countdownAt, startMs, document.visibilityState === 'visible'\)\) \{\s*readyRef.current = null;\s*setFixIssue\('missing'\);\s*setFixTimestampMs\(null\);\s*setAccuracyM\(null\);\s*setNow\(startMs\);/);
+ assert.match(begin,/if \(!isFreshStartFix\(anchor, startMs\)\) \{\s*readyRef.current = null;\s*setFixIssue\(inspectGhostGpsFix\(anchor, startMs\).issue\);\s*setNow\(startMs\);\s*setCountdownAt\(null\);\s*setCurrentPhase\('acquiring'\);[\s\S]*?return false;/);
+ assert.match(begin,/first = primeGpsSprint\(createGpsSprint\(target, startMs\), anchor\);\s*\} catch \{\s*readyRef.current = null;\s*setFixIssue\('missing'\);\s*setFixTimestampMs\(null\);\s*setAccuracyM\(null\);\s*setNow\(startMs\);/);
+ assert.ok(begin.indexOf('if (!isFreshStartFix(anchor, startMs))')<begin.indexOf('activeRef.current = first'));
+});
