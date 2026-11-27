@@ -1640,7 +1640,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       activeDuelIdRef.current !== unconfirmedRecoveryHintRef.current);
 
   const openHostRunAt = (point: Coordinates) => {
-    if (!requireRaceAccount() || hostingRunPendingRef.current) return;
+    if (!requireRaceAccount()) return;
+    if (hostingRunPendingRef.current) return;
     setRaceNotice(null);
     if (race.status !== 'idle' || hasConfirmedOrJoiningDuel()) {
       setRaceNotice('Du hast bereits ein aktives Duell. Schließe es zuerst ab.');
