@@ -20,6 +20,22 @@ REQUIRED = ("RunnitBridgeViewController()", "registerPluginInstance(RunnitSessio
             "registerPluginInstance(RunnitSensorProbe())", "struct RunnitSprintEstimator",
             "struct RunnitMotionCapture")
 
+def validate_bundled_assets(web: Path, bundled: Path):
+    """Every original web asset must be copied byte-for-byte into the native app."""
+    assert web.is_dir() and not web.is_symlink(), "missing or linked web asset directory"
+    assert bundled.is_dir() and not bundled.is_symlink(), "missing or linked bundled asset directory"
+    assert (web / "index.html").is_file(), "missing web entry"
+    for tree in (web, bundled):
+        assert not any(p.is_symlink() for p in tree.rglob("*")), "linked web assets forbidden"
+    for source in sorted(web.rglob("*")):
+        if not source.is_file():
+            continue
+        relative = source.relative_to(web)
+        destination = bundled / relative
+        assert destination.is_file(), "missing bundled asset: " + str(relative)
+        assert hashlib.sha256(source.read_bytes()).digest() == hashlib.sha256(destination.read_bytes()).digest(), "bundled asset mismatch: " + str(relative)
+    # Capacitor may add its own generated support files to the bundle.
+
 def validate():
     scene = SCENE.read_text()
     assert all(scene.count(item) == 1 for item in REQUIRED), "native bridge/estimator missing or duplicate"
@@ -34,7 +50,7 @@ def validate():
     assert not any(key in manifest for key in (
         "NSLocationAlwaysUsageDescription", "NSLocationAlwaysAndWhenInUseUsageDescription",
         "NSMicrophoneUsageDescription", "UIBackgroundModes")), "unexpected background/extra permissions"
-    assert (APP / "public/index.html").read_bytes() == (ROOT / "www/index.html").read_bytes(), "bundled entry mismatch"
+    validate_bundled_assets(ROOT / "www", APP / "public")
     assert "com.tokioace.runnit.preview" in PROJECT.read_text(), "preview bundle identifier missing"
     lock = json.loads((ROOT / "package-lock.json").read_text())
     for name in ("@capacitor/core", "@capacitor/ios", "@capacitor/cli"):
