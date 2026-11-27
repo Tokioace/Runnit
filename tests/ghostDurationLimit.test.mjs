@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {gpsFieldDurationReached} from '../src/lib/gpsField.ts';
+import {gpsFieldDurationReached,gpsFieldClockChanged} from '../src/lib/gpsField.ts';
 import {createGpsSprint,advanceGpsSprint,syntheticPoint} from '../src/lib/sprintGps.ts';
 import {ghostSummary} from '../src/lib/ghostRunSummary.ts';
 import {createMeasurementLifetime} from '../src/lib/measurementLifetime.ts';
@@ -20,7 +20,7 @@ test('solo uses the shared five-minute cutoff and preserves incomplete summary',
  assert.equal(summary.observed_distance_m,10);
  const a=source.indexOf('const stopAtDurationLimit ='),b=source.indexOf('const onGps =',a);
  assert.ok(a>=0&&b>a);
- assert.match(source.slice(a,b),/!gpsFieldDurationReached\(state.startedAtMs, nowMs\)\) return false;\s*stopRun\('stopped',/);
+ assert.match(source.slice(a,b),/!gpsFieldDurationReached\(monoStart, monoNow\)\) return false;\s*stopRun\('stopped',/);
 });
 test('GPS and motion callbacks enforce the cutoff before collecting measurements',()=>{
  const a=source.indexOf('const onGps ='),b=source.indexOf('const onGpsError =',a);
@@ -40,4 +40,17 @@ test('late timer or motion callback cannot continue a replacement run',()=>{
  assert.equal(old(),false);assert.equal(current(),true);
  assert.match(source,/const isGpsLive = gpsLifetime.current.capture\(\);\s*const handler = \(event: DeviceMotionEvent\) => \{\s*if \(!lifetime.current.isActive\(\) \|\| phaseRef.current !== 'running' \|\| !isGpsLive\(\)\) return;/);
  assert.match(source,/const isGpsLive = gpsLifetime.current.capture\(\);\s*const timer = window.setInterval\(\(\) => \{\s*if \(!isGpsLive\(\) \|\| phaseRef.current !== 'running'\) return;\s*const moment = Date.now\(\);\s*if \(!stopAtDurationLimit\(moment\)\) setNow\(moment\);/);
+});
+
+
+test('clock or visibility interruption retires a Ghost run before GPS or motion evidence is processed',()=>{
+ const a=source.indexOf('const stopAtDurationLimit ='),b=source.indexOf('const onGps =',a);
+ const block=source.slice(a,b);
+ assert.match(block,/document.visibilityState !== 'visible' \|\| monoStart === null \|\|/);
+ assert.match(block,/gpsFieldClockChanged\(state.startedAtMs, monoStart, nowMs, monoNow\)/);
+ assert.ok(block.indexOf('gpsFieldClockChanged(')<block.indexOf('gpsFieldDurationReached('));
+ assert.match(block,/interruptedRef.current = true;\s*setInterrupted\(true\);\s*stopRun\('stopped',/);
+ assert.match(source,/monotonicStartRef.current = startMono;/);
+ assert.equal(gpsFieldClockChanged(100000,500,99000,1500),true);
+ assert.equal(gpsFieldClockChanged(100000,500,102000,2500),false);
 });
