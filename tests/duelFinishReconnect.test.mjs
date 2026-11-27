@@ -32,3 +32,16 @@ test('reconnecting during an outstanding result read never starts a second one',
  read.close();release();await next;
  await read.refresh();assert.equal(calls,2);
 });
+
+test('finish retry and abort synchronously exclude one another before either async action',()=>{
+ const retry=source.slice(source.indexOf('const retrySubmission ='),source.indexOf('const abort ='));
+ const abort=source.slice(source.indexOf('const abort ='),source.indexOf('  return (',source.indexOf('const abort =')));
+ assert.match(source,/const pendingActionRef = useRef<'retry' \| 'abort' \| null>\(null\)/);
+ assert.match(retry,/if \(pendingActionRef.current !== null\) return;\s*pendingActionRef.current = 'retry';\s*setRetryBusy\(true\);\s*try \{ await onRetrySubmit\(\); \}/);
+ assert.match(retry,/finally \{\s*pendingActionRef.current = null;\s*setRetryBusy\(false\);/);
+ assert.match(abort,/if \(pendingActionRef.current !== null\) return;\s*pendingActionRef.current = 'abort';\s*setAbortBusy\(true\);/);
+ assert.match(abort,/catch \{\s*pendingActionRef.current = null;\s*setAbortError/);
+ assert.match(source,/void retrySubmission\(\); \}\} disabled=\{retryBusy \|\| abortBusy\}/);
+ assert.match(source,/disabled=\{abortBusy \|\| retryBusy\} onClick=\{\(\) => \{ void abort\(\); \}\}/);
+ assert.match(source,/disabled=\{retryBusy \|\| abortBusy\} onClick=\{\(\) => setConfirmAbort\(true\)\}/);
+});
