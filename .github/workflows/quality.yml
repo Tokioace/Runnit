@@ -32,7 +32,13 @@ jobs:
         run: npm ci
       - name: TypeScript check
         run: npx tsc --noEmit
-      - name: Simulated GPS regression tests
-        run: npm run test:gps
+      - name: Full automated regression suite
+        env:
+          NO_COLOR: '1'
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:gps | tee "$RUNNER_TEMP/runnit-tests.tap"
+          node scripts/verify-test-summary.mjs "$RUNNER_TEMP/runnit-tests.tap"
       - name: Production build
         run: npm run build
