@@ -1626,9 +1626,20 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     return false;
   };
 
+  // A confirmed participant match reserves the local race flow regardless
+  // of whether this account is the host or challenger. An unconfirmed
+  // recovery hint alone does not prove that a match is still active.
+  const hasConfirmedOrJoiningDuel = () => joiningRunRef.current !== null ||
+    (activeDuelIdRef.current !== null &&
+      activeDuelIdRef.current !== unconfirmedRecoveryHintRef.current);
+
   const openHostRunAt = (point: Coordinates) => {
     if (!requireRaceAccount()) return;
     setRaceNotice(null);
+    if (race.status !== 'idle' || hasConfirmedOrJoiningDuel()) {
+      setRaceNotice('Du hast bereits ein aktives Duell. Schließe es zuerst ab.');
+      return;
+    }
     if (hostedOpenDuels.some(run => !run.expiresAt || isOpenEventAvailable(run.expiresAt))) {
       setRaceNotice('Du hast bereits ein offenes Event. Warte auf einen Gegner oder storniere es zuerst.');
       return;
@@ -1648,6 +1659,9 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     if (!requireRaceAccount()) return;
     if (!authUser || finishAccountRef.current !== authUser.id) {
       throw new Error('Anmeldung erforderlich.');
+    }
+    if (race.status !== 'idle' || hasConfirmedOrJoiningDuel()) {
+      throw new Error('Du hast bereits ein aktives Event. Schließe zuerst dein Duell ab.');
     }
     if (!userCoords || !hostLocation || !currentUser) {
       throw new Error('GPS-Standort oder gewählter Kartenpunkt nicht verfügbar.');
@@ -1669,6 +1683,11 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     if (activeCheckError) throw activeCheckError;
     if (activeHosted?.length) {
       throw new Error('Du hast bereits ein aktives Event. Schließe zuerst dein vorheriges Rennen ab oder storniere es.');
+    }
+
+    // A match or join may arrive while the host preflight is in flight.
+    if (hasConfirmedOrJoiningDuel()) {
+      throw new Error('Du hast bereits ein aktives Event. Schließe zuerst dein Duell ab.');
     }
 
     // GPS can change during the preflight. Do not submit a point that is

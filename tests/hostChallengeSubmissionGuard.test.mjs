@@ -21,3 +21,15 @@ test('latest GPS radius is rechecked after successful preflight before inserting
  assert.ok(host.indexOf('if (activeHosted?.length)')<host.indexOf('const latestCoords'));
  assert.match(map,/liveUserCoordsRef.current = userCoords;/);
 });
+
+test('confirmed participant matches and pending joins block host setup and submission',()=>{
+ const setup=map.slice(map.indexOf('const hasConfirmedOrJoiningDuel ='),map.indexOf('const handleHostRun ='));
+ assert.match(setup,/const hasConfirmedOrJoiningDuel = \(\) => joiningRunRef.current !== null \|\|\s*\(activeDuelIdRef.current !== null &&\s*activeDuelIdRef.current !== unconfirmedRecoveryHintRef.current\);/);
+ assert.match(setup,/if \(race.status !== 'idle' \|\| hasConfirmedOrJoiningDuel\(\)\) \{[\s\S]*?return;\s*\}/);
+ const host=map.slice(map.indexOf('const handleHostRun ='),map.indexOf('const handleCancelHostedRun ='));
+ assert.match(host,/if \(race.status !== 'idle' \|\| hasConfirmedOrJoiningDuel\(\)\) \{\s*throw new Error/);
+ const preflight=host.indexOf('if (activeCheckError)');
+ const recheck=host.indexOf('if (hasConfirmedOrJoiningDuel())');
+ const create=host.indexOf('await createDuel');
+ assert.ok(preflight>=0 && recheck>preflight && create>recheck);
+});
