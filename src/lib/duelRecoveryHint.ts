@@ -3,6 +3,9 @@ type MatchCandidate = {
   status: string;
   host_user_id: string | null;
   challenger_user_id: string | null;
+  start_at: string | null;
+  host_ready: boolean;
+  challenger_ready: boolean;
 };
 /** A local hint is not proof of an active race. A different server-confirmed
  * match can replace an unavailable hint, but never a confirmed race or finish.
@@ -19,5 +22,11 @@ export function canReleaseUnconfirmedDuelHint(input: {
   return activeId === hintId && !hasPendingFinish && !candidateRetired &&
     !!candidate && typeof candidate.id === 'string' && !!candidate.id &&
     candidate.id !== activeId && candidate.status === 'matched' &&
-    (candidate.host_user_id === userId || candidate.challenger_user_id === userId);
+    (candidate.host_user_id === userId || candidate.challenger_user_id === userId) &&
+    typeof candidate.host_user_id === 'string' && !!candidate.host_user_id.trim() &&
+    typeof candidate.challenger_user_id === 'string' && !!candidate.challenger_user_id.trim() &&
+    candidate.host_user_id !== candidate.challenger_user_id &&
+    (candidate.start_at === null ||
+      (typeof candidate.start_at === 'string' && Number.isFinite(Date.parse(candidate.start_at)) &&
+        candidate.host_ready === true && candidate.challenger_ready === true));
 }

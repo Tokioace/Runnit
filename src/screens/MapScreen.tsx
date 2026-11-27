@@ -1476,7 +1476,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
             candidateRetired: !!data && (endedDuelIdsRef.current.has(data.id) || completedDuelIdsRef.current.has(data.id)),
             hasPendingFinish: latestFinishPayloadRef.current?.duelId === activeId ||
               readPendingFinish(authUser.id, activeId) !== null,
-          })) {
+          }) && data && duelStartLatch.current.accept(data.id, data.start_at)) {
         activeDuelIdRef.current = null;
         unconfirmedRecoveryHintRef.current = null;
         forgetActiveDuelId(authUser.id, activeId);
