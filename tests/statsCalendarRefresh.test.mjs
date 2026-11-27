@@ -33,13 +33,13 @@ test('history clock is local-only, refreshes on visibility and disposes its time
  assert.match(clock,/clearInterval\(timer\)/);
  assert.match(clock,/removeEventListener\('focus', tick\)/);
  assert.match(clock,/removeEventListener\('visibilitychange', tick\)/);
- assert.match(clock,/new Date\(\), \[state.races, state.ghostSessions, clockRevision\]/);
+ assert.match(clock,/new Date\(\), \[visibleState.races, visibleState.ghostSessions, clockRevision\]/);
  assert.doesNotMatch(clock,/supabase|refresh\(\)/);
 });
 test('Stats chart and weekly totals consume the same observation time',()=>{
  const s=readFileSync(new URL('../src/hooks/useRunnerHistory.ts',import.meta.url),'utf8');
  const stats=readFileSync(new URL('../src/screens/StatsScreen.tsx',import.meta.url),'utf8');
- assert.match(s,/return \{ ...state, totals, refresh, now \}/);
- assert.match(s,/calculateActivityTotals\(state.races, state.ghostSessions, currentLocalWeekStart\(now\), now.getTime\(\)\)/);
+ assert.match(s,/return \{ races: visibleState\.races, ghostSessions: visibleState\.ghostSessions,\s*loading: visibleState\.loading, error: visibleState\.error, totals, refresh, now \}/);
+ assert.match(s,/calculateActivityTotals\(visibleState.races, visibleState.ghostSessions, currentLocalWeekStart\(now\), now.getTime\(\)\)/);
  assert.match(stats,/calculateStatsOverview\(races,ghostSessions,now\),\[races,ghostSessions,now\]/);
 });
