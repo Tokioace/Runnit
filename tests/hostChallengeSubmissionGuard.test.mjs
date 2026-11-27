@@ -33,3 +33,15 @@ test('confirmed participant matches and pending joins block host setup and submi
  const create=host.indexOf('await createDuel');
  assert.ok(preflight>=0 && recheck>preflight && create>recheck);
 });
+
+test('host creation owns a synchronous lock until all requests settle and joining respects it',()=>{
+ const host=map.slice(map.indexOf('const handleHostRun ='),map.indexOf('const handleCancelHostedRun ='));
+ const join=map.slice(map.indexOf('const handleJoinRun ='),map.indexOf('// Both views use the exact same secure callbacks'));
+ assert.match(map,/const hostingRunPendingRef = useRef\(false\)/);
+ assert.match(host,/if \(hostingRunPendingRef.current\) throw new Error\([^\n]+\);\s*hostingRunPendingRef.current = true;\s*try \{/);
+ assert.ok(host.indexOf('hostingRunPendingRef.current = true;')<host.indexOf('await supabase'));
+ assert.match(host,/finally \{\s*hostingRunPendingRef.current = false;\s*\}/);
+ assert.match(map,/const openHostRunAt = \(point: Coordinates\) => \{\s*if \(!requireRaceAccount\(\)\) return;\s*if \(hostingRunPendingRef.current\) return;/);
+ assert.match(join,/if \(hostingRunPendingRef.current\) \{\s*setRaceNotice\([^\n]+\);\s*return;\s*\}/);
+ assert.ok(join.indexOf('if (hostingRunPendingRef.current)')<join.indexOf('joiningRunRef.current = run.id;'));
+});
