@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [develop, main]
   push:
-    branches: [develop, 'fix/duel-release-integration-20261125']
+    branches: [develop, main, 'fix/duel-release-integration-20261125']
   workflow_dispatch:
 permissions:
   contents: read

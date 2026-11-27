@@ -82,3 +82,18 @@ test('release workflows use commit-pinned Node 24 action revisions', () => {
   }
   assert.deepEqual([...seen].sort(), Object.keys(expected).sort());
 });
+
+
+test('all mandatory release checks also run on the actual integrated main commit', () => {
+  for (const name of coreWorkflows) {
+    const workflow = read('.github/workflows/' + name);
+    const push = workflow.match(/^  push:\n([\s\S]*?)(?=^  \w|^\S)/m);
+    assert.ok(push, name + ': missing push trigger');
+    const branches = push[1].match(/^    branches: \[([^\n]+)\]/m);
+    if (branches) {
+      assert.ok(branches[1].split(',').map(value => value.trim()).includes('main'), name + ': main push missing');
+    } else {
+      assert.match(push[1], /^      - main$/m, name + ': main push missing');
+    }
+  }
+});
