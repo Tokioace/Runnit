@@ -1,6 +1,8 @@
 // Build-time guard only. Never output credentials or accept admin keys.
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import { lstatSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const PRODUCTION_REF='fcbffqcmvgdojsdfwgyt';
 export function previewEnvironment(env){
@@ -36,6 +38,29 @@ export async function checkTestBackend(config,request=fetch){
  }catch{throw Error('Test backend unreachable');}
  if(!response.ok)throw Error('Test backend rejected public credential');
 }
+// Inspect the actual build output, not only the environment supplied to Vite.
+export function verifyPreviewBundle(directory,config){
+ const root=lstatSync(directory);
+ if(!root.isDirectory()||root.isSymbolicLink())throw Error('Invalid preview output directory');
+ if(!lstatSync(join(directory,'index.html')).isFile())throw Error('Missing preview entry');
+ let hasUrl=false,hasKey=false;
+ function walk(folder){
+  for(const entry of readdirSync(folder,{withFileTypes:true})){
+   const file=join(folder,entry.name);
+   if(entry.isSymbolicLink())throw Error('Linked preview asset forbidden');
+   if(entry.isDirectory()){walk(file);continue;}
+   if(!entry.isFile())throw Error('Invalid preview asset');
+   const bytes=readFileSync(file);
+   if(bytes.includes(PRODUCTION_REF))throw Error('Production project reference found in preview');
+   if(/\.(?:js|mjs)$/.test(entry.name)){
+    hasUrl ||= bytes.includes(config.VITE_SUPABASE_URL);
+    hasKey ||= bytes.includes(config.VITE_SUPABASE_ANON_KEY);
+   }
+  }
+ }
+ walk(directory);
+ if(!hasUrl||!hasKey)throw Error('Expected preview backend configuration missing from JavaScript');
+}
 async function main(){
  const config=previewEnvironment(process.env);
  if(process.env.RUNNIT_NATIVE_BACKEND_MODE==='test')await checkTestBackend(config);
@@ -44,6 +69,9 @@ async function main(){
  for(const key of Object.keys(env))if(key.startsWith('RUNNIT_NATIVE_TEST_'))delete env[key];
  const run=spawnSync('npm',['run','build'],{env,stdio:'inherit'});
  if(run.error||run.status!==0)throw Error('Native preview web build failed');
+ try{verifyPreviewBundle('dist',config);}
+ catch{throw Error('Native preview output validation failed; check expected backend and readable assets');}
+ console.log('Preview output contains expected backend configuration and no known production reference.');
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
  main().catch(error=>{console.error(error.message);process.exitCode=1;});
