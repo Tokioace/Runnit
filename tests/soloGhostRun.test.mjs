@@ -54,7 +54,8 @@ test('solo run reuses real GPS evaluator and same live IMU peak detector as 1v1'
   assert.match(live,/const next = advanceGpsSprint\(state, sample\);\s*return hasGpsObservationGap\(state.lastAccepted, sample\)\s*\? separateGpsCrossingAfterGap\(state, next\) : next;/);
   assert.match(ghost,/new LiveStepPeakCounter\(\)/);
   assert.match(map,/new LiveStepPeakCounter\(\)/);
-  assert.match(ghost,/isFreshStartFix\(anchor, Date\.now\(\)\)/);
+  assert.match(ghost,/const startMs = Date\.now\(\);/);
+  assert.match(ghost,/isFreshStartFix\(anchor, startMs\)/);
   assert.match(ghost,/primeGpsSprint\(createGpsSprint\(target, startMs\), anchor\)/);
   assert.match(ghost,/motionTraceRef\.current\.push\(/);
   assert.match(ghost,/gpsTraceRef\.current\.push\(/);
