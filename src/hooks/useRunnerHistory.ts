@@ -106,10 +106,12 @@ export function useRunnerHistory(userId: string | null | undefined) {
     void read();
     const onFocus = () => { if (document.visibilityState === 'visible') refresh(); };
     window.addEventListener('focus', onFocus);
+    window.addEventListener('online', onFocus);
     document.addEventListener('visibilitychange', onFocus);
     return () => {
       active = false;
       window.removeEventListener('focus', onFocus);
+      window.removeEventListener('online', onFocus);
       document.removeEventListener('visibilitychange', onFocus);
     };
   }, [userId, revision, refresh]);
