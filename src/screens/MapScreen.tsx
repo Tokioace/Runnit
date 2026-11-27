@@ -1350,37 +1350,50 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       return;
     }
     let active = true;
-    const hostedRevision = hostedCreationRevisionRef.current;
-    const hostedReadCurrent = () => active && finishAccountRef.current === authUser.id &&
-      hostedCreationRevisionRef.current === hostedRevision;
-    void listHostedOpenDuels(supabase, authUser.id)
-      .then(runs => {
-        if (!hostedReadCurrent()) return;
-        const open = runs.filter(run => !knownNonOpenRunIdsRef.current.has(run.id));
-        setHostedOpenDuels(open);
-        setOpenRuns(previous => {
-          const restored: OpenRun[] = open
-            .filter(run => Boolean(run.location) && !knownNonOpenRunIdsRef.current.has(run.id))
-            .map(run => ({
-              id: run.id,
-              hostUserId: authUser.id,
-              hostUsername: authUser.displayName,
-              distanceMeters: run.distanceMeters,
-              location: run.location!,
-              createdAt: run.createdAt ?? undefined,
-              expiresAt: run.expiresAt ?? undefined,
-              targetDistanceM: run.distanceMeters,
-            }));
-          const others = previous.filter(run => run.hostUserId !== authUser.id);
-          return [...restored, ...others];
+    const hostedDiscoveryQueue = createDuelRecoveryQueue(async () => {
+      const hostedRevision = hostedCreationRevisionRef.current;
+      const hostedReadCurrent = () => active && finishAccountRef.current === authUser.id &&
+        hostedCreationRevisionRef.current === hostedRevision;
+      await listHostedOpenDuels(supabase, authUser.id)
+        .then(runs => {
+          if (!hostedReadCurrent()) return;
+          const open = runs.filter(run => !knownNonOpenRunIdsRef.current.has(run.id));
+          setHostedOpenDuels(open);
+          setOpenRuns(previous => {
+            const restored: OpenRun[] = open
+              .filter(run => Boolean(run.location) && !knownNonOpenRunIdsRef.current.has(run.id))
+              .map(run => ({
+                id: run.id,
+                hostUserId: authUser.id,
+                hostUsername: authUser.displayName,
+                distanceMeters: run.distanceMeters,
+                location: run.location!,
+                createdAt: run.createdAt ?? undefined,
+                expiresAt: run.expiresAt ?? undefined,
+                targetDistanceM: run.distanceMeters,
+              }));
+            const others = previous.filter(run => run.hostUserId !== authUser.id);
+            return [...restored, ...others];
+          });
+          setHostedDuelsLoadError(false);
+        })
+        .catch(() => {
+          if (!hostedReadCurrent()) return;
+          setHostedDuelsLoadError(true);
         });
-        setHostedDuelsLoadError(false);
-      })
-      .catch(() => {
-        if (!hostedReadCurrent()) return;
-        setHostedDuelsLoadError(true);
-      });
-    return () => { active = false; };
+    });
+    const whenHostedVisible = () => {
+      if (document.visibilityState === 'visible') hostedDiscoveryQueue.request();
+    };
+    hostedDiscoveryQueue.request();
+    document.addEventListener('visibilitychange', whenHostedVisible);
+    window.addEventListener('online', whenHostedVisible);
+    return () => {
+      active = false;
+      hostedDiscoveryQueue.close();
+      document.removeEventListener('visibilitychange', whenHostedVisible);
+      window.removeEventListener('online', whenHostedVisible);
+    };
   }, [authUser?.id]);
 
   // Mobile Safari may suspend Realtime while the tab is hidden or the screen
