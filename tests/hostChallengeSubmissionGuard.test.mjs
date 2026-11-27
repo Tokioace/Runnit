@@ -45,3 +45,11 @@ test('host creation owns a synchronous lock until all requests settle and joinin
  assert.match(join,/if \(hostingRunPendingRef.current\) \{\s*setRaceNotice\([^\n]+\);\s*return;\s*\}/);
  assert.ok(join.indexOf('if (hostingRunPendingRef.current)')<join.indexOf('joiningRunRef.current = run.id;'));
 });
+
+test('failed creation reconciles owned events without retrying or claiming success',()=>{
+ const host=map.slice(map.indexOf('const handleHostRun ='),map.indexOf('const handleCancelHostedRun ='));
+ const recovery=host.slice(host.lastIndexOf('} catch (error) {'));
+ assert.match(recovery,/if \(finishAccountRef.current === authUser.id\) \{\s*hostedCreationRevisionRef.current \+= 1;\s*requestHostedDiscoveryRef.current\?\.\(\);\s*\}\s*throw error;\s*\} finally \{\s*hostingRunPendingRef.current = false;/);
+ assert.doesNotMatch(recovery,/createDuel\(|setOpenRuns\(|setHostedOpenDuels\(|setRaceNotice\(/);
+ assert.equal((host.match(/await createDuel\(/g)??[]).length,1);
+});
