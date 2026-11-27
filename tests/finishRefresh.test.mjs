@@ -87,3 +87,31 @@ test('a wrong duel ID is rejected before participant, terminal or result process
  assert.ok(membership<source.indexOf("if (duel.status === 'abandoned')"));
  assert.ok(membership<source.indexOf("if (duel.status === 'completed')"));
 });
+
+test('missing or malformed result lists are read failures and retain prior results',()=>{
+ const source=readFileSync(new URL('../src/components/race/DuelFinishScreen.tsx',import.meta.url),'utf8');
+ const start=source.indexOf('if (!Array.isArray(resultsResponse.data))');
+ const end=source.indexOf('setHostId(duel.host_user_id);',start);
+ assert.ok(start>=0&&end>start);
+ const guard=source.slice(start,end);
+ assert.doesNotMatch(guard,/setRows|setStatus|setHostId|setChallengerId/);
+ const check=new Function('resultsResponse','setFetchError',guard+'return true;');
+ for(const invalid of [null,undefined,{},'bad',42]){
+  let message;
+  assert.equal(check({data:invalid},x=>{message=x;}),undefined);
+  assert.match(message,/Rennergebnisse konnten nicht eindeutig geladen werden/);
+ }
+ for(const data of [[],[{user_id:'runner',time_ms:9000}]]) assert.equal(check({data},()=>assert.fail('valid list rejected')),true);
+ assert.match(source,/setRows\(resultsResponse.data as DuelResultRow\[\]\);/);
+ assert.doesNotMatch(source,/resultsResponse.data \?\? \[\]/);
+});
+test('malformed optional participant names cannot crash the result display',()=>{
+ const source=readFileSync(new URL('../src/components/race/DuelFinishScreen.tsx',import.meta.url),'utf8');
+ const name=source.match(/function displayRunnerName\(value: unknown\): string \{\s*return ([^;]+);\s*\}/);
+ assert.ok(name);
+ const display=new Function('value','return '+name[1]);
+ for(const invalid of [undefined,null,42,{},[],false,'','  ']) assert.equal(display(invalid),'RUNNER');
+ assert.equal(display(' Runner A '),'Runner A');
+ assert.match(source,/displayRunnerName\(mine\?\.username\)/);
+ assert.match(source,/displayRunnerName\(other\?\.username\)/);
+});
