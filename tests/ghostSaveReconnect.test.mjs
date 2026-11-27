@@ -27,7 +27,7 @@ test('unresolved ghost run is rechecked only by exact account and payload identi
  assert.match(source,/if \(uncertain\) \{\s*uncertainSaveRef.current = payload;\s*setSaveStatus\('unknown'\);/);
  assert.match(effect,/saveStatus !== 'unknown' \|\| !payload \|\| payload.user_id !== user\?\.id/);
  assert.match(effect,/const current = \(\) => active && uncertainSaveRef.current === payload &&\s*measurementAccountCurrent\(isLive, assertAccount\);/);
- assert.match(effect,/\.eq\('user_id', payload.user_id\)\.eq\('id', payload.id\)\.maybeSingle\(\);/);
+ assert.match(effect,/\.eq\('user_id', payload.user_id\)\.eq\('id', payload.id\)\.abortSignal\(signal\)\.maybeSingle\(\)\);/);
  assert.match(effect,/if \(!current\(\) \|\| error \|\| !matchesGhostSave\(payload, data\)\) return;\s*uncertainSaveRef.current = null;\s*setSaveStatus\('saved'\);/);
  assert.doesNotMatch(effect,/\.insert\(|\.upsert\(|\.update\(|setSaveStatus\('error'\)/);
 });

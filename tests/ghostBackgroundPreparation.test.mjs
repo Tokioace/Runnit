@@ -28,7 +28,7 @@ test('preparation checks its own foreground lifetime before starting the watch',
  const body=source.slice(a,b);
  assert.match(body,/preparationLifetime.current.open\(\);\s*const isPreparing = preparationLifetime.current.capture\(\);/);
  assert.match(body,/const isLive = \(\) => isScreenLive\(\) && isPreparing\(\) && document.visibilityState === 'visible';/);
- assert.match(body,/\.limit\(1\);\s*if \(!measurementAccountCurrent\(isLive, assertAccount\)\) return;/);
+ assert.match(body,/\.limit\(1\)\.abortSignal\(signal\)\);\s*if \(!measurementAccountCurrent\(isLive, assertAccount\)\) return;/);
  assert.match(body,/finally \{ if \(isLive\(\)\) preparingRef.current = false; \}/);
  assert.match(source,/if \(!gpsLifetime.current.isActive\(\) \|\| document.visibilityState !== 'visible'\) return;/);
 });
