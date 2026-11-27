@@ -33,3 +33,24 @@ test('MapScreen merges both lobby transitions against the latest React state',()
  assert.match(savedLobby[1],/id: row.id, hostUserId: row.host_user_id, challengerUserId: row.challenger_user_id/);
  assert.match(savedLobby[1],/hostReady: row.host_ready === true, challengerReady: row.challenger_ready === true, startAt/);
 });
+
+test('Ready acknowledgement must confirm the same participants and the requesting runner',()=>{
+ const source=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'utf8');
+ const block=source.slice(source.indexOf('const confirmMatchReady ='),source.indexOf('// Joining and starting races'));
+ const start=block.indexOf('if (data.host_user_id !== matchedDuel.hostUserId');
+ const end=block.indexOf('applyMatchedDuel(data);',start);
+ assert.ok(start>=0&&end>start);
+ const check=new Function('data','matchedDuel','authUser',block.slice(start,end)+'return true;');
+ const valid={id:'a',status:'matched',host_user_id:'host',challenger_user_id:'rival',host_ready:true,challenger_ready:true};
+ assert.equal(check({...valid,challenger_ready:false},base,{id:'host'}),true);
+ assert.equal(check({...valid,host_ready:false},base,{id:'rival'}),true);
+ for(const actor of ['host','rival']){
+  const flag=actor==='host'?'host_ready':'challenger_ready';
+  for(const value of [false,null,undefined,'true',1]) assert.throws(()=>check({...valid,[flag]:value},base,{id:actor}),/eigene Bereitschaft nicht eindeutig bestätigt/);
+  for(const row of [{...valid,host_user_id:'other'},{...valid,challenger_user_id:'other'},{...valid,host_user_id:'rival',challenger_user_id:'host'}]){
+   assert.throws(()=>check(row,base,{id:actor}),/eigene Bereitschaft nicht eindeutig bestätigt/);
+  }
+ }
+ assert.match(block,/catch \{[\s\S]*?if \(stillCurrent\(\)\) requestMatchRecoveryRef.current\?\.\(\);/);
+ assert.match(block,/finally \{\s*releaseWrite\(\);/);
+});
