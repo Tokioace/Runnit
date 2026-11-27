@@ -1994,6 +1994,12 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       const kind = classifyDuelJoinError(e);
       if (kind === 'unavailable') {
         setOpenRuns(prev => prev.filter(r => r.id !== run.id));
+        // The join RPC rejects missing, expired or already joined events.
+        // Retire discovery only; recovery can still confirm a lost join.
+        knownNonOpenRunIdsRef.current.add(run.id);
+        setRegionalRuns(previous => previous.filter(item => item.id !== run.id));
+        setHostedOpenDuels(previous => previous.filter(item => item.id !== run.id));
+        setSelectedRunId(previous => previous === run.id ? null : previous);
         setDiscoveryRefreshTick(tick => tick + 1);
         setRaceNotice('Dieses Rennen ist bereits besetzt oder nicht mehr verfügbar.');
       } else if (kind === 'permission') {
