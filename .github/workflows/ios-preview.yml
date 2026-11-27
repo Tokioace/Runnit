@@ -72,7 +72,7 @@ jobs:
       - name: Prepare clean native shell without modifying root dependencies
         run: |
           mkdir -p "$RUNNER_TEMP/runnit-ios-preview/www"
-          cp native/ios-preview/package.json native/ios-preview/package-lock.json native/ios-preview/capacitor.config.json "$RUNNER_TEMP/runnit-ios-preview/"
+          cp native/ios-preview/package.json native/ios-preview/package-lock.json native/ios-preview/capacitor.config.json native/ios-preview/PrivacyInfo.xcprivacy "$RUNNER_TEMP/runnit-ios-preview/"
           cp -R dist/. "$RUNNER_TEMP/runnit-ios-preview/www/"
           cp scripts/build-ios-preview.sh scripts/smoke-ios-preview.sh scripts/verify-ios-project.py scripts/install-ios-vault.py native/ios-preview/RunnitSessionVault.swift native/ios-preview/RunnitSensorProbe.swift native/ios-preview/RunnitSprintEstimator.swift "$RUNNER_TEMP/runnit-ios-preview/"
           cd "$RUNNER_TEMP/runnit-ios-preview"
