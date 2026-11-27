@@ -53,7 +53,7 @@ test('reference comparison validates decimal input and never invents a finish',(
 });
 test('arm command is explicit and scoped to supported distance and run',async()=>{
  const api=createNativeProbe({nativePromise:async(plugin,method,options)=>{
-  assert.equal(method,'armSprint');assert.deepEqual(options,{runId:id,targetM:'50'});return report;
+  assert.equal(method,'armSprint');assert.deepEqual(options,{runId:id,targetM:'50'});return {...report,sprint:{targetM:50,distanceM:0,accepted:0,rejected:0,invalid:false,finishMs:null}};
  }});
  await api.arm(id,50);await assert.rejects(api.arm(id,10));await assert.rejects(api.arm('bad',50));
 });
@@ -67,4 +67,26 @@ test('manual step count is a separate diagnostic comparison',()=>{
  assert.equal(nativeStepDifference(26,'25'),1);
  assert.equal(nativeStepDifference(0,'0'),0);
  for(const value of ['', '-1','25.2','1e2','301'])assert.equal(nativeStepDifference(25,value),null);
+});
+
+test('arm rejects missing, wrong-distance, invalid or terminal sprint acknowledgement',async()=>{
+ const sprint={targetM:50,distanceM:0,accepted:0,rejected:0,invalid:false,finishMs:null};
+ for(const raw of [report,{...report,sprint:{...sprint,targetM:75}},
+  {...report,sprint:{...sprint,invalid:true}},{...report,status:'stopped',sprint}]){
+  const api=createNativeProbe({nativePromise:async()=>raw});
+  await assert.rejects(api.arm(id,50),/Invalid sprint start confirmation/);
+ }
+});
+test('start requires a fresh running probe without an armed sprint',async()=>{
+ const sprint={targetM:50,distanceM:0,accepted:0,rejected:0,invalid:false,finishMs:null};
+ for(const raw of [{...report,status:'completed'},{...report,sprint}]){
+  const api=createNativeProbe({nativePromise:async()=>raw});
+  await assert.rejects(api.start(),/Invalid sensor start confirmation/);
+ }
+});
+test('stop cannot acknowledge an ongoing probe and accepts an already completed probe',async()=>{
+ const running=createNativeProbe({nativePromise:async()=>report});
+ await assert.rejects(running.stop(id),/Invalid sensor stop confirmation/);
+ const completed=createNativeProbe({nativePromise:async()=>({...report,status:'completed'})});
+ assert.equal((await completed.stop(id)).status,'completed');
 });
