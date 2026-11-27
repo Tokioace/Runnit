@@ -105,3 +105,16 @@ test('2 player result screen persists after finishing until each player closes i
   assert.match(finish,/status === 'completed'/);
   assert.match(finish,/window\.setInterval/);
 });
+
+test('private Ghost Run summaries normalize fractional GPS finish timestamps to database integer milliseconds', () => {
+  const initial = createGpsSprint(50, start);
+  for (const [duration, expected] of [[8123.25,8123],[8123.75,8124],[0.25,1],[8000,8000]]) {
+    const state = {...initial, finishTimestampMs: start + duration};
+    const summary = ghostSummary(state, 30, 100, 0, 'granted', false, true);
+    assert.equal(summary.elapsed_ms, expected);
+    assert.ok(Number.isInteger(summary.elapsed_ms));
+    assert.equal(state.finishTimestampMs, start + duration);
+    assert.equal(ghostSummary(state, 30, 100, 0, 'granted', false, false).elapsed_ms,null);
+  }
+  assert.equal(ghostSummary(initial,0,0,0,'unavailable',false,true).elapsed_ms,null);
+});
