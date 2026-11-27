@@ -2,6 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateAudit } from '../scripts/dependency-audit.mjs';
 
+function completeReport(vulnerabilities = {}) {
+  const counts = {info:0,low:0,moderate:0,high:0,critical:0,total:0};
+  for (const item of Object.values(vulnerabilities)) {
+    counts[item.severity]++;
+    counts.total++;
+  }
+  return {auditReportVersion:2,vulnerabilities,metadata:{vulnerabilities:counts}};
+}
+
 const formerlyWaived = {
   vulnerabilities: {
     picomatch: { severity: 'high', nodes: ['node_modules/vite/node_modules/picomatch'], via: [{ name: 'picomatch', url: 'https://github.com/advisories/GHSA-fc5q-39xc-vjpf' }] },
@@ -24,9 +33,9 @@ test('blocks every high or critical advisory regardless of dependency type', () 
 });
 
 test('accepts an empty report and reports below the existing high threshold', () => {
-  assert.deepEqual(evaluateAudit({ vulnerabilities: {} }), { ok: true });
+  assert.deepEqual(evaluateAudit(completeReport()), { ok: true });
   for (const severity of ['info', 'low', 'moderate']) {
-    assert.deepEqual(evaluateAudit({ vulnerabilities: { package: { severity } } }), { ok: true });
+    assert.deepEqual(evaluateAudit(completeReport({ package: { severity } })), { ok: true });
   }
 });
 
@@ -40,4 +49,17 @@ test('rejects invalid vulnerability entries instead of treating them as safe', (
   for (const value of [null, [], {}, { severity: null }, { severity: 'unknown' }, { severity: 'HIGH' }, 'high']) {
     assert.equal(evaluateAudit({ vulnerabilities: { package: value } }).ok, false);
   }
+});
+
+
+test('blocks incomplete or inconsistent npm v2 audit totals', () => {
+  const report = completeReport();
+  for (const bad of [
+    {vulnerabilities:{}},
+    {...report,auditReportVersion:1},
+    {...report,metadata:{vulnerabilities:{...report.metadata.vulnerabilities,high:1,total:1}}},
+    {...report,metadata:{vulnerabilities:{...report.metadata.vulnerabilities,low:1}}},
+    {...report,metadata:{vulnerabilities:{...report.metadata.vulnerabilities,total:1}}},
+  ]) assert.equal(evaluateAudit(bad).ok,false);
+  assert.equal(evaluateAudit(completeReport({a:{severity:'low'},b:{severity:'moderate'}})).ok,true);
 });
