@@ -942,8 +942,16 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
             if (phaseRef.current !== 'countdown' || countdownAtRef.current !== countdownAt) return;
             countdownAtRef.current = null;
             setCountdownAt(null);
-            const fresh = isFreshStartFix(readyRef.current, Date.now());
-            if (!fresh) readyRef.current = null;
+            const atMs = Date.now();
+            const anchor = readyRef.current;
+            const fresh = isFreshStartFix(anchor, atMs);
+            setNow(atMs);
+            if (!fresh) {
+              // Keep the last observed diagnosis if a poor fix already
+              // cleared the anchor. Otherwise diagnose the expired anchor.
+              if (anchor !== null) setFixIssue(inspectGhostGpsFix(anchor, atMs).issue);
+              readyRef.current = null;
+            }
             setCurrentPhase(fresh ? 'ready' : 'acquiring');
             setNotice(fresh ? 'Solo-Countdown abgebrochen, kein Rennen gespeichert.'
               : 'Solo-Countdown abgebrochen. Bitte auf einen neuen GPS-Fix warten.');
