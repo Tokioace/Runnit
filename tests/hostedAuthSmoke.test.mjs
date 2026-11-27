@@ -11,7 +11,7 @@ test('hosted smoke refuses production and missing explicit synthetic identity',(
  const config=readConfig(env);assert.equal(config.url,'https://abcdefghijklmnopqrst.supabase.co');
  for(const change of [{RUNNIT_NATIVE_TEST_REF:'fcbffqcmvgdojsdfwgyt'},{RUNNIT_NATIVE_TEST_DATA_CONFIRMED:''},{RUNNIT_NATIVE_TEST_PUBLISHABLE_KEY:'sb_secret_never'},{RUNNIT_API_TEST_EMAIL_A:'real@example.invalid'},{RUNNIT_API_TEST_ID_B:idA},{RUNNIT_API_TEST_PASSWORD_A:''}])assert.throws(()=>readConfig({...env,...change}));
 });
-function fixture({leak=false,stale=false,error=false,revokedRefresh=false,badRotation=false,badRejection=false}={}){
+function fixture({leak=false,stale=false,error=false,revokedRefresh=false,badRotation=false,badRejection=false,profileLeak=false,emptyProfile=false,badColumnDenial=false,badNickname=false,guestProfileLeak=false}={}){
  const sessions=new Map(),tokens=new Map(),refreshes=new Map();let sequence=0,logoutCount=0,refreshCount=0;
  const reply=(data,status=200)=>({ok:status>=200&&status<300,status,json:async()=>data});
  const request=async(url,opts)=>{
@@ -44,7 +44,19 @@ function fixture({leak=false,stale=false,error=false,revokedRefresh=false,badRot
   const session=tokens.get(token),isPrefs=u.pathname.endsWith('runner_stats_preferences');
   const field=isPrefs?'user_id':'id',wanted=u.searchParams.get(field).slice(3);
   if(error&&wanted===idB&&session?.id===idA)return reply(null,500);
-  if(!session||session.revoked&&!stale)return reply([]);
+  if(!session||session.revoked&&!stale){
+   if(!isPrefs&&!session&&guestProfileLeak)return reply([{id:wanted}]);
+   return reply([]);
+  }
+  if(!isPrefs){
+   const select=u.searchParams.get('select');
+   if(select==='id,username')return reply([{id:wanted,username:'Synthetic Runner',...(badNickname?{location:'synthetic'}:{})}]);
+   if(select!=='id'){
+    if(profileLeak)return reply([{[select]:'synthetic'}]);
+    if(emptyProfile)return reply([]);
+    return reply({code:badColumnDenial?'PGRST204':'42501'},403);
+   }
+  }
   return reply((session.id===wanted||leak)?[{[field]:wanted}]:[]);
  };
  return {request,sessions,get logoutCount(){return logoutCount;},get refreshCount(){return refreshCount;}};
@@ -53,6 +65,7 @@ test('real request contract proves independent sessions and explicit revoked bea
  const f=fixture();const result=await runAuthSmoke(readConfig(env),f.request);
  assert.equal(result.revokedBearerDenied,true);assert.equal(result.independentSessionRetained,true);
  assert.equal(f.logoutCount,3);assert.equal(f.refreshCount,2);assert.ok([...f.sessions.values()].every(s=>s.revoked));
+ assert.equal(result.publicNicknameReadable,true);assert.equal(result.privateProfileColumnsDenied,true);assert.equal(result.guestProfileDenied,true);
  assert.equal(result.refreshRotation,true);assert.equal(result.revokedRefreshDenied,true);assert.equal(result.independentRefreshRetained,true);
 });
 test('privacy leak, stale bearer access and server error fail and clean up',async()=>{
@@ -65,6 +78,14 @@ test('privacy leak, stale bearer access and server error fail and clean up',asyn
 test('refresh rotation, revoked refresh acceptance and unrelated API errors cannot pass',async()=>{
  for(const options of [{revokedRefresh:true},{badRotation:true},{badRejection:true}]){
   const f=fixture(options);await assert.rejects(runAuthSmoke(readConfig(env),f.request));
+  assert.ok([...f.sessions.values()].every(s=>s.revoked));
+ }
+});
+
+test('profile privacy requires explicit column denial and a working public nickname read',async()=>{
+ for(const options of [{profileLeak:true},{emptyProfile:true},{badColumnDenial:true},{badNickname:true},{guestProfileLeak:true}]){
+  const f=fixture(options);
+  await assert.rejects(runAuthSmoke(readConfig(env),f.request));
   assert.ok([...f.sessions.values()].every(s=>s.revoked));
  }
 });
