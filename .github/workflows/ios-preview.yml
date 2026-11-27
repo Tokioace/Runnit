@@ -49,6 +49,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Test native web asset integrity checks
+        run: python3 native/ios-preview/tests/test_verify_ios_assets.py
       - name: Build non-production preview assets
         if: github.event_name != 'workflow_dispatch' || !inputs.test_backend
         env:
