@@ -50,3 +50,14 @@ test('native preview preparation covers shared build inputs and both release tar
   ]) assert.ok(paths.includes(path), 'missing native build input: ' + path);
   assert.ok(paths.every(path => !path.startsWith('!')), 'native build inputs must not be excluded');
 });
+
+
+test('mandatory CodeQL check keeps its existing name and supported scanner', () => {
+  const workflow = read('.github/workflows/codeql.yml');
+  assert.match(workflow, /^    name: CodeQL JavaScript\/TypeScript scan$/m);
+  assert.match(workflow, /uses: github\/codeql-action\/init@v4\s*$/m);
+  assert.match(workflow, /uses: github\/codeql-action\/analyze@v4\s*$/m);
+  assert.doesNotMatch(workflow, /github\/codeql-action\/[^\s]+@v3\b/);
+  assert.match(workflow, /queries: security-and-quality/);
+  assert.doesNotMatch(workflow, /continue-on-error:\s*true/);
+});
