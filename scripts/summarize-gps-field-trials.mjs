@@ -12,7 +12,7 @@ const reportKeys = new Set([
 const nonnegative = n => typeof n === 'number' && Number.isFinite(n) && n >= 0;
 const positive = n => nonnegative(n) && n > 0;
 const count = n => Number.isSafeInteger(n) && n >= 0;
-const stopReasons = new Set(['finish','manual','background','pagehide','permission-denied','position-unavailable','timeout','gps-error','duration-limit']);
+const stopReasons = new Set(['finish','manual','background','pagehide','permission-denied','position-unavailable','timeout','gps-error','duration-limit','clock-change']);
 const requireThat = (ok, message) => { if (!ok) throw new Error(message); };
 
 function validateReport(report, distance) {
