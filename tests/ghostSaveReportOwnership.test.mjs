@@ -30,10 +30,10 @@ test('new run and reset retire report identity and save ID without deleting acco
  const a=source.indexOf('const reset ='),b=source.indexOf('const elapsedMs =',a);
  const reset=source.slice(a,b);
  assert.match(reset,/if \(savePendingRef.current \|\| phaseRef.current === 'running' \|\| phaseRef.current === 'countdown'\) return;/);
- assert.match(reset,/terminalReportRef.current = null;\s*startedRef.current = null;\s*saveIdRef.current = null;\s*savedRef.current = false;/);
+ assert.match(reset,/terminalReportRef.current = null;\s*startedRef.current = null;\s*monotonicStartRef.current = null;\s*saveIdRef.current = null;\s*savedRef.current = false;/);
  assert.doesNotMatch(reset,/\.delete\(|\.insert\(|\.update\(/);
  const c=source.indexOf('const beginRun ='),d=source.indexOf('useEffect(() =>',c);
  const begin=source.slice(c,d);
- assert.match(begin,/terminalReportRef.current = null;/);
+ assert.match(begin,/terminalReportRef.current = null;\s*startedRef.current = startMs;\s*monotonicStartRef.current = startMono;/);
  assert.match(begin,/savedRef.current = false;\s*saveIdRef.current = null;/);
 });

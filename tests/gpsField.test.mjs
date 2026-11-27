@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {
   createGpsSprint, advanceGpsSprint, syntheticPoint,
 } from '../src/lib/sprintGps.ts';
@@ -90,4 +91,13 @@ test('field test distinguishes clock correction from monotonic elapsed time', ()
   assert.equal(gpsFieldClockChanged(start,100,start-1,10100),true);
   assert.equal(gpsFieldClockChanged(start,100,start+10000,99),true);
   assert.equal(gpsFieldClockChanged(start,100,NaN,10100),true);
+});
+
+
+test('queued field GPS callback cannot confirm a finish after the page becomes hidden',()=>{
+ const source=readFileSync(new URL('../src/screens/GpsFieldTestScreen.tsx',import.meta.url),'utf8');
+ const guard=source.slice(source.indexOf('const stopAtDurationLimit ='),source.indexOf('const prepare ='));
+ assert.match(guard,/if \(document.hidden\) \{\s*stopReasonRef.current = 'background';\s*setCurrentPhase\('stopped'\);[\s\S]*?stopWatching\(\);\s*return true;/);
+ assert.match(source,/if \(phaseNow === 'running' && stopAtDurationLimit\(now\)\) return;/);
+ assert.ok(source.indexOf('if (phaseNow === \'running\' && stopAtDurationLimit(now)) return;')<source.indexOf('const next = advanceLiveGpsSprint('));
 });

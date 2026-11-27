@@ -9,7 +9,7 @@ test('GPS preparation failure retires all request generations and clears stale s
  assert.ok(a>=0&&b>a);
  const fail=source.slice(a,b);
  assert.match(fail,/preparationLifetime.current.close\(\);\s*preparingRef.current = false;\s*stopGps\(\);/);
- assert.match(fail,/countdownAtRef.current = null;\s*readyRef.current = null;\s*setCountdownAt\(null\);/);
+ assert.match(fail,/countdownAtRef.current = null;\s*countdownClockRef.current = null;\s*readyRef.current = null;\s*setCountdownAt\(null\);/);
  assert.match(fail,/setFixTimestampMs\(null\);\s*setFixIssue\('missing'\);\s*setAccuracyM\(null\);\s*setCurrentPhase\('error'\);\s*setNotice\(message\);/);
  const watch=createMeasurementLifetime(),preparation=createMeasurementLifetime();
  watch.open();preparation.open();
