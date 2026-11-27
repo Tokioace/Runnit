@@ -1,5 +1,6 @@
 """Synthetic web asset copy regression tests; no iOS SDK needed."""
 import importlib.util
+import json
 import plistlib
 from pathlib import Path
 import tempfile
@@ -77,12 +78,21 @@ class CompiledAppTest(unittest.TestCase):
                          "CFBundleExecutable": "App", **verifier.PURPOSES}
         self.write_manifest()
         (self.app / "App").write_bytes(b"synthetic binary")
+        self.source_config = root / "capacitor.config.json"
+        self.generated_config = root / "generated.json"
+        self.compiled_config = self.app / "capacitor.config.json"
+        self.config = {"appId": "com.tokioace.runnit.preview", "webDir": "www",
+                       "server": {"hostname": "localhost", "iosScheme": "capacitor"},
+                       "ios": {"webContentsDebuggingEnabled": False}, "loggingBehavior": "none"}
+        self.source_config.write_text(json.dumps(self.config))
+        for path in (self.generated_config, self.compiled_config):
+            path.write_text(json.dumps({**self.config, "packageClassList": []}))
 
     def write_manifest(self):
         (self.app / "Info.plist").write_bytes(plistlib.dumps(self.manifest))
 
     def verify(self):
-        verifier.validate_compiled_app(self.web, self.app)
+        verifier.validate_compiled_app(self.web, self.app, self.source_config, self.generated_config)
 
     def test_valid_compiled_app(self):
         self.verify()
@@ -120,6 +130,43 @@ class CompiledAppTest(unittest.TestCase):
         (self.app / "public/app.js").write_bytes(b"corrupt")
         with self.assertRaisesRegex(AssertionError, "bundled asset mismatch"):
             self.verify()
+
+
+    def test_remote_url_in_generated_config(self):
+        self.generated_config.write_text(json.dumps({**self.config, "server": {"url": "https://example.invalid"}}))
+        with self.assertRaisesRegex(AssertionError, "native Capacitor configuration mismatch"):
+            self.verify()
+
+    def test_debugging_enabled_only_in_compiled_config(self):
+        self.compiled_config.write_text(json.dumps({**self.config, "ios": {"webContentsDebuggingEnabled": True}}))
+        with self.assertRaisesRegex(AssertionError, "native Capacitor configuration mismatch"):
+            self.verify()
+
+    def test_changed_plugin_registration_in_compiled_config(self):
+        self.compiled_config.write_text(json.dumps({**self.config, "packageClassList": ["UnexpectedPlugin"]}))
+        with self.assertRaisesRegex(AssertionError, "compiled Capacitor configuration differs"):
+            self.verify()
+
+    def test_remote_url_in_source_and_native_copies(self):
+        self.config["server"]["url"] = "https://example.invalid"
+        for path in (self.source_config, self.generated_config, self.compiled_config):
+            path.write_text(json.dumps(self.config))
+        with self.assertRaisesRegex(AssertionError, "unexpected native server configuration"):
+            self.verify()
+
+    def test_missing_compiled_config(self):
+        self.compiled_config.unlink()
+        with self.assertRaisesRegex(AssertionError, "missing or linked Capacitor config"):
+            self.verify()
+
+    def test_duplicate_native_config_key(self):
+        self.compiled_config.write_text('{"server": {}, "server": {}}')
+        with self.assertRaisesRegex(AssertionError, "duplicate Capacitor config key"):
+            self.verify()
+
+    def test_config_serialization_order_is_not_significant(self):
+        self.compiled_config.write_text(json.dumps({"packageClassList": [], **self.config}, sort_keys=True, indent=2))
+        self.verify()
 
 
 if __name__ == "__main__":
