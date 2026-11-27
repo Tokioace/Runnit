@@ -61,6 +61,7 @@ export default function DuelFinishScreen({
   useEffect(() => {
     if (isDemo) return;
     let active = true;
+    let terminalConfirmed = false;
     const request = createFinishRefresh(async () => {
       const duelResponse = await supabase.from('duels')
         .select('id, status, host_user_id, challenger_user_id')
@@ -86,8 +87,15 @@ export default function DuelFinishScreen({
         setFetchError(duel ? 'Du bist kein Teilnehmer dieses Rennens.' : 'Dieses Rennen ist nicht mehr verfügbar.');
         return;
       }
+      // Once the server confirms a terminal state, a stale nonterminal read
+      // cannot reopen the race or re-enable result submission and abort actions.
+      if (terminalConfirmed && duel.status !== 'completed' && duel.status !== 'abandoned') {
+        setFetchError('Der Rennstatus ist widersprüchlich. Die Anzeige versucht es erneut.');
+        return;
+      }
       // A confirmed cancellation is terminal even if the results RPC is unavailable.
       if (duel.status === 'abandoned') {
+        terminalConfirmed = true;
         setRows([]);
         setHostId(duel.host_user_id);
         setChallengerId(duel.challenger_user_id);
@@ -98,6 +106,7 @@ export default function DuelFinishScreen({
       // Completion is authoritative even if the results request fails or hangs.
       // Allow a local exit while continuing to poll for the two stored times.
       if (duel.status === 'completed') {
+        terminalConfirmed = true;
         setHostId(duel.host_user_id);
         setChallengerId(duel.challenger_user_id);
         setStatus('completed');

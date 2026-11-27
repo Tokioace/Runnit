@@ -135,3 +135,32 @@ test('contradictory participant snapshots cannot replace confirmed finish rows',
  }
  for(const rows of [[],[a],[a,b],[b,a]]) assert.equal(check({data:rows},duel,validateDuelResultRows,()=>assert.fail('valid rows rejected')),true);
 });
+
+test('confirmed terminal finish states cannot regress to waiting or enable another write',async()=>{
+ const source=readFileSync(new URL('../src/components/race/DuelFinishScreen.tsx',import.meta.url),'utf8');
+ const start=source.indexOf('let terminalConfirmed = false;');
+ const end=source.indexOf('}, () => {',start);
+ assert.ok(start>=0&&end>start);
+ const block=source.slice(start,end).replace('const request = createFinishRefresh(async () => {','return async () => {').replaceAll(' as DuelResultRow[]','')+'};';
+ const createRead=new Function('supabase','duelId','userId','getDuelResults','validateDuelResultRows','setRows','setHostId','setChallengerId','setStatus','setFetchError','let active = true;'+block);
+ const rows=[{user_id:'host',time_ms:9000},{user_id:'rival',time_ms:10000}];
+ for(const terminal of ['completed','abandoned']){
+  let next={id:'duel',host_user_id:'host',challenger_user_id:'rival',status:'matched'};
+  let status='loading',error=null,shown=[],reads=0;
+  const supabase={from:()=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:next,error:null})})})})};
+  const read=createRead(supabase,'duel','host',async()=>{reads++;return {data:rows,error:null};},validateDuelResultRows,x=>{shown=x;},()=>{},()=>{},x=>{status=x;},x=>{error=x;});
+  await read();assert.equal(status,'matched');
+  next={...next,status:terminal};await read();
+  assert.equal(status,terminal);assert.deepEqual(shown,terminal==='completed'?rows:[]);
+  const before=reads;
+  for(const stale of ['matched','open','unknown',null]){
+   next={...next,status:stale};await read();
+   assert.equal(status,terminal);
+   assert.equal(reads,before);
+   assert.deepEqual(shown,terminal==='completed'?rows:[]);
+   assert.match(error,/Rennstatus ist widersprüchlich/);
+  }
+  next={...next,status:terminal};await read();assert.equal(error,null);
+  next=null;await read();assert.equal(status,'unavailable');assert.deepEqual(shown,[]);
+ }
+});
