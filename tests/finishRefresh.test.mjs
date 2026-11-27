@@ -75,3 +75,15 @@ test('an unexpected server status is not treated as confirmed absence',()=>{
  assert.match(s,/duel.status === 'matched' \? 'matched' : 'unexpected'/);
  assert.doesNotMatch(s,/duel.status === 'matched' \? 'matched' : 'unavailable'/);
 });
+
+test('a wrong duel ID is rejected before participant, terminal or result processing',()=>{
+ const source=readFileSync(new URL('../src/components/race/DuelFinishScreen.tsx',import.meta.url),'utf8');
+ const guardStart=source.indexOf('if (duel && duel.id !== duelId)');
+ const membership=source.indexOf('if (!duel ||');
+ assert.ok(guardStart>=0 && membership>guardStart);
+ const guard=source.slice(guardStart,membership);
+ assert.match(guard,/if \(duel && duel.id !== duelId\) \{\s*setFetchError\([^;]+\);\s*return;\s*\}/);
+ assert.doesNotMatch(guard,/setStatus|setRows|setHostId|setChallengerId|getDuelResults/);
+ assert.ok(membership<source.indexOf("if (duel.status === 'abandoned')"));
+ assert.ok(membership<source.indexOf("if (duel.status === 'completed')"));
+});

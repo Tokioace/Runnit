@@ -67,6 +67,12 @@ export default function DuelFinishScreen({
         return;
       }
       const duel = duelResponse.data;
+      // A mismatched response is a read failure, not confirmed access loss
+      // or a terminal transition for the requested duel.
+      if (duel && duel.id !== duelId) {
+        setFetchError('Rennstatus konnte nicht eindeutig bestätigt werden. Die Anzeige versucht es erneut.');
+        return;
+      }
       if (!duel || (duel.host_user_id !== userId && duel.challenger_user_id !== userId)) {
         // Confirmed absence or loss of membership invalidates the old snapshot.
         setRows([]);
