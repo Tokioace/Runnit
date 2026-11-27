@@ -2,6 +2,7 @@ import { canStartGhostCountdown } from '../lib/ghostCountdown';
 import { createFinishRefresh } from '../lib/finishRefresh';
 import { isUncertainGhostSave, isGhostSaveConflict, matchesGhostSave, ownsGhostSaveReport } from '../lib/ghostSaveResponse';
 import { createLatestRead } from '../lib/latestRead';
+import { withRequestDeadline } from '../lib/requestDeadline';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Download, Flag, Footprints, Gauge, PauseCircle, Play, ShieldCheck, Timer, WifiOff } from 'lucide-react';
@@ -120,9 +121,9 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     try { assertAccount = beginAccountMutation(); } catch { return; }
     const isLive = () => measurementAccountCurrent(isScreenLive, assertAccount);
     await savedRunsRead.current.run(isLive, async () => {
-      const { data, error } = await supabase.from('ghost_run_sessions')
+      const { data, error } = await withRequestDeadline(signal => supabase.from('ghost_run_sessions')
         .select('id,user_id,created_at,target_distance_m,run_state,elapsed_ms,steps_count,observed_distance_m')
-        .eq('user_id', user.id).order('created_at', { ascending: false }).limit(6);
+        .eq('user_id', user.id).order('created_at', { ascending: false }).limit(6).abortSignal(signal));
       if (error || !Array.isArray(data)) return null;
       // Do not replace the last valid history with a contradictory snapshot.
       const seen = new Set<string>();
@@ -186,7 +187,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     let error: unknown = null;
     let uncertain = false;
     try {
-      const response = await supabase.from('ghost_run_sessions').insert(payload);
+      const response = await withRequestDeadline(signal => supabase.from('ghost_run_sessions').insert(payload).abortSignal(signal));
       error = response.error;
       // A transport or gateway failure may arrive after the insert committed.
       uncertain = isUncertainGhostSave(response.status, response.error);
@@ -198,9 +199,9 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     // A failed or empty read cannot authorize another blind insert.
     if (uncertain && measurementAccountCurrent(isLive, assertAccount)) {
       try {
-        const { data, error: readError } = await supabase.from('ghost_run_sessions')
+        const { data, error: readError } = await withRequestDeadline(signal => supabase.from('ghost_run_sessions')
           .select('id,user_id,target_distance_m,run_state,elapsed_ms,observed_distance_m,steps_count,gps_accepted,gps_rejected,motion_samples,motion_gaps,max_speed_mps,motion_permission,interrupted,source')
-          .eq('user_id', user.id).eq('id', payload.id).maybeSingle();
+          .eq('user_id', user.id).eq('id', payload.id).abortSignal(signal).maybeSingle());
         if (!readError && matchesGhostSave(payload, data)) {
           uncertain = false;
           error = null;
@@ -391,9 +392,9 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
     if (!measurementAccountCurrent(isLive, assertAccount)) return;
     motionPermissionRef.current = motion;
     setMotionPermission(motion);
-    const { data: activeDuels, error: duelsError } = await supabase.from('duels')
+    const { data: activeDuels, error: duelsError } = await withRequestDeadline(signal => supabase.from('duels')
       .select('id').or(`host_user_id.eq.${user.id},challenger_user_id.eq.${user.id}`)
-      .in('status', ['open', 'matched']).limit(1);
+      .in('status', ['open', 'matched']).limit(1).abortSignal(signal));
     if (!measurementAccountCurrent(isLive, assertAccount)) return;
     // Only a successful list response can confirm that no duel is active.
     if (duelsError || !Array.isArray(activeDuels)) {
@@ -773,9 +774,9 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       measurementAccountCurrent(isLive, assertAccount);
     const refresh = createFinishRefresh(async () => {
       if (!current() || document.visibilityState !== 'visible') return;
-      const { data, error } = await supabase.from('ghost_run_sessions')
+      const { data, error } = await withRequestDeadline(signal => supabase.from('ghost_run_sessions')
         .select('id,user_id,target_distance_m,run_state,elapsed_ms,observed_distance_m,steps_count,gps_accepted,gps_rejected,motion_samples,motion_gaps,max_speed_mps,motion_permission,interrupted,source')
-        .eq('user_id', payload.user_id).eq('id', payload.id).maybeSingle();
+        .eq('user_id', payload.user_id).eq('id', payload.id).abortSignal(signal).maybeSingle());
       if (!current() || error || !matchesGhostSave(payload, data)) return;
       uncertainSaveRef.current = null;
       setSaveStatus('saved');
