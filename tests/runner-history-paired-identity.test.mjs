@@ -46,3 +46,23 @@ test('foreign paired identities cannot influence a result', () => {
   assert.equal(result.completed, false);
   assert.equal(result.outcome, 'pending');
 });
+
+test('malformed paired rows leave the own result pending instead of throwing', () => {
+  const valid = {user_id:'host',time_ms:9000};
+  for (const bad of [null, undefined, {}, 'guest', [], {user_id:42,time_ms:11000}, {user_id:' ',time_ms:11000}, {user_id:'guest',time_ms:NaN}]) {
+    const result = evaluate(duel,[valid,bad]);
+    assert.equal(result.completed,false);
+    assert.equal(result.outcome,'pending');
+    assert.equal(result.opponentName,null);
+    assert.equal(result.timeMs,9000);
+  }
+});
+test('optional opponent name cannot break a valid paired result', () => {
+  for (const username of [null,undefined,42,{},[], '   ']) {
+    const result = evaluate(duel,[{user_id:'host',time_ms:9000},{user_id:'guest',time_ms:11000,username}]);
+    assert.equal(result.completed,true);
+    assert.equal(result.outcome,'won');
+    assert.equal(result.opponentName,null);
+  }
+  assert.equal(evaluate(duel,[{user_id:'host',time_ms:9000},{user_id:'guest',time_ms:11000,username:'  Runner  '}]).opponentName,'Runner');
+});
