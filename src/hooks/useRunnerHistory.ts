@@ -3,7 +3,7 @@ import { createFinishRefresh } from '../lib/finishRefresh';
 import { supabase } from '../lib/supabaseClient';
 import { mapWithConcurrency } from '../lib/mapWithConcurrency';
 import {
-  calculateActivityTotals, currentLocalWeekStart, raceHistoryFromServer, archivedPersonalTimes, hasUniqueOwnedHistoryRows, hasRequestedDuelMetadata,
+  calculateActivityTotals, currentLocalWeekStart, raceHistoryFromServer, archivedPersonalTimes, hasUniqueOwnedHistoryRows, hasRequestedDuelMetadata, hasValidGhostHistoryMeasurements,
   type StoredArchivedPersonalTime,
   type PairedResult, type RaceHistoryItem, type StoredDuel,
   type StoredDuelResult, type StoredGhostSession,
@@ -56,6 +56,7 @@ export function useRunnerHistory(userId: string | null | undefined) {
             !hasUniqueOwnedHistoryRows(ghostResponse.data, 'id', userId!)) {
           throw new Error('Contradictory personal history response');
         }
+        if (!hasValidGhostHistoryMeasurements(ghostResponse.data)) throw new Error('Invalid Ghost Run measurement history');
         const own = ownResultResponse.data as StoredDuelResult[];
         const ids = Array.from(new Set(own.map(row => row.duel_id).filter(Boolean)));
         let duels: StoredDuel[] = [];
