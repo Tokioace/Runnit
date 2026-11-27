@@ -27,11 +27,16 @@ async function counts(client, userId) {
   if (duels.error || !Number.isSafeInteger(duels.count) || duels.count < 0) throw new Error('Cannot verify duels');
   return Object.fromEntries([...list,['duels',duels.count]]);
 }
-export async function processTestErasure(client, {url,ref,userId,execute=false,confirmation=''}) {
+export async function processTestErasure(client, {url,ref,userId,syntheticOnly,expectedEmail,execute=false,confirmation=''}) {
   validateTestTarget(url,ref,userId);
+  if (syntheticOnly !== 'synthetic-only' || typeof expectedEmail !== 'string' ||
+      !/^runnit-test-[a-z0-9._+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(expectedEmail))
+    throw new Error('Explicit synthetic-only environment and test email required');
   if (execute && confirmation !== 'DELETE SYNTHETIC ' + userId) throw new Error('Explicit deletion confirmation required');
   const auth = assertResult(await client.auth.admin.getUserById(userId),'Cannot verify Auth identity');
-  if (!auth?.user || auth.user.id !== userId || !auth.user.email_confirmed_at)
+  if (!auth?.user || auth.user.id !== userId || !auth.user.email_confirmed_at ||
+      auth.user.is_anonymous === true || typeof auth.user.email !== 'string' ||
+      auth.user.email.toLowerCase() !== expectedEmail.toLowerCase())
     throw new Error('Confirmed synthetic identity required');
   // Never claim provider revocation for an OAuth account.
   const identities = auth.user.identities;

@@ -11,6 +11,8 @@ try {
   if (!key) throw new Error('Missing server-only test credential');
   const client=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
   const result=await processTestErasure(client,{url,ref,userId,execute:mode==='--execute-test',
+    syntheticOnly:process.env.RUNNIT_NATIVE_TEST_DATA_CONFIRMED,
+    expectedEmail:process.env.RUNNIT_TEST_ERASURE_EMAIL,
     confirmation:process.env.RUNNIT_TEST_ERASURE_CONFIRMATION});
   // No email, tokens, user UUID or raw result rows in logs.
   console.log(JSON.stringify(result));
