@@ -18,7 +18,7 @@ export async function withRequestDeadline<T>(
     });
     return await Promise.race([
       deadline,
-      Promise.resolve().then(() => request(controller.signal)),
+      Promise.resolve(request(controller.signal)),
     ]);
   } finally {
     if (timer !== undefined) clearTimeout(timer);
