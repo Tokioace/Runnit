@@ -7,7 +7,9 @@ test('confirmed non-open events cannot be restored by delayed nearby, regional o
   assert.match(map,/reconcileOpenRaces\(previous, mapped, authUser.id\)\s*\.filter\(run => !knownNonOpenRunIdsRef.current.has\(run.id\)\)/);
   assert.match(map,/setRegionalRuns\(\(data \?\? \[\]\).flatMap\(row => \{\s*if \(knownNonOpenRunIdsRef.current.has\(row.id\)\) return \[\];/);
   assert.match(map,/const open = runs.filter\(run => !knownNonOpenRunIdsRef.current.has\(run.id\)\);\s*setHostedOpenDuels\(open\)/);
-  assert.match(map,/setHostedOpenDuels\(runs.filter\(item => !knownNonOpenRunIdsRef.current.has\(item.id\)\)\)/);
+  const cancellation=map.slice(map.indexOf('const confirmCancelHostedRun ='),map.indexOf('const sendFinishedTime ='));
+  assert.match(cancellation,/requestHostedDiscoveryRef.current\?\.\(\);/);
+  assert.doesNotMatch(cancellation,/listHostedOpenDuels\(/);
 });
 
 test('non-open realtime transitions remove regional markers and suppress delayed open events',()=>{
