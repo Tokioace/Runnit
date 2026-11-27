@@ -14,11 +14,11 @@ Record the complete initial `develop` commit SHA, the PR number, `base.ref` (mus
 | Production build | Successful build job and run URL, head SHA | Vercel READY alone, missing build, or different SHA |
 | Tests | Existing test suite command, counts and failures, run URL | Not run or failures unexplained |
 | Independent CodeQL | CodeQL workflow/check run, conclusion, head SHA and scanning alerts reviewed | No independent scan, pending/failed scan, or unexplained relevant alerts |
-| Dependency security | Audit/Dependabot findings with package, advisory, affected versions, disposition and expiry of any exception | High/critical issue without explicit review and disposition |
+| Dependency security | Audit/Dependabot findings with package, advisory, affected versions, disposition and expiry of any exception | Any high/critical finding or unsuccessful audit |
 | Changed-file risk | Full diff against current develop, including generated/lock files | Secrets, auth/RLS/Supabase production config, private geolocation, deploy/CI security, major upgrades, or untested large features |
 | Deployment guard | Read `docs/vercel-manual-deploy.md` from develop and inspect branch deployment policy | Uncertain production branch or feature-branch deployment side effects |
 
-A successful combined commit status, Vercel deployment or a green Quality job **does not** establish that CodeQL ran independently. Record each separately. An exception to a dependency advisory is not equivalent to a patched dependency; note its review date and expiry. The previously recorded `picomatch` GHSA-fc5q-39xc-vjpf exception (expiry **2026-12-02**) must be rechecked against current dependency and alert data, not assumed safe.
+A successful combined commit status, Vercel deployment or a green Quality job **does not** establish that CodeQL ran independently. Record each separately. The historical temporary `picomatch` GHSA-fc5q-39xc-vjpf exception (original expiry 2026-12-02) is retired by the strict audit policy. The baseline audit [46061795695](https://github.com/Tokioace/Runnit/actions/runs/46061795695) reported zero runtime vulnerabilities and no full-audit high/critical findings. This is registry evidence at that time, not independent proof that the advisory was patched. The audit must now reject every high/critical finding, including any recurrence of that advisory. Review current Dependabot/CodeQL findings separately before release.
 
 ## Read-only database/privacy audit (do not mutate production)
 
