@@ -78,6 +78,9 @@ class CompiledAppTest(unittest.TestCase):
                          "CFBundleExecutable": "App", **verifier.PURPOSES}
         self.write_manifest()
         (self.app / "App").write_bytes(b"synthetic binary")
+        self.privacy_source = root / verifier.PRIVACY_NAME
+        self.privacy_source.write_bytes((Path(__file__).resolve().parents[1] / verifier.PRIVACY_NAME).read_bytes())
+        (self.app / verifier.PRIVACY_NAME).write_bytes(self.privacy_source.read_bytes())
         self.source_config = root / "capacitor.config.json"
         self.generated_config = root / "generated.json"
         self.compiled_config = self.app / "capacitor.config.json"
@@ -167,6 +170,54 @@ class CompiledAppTest(unittest.TestCase):
     def test_config_serialization_order_is_not_significant(self):
         self.compiled_config.write_text(json.dumps({"packageClassList": [], **self.config}, sort_keys=True, indent=2))
         self.verify()
+
+
+    def test_missing_compiled_privacy_manifest(self):
+        (self.app / verifier.PRIVACY_NAME).unlink()
+        with self.assertRaisesRegex(AssertionError, "missing or linked preview privacy manifest"):
+            self.verify()
+
+    def test_wrong_compiled_privacy_reason(self):
+        (self.app / verifier.PRIVACY_NAME).write_bytes(plistlib.dumps({"NSPrivacyAccessedAPITypes": []}))
+        with self.assertRaisesRegex(AssertionError, "unexpected preview privacy declarations"):
+            self.verify()
+
+
+class PrivacyRegistrationTest(unittest.TestCase):
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        root = Path(temp.name)
+        self.source = Path(__file__).resolve().parents[1] / verifier.PRIVACY_NAME
+        self.target = root / verifier.PRIVACY_NAME
+        self.project = root / "project.pbxproj"
+        self.template = "\n".join([
+            "/* Begin PBXBuildFile section */",
+            "/* Begin PBXFileReference section */",
+            "\t\t\t\t504EC3131FED79650016851F /* Info.plist */,",
+            "\t\t\t\t50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,",
+        ])
+        self.project.write_text(self.template)
+
+    def test_manifest_registered_and_verified(self):
+        verifier.install_preview_privacy(self.source, self.target, self.project)
+        verifier.validate_preview_privacy(self.source, self.target, self.project)
+        self.assertEqual(self.target.read_bytes(), self.source.read_bytes())
+        with self.assertRaisesRegex(AssertionError, "already installed"):
+            verifier.install_preview_privacy(self.source, self.target, self.project)
+
+    def test_unknown_template_does_not_install(self):
+        self.project.write_text("unknown template")
+        with self.assertRaisesRegex(AssertionError, "unknown Xcode resource template"):
+            verifier.install_preview_privacy(self.source, self.target, self.project)
+        self.assertFalse(self.target.exists())
+        self.assertEqual(self.project.read_text(), "unknown template")
+
+    def test_missing_resource_registration_fails(self):
+        verifier.install_preview_privacy(self.source, self.target, self.project)
+        self.project.write_text(self.template)
+        with self.assertRaisesRegex(AssertionError, "not registered in Xcode resources"):
+            verifier.validate_preview_privacy(self.source, self.target, self.project)
 
 
 if __name__ == "__main__":
