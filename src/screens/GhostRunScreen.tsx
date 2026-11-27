@@ -367,12 +367,13 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       .select('id').or(`host_user_id.eq.${user.id},challenger_user_id.eq.${user.id}`)
       .in('status', ['open', 'matched']).limit(1);
     if (!measurementAccountCurrent(isLive, assertAccount)) return;
-    if (duelsError) {
+    // Only a successful list response can confirm that no duel is active.
+    if (duelsError || !Array.isArray(activeDuels)) {
       setCurrentPhase('error');
       setNotice('Aktive Rennen konnten nicht geprüft werden. Bitte erneut versuchen.');
       return;
     }
-    if (activeDuels?.length) {
+    if (activeDuels.length) {
       setCurrentPhase('error');
       setNotice('Du hast noch ein aktives 1v1-Duell. Beende oder storniere es vor deinem Solo-Test.');
       return;
