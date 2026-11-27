@@ -35,7 +35,7 @@ test('ghost preparation checks both asynchronous boundaries before starting GPS'
  const prepare=ghost.slice(ghost.indexOf('const prepare ='),ghost.indexOf('// iOS may keep'));
  assert.match(prepare,/preparingRef.current \|\| !lifetime.current.isActive\(\)/);
  assert.match(prepare,/catch \{ motion = 'denied'; \}\s*if \(!measurementAccountCurrent\(isLive, assertAccount\)\) return;/);
- assert.match(prepare,/\.limit\(1\);\s*if \(!measurementAccountCurrent\(isLive, assertAccount\)\) return;/);
+ assert.match(prepare,/\.limit\(1\)\.abortSignal\(signal\)\);\s*if \(!measurementAccountCurrent\(isLive, assertAccount\)\) return;/);
  assert.match(prepare,/finally \{ if \(isLive\(\)\) preparingRef.current = false; \}/);
 });
 test('ghost retirement stops sensors and drops in-memory measurements, not saved account rows',()=>{
