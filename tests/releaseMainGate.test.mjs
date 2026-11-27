@@ -34,3 +34,19 @@ test('native simulator and connected test preview stay manual opt-ins', () => {
   assert.match(workflow, /github.event_name == 'workflow_dispatch' && inputs.build_simulator/);
   assert.match(workflow, /github.event_name == 'workflow_dispatch' && inputs.test_backend/);
 });
+
+test('native preview preparation covers shared build inputs and both release target branches', () => {
+  const workflow = read('.github/workflows/ios-preview.yml');
+  const trigger = workflow.match(/^  pull_request:\n([\s\S]*?)(?=^  workflow_dispatch:)/m);
+  assert.ok(trigger, 'missing native preview PR trigger');
+  assert.match(trigger[1], /^    branches: \[develop, main\]$/m);
+  const paths = [...trigger[1].matchAll(/^      - '([^']+)'$/gm)].map(match => match[1]);
+  for (const path of [
+    'native/ios-preview/**', '.github/workflows/ios-preview.yml',
+    'scripts/build-ios-preview.sh', 'scripts/build-native-preview-web.mjs',
+    'scripts/verify-ios-project.py', 'scripts/smoke-ios-preview.sh', 'scripts/install-ios-vault.py',
+    'src/**', 'public/**', 'index.html', 'package.json', 'package-lock.json',
+    'vite.config.*', 'tsconfig*.json', 'tailwind.config.*', 'postcss.config.*'
+  ]) assert.ok(paths.includes(path), 'missing native build input: ' + path);
+  assert.ok(paths.every(path => !path.startsWith('!')), 'native build inputs must not be excluded');
+});
