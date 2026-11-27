@@ -1789,6 +1789,14 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       ]);
       setHostedDuelsLoadError(false);
       setRaceNotice(`Dein ${distanceMeters}-m-Event ist 60 Minuten offen. Sobald jemand beitritt, endet das Wartefenster.`);
+    } catch (error) {
+      // A failed response is not proof that the insert failed. Reconcile
+      // owned events without retrying the write or claiming success.
+      if (finishAccountRef.current === authUser.id) {
+        hostedCreationRevisionRef.current += 1;
+        requestHostedDiscoveryRef.current?.();
+      }
+      throw error;
     } finally {
       hostingRunPendingRef.current = false;
     }
