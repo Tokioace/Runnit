@@ -41,7 +41,7 @@ test('host creation owns a synchronous lock until all requests settle and joinin
  assert.match(host,/if \(hostingRunPendingRef.current\) throw new Error\([^\n]+\);\s*hostingRunPendingRef.current = true;\s*try \{/);
  assert.ok(host.indexOf('hostingRunPendingRef.current = true;')<host.indexOf('await supabase'));
  assert.match(host,/finally \{\s*hostingRunPendingRef.current = false;\s*\}/);
- assert.match(map,/const openHostRunAt = \(point: Coordinates\) => \{\s*if \(!requireRaceAccount\(\) \|\| hostingRunPendingRef.current\) return;/);
+ assert.match(map,/const openHostRunAt = \(point: Coordinates\) => \{\s*if \(!requireRaceAccount\(\)\) return;\s*if \(hostingRunPendingRef.current\) return;/);
  assert.match(join,/if \(hostingRunPendingRef.current\) \{\s*setRaceNotice\([^\n]+\);\s*return;\s*\}/);
  assert.ok(join.indexOf('if (hostingRunPendingRef.current)')<join.indexOf('joiningRunRef.current = run.id;'));
 });
