@@ -38,7 +38,7 @@ test('retired history workers cannot start new reads',async()=>{
 });
 test('history initializes signed-in accounts as loading and guards staged reads',()=>{
  const s=readFileSync(new URL('../src/hooks/useRunnerHistory.ts',import.meta.url),'utf8');
- assert.ok(s.includes('useState<HistoryState>(() => userId ? { ...EMPTY, loading: true } : EMPTY)'));
+ assert.ok(s.includes('useState<HistoryState>(() => userId ? { ...LOADING, ownerId: userId } : EMPTY)'));
  assert.ok(s.includes("if (!active) throw new Error('Retired history request')"));
  assert.ok(s.includes("if (response.error) throw response.error;"));
  assert.ok(s.includes('if (!active) return;\n        if (ownResultResponse.error)'));
@@ -139,7 +139,7 @@ test('history uses one queue per account and retires its public refresh callback
  const s=readFileSync(new URL('../src/hooks/useRunnerHistory.ts',import.meta.url),'utf8');
  assert.match(s,/const requestRefresh = useRef<\(\(\) => void\) \| null>\(null\);/);
  assert.match(s,/const refresh = useCallback\(\(\) => requestRefresh.current\?\.\(\), \[\]\);/);
- assert.match(s,/async function read\(\) \{\s*if \(!active\) return;\s*setState\(prev => \(\{ \.\.\.prev, loading: true, error: null \}\)\);/);
+ assert.match(s,/async function read\(\) \{\s*if \(!active\) return;\s*setState\(prev => \(\{ \.\.\.\(prev.ownerId === userId \? prev : EMPTY\), ownerId: userId!, loading: true, error: null \}\)\);/);
  assert.match(s,/const queue = createFinishRefresh\(read, \(\) => \{\}\);\s*const request = \(\) => \{ void queue.refresh\(true\); \};\s*requestRefresh.current = request;\s*void queue.refresh\(\);/);
  assert.match(s,/active = false;\s*queue.close\(\);\s*if \(requestRefresh.current === request\) requestRefresh.current = null;/);
  assert.match(s,/\}, \[userId, refresh\]\);/);
@@ -155,4 +155,37 @@ test('duel metadata must match requested IDs and the current participant before 
  const s=readFileSync(new URL('../src/hooks/useRunnerHistory.ts',import.meta.url),'utf8');
  assert.match(s,/if \(!hasRequestedDuelMetadata\(response.data, ids, userId!\)\) throw new Error\('Contradictory duel history response'\);/);
  assert.ok(s.indexOf('if (!hasRequestedDuelMetadata')<s.indexOf('const pairResponses ='));
+});
+
+test('account switches hide old personal history before effects or requests settle',()=>{
+ const s=readFileSync(new URL('../src/hooks/useRunnerHistory.ts',import.meta.url),'utf8');
+ const gate=s.match(/const visibleState = ([^;]+);/);
+ const update=s.match(/setState\(prev => \((\{[^\n]+\})\)\);/);
+ assert.ok(gate);assert.ok(update);
+ const EMPTY={ownerId:null,races:[],ghostSessions:[],loading:false,error:null};
+ const LOADING={...EMPTY,loading:true};
+ const select=new Function('state','userId','EMPTY','LOADING','return '+gate[1]);
+ const start=new Function('prev','userId','EMPTY','return ('+update[1].replace('userId!','userId')+')');
+ const a={ownerId:'a',races:[{id:'private-a'}],ghostSessions:[{id:'ghost-a'}],loading:false,error:'old error'};
+ assert.strictEqual(select(a,'a',EMPTY,LOADING),a);
+ for(const user of ['b',null,undefined,'']){
+  const visible=select(a,user,EMPTY,LOADING);
+  assert.deepEqual(visible.races,[]);
+  assert.deepEqual(visible.ghostSessions,[]);
+  assert.equal(visible.error,null);
+  assert.equal(visible.loading,Boolean(user));
+ }
+ const b=start(a,'b',EMPTY);
+ assert.equal(b.ownerId,'b');
+ assert.deepEqual(b.races,[]);
+ assert.deepEqual(b.ghostSessions,[]);
+ assert.equal(b.loading,true);
+ assert.equal(b.error,null);
+ assert.strictEqual(start(a,'a',EMPTY).races,a.races);
+ assert.strictEqual(start(a,'a',EMPTY).ghostSessions,a.ghostSessions);
+ assert.strictEqual(select(b,'b',EMPTY,LOADING),b);
+ assert.strictEqual(select(b,'a',EMPTY,LOADING),LOADING);
+ assert.match(s,/calculateActivityTotals\(visibleState.races, visibleState.ghostSessions,/);
+ assert.match(s,/return \{ races: visibleState.races, ghostSessions: visibleState.ghostSessions,\s*loading: visibleState.loading, error: visibleState.error,/);
+ assert.equal((s.match(/if \(active\) setState\(\{\s*ownerId: userId!,/g)||[]).length,2);
 });
