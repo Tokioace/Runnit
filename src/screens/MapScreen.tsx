@@ -801,6 +801,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   // An older hosted snapshot cannot overwrite a confirmed creation, including another device.
   const hostedCreationRevisionRef = useRef(0);
   const requestHostedDiscoveryRef = useRef<(() => void) | null>(null);
+  const requestRegionalDiscoveryRef = useRef<(() => void) | null>(null);
   const [hostedDuelsLoadError, setHostedDuelsLoadError] = useState(false);
   const [cancelConfirmation, setCancelConfirmation] = useState<HostedOpenDuel | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
@@ -1326,6 +1327,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     const whenRegionalVisible = () => {
       if (document.visibilityState === 'visible') regionalQueue.request();
     };
+    requestRegionalDiscoveryRef.current = whenRegionalVisible;
     regionalQueue.request();
     const id = window.setInterval(() => {
       if (document.visibilityState === 'visible') regionalQueue.poll();
@@ -1338,6 +1340,9 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', whenRegionalVisible);
       window.removeEventListener('online', whenRegionalVisible);
+      if (requestRegionalDiscoveryRef.current === whenRegionalVisible) {
+        requestRegionalDiscoveryRef.current = null;
+      }
     };
   }, [authUser?.id, wideMapView]);
 
@@ -1610,6 +1615,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         if (status === 'SUBSCRIBED') setDiscoveryRefreshTick(tick => tick + 1);
         // A websocket can reconnect without a browser online/visibility event.
         if (status === 'SUBSCRIBED') requestHostedDiscoveryRef.current?.();
+        if (status === 'SUBSCRIBED') requestRegionalDiscoveryRef.current?.();
       });
     return () => {
       lifetime.close();

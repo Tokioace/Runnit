@@ -17,3 +17,12 @@ test('regional responses cannot restore expired events or publish to retired acc
   assert.match(regional,/if \(!active \|\| error\) return;\s*if \(finishAccountRef.current !== authUser.id\) return;/);
   assert.match(regional,/if \(knownNonOpenRunIdsRef.current.has\(row.id\)\) return \[\];\s*if \(!isOpenEventAvailable\(row.expires_at\)\) return \[\];/);
 });
+
+test('websocket resubscription refreshes only the currently active visible regional view',()=>{
+  const realtime=map.slice(map.indexOf('// No Realtime subscription'),map.indexOf('// The server is the authority for expiration'));
+  assert.match(map,/const requestRegionalDiscoveryRef = useRef<\(\(\) => void\) \| null>\(null\)/);
+  assert.match(regional,/if \(!authUser \|\| !wideMapView\) \{\s*setRegionalRuns\(\[\]\);\s*return;/);
+  assert.match(regional,/requestRegionalDiscoveryRef.current = whenRegionalVisible;\s*regionalQueue.request\(\);/);
+  assert.match(regional,/if \(requestRegionalDiscoveryRef.current === whenRegionalVisible\) \{\s*requestRegionalDiscoveryRef.current = null;/);
+  assert.match(realtime,/\.subscribe\(status => \{\s*if \(!lifetime.isActive\(\) \|\| finishAccountRef.current !== authUser.id\) return;[\s\S]*?if \(status === 'SUBSCRIBED'\) requestRegionalDiscoveryRef.current\?\.\(\);/);
+});
