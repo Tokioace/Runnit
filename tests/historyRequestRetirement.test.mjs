@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {mapWithConcurrency} from '../src/lib/mapWithConcurrency.ts';
+import {createFinishRefresh} from '../src/lib/finishRefresh.ts';
 import {hasUniqueOwnedHistoryRows} from '../src/lib/runnerHistory.ts';
 
 test('a rejected worker prevents other in-flight workers from launching more queued reads',async()=>{
@@ -100,4 +101,47 @@ test('visible online recovery refreshes history and removes its listener on reti
  onFocus();
  assert.equal(refreshes,2);
  assert.doesNotMatch(block,/setInterval/);
+});
+
+test('overlapping history refreshes coalesce into a single follow-up',async()=>{
+ let reads=0,inFlight=0,peak=0;
+ const pending=[];
+ const queue=createFinishRefresh(async()=>{
+  reads++;inFlight++;peak=Math.max(peak,inFlight);
+  await new Promise(resolve=>pending.push(resolve));
+  inFlight--;
+ },()=>assert.fail('unexpected read failure'));
+ const first=queue.refresh();
+ await Promise.all([queue.refresh(true),queue.refresh(true),queue.refresh(true)]);
+ assert.equal(reads,1);
+ pending.shift()();
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(reads,2);
+ assert.equal(peak,1);
+ pending.shift()();
+ await first;
+ assert.equal(reads,2);
+});
+test('retired history queue drops pending follow-up and further requests',async()=>{
+ let reads=0,release;
+ const queue=createFinishRefresh(async()=>{
+  reads++;
+  await new Promise(resolve=>{release=resolve;});
+ },()=>assert.fail('unexpected read failure'));
+ const first=queue.refresh();
+ await queue.refresh(true);
+ queue.close();
+ release();await first;
+ await queue.refresh(true);
+ assert.equal(reads,1);
+});
+test('history uses one queue per account and retires its public refresh callback',()=>{
+ const s=readFileSync(new URL('../src/hooks/useRunnerHistory.ts',import.meta.url),'utf8');
+ assert.match(s,/const requestRefresh = useRef<\(\(\) => void\) \| null>\(null\);/);
+ assert.match(s,/const refresh = useCallback\(\(\) => requestRefresh.current\?\.\(\), \[\]\);/);
+ assert.match(s,/async function read\(\) \{\s*if \(!active\) return;\s*setState\(prev => \(\{ \.\.\.prev, loading: true, error: null \}\)\);/);
+ assert.match(s,/const queue = createFinishRefresh\(read, \(\) => \{\}\);\s*const request = \(\) => \{ void queue.refresh\(true\); \};\s*requestRefresh.current = request;\s*void queue.refresh\(\);/);
+ assert.match(s,/active = false;\s*queue.close\(\);\s*if \(requestRefresh.current === request\) requestRefresh.current = null;/);
+ assert.match(s,/\}, \[userId, refresh\]\);/);
+ assert.doesNotMatch(s,/reload\(n => n \+ 1\)/);
 });
