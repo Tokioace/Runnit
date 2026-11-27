@@ -36,14 +36,45 @@ def validate_bundled_assets(web: Path, bundled: Path):
         assert hashlib.sha256(source.read_bytes()).digest() == hashlib.sha256(destination.read_bytes()).digest(), "bundled asset mismatch: " + str(relative)
     # Capacitor may add its own generated support files to the bundle.
 
+def read_config(path: Path):
+    assert path.is_file() and not path.is_symlink(), "missing or linked Capacitor config"
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            assert key not in result, "duplicate Capacitor config key"
+            result[key] = value
+        return result
+    config = json.loads(path.read_text(), object_pairs_hook=unique)
+    assert isinstance(config, dict), "invalid Capacitor config"
+    return config
+
+def validate_source_config(config):
+    assert config.get("appId") == "com.tokioace.runnit.preview", "unexpected bundle identifier"
+    assert config.get("webDir") == "www", "unexpected web directory"
+    assert config.get("server") == {"hostname": "localhost", "iosScheme": "capacitor"}, "unexpected native server configuration"
+    assert config.get("ios", {}).get("webContentsDebuggingEnabled") is False, "native WebView debugging must remain disabled"
+    assert config.get("loggingBehavior") == "none", "native logging must remain disabled"
+
+def validate_native_config(source: Path, native: Path):
+    expected = read_config(source)
+    validate_source_config(expected)
+    actual = read_config(native)
+    # Capacitor CLI adds its generated iOS plugin registration list.
+    assert "packageClassList" not in expected, "unexpected source plugin class list"
+    classes = actual.pop("packageClassList", [])
+    assert isinstance(classes, list) and all(isinstance(name, str) and name for name in classes), "invalid generated plugin class list"
+    assert json.dumps(actual, sort_keys=True) == json.dumps(expected, sort_keys=True), "native Capacitor configuration mismatch"
+
+def validate_compiled_config(source: Path, generated: Path, compiled: Path):
+    validate_native_config(source, generated)
+    validate_native_config(source, compiled)
+    assert json.dumps(read_config(generated), sort_keys=True) == json.dumps(read_config(compiled), sort_keys=True), "compiled Capacitor configuration differs from prepared project"
+
 def validate():
     scene = SCENE.read_text()
     assert all(scene.count(item) == 1 for item in REQUIRED), "native bridge/estimator missing or duplicate"
     assert "SceneDelegate.swift" in PROJECT.read_text(), "scene not registered in Xcode project"
-    config = json.loads((ROOT / "capacitor.config.json").read_text())
-    assert config["appId"] == "com.tokioace.runnit.preview", "unexpected bundle identifier"
-    assert config["webDir"] == "www" and "url" not in config.get("server", {}), "remote app forbidden"
-    assert config.get("loggingBehavior") == "none", "native logging must remain disabled"
+    validate_native_config(ROOT / "capacitor.config.json", APP / "capacitor.config.json")
     manifest = plistlib.loads(PLIST.read_bytes())
     for key, value in PURPOSES.items():
         assert manifest.get(key) == value, "permission description missing"
@@ -60,7 +91,7 @@ def validate():
             assert entry.get("resolved", "").startswith("https://registry.npmjs.org/"), "unexpected npm source"
             assert entry.get("integrity", "").startswith("sha512-"), "missing npm integrity"
 
-def validate_compiled_app(web: Path, app: Path):
+def validate_compiled_app(web: Path, app: Path, source_config: Path, generated_config: Path):
     """Check the actual compiled product before launching or packaging it."""
     assert app.is_dir() and not app.is_symlink(), "compiled app missing"
     manifest = plistlib.loads((app / "Info.plist").read_bytes())
@@ -75,6 +106,7 @@ def validate_compiled_app(web: Path, app: Path):
     binary = app / executable
     assert binary.is_file() and not binary.is_symlink() and binary.stat().st_size > 0, "compiled executable missing"
     validate_bundled_assets(web, app / "public")
+    validate_compiled_config(source_config, generated_config, app / "capacitor.config.json")
 
 def hashes():
     files = [ROOT / "package.json", ROOT / "package-lock.json", ROOT / "capacitor.config.json",
@@ -95,7 +127,8 @@ if __name__ == "__main__":
         validate()
         assert json.loads(MANIFEST.read_text()) == hashes(), "prepared project input changed"
     elif sys.argv[1:] == ["--verify-built-app"]:
-        validate_compiled_app(ROOT / "www", ROOT / "derived/Build/Products/Debug-iphonesimulator/App.app")
+        validate_compiled_app(ROOT / "www", ROOT / "derived/Build/Products/Debug-iphonesimulator/App.app",
+                              ROOT / "capacitor.config.json", APP / "capacitor.config.json")
     else:
         raise SystemExit("Use --prepare, --verify or --verify-built-app")
     print("Preview project structure and input integrity verified")
