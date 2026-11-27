@@ -4,7 +4,7 @@ import {processTestErasure,validateTestTarget} from '../scripts/account-erasure-
 const userId='00000000-0000-4000-8000-000000000011';
 const ref='aaaaaaaaaaaaaaaaaaaa',url='https://'+ref+'.supabase.co';
 const expectedEmail='runnit-test-erasure@example.invalid';
-const opts={ref,url,userId,expectedEmail,syntheticOnly:'synthetic-only'};
+const opts={ref,url,userId,expectedEmail,syntheticOnly:'synthetic-only',sessionProbe:{before:async()=>{},after:async()=>{}}};
 function mock({request=true,active=0,gate=true,provider='email',residual=false,failDelete=false,email=expectedEmail,anonymous=false}={}){
  let deleted=false,calls=0;
  const client={auth:{admin:{
@@ -51,4 +51,16 @@ test('erasure requires explicit synthetic project confirmation and matching synt
   const m=mock(config);await assert.rejects(processTestErasure(m.client,{...opts,execute:true,confirmation:'DELETE SYNTHETIC '+userId}));assert.equal(m.calls(),0);
  }
  const m=mock({email:expectedEmail.toUpperCase()});assert.equal((await processTestErasure(m.client,opts)).status,'dry-run');assert.equal(m.calls(),0);
+});
+
+test('execution fails closed without session probe or failed preflight',async()=>{
+ for(const sessionProbe of [undefined,{before:async()=>{throw Error('preflight denied')},after:async()=>{}}]){
+  const m=mock();await assert.rejects(processTestErasure(m.client,{...opts,sessionProbe,execute:true,confirmation:'DELETE SYNTHETIC '+userId}));assert.equal(m.calls(),0);
+ }
+});
+test('failed session denial after deletion cannot report verified erasure',async()=>{
+ const m=mock();let before=0,after=0;
+ const sessionProbe={before:async()=>{before++;assert.equal(m.calls(),0)},after:async()=>{after++;assert.equal(m.calls(),1);throw Error('session still active')}};
+ await assert.rejects(processTestErasure(m.client,{...opts,sessionProbe,execute:true,confirmation:'DELETE SYNTHETIC '+userId}));
+ assert.equal(before,1);assert.equal(after,1);
 });
