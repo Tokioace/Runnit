@@ -478,12 +478,19 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       if (!isGpsLive() || document.visibilityState !== 'visible' ||
           (phaseRef.current !== 'acquiring' && phaseRef.current !== 'ready' && phaseRef.current !== 'countdown')) return;
       const atMs = Date.now();
+      if (phaseRef.current === 'countdown') {
+        const clock = countdownClockRef.current;
+        if (!clock || gpsFieldClockChanged(clock.wall, clock.mono, atMs, performance.now())) {
+          failGpsPreparation('Systemuhr während Countdown verändert. Bitte Sensoren erneut freigeben.');
+          return;
+        }
+      }
       if (!expireReadyFix(atMs)) setNow(atMs);
     };
     tick();
     const timer = window.setInterval(tick, 250);
     return () => window.clearInterval(timer);
-  }, [phase, expireReadyFix]);
+  }, [phase, expireReadyFix, failGpsPreparation]);
 
   const requestGpsRefresh = () => {
     if (!navigator.geolocation || !gpsLifetime.current.isActive() ||
@@ -740,7 +747,7 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       activeRef.current = null;
       terminalReportRef.current = null;
       startedRef.current = null;
-    monotonicStartRef.current = null;
+      monotonicStartRef.current = null;
       stepRef.current.reset();
       lastMotionAt.current = null;
       gapCountRef.current = 0;
