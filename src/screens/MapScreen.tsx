@@ -798,7 +798,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   // Own live lobby is visible even when its map popup is closed or GPS changes.
   const [hostedOpenDuels, setHostedOpenDuels] = useState<HostedOpenDuel[]>([]);
-  // An older hosted snapshot cannot overwrite a confirmed local creation.
+  // An older hosted snapshot cannot overwrite a confirmed creation, including another device.
   const hostedCreationRevisionRef = useRef(0);
   const requestHostedDiscoveryRef = useRef<(() => void) | null>(null);
   const [hostedDuelsLoadError, setHostedDuelsLoadError] = useState(false);
@@ -1515,6 +1515,15 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
             return; // a delayed open notification must not resurrect a retired marker
           }
 
+          // An open event created on another device also belongs in the
+          // authoritative hosted list, independent of GPS or popup visibility.
+          if (row.host_user_id === authUser.id && row.status === 'open' &&
+              payload.eventType !== 'DELETE' && row.challenger_user_id == null &&
+              typeof row.expires_at === 'string' && isOpenEventAvailable(row.expires_at)) {
+            hostedCreationRevisionRef.current += 1;
+            requestHostedDiscoveryRef.current?.();
+          }
+
           // Retire only the dialog for the affected event, never a new one.
           if (payload.eventType === 'DELETE' || row.status !== 'open' ||
               (typeof row.expires_at === 'string' && !isOpenEventAvailable(row.expires_at))) {
@@ -1599,6 +1608,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         setRealtimeConnected(status === 'SUBSCRIBED');
         // Reconcile the authoritative discovery list after (re)subscription.
         if (status === 'SUBSCRIBED') setDiscoveryRefreshTick(tick => tick + 1);
+        // A websocket can reconnect without a browser online/visibility event.
+        if (status === 'SUBSCRIBED') requestHostedDiscoveryRef.current?.();
       });
     return () => {
       lifetime.close();

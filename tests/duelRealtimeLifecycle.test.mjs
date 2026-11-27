@@ -40,3 +40,11 @@ test('map closes callback lifetime before asynchronous removal and deletes marke
  assert.doesNotMatch(block,/showCompletedDuel|clearAbortedDuel|applyMatchedDuel/);
  assert.match(screen,/if \(status === 'SUBSCRIBED'\) setDiscoveryRefreshTick/);
 });
+
+test('owned open events and websocket resubscription refresh the shared hosted list',()=>{
+ const screen=readFileSync(new URL('../src/screens/MapScreen.tsx',import.meta.url),'utf8');
+ const realtime=screen.slice(screen.indexOf('// No Realtime subscription'),screen.indexOf('// The server is the authority for expiration'));
+ assert.match(realtime,/if \(row.host_user_id === authUser.id && row.status === 'open' &&\s*payload.eventType !== 'DELETE' && row.challenger_user_id == null &&\s*typeof row.expires_at === 'string' && isOpenEventAvailable\(row.expires_at\)\) \{\s*hostedCreationRevisionRef.current \+= 1;\s*requestHostedDiscoveryRef.current\?\.\(\);/);
+ assert.ok(realtime.indexOf('knownNonOpenRunIdsRef.current.has(row.id)')<realtime.indexOf('hostedCreationRevisionRef.current += 1;'));
+ assert.match(realtime,/\.subscribe\(status => \{\s*if \(!lifetime.isActive\(\) \|\| finishAccountRef.current !== authUser.id\) return;[\s\S]*?if \(status === 'SUBSCRIBED'\) requestHostedDiscoveryRef.current\?\.\(\);/);
+});
