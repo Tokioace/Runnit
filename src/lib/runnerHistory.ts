@@ -80,6 +80,7 @@ export function raceHistoryFromServer(
       Boolean(duel.challenger_user_id) &&
       duel.host_user_id !== duel.challenger_user_id &&
       paired.length === 2 &&
+      paired.every(row => row && typeof row === 'object' && typeof row.user_id === 'string' && row.user_id.trim().length > 0) &&
       new Set(paired.map(row => row.user_id)).size === 2 &&
       // The authorized pair must agree with the player's stored result before ranking.
       paired.some(row => row.user_id === userId && row.time_ms === result.time_ms) &&
@@ -100,7 +101,7 @@ export function raceHistoryFromServer(
       measuredDistanceM, completed, outcome,
       opponentTimeMs: rival?.time_ms ?? null,
       opponentUserId: rival?.user_id ?? null,
-      opponentName: rival?.username?.trim() || null,
+      opponentName: typeof rival?.username === 'string' ? rival.username.trim() || null : null,
     }];
   }).sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt));
 }
