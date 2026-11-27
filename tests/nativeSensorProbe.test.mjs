@@ -90,3 +90,20 @@ test('stop cannot acknowledge an ongoing probe and accepts an already completed 
  const completed=createNativeProbe({nativePromise:async()=>({...report,status:'completed'})});
  assert.equal((await completed.stop(id)).status,'completed');
 });
+
+
+test('native diagnostic releases the pending start lock independently of visibility and generation',()=>{
+ const screen=readFileSync(new URL('../src/screens/NativeSensorScreen.tsx',import.meta.url),'utf8');
+ const start=screen.slice(screen.indexOf('const start=async'),screen.indexOf('const arm=async'));
+ assert.match(start,/finally\s*\{\s*starting\.current=false;[\s\S]*?if\(mounted\.current\)setBusy\(false\);/);
+ assert.doesNotMatch(start,/else if\(!document\.hidden\)setBusy/);
+ assert.match(start,/if\(ticket!==generation\.current\|\|document\.hidden\)\{\s*if\(typeof result!=='string'\)await bridge\.stop\(result\.runId\)/);
+ assert.match(screen,/mounted\.current=true;/);
+ assert.match(screen,/return \(\)=>\{\s*mounted\.current=false;\s*\+\+generation\.current;/);
+});
+
+test('failed native stop does not leave a stale running report visible',()=>{
+ const screen=readFileSync(new URL('../src/screens/NativeSensorScreen.tsx',import.meta.url),'utf8');
+ const stop=screen.slice(screen.indexOf('const stop=async'),screen.indexOf('useEffect(()=>'));
+ assert.match(stop,/catch\{if\(ticket===generation\.current&&mounted\.current\)\{setReport\(null\);setNotice\('Stopp nicht bestätigt/);
+});
