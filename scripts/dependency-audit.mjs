@@ -17,15 +17,27 @@ export function evaluateAudit(report) {
   if (serious.length) {
     return { ok: false, reason: 'High/critical vulnerabilities: ' + serious.map(([name]) => name).join(', ') };
   }
+  // npm audit v2 includes a severity-count summary. A missing or contradictory
+  // summary must not turn a partial response into a successful release check.
+  const summary = report.metadata?.vulnerabilities;
+  if (report.auditReportVersion !== 2 || !isRecord(summary)) {
+    return { ok: false, reason: 'Missing npm audit v2 severity summary.' };
+  }
+  const counts = Object.fromEntries([...severities].map(severity => [severity, 0]));
+  for (const [, item] of entries) counts[item.severity]++;
+  if ([...severities].some(severity => !Number.isSafeInteger(summary[severity]) || summary[severity] !== counts[severity]) ||
+      !Number.isSafeInteger(summary.total) || summary.total !== entries.length) {
+    return { ok: false, reason: 'Inconsistent npm audit severity summary.' };
+  }
   return { ok: true };
 }
 
 function main() {
-  const run = spawnSync('npm', ['audit', '--audit-level=high', '--json'], {
+  const run = spawnSync('npm', ['audit', '--audit-level=high', '--include=dev', '--include=optional', '--include=peer', '--json'], {
     encoding: 'utf8', maxBuffer: 12 * 1024 * 1024,
   });
   if (run.error || (run.status !== 0 && run.status !== 1)) {
-    throw new Error('npm audit failed to run (exit ' + run.status + '): ' + (run.error?.message || run.stderr));
+    throw new Error('npm audit failed to run (exit ' + run.status + ').');
   }
   let report;
   try { report = JSON.parse(run.stdout); } catch { throw new Error('npm audit returned no valid JSON.'); }
