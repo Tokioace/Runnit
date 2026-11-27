@@ -798,6 +798,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   // Own live lobby is visible even when its map popup is closed or GPS changes.
   const [hostedOpenDuels, setHostedOpenDuels] = useState<HostedOpenDuel[]>([]);
+  // An older hosted snapshot cannot overwrite a confirmed local creation.
+  const hostedCreationRevisionRef = useRef(0);
   const [hostedDuelsLoadError, setHostedDuelsLoadError] = useState(false);
   const [cancelConfirmation, setCancelConfirmation] = useState<HostedOpenDuel | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
@@ -1347,9 +1349,12 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       return;
     }
     let active = true;
+    const hostedRevision = hostedCreationRevisionRef.current;
+    const hostedReadCurrent = () => active && finishAccountRef.current === authUser.id &&
+      hostedCreationRevisionRef.current === hostedRevision;
     void listHostedOpenDuels(supabase, authUser.id)
       .then(runs => {
-        if (!active || finishAccountRef.current !== authUser.id) return;
+        if (!hostedReadCurrent()) return;
         const open = runs.filter(run => !knownNonOpenRunIdsRef.current.has(run.id));
         setHostedOpenDuels(open);
         setOpenRuns(previous => {
@@ -1371,7 +1376,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         setHostedDuelsLoadError(false);
       })
       .catch(() => {
-        if (!active) return;
+        if (!hostedReadCurrent()) return;
         setHostedDuelsLoadError(true);
       });
     return () => { active = false; };
@@ -1731,6 +1736,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       expiresAt: data.expires_at,
       targetDistanceM: distanceMeters,
     };
+    hostedCreationRevisionRef.current += 1;
     setOpenRuns(previous => [created, ...previous.filter(run => run.id !== created.id)]);
     setHostedOpenDuels(previous => [
       { id: created.id, hostUserId: authUser.id, distanceMeters,
@@ -1807,14 +1813,17 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
             ? 'Dein Rennen ist laut Server abgesagt.'
             : 'Dieses Rennen ist nicht mehr offen und wurde von der Karte entfernt.');
         } else {
+          const hostedRevision = hostedCreationRevisionRef.current;
+          const hostedReadCurrent = () => finishAccountRef.current === authUser.id &&
+            hostedCreationRevisionRef.current === hostedRevision;
           void listHostedOpenDuels(supabase, authUser.id)
             .then(runs => {
-              if (finishAccountRef.current !== authUser.id) return;
+              if (!hostedReadCurrent()) return;
               setHostedOpenDuels(runs.filter(item => !knownNonOpenRunIdsRef.current.has(item.id)));
               setHostedDuelsLoadError(false);
             })
             .catch(() => {
-              if (finishAccountRef.current === authUser.id) setHostedDuelsLoadError(true);
+              if (hostedReadCurrent()) setHostedDuelsLoadError(true);
             });
         }
       }
