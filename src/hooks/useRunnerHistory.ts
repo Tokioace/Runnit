@@ -77,13 +77,13 @@ export function useRunnerHistory(userId: string | null | undefined) {
           if (!active) throw new Error('Retired history request');
           const response = await supabase.rpc('get_duel_results', { p_duel_id: duel.id });
           if (response.error) throw response.error;
+          // Fail inside the worker so malformed responses stop queued RPCs.
+          if (!Array.isArray(response.data)) throw new Error('Invalid paired history response');
           return response;
         });
         if (!active) return;
         for (let i = 0; i < completed.length; i++) {
           const response = pairResponses[i];
-          if (response.error) throw response.error;
-          if (!Array.isArray(response.data)) throw new Error('Invalid paired history response');
           pairedResults.set(completed[i].id, response.data as PairedResult[]);
         }
         let archive: RaceHistoryItem[] = [];

@@ -206,3 +206,30 @@ test('archived personal times validate ownership and uniqueness before history c
    assert.throws(()=>check({data:rows},'owner',hasUniqueOwnedHistoryRows),/Contradictory archived history response/);
  }
 });
+
+test('malformed paired response stops queued RPCs before publishing a snapshot',async()=>{
+ const s=readFileSync(new URL('../src/hooks/useRunnerHistory.ts',import.meta.url),'utf8');
+ const start=s.indexOf('const pairResponses = await mapWithConcurrency(completed, 4, async duel => {');
+ const end=s.indexOf('});',s.indexOf('return response;',start));
+ assert.ok(start>=0&&end>start);
+ const body=s.slice(s.indexOf('async duel => {',start)+'async duel => {'.length,end);
+ const makeWorker=new Function('supabase','active','return async duel => {'+body+'}');
+ const started=[];let release;
+ const supabase={rpc:async (name,{p_duel_id:id})=>{
+   started.push(id);
+   if(id===0)return {data:null,error:null};
+   await new Promise(resolve=>{release=resolve;});
+   return {data:[],error:null};
+ }};
+ const result=mapWithConcurrency([0,1,2,3,4].map(id=>({id})),2,makeWorker(supabase,true));
+ assert.deepEqual(started,[0,1]);
+ await assert.rejects(result,/Invalid paired history response/);
+ release();
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(started,[0,1]);
+ const valid=makeWorker({rpc:async()=>({data:[],error:null})},true);
+ assert.deepEqual(await valid({id:0}),{data:[],error:null});
+ const err=new Error('offline');
+ await assert.rejects(makeWorker({rpc:async()=>({data:[],error:err})},true)({id:0}),e=>e===err);
+ await assert.rejects(makeWorker({rpc:async()=>assert.fail('retired read')},false)({id:0}),/Retired history request/);
+});
