@@ -70,11 +70,49 @@ def validate_compiled_config(source: Path, generated: Path, compiled: Path):
     validate_native_config(source, compiled)
     assert json.dumps(read_config(generated), sort_keys=True) == json.dumps(read_config(compiled), sort_keys=True), "compiled Capacitor configuration differs from prepared project"
 
+PRIVACY_NAME = "PrivacyInfo.xcprivacy"
+PRIVACY_REF = "A7A941C7123456789ABCD001"
+PRIVACY_BUILD = "A7A941C7123456789ABCD002"
+PRIVACY_ENTRIES = (
+    ("/* Begin PBXBuildFile section */", "\n\t\t" + PRIVACY_BUILD + " /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = " + PRIVACY_REF + " /* PrivacyInfo.xcprivacy */; };"),
+    ("/* Begin PBXFileReference section */", "\n\t\t" + PRIVACY_REF + " /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = \"<group>\"; };"),
+    ("\t\t\t\t504EC3131FED79650016851F /* Info.plist */,", "\n\t\t\t\t" + PRIVACY_REF + " /* PrivacyInfo.xcprivacy */,"),
+    ("\t\t\t\t50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,", "\n\t\t\t\t" + PRIVACY_BUILD + " /* PrivacyInfo.xcprivacy in Resources */,"),
+)
+
+def read_preview_privacy(path: Path):
+    assert path.is_file() and not path.is_symlink(), "missing or linked preview privacy manifest"
+    value = plistlib.loads(path.read_bytes())
+    assert value == {"NSPrivacyAccessedAPITypes": [{
+        "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+        "NSPrivacyAccessedAPITypeReasons": ["35F9.1"],
+    }]}, "unexpected preview privacy declarations"
+    return value
+
+def install_preview_privacy(source: Path, target: Path, project: Path):
+    read_preview_privacy(source)
+    content = project.read_text()
+    assert not target.exists() and not target.is_symlink(), "privacy manifest already installed"
+    assert all(item not in content for item in (PRIVACY_NAME, PRIVACY_REF, PRIVACY_BUILD)), "privacy manifest reference already present"
+    for anchor, entry in PRIVACY_ENTRIES:
+        assert content.count(anchor) == 1, "unknown Xcode resource template"
+        content = content.replace(anchor, anchor + entry, 1)
+    target.write_bytes(source.read_bytes())
+    project.write_text(content)
+
+def validate_preview_privacy(source: Path, target: Path, project: Path | None = None):
+    assert read_preview_privacy(source) == read_preview_privacy(target), "preview privacy manifest differs"
+    if project is not None:
+        content = project.read_text()
+        for anchor, entry in PRIVACY_ENTRIES:
+            assert content.count(anchor + entry) == 1, "privacy manifest not registered in Xcode resources"
+
 def validate():
     scene = SCENE.read_text()
     assert all(scene.count(item) == 1 for item in REQUIRED), "native bridge/estimator missing or duplicate"
     assert "SceneDelegate.swift" in PROJECT.read_text(), "scene not registered in Xcode project"
     validate_native_config(ROOT / "capacitor.config.json", APP / "capacitor.config.json")
+    validate_preview_privacy(ROOT / PRIVACY_NAME, APP / PRIVACY_NAME, PROJECT)
     manifest = plistlib.loads(PLIST.read_bytes())
     for key, value in PURPOSES.items():
         assert manifest.get(key) == value, "permission description missing"
@@ -107,10 +145,11 @@ def validate_compiled_app(web: Path, app: Path, source_config: Path, generated_c
     assert binary.is_file() and not binary.is_symlink() and binary.stat().st_size > 0, "compiled executable missing"
     validate_bundled_assets(web, app / "public")
     validate_compiled_config(source_config, generated_config, app / "capacitor.config.json")
+    validate_preview_privacy(source_config.parent / PRIVACY_NAME, app / PRIVACY_NAME)
 
 def hashes():
     files = [ROOT / "package.json", ROOT / "package-lock.json", ROOT / "capacitor.config.json",
-             ROOT / "build-ios-preview.sh", ROOT / "verify-ios-project.py", ROOT / "smoke-ios-preview.sh"]
+             ROOT / "build-ios-preview.sh", ROOT / "verify-ios-project.py", ROOT / "smoke-ios-preview.sh", ROOT / PRIVACY_NAME]
     for folder in (ROOT / "www", ROOT / "ios"):
         files.extend(p for p in folder.rglob("*") if p.is_file() and not p.is_symlink())
     return {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)}
@@ -121,6 +160,7 @@ if __name__ == "__main__":
         manifest = plistlib.loads(PLIST.read_bytes())
         manifest.update(PURPOSES)
         PLIST.write_bytes(plistlib.dumps(manifest, sort_keys=False))
+        install_preview_privacy(ROOT / PRIVACY_NAME, APP / PRIVACY_NAME, PROJECT)
         validate()
         MANIFEST.write_text(json.dumps(hashes(), indent=2, sort_keys=True) + "\n")
     elif sys.argv[1:] == ["--verify"]:
