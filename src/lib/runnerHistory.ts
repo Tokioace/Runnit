@@ -30,6 +30,21 @@ export type ActivityTotals = {
 const nonnegative = (value: number | null | undefined): number | null =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
 
+/** Personal history must not double-count a run or publish another owner's row. */
+export function hasUniqueOwnedHistoryRows(
+  rows: readonly unknown[], idKey: 'id' | 'duel_id', userId: string,
+): boolean {
+  const seen = new Set<string>();
+  for (const item of rows) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+    const row = item as Record<string, unknown>;
+    const id = row[idKey];
+    if (row.user_id !== userId || typeof id !== 'string' || !id.trim() || seen.has(id)) return false;
+    seen.add(id);
+  }
+  return true;
+}
+
 export function raceHistoryFromServer(
   userId: string,
   results: readonly StoredDuelResult[],
