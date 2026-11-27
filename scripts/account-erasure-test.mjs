@@ -21,7 +21,9 @@ try {
     confirmation:process.env.RUNNIT_TEST_ERASURE_CONFIRMATION,sessionProbe});
   // No email, tokens, user UUID or raw result rows in logs.
   console.log(JSON.stringify(result));
-} catch(error) {
-  console.error(error instanceof Error ? error.message : 'Erasure operation failed');
+} catch {
+  // SDK/transport exceptions are not guaranteed to be free of credentials or PII.
+  // Never print an arbitrary exception or retry deletion on an ambiguous outcome.
+  console.error('Synthetic erasure verification failed. Inspect the test project securely; do not retry deletion blindly.');
   process.exitCode=1;
 }

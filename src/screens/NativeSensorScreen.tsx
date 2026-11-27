@@ -18,6 +18,8 @@ export default function NativeSensorScreen(){
  const [report,setReport]=useState<ProbeReport|null>(null);
  const [notice,setNotice]=useState('Bereit für einen lokalen 30-Sekunden-Sensortest.');
  const stop=async ()=>{
+  // Repeated stop/pagehide calls must not retire an already pending stop result.
+  if(!run.current&&!starting.current)return;
   const ticket=++generation.current;
   const id=run.current;run.current=null;
   if(starting.current&&mounted.current)setNotice('Start unterbrochen. Bitte nach Rückkehr erneut starten.');
@@ -81,8 +83,10 @@ export default function NativeSensorScreen(){
   }
  };
  const arm=async ()=>{
-  const id=run.current,bridge=api.current,ticket=generation.current;
+  const id=run.current,bridge=api.current;
   if(!id||!bridge||arming.current||document.hidden)return;
+  // Retire an earlier poll, including an error that arrives after arming.
+  const ticket=++generation.current;
   arming.current=true;setArmBusy(true);
   try{
    const result=await bridge.arm(id,target);

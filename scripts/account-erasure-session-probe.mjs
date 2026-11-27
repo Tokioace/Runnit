@@ -28,24 +28,30 @@ export function createErasureSessionProbe(admin,{url,ref,userId,controlDuelId,pu
   let host=null;
   return {
     async before(){
+      // Never retain a previous successful baseline across a failed preflight.
+      host=null;
       fresh();
       const identity=await request('/auth/v1/user');
       if(identity.status!==200 || (await json(identity))?.id!==userId) throw new Error('Test token identity not verified');
-      host=await control();
+      const candidateHost=await control();
       const response=await request(path);
       const rows=response.status===200?await json(response):null;
       if(!Array.isArray(rows) || rows.length!==1 || rows[0]?.id!==controlDuelId) throw new Error('Control duel must be visible before erasure');
       fresh();
+      host=candidateHost;
     },
     async after(){
       if(!host) throw new Error('Session probe requires successful preflight');
+      const expectedHost=host;
+      // Consume the baseline once, including when a post-deletion check fails.
+      host=null;
       fresh();
       const response=await request(path);
       if(response.status===200){
         const rows=await json(response);
         if(!Array.isArray(rows) || rows.length!==0) throw new Error('Revoked session can still read control duel');
       }else if(response.status!==401 && response.status!==403) throw new Error('Revoked session denial not verified');
-      if(await control()!==host) throw new Error('Control duel changed; session denial not verified');
+      if(await control()!==expectedHost) throw new Error('Control duel changed; session denial not verified');
       fresh();
     }
   };

@@ -107,3 +107,17 @@ test('failed native stop does not leave a stale running report visible',()=>{
  const stop=screen.slice(screen.indexOf('const stop=async'),screen.indexOf('useEffect(()=>'));
  assert.match(stop,/catch\{if\(ticket===generation\.current&&mounted\.current\)\{setReport\(null\);setNotice\('Stopp nicht bestätigt/);
 });
+
+
+test('arming retires earlier polling responses and errors without cancelling the new sprint',()=>{
+ const screen=readFileSync(new URL('../src/screens/NativeSensorScreen.tsx',import.meta.url),'utf8');
+ const arm=screen.slice(screen.indexOf('const arm=async'),screen.indexOf('const sprint=report'));
+ assert.match(arm,/const ticket=\+\+generation\.current;\s*arming\.current=true;/);
+ assert.match(screen,/if\(ticket!==generation\.current\|\|id!==run\.current\|\|arming\.current\)return;/);
+ assert.match(screen,/if\(ticket===generation\.current&&id===run\.current\)\{setNotice\('Sensorverbindung unterbrochen\.'/);
+});
+test('repeated background or stop events do not discard a pending stop confirmation',()=>{
+ const screen=readFileSync(new URL('../src/screens/NativeSensorScreen.tsx',import.meta.url),'utf8');
+ const stop=screen.slice(screen.indexOf('const stop=async'),screen.indexOf('useEffect(()=>'));
+ assert.match(stop,/if\(!run\.current&&!starting\.current\)return;\s*const ticket=\+\+generation\.current;/);
+});

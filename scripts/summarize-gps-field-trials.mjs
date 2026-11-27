@@ -11,21 +11,31 @@ const reportKeys = new Set([
 ]);
 const nonnegative = n => typeof n === 'number' && Number.isFinite(n) && n >= 0;
 const positive = n => nonnegative(n) && n > 0;
+const count = n => Number.isSafeInteger(n) && n >= 0;
+const stopReasons = new Set(['finish','manual','background','pagehide','permission-denied','position-unavailable','timeout','gps-error','duration-limit']);
 const requireThat = (ok, message) => { if (!ok) throw new Error(message); };
 
 function validateReport(report, distance) {
   requireThat(report && typeof report === 'object' && !Array.isArray(report) &&
-    Object.keys(report).every(k => reportKeys.has(k)), 'Unexpected report fields');
+    Object.keys(report).length === reportKeys.size && Object.keys(report).every(k => reportKeys.has(k)), 'Missing or unexpected report fields');
   requireThat(report.schema === 'runnit-gps-field-v1' && report.source === 'device-gps' &&
     report.eligibility === 'not-eligible' && report.targetMeters === distance, 'Incompatible field report');
-  requireThat(typeof report.finished === 'boolean', 'Missing finish status');
+  requireThat(typeof report.finished === 'boolean' && stopReasons.has(report.stopReason), 'Invalid finish status');
+  requireThat(nonnegative(report.observedDistanceMeters) && nonnegative(report.maxSpeedMps) &&
+    [report.acceptedSamples,report.rejectedSamples,report.staleFixesIgnored,report.gpsObservationGapCount].every(count) &&
+    (report.observationMs === null || nonnegative(report.observationMs)), 'Invalid measurement aggregates');
+  requireThat(report.gpsObservationGapCount === 0 ? report.gpsLongestObservationGapMs === null :
+    positive(report.gpsLongestObservationGapMs) && report.gpsLongestObservationGapMs > 3000, 'Inconsistent GPS gaps');
+  requireThat(report.disclaimer === 'Experimental device GPS data. Not valid for leaderboards or verified races.', 'Invalid field disclaimer');
   if (!report.finished) {
     requireThat(report.durationSeconds === null && report.referenceSeconds === null &&
-      report.differenceSeconds === null && report.stopReason !== 'finish', 'Inconsistent unfinished report');
+      report.differenceSeconds === null && report.stopReason !== 'finish' && report.finishTimingMethod === null && report.crossingIntervalMs === null, 'Inconsistent unfinished report');
     return { finished: false, error: null };
   }
   requireThat(report.stopReason === 'finish' && positive(report.durationSeconds) &&
-    report.durationSeconds <= 300, 'Invalid finish time');
+    report.durationSeconds <= 300 && report.observedDistanceMeters >= distance && report.acceptedSamples >= 3, 'Invalid finish time');
+  requireThat(report.finishTimingMethod === 'interpolated' ? positive(report.crossingIntervalMs) && report.crossingIntervalMs <= 3000 :
+    report.finishTimingMethod === 'observed-after-gap' && report.crossingIntervalMs === null && report.gpsObservationGapCount > 0, 'Inconsistent finish timing');
   if (report.referenceSeconds === null) {
     requireThat(report.differenceSeconds === null, 'Inconsistent reference comparison');
     return { finished: true, error: null };
@@ -46,7 +56,7 @@ export function summarizeFieldTrials(trials) {
   for (const trial of trials) {
     requireThat(trial && typeof trial === 'object' &&
       Object.keys(trial).every(k => ['id','distanceMeters','outcome','report'].includes(k)) &&
-      typeof trial.id === 'string' && /^T[0-9]{2}$/.test(trial.id) && !seen.has(trial.id), 'Invalid or repeated trial slot');
+      typeof trial.id === 'string' && /^T(?:0[1-9]|[1-4][0-9]|50)$/.test(trial.id) && !seen.has(trial.id), 'Invalid or repeated trial slot');
     seen.add(trial.id);
     const group = groups.find(g => g.distance === trial.distanceMeters);
     requireThat(group, 'Invalid trial distance');

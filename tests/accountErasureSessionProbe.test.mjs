@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {createErasureSessionProbe} from '../scripts/account-erasure-session-probe.mjs';
 const userId='00000000-0000-4000-8000-000000000011',controlDuelId='00000000-0000-4000-8000-000000000012',other='00000000-0000-4000-8000-000000000013';
 const ref='aaaaaaaaaaaaaaaaaaaa',url='https://'+ref+'.supabase.co';
@@ -19,3 +20,31 @@ test('control must survive independently with same host',async()=>{for(const con
 test('wrong identity, missing baseline, or target-owned control fails preflight',async()=>{for(const config of [{identity:other},{beforeRows:[]},{host:userId}])await assert.rejects(fixture(config).probe.before());});
 test('expired token and missing preflight cannot count as denial',async()=>{const f=fixture();await assert.rejects(f.probe.after());await f.probe.before();f.expire();await assert.rejects(f.probe.after());});
 test('secret key, wrong role and invalid target blocked before network',()=>{for(const patch of [{publishableKey:'sb_secret_test'},{accessToken:token({sub:userId,role:'service_role',session_id:other,exp:200})},{url:'https://wrong.invalid'}])assert.throws(()=>createErasureSessionProbe(null,{...opts,...patch}));});
+
+
+test('a failed positive read never authorizes post-erasure denial evidence',async()=>{
+ const {probe}=fixture({beforeRows:[]});
+ await assert.rejects(probe.before(),/Control duel must be visible/);
+ await assert.rejects(probe.after(),/successful preflight/);
+});
+test('a failed repeated preflight invalidates the previous baseline',async()=>{
+ const {probe,expire}=fixture();
+ await probe.before();
+ expire();
+ await assert.rejects(probe.before(),/expires too soon/);
+ await assert.rejects(probe.after(),/successful preflight/);
+});
+test('post-erasure evidence consumes its baseline even on failure',async()=>{
+ for(const config of [{},{afterStatus:500}]){
+  const {probe}=fixture(config);
+  await probe.before();
+  if(config.afterStatus)await assert.rejects(probe.after());
+  else await probe.after();
+  await assert.rejects(probe.after(),/successful preflight/);
+ }
+});
+test('operator CLI never prints raw exception messages',()=>{
+ const cli=readFileSync(new URL('../scripts/account-erasure-test.mjs',import.meta.url),'utf8');
+ assert.doesNotMatch(cli,/console\.(?:error|log)\([^\n]*(?:error\.message|error instanceof|\berror\b)/);
+ assert.match(cli,/console\.error\('Synthetic erasure verification failed\./);
+});

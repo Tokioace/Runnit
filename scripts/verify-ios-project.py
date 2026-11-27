@@ -3,6 +3,7 @@
 import hashlib
 import json
 import plistlib
+import stat
 from pathlib import Path
 import sys
 
@@ -136,7 +137,9 @@ def validate():
 def validate_compiled_app(web: Path, app: Path, source_config: Path, generated_config: Path):
     """Check the actual compiled product before launching or packaging it."""
     assert app.is_dir() and not app.is_symlink(), "compiled app missing"
-    manifest = plistlib.loads((app / "Info.plist").read_bytes())
+    info = app / "Info.plist"
+    assert info.is_file() and not info.is_symlink(), "compiled Info.plist missing or linked"
+    manifest = plistlib.loads(info.read_bytes())
     assert manifest.get("CFBundleIdentifier") == "com.tokioace.runnit.preview", "compiled bundle identifier mismatch"
     for key, value in PURPOSES.items():
         assert manifest.get(key) == value, "compiled permission description mismatch"
@@ -147,6 +150,7 @@ def validate_compiled_app(web: Path, app: Path, source_config: Path, generated_c
     assert isinstance(executable, str) and executable not in ("", ".", "..") and Path(executable).name == executable, "invalid compiled executable name"
     binary = app / executable
     assert binary.is_file() and not binary.is_symlink() and binary.stat().st_size > 0, "compiled executable missing"
+    assert binary.stat().st_mode & stat.S_IXUSR, "compiled executable permission missing"
     validate_bundled_assets(web, app / "public")
     # Compare against the prepared native public tree, including generated scripts.
     prepared_public = generated_config.parent / "public"
@@ -162,7 +166,16 @@ def hashes():
         files.extend(p for p in folder.rglob("*") if p.is_file() and not p.is_symlink())
     return {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)}
 
+def verify_prepared_build_inputs(recorded, current):
+    """Xcode may generate new workspace metadata, but must not change checked inputs."""
+    assert isinstance(recorded, dict) and recorded, "invalid prepared hash manifest"
+    assert all(current.get(path) == digest for path, digest in recorded.items()), "prepared project input changed during compilation"
+    app_prefixes = ("www/", "ios/App/App/")
+    assert not any(path.startswith(app_prefixes) and path not in recorded for path in current), "unexpected application input after compilation"
+
 if __name__ == "__main__":
+    if not __debug__:
+        raise SystemExit("Preview integrity assertions must be enabled")
     if sys.argv[1:] == ["--prepare"]:
         assert not MANIFEST.exists(), "already prepared"
         manifest = plistlib.loads(PLIST.read_bytes())
@@ -175,6 +188,8 @@ if __name__ == "__main__":
         validate()
         assert json.loads(MANIFEST.read_text()) == hashes(), "prepared project input changed"
     elif sys.argv[1:] == ["--verify-built-app"]:
+        validate()
+        verify_prepared_build_inputs(json.loads(MANIFEST.read_text()), hashes())
         validate_compiled_app(ROOT / "www", ROOT / "derived/Build/Products/Debug-iphonesimulator/App.app",
                               ROOT / "capacitor.config.json", APP / "capacitor.config.json")
     else:

@@ -11,15 +11,15 @@ test('hosted smoke refuses production and missing explicit synthetic identity',(
  const config=readConfig(env);assert.equal(config.url,'https://abcdefghijklmnopqrst.supabase.co');
  for(const change of [{RUNNIT_NATIVE_TEST_REF:'fcbffqcmvgdojsdfwgyt'},{RUNNIT_NATIVE_TEST_DATA_CONFIRMED:''},{RUNNIT_NATIVE_TEST_PUBLISHABLE_KEY:'sb_secret_never'},{RUNNIT_API_TEST_EMAIL_A:'real@example.invalid'},{RUNNIT_API_TEST_ID_B:idA},{RUNNIT_API_TEST_PASSWORD_A:''}])assert.throws(()=>readConfig({...env,...change}));
 });
-function fixture({leak=false,stale=false,error=false,revokedRefresh=false,badRotation=false,badRejection=false,profileLeak=false,emptyProfile=false,badColumnDenial=false,badNickname=false,guestProfileLeak=false,invalidExpiry=false,nearExpiry=false,expireOnLogout=false,invalidateOnRotation=false}={}){
+function fixture({leak=false,stale=false,error=false,revokedRefresh=false,badRotation=false,badRejection=false,profileLeak=false,emptyProfile=false,badColumnDenial=false,badNickname=false,guestProfileLeak=false,invalidExpiry=false,nearExpiry=false,expireOnLogout=false,invalidateOnRotation=false,badRole=false}={}){
  const sessions=new Map(),tokens=new Map(),refreshes=new Map();let sequence=0,logoutCount=0,refreshCount=0,clock=1000000;
  const reply=(data,status=200)=>({ok:status>=200&&status<300,status,json:async()=>data});
  const request=async(url,opts)=>{
-  const u=new URL(url);assert.equal(u.hostname,'abcdefghijklmnopqrst.supabase.co');assert.equal(opts.redirect,'error');assert.ok(opts.signal);
+  const u=new URL(url);assert.equal(u.hostname,'abcdefghijklmnopqrst.supabase.co');assert.equal(opts.redirect,'error');assert.equal(opts.cache,'no-store');assert.ok(opts.signal);
   assert.equal(opts.headers.apikey,env.RUNNIT_NATIVE_TEST_PUBLISHABLE_KEY);
   const token=opts.headers.authorization?.slice(7);
   function issue(session,previous){
-   const t='fake.'+Buffer.from(JSON.stringify({sub:session.id,session_id:session.sid,exp:invalidExpiry?undefined:nearExpiry?1020:4600})).toString('base64url')+'.'+(++sequence);
+   const t='fake.'+Buffer.from(JSON.stringify({sub:session.id,session_id:session.sid,role:badRole?'anon':'authenticated',exp:invalidExpiry?undefined:nearExpiry?1020:4600})).toString('base64url')+'.'+(++sequence);
    const refresh=badRotation&&previous?previous:'refresh-'+sequence;
    tokens.set(t,session);refreshes.set(refresh,session);
    return reply({access_token:t,refresh_token:refresh,user:{id:session.id,email:session.email}});
@@ -102,4 +102,19 @@ test('logout proof requires unexpired access tokens and positive controls for bo
   await assert.rejects(runAuthSmoke(readConfig(env),f.request,f.now),message);
   assert.ok([...f.sessions.values()].every(s=>s.revoked));
  }
+});
+
+
+test('direct smoke invocation validates synthetic accounts before any request',async()=>{
+ const config=readConfig(env);
+ for(const accounts of [[],[config.accounts[0]], [config.accounts[0],{...config.accounts[1],id:idA}], [config.accounts[0],{...config.accounts[1],email:'real@example.invalid'}]]){
+  let calls=0;
+  await assert.rejects(runAuthSmoke({...config,accounts},async()=>{calls++;throw Error('unexpected');}));
+  assert.equal(calls,0);
+ }
+});
+test('unexpected JWT role fails and cleans up the correlated test session',async()=>{
+ const f=fixture({badRole:true});
+ await assert.rejects(runAuthSmoke(readConfig(env),f.request,f.now),/Unexpected access token role/);
+ assert.ok([...f.sessions.values()].every(s=>s.revoked));
 });
