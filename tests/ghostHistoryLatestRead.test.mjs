@@ -46,11 +46,25 @@ test('a retired account lifetime cannot apply rows even if reopened',async()=>{
 test('Ghost Run history uses scoped reads, rejects database errors and keeps both refresh paths',()=>{
  const source=readFileSync(new URL('../src/screens/GhostRunScreen.tsx',import.meta.url),'utf8');
  const read=source.slice(source.indexOf('const refreshSaved ='),source.indexOf('const saveSummary ='));
- assert.match(read,/const isLive = lifetime.current.capture\(\);/);
+ assert.match(read,/const isScreenLive = lifetime.current.capture\(\);[\s\S]*?const isLive = \(\) => measurementAccountCurrent\(isScreenLive, assertAccount\);/);
  assert.match(read,/savedRunsRead.current.run\(isLive, async \(\) =>/);
  assert.match(read,/\.eq\('user_id', user.id\)/);
  assert.match(read,/if \(error \|\| !Array.isArray\(data\)\) return null;/);
  assert.match(read,/\}, setSavedRuns\);/);
- assert.match(read,/void refreshSaved\(\)/);
+ assert.match(read,/void request.refresh\(\)/);
  assert.match(source,/void refreshSaved\(\).catch/);
+});
+
+test('visible reconnect and foreground refresh the private history without permanent polling',()=>{
+ const source=readFileSync(new URL('../src/screens/GhostRunScreen.tsx',import.meta.url),'utf8');
+ const read=source.slice(source.indexOf('const refreshSaved ='),source.indexOf('const saveSummary ='));
+ assert.match(read,/try \{ assertAccount = beginAccountMutation\(\); \} catch \{ return; \}/);
+ assert.match(read,/const request = createFinishRefresh\(refreshSaved, \(\) => \{\}\);/);
+ assert.match(read,/if \(document.visibilityState === 'visible'\) void request.refresh\(true\);/);
+ for(const event of ['online','visibilitychange']){
+  assert.ok(read.includes("addEventListener('"+event+"', whenHistoryVisible)"));
+  assert.ok(read.includes("removeEventListener('"+event+"', whenHistoryVisible)"));
+ }
+ assert.match(read,/return \(\) => \{\s*request.close\(\);/);
+ assert.doesNotMatch(read,/setInterval|\.insert\(/);
 });

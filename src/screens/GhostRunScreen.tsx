@@ -113,7 +113,10 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
 
   const refreshSaved = useCallback(async () => {
     if (!user?.id || !lifetime.current.isActive()) return;
-    const isLive = lifetime.current.capture();
+    const isScreenLive = lifetime.current.capture();
+    let assertAccount: () => void;
+    try { assertAccount = beginAccountMutation(); } catch { return; }
+    const isLive = () => measurementAccountCurrent(isScreenLive, assertAccount);
     await savedRunsRead.current.run(isLive, async () => {
       const { data, error } = await supabase.from('ghost_run_sessions')
         .select('id,created_at,target_distance_m,run_state,elapsed_ms,steps_count,observed_distance_m')
@@ -121,8 +124,22 @@ export default function GhostRunScreen({ auth }: { auth: UseSupabaseUserReturn }
       if (error || !Array.isArray(data)) return null;
       return data as SavedRun[];
     }, setSavedRuns);
-  }, [user?.id]);
-  useEffect(() => { void refreshSaved(); }, [refreshSaved]);
+  }, [user?.id, beginAccountMutation]);
+  useEffect(() => {
+    if (!user?.id) return;
+    const request = createFinishRefresh(refreshSaved, () => {});
+    void request.refresh();
+    const whenHistoryVisible = () => {
+      if (document.visibilityState === 'visible') void request.refresh(true);
+    };
+    window.addEventListener('online', whenHistoryVisible);
+    document.addEventListener('visibilitychange', whenHistoryVisible);
+    return () => {
+      request.close();
+      window.removeEventListener('online', whenHistoryVisible);
+      document.removeEventListener('visibilitychange', whenHistoryVisible);
+    };
+  }, [user?.id, refreshSaved]);
   const changeSavePreference = (enabled: boolean) => {
     // Apply the user's selection before any queued GPS completion callback.
     saveEnabledRef.current = enabled;
