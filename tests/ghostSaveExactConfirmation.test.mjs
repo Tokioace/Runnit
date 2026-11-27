@@ -22,7 +22,7 @@ test('one secure ID is reused for the same run and readback remains account scop
  assert.match(save,/const payload = \{ id: saveIdRef.current, user_id: user.id, \.\.\.item, source: 'ios-web-beta' \};/);
  assert.match(save,/\.from\('ghost_run_sessions'\)\.insert\(payload\)/);
  assert.match(save,/if \(uncertain && measurementAccountCurrent\(isLive, assertAccount\)\)/);
- assert.match(save,/\.eq\('user_id', user.id\)\.eq\('id', payload.id\)\.maybeSingle\(\);/);
+ assert.match(save,/\.eq\('user_id', user.id\)\.eq\('id', payload.id\)\.abortSignal\(signal\)\.maybeSingle\(\)\);/);
  assert.match(save,/if \(!readError && matchesGhostSave\(payload, data\)\) \{\s*uncertain = false;\s*error = null;/);
  assert.match(save,/if \(!measurementAccountCurrent\(isLive, assertAccount\)\) return;\s*savePendingRef.current = false;/);
  assert.match(source,/stepRef.current.reset\(\);\s*savedRef.current = false;\s*saveIdRef.current = null;/);
