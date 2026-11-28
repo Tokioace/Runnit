@@ -69,6 +69,9 @@ export function verifyPreviewBundle(directory,config){
     if(match[0]!==config.VITE_SUPABASE_URL)throw Error('Unexpected Supabase project URL in preview');
    }
    if(/\bsb_secret_[A-Za-z0-9_-]{16,}\b/.test(content))throw Error('Private Supabase key found in preview');
+   for(const match of content.matchAll(/\bsb_publishable_[A-Za-z0-9_-]{16,}/g)){
+    if(match[0]!==config.VITE_SUPABASE_ANON_KEY)throw Error('Unexpected Supabase publishable key in preview');
+   }
    if(/\.(?:js|mjs)$/.test(entry.name)){
     hasUrl ||= bytes.includes(config.VITE_SUPABASE_URL);
     hasKey ||= bytes.includes(config.VITE_SUPABASE_ANON_KEY);
