@@ -14,6 +14,8 @@ cleanup() {
   code=$?
   trap - EXIT
   if [[ -n "$udid" ]]; then
+    xcrun simctl spawn "$udid" log show --last 10m --style compact --predicate 'eventMessage BEGINSWITH "RUNNIT_SMOKE"' > smoke/native-stages.log 2>/dev/null || true
+    cat smoke/native-stages.log 2>/dev/null || true
     xcrun simctl io "$udid" screenshot smoke/simulator.png >/dev/null 2>&1 || true
     xcrun simctl shutdown "$udid" >/dev/null 2>&1 || true
     xcrun simctl delete "$udid" >/dev/null 2>&1 || true
@@ -47,11 +49,14 @@ PY
 )"
 read -r runtime device <<< "$selection"
 udid="$(xcrun simctl create "RUNNIT CI Preview" "$device" "$runtime")"
+echo "Booting selected iOS simulator"
 xcrun simctl boot "$udid"
 xcrun simctl bootstatus "$udid" -b
+echo "Simulator boot completed; installing preview"
 xcrun simctl install "$udid" "$app"
 nonce="$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
 SIMCTL_CHILD_RUNNIT_SMOKE_NONCE="$nonce" xcrun simctl launch --terminate-running-process "$udid" "$bundle"
+echo "Preview launched; checking React/native marker"
 data="$(xcrun simctl get_app_container "$udid" "$bundle" data)"
 marker="$data/Library/Caches/runnit-smoke-$nonce.json"
 for ((i=0;i<60;i++)); do
