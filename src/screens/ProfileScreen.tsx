@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Link } from 'react-router-dom';
 import {
   Activity, ArrowLeft, Copy, Dna,
-  Dumbbell, Footprints, Gauge, Image as Picture,
+  Dumbbell, Footprints, Gauge,
   Pencil, Settings, ShieldCheck, Shirt,
   Target, Trophy, UserRound, Zap,
 } from 'lucide-react';
