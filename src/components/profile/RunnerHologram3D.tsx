@@ -31,22 +31,6 @@ function ellipsoid(c: V, r: V, tint=0, rows=9, cols=14) {
   for(let i=0;i<rows;i++)for(let j=0;j<cols;j++)
     faces.push({corners:[v(i,j),v(i,j+1),v(i+1,j+1),v(i+1,j)],tint});
 }
-function limb(a: V, b: V, radius: number, depth: number, tint=0, rows=7, cols=12) {
-  const dir=unit(sub(b,a));
-  const side=unit(cross(dir,[0,0,1]));
-  const forward=unit(cross(side,dir));
-  const v=(i:number,j:number): V => {
-    const t=i/rows, theta=j*2*Math.PI/cols;
-    const main=add(a,scale(sub(b,a),t));
-    const taper=.78+.27*Math.sin(Math.PI*t);
-    return add(main,add(
-      scale(side,radius*taper*Math.cos(theta)),
-      scale(forward,depth*taper*Math.sin(theta)),
-    ));
-  };
-  for(let i=0;i<rows;i++)for(let j=0;j<cols;j++)
-    faces.push({corners:[v(i,j),v(i,j+1),v(i+1,j+1),v(i+1,j)],tint});
-}
 /**
  * A continuous, anatomical loft rather than stacks of spherical joints.
  * The tapering torso and articulated limbs retain volume in profile.
