@@ -1,0 +1,30 @@
+# RUNNIT — verbindliche Projektanweisung
+Stand: 2026-11-28. Gilt für alle Entwicklungsagenten im Repository. Neuere ausdrückliche Nutzerentscheidungen haben Vorrang.
+
+## Ziel und Produkt
+Internationale iOS-Sport- und Wettbewerbs-App, reale 1v1-Sprints, standortbasierte Events, Ghost Runs 50/75/100 m, GPS/IMU, Schritte, Geschwindigkeit, Beschleunigung, FairPlay, ELO, Ranglisten, Statistiken, Historie, Medaillen und Profile. Keine gewöhnliche Fitness-App. Später freiwillige Straßen-Challenges und Social-Media-Marketing. Keine verifizierten Wettkampfresultate versprechen, bevor Messqualität und Fairness nachgewiesen sind.
+Bestehendes Y2K-Design, Zak/Zoe, Hintergründe, Cyan/Gelbgrün, kompakte UI, Menü, Home, Karte, Legends (Ladder/Rivals/Legends), animierte Stats und Profil unverändert lassen. Keine eigenmächtigen Features, Rennmechanik- oder Designänderungen.
+
+## Strategie: TestFlight First
+Öffentliche Browser-Beta ist optional, nicht mehr das nächste Hauptziel. Web/PWA bleibt Entwicklungs- und Testbasis. Bestehenden Code mit Capacitor lokal in iOS-App bündeln; keine komplette Neuentwicklung. Native GPS/IMU, Berechtigungen, sichere Sitzung, Lifecycle, Audio, Karte und zwei Geräte prüfen. Reproduzierbaren Xcode-Build, Signing, Bundle-ID, Apple Developer Enrollment und App Store Connect vorbereiten. macOS-CI statt Mac-Kauf prüfen; keine kostenpflichtigen Runner ohne Freigabe. Erst eigener signierter Gerätetest/interne TestFlight-Beta, dann externe Beta nach Apple-Prüfung. Geplant 5–10, 50, 250, 1000 Tester, nur nach Stabilität und Kapazität erweitern. Danach App Store, später optional Monetarisierung. Keine Abnahme überspringen: Web-Evidenz und native Abnahme getrennt dokumentieren.
+
+## Infrastruktur und bisherige praktische Evidenz
+GitHub Tokioace/Runnit, develop für Tests, main nur kontrollierte Produktion. Vercel Preview https://runnit-git-develop-tokioaces-projects.vercel.app/; separate Supabase RUNNIT-BETA, strikt getrennt von Produktion. Keine realen Produktionsdaten für Experimente. Vercel für Web/Preview, Supabase für Auth, DB und Realtime, Capacitor für iOS, TestFlight für Distribution. Langfristig Vercel Pro nur bei nachgewiesenem Bedarf, Supabase Free solange sinnvoll. Apple-Mitgliedschaft und etwaige Build-Kosten vorab prüfen.
+Nutzerbericht: Zwei-Spieler-Duell, Countdown, Rennanzeige, mehrere Schrittzähltests, Registrierung/Bestätigung, E-Mail/Passwort, Logout, persistente PWA-Sitzung, Passwortänderung und Ablehnung des alten Passworts erfolgreich getestet. Das ist keine vollständige Abnahme des aktuellen Kandidaten. Passwortloser Login durch Mail-Limit blockiert; Reset und externer Versand noch nicht bestätigt. Gastmodus, Profil/Karte/Stats/Legends, Berechtigungen, Ghost Runs, Abbruch/Finish, Speicherung, Kontoisolation, Ranking/FairPlay und Feldmessungen gemäß Tracker prüfen.
+Brevo-Konto gelöscht; keine Integration. Resend optional, nicht eingerichtet; regulärer Versand benötigt verifizierte Domain. Sign in with Apple als zusätzliche Option prüfen, keine eigenmächtige Auth-Umstellung. Keine Bestätigungspflicht umgehen.
+
+## Domain, Datenschutz, Kosten
+Domain optional für TestFlight; öffentlich erreichbare Datenschutz-/Supportseiten rechtzeitig bereitstellen. Bevorzugt .app. Letzte Abfrage: runnit.app vergeben, playrunnit.app und getrunnit.app verfügbar; vor Kauf neu prüfen. Vercel-Angebot für kostenlose Erstregistrierung nicht als gesicherte Kontoberechtigung behandeln; Checkout, Verlängerung, Datenschutz und Markenrechte prüfen. INWX als deutscher Alternativanbieter. Keine Domain gekauft. Keine weiteren Anbieterregistrierungen ohne Prüfung. Keine privaten Adressen öffentlich machen; korrekte Inhaberdaten, WHOIS-Schutz und rechtlich zulässige Kontaktanschrift/Impressum/Apple-Trader-Anforderungen separat klären. Deutsche Vertragspartner und Zahlungen bevorzugt. Keine kostenpflichtige Aktion ohne ausdrückliche Zustimmung; Preis, Verlängerung, Limits, Kündigung und kostenlose Alternativen prüfen. Ausgabenlimits vor externer Beta prüfen. Gewerbe/Steuern vor kommerziellem Betrieb klären.
+
+## Arbeitsregeln
+- Vor jeder Runde aktuellen develop, offene PRs, CI und Release-Tracker [#399](https://github.com/Tokioace/Runnit/issues/399) prüfen. Keine alten SHAs, PRs oder Testergebnisse als aktuell ausgeben.
+- Tracker ist verbindliche Quelle für Freigabefortschritt: erfüllte/20, je 5 Prozentpunkte, nur dokumentierte Evidenz. Kein Fortschritt pro PR. Regressionen wieder öffnen. TestFlight-Ziel ändert keine bestehenden Freigabekriterien automatisch.
+- Kritische Blocker priorisieren; sinnvolle zusammenhängende PRs gegen develop, keine künstlichen PRs; autonome Fehleroptimierung höchstens drei offene PRs, konkrete Bugfixes und Regressionstests, keine Designänderungen.
+- Fehlerhafte Checks untersuchen und beheben; exakten Head und finalen Kandidaten prüfen. Keine erfundenen Tests, keine theoretische Prüfung als Gerätetest ausgeben.
+- Keine automatischen Merges, main-Releases, Produktionsmigrationen, Uploads oder kostenpflichtigen Aktionen ohne ausdrückliche Freigabe. Bestehende Sicherheitsregeln und fünf Pflichtchecks auf main respektieren.
+- Vor Veröffentlichung: vollständige Zwei-Geräte-Matrix, Ghost 50/75/100, 30–50 Referenz-Sprints mit vorab festgelegten Kriterien, FairPlay/Ranking, Konto-Löschung inkl. Session-Entzug, Datenschutz/Support/Impressum, Sicherheitsbefunde, Rollback und finaler Kandidat. Keine P0/P1 offen.
+- Bei jeder Entwicklungsrunde Fortschritt, konkrete Änderungen, PR-Link, tatsächlichen CI-Stand, Blocker und nächsten Schritt berichten. Keine unnötige Wiederholung erfolgreich belegter Arbeiten.
+- Nächster Schwerpunkt: aktuellen nativen iOS-Stand und Build-Blocker prüfen, dann auf ersten signierten TestFlight-Build hinarbeiten. Keine unnötige öffentliche Web-Beta.
+
+## Dokumentation
+Aktuelle Details aus #399 und docs/ios-native-preview.md, docs/duel-two-device-recovery-matrix.md, docs/gps-field-validation.md, docs/hosted-auth-smoke.md, docs/account-deletion-release-gate.md, docs/legal-release-drafts.md beziehen. Keine Geheimnisse, Roh-GPS oder privaten Kontaktdaten in GitHub ablegen.
