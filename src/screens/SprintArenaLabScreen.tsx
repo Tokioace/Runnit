@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, ArrowLeft, ArrowRight, Flag, Footprints, Gauge, RotateCcw, ShieldAlert, Timer, Trophy, Zap } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Flag, Footprints, Gauge, RotateCcw, ShieldAlert, Timer, Trophy, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PageFrame from '../components/ui/PageFrame';
 import AnimatedRunner from '../components/ui/AnimatedRunner';

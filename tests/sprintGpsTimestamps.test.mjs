@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { advanceGpsSprint, createGpsSprint, runGpsSimulation, syntheticPoint } from '../src/lib/sprintGps.ts';
+import { advanceGpsSprint, runGpsSimulation, syntheticPoint } from '../src/lib/sprintGps.ts';
 
 // Deterministic synthetic equatorial points only; not evidence of field accuracy.
 const START = 1_800_000_000_000;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ArrowRight, BarChart3, Crown, Flame, Gauge, Medal, RefreshCw, ShieldAlert, Swords, Timer, Trophy, UserRound, Users, Zap } from 'lucide-react';
+import { ArrowRight, BarChart3, Crown, Flame, Gauge, RefreshCw, ShieldAlert, Swords, Timer, Trophy, UserRound, Users, Zap } from 'lucide-react';
 import BottomNav from '../components/ui/BottomNav';
 import { useRunnerHistory } from '../hooks/useRunnerHistory';
 import { formatRaceTime } from '../lib/runnerHistory';
