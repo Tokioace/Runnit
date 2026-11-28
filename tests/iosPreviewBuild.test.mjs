@@ -13,12 +13,19 @@ test('native shell uses local bundled app and exact matched runtime versions',()
  assert.match(p.dependencies['@capacitor/core'],/^\d+\.\d+\.\d+$/);
  assert.equal(JSON.parse(read('package.json')).dependencies['@capacitor/core'],undefined);
 });
-test('macOS build is manual, unsigned and separate from production deployment',()=>{
+test('macOS build is manual, locally ad-hoc signed and separate from production deployment',()=>{
  const flow=read('.github/workflows/ios-preview.yml');
  const script=read('scripts/build-ios-preview.sh');
  assert.match(flow,/github.event_name == 'workflow_dispatch' && inputs.build_simulator/);
  assert.match(read('scripts/build-native-preview-web.mjs'),/runnit-preview\.invalid/);
- assert.match(script,/CODE_SIGNING_ALLOWED=NO/);
+ assert.match(script,/CODE_SIGNING_ALLOWED=YES/);
+ assert.match(script,/CODE_SIGNING_REQUIRED=YES/);
+ assert.match(script,/CODE_SIGN_IDENTITY="-"/);
+ assert.match(script,/CODE_SIGN_STYLE=Manual/);
+ assert.match(script,/DEVELOPMENT_TEAM=""/);
+ assert.match(script,/-sdk iphonesimulator/);
+ assert.match(script,/codesign --verify/);
+ assert.doesNotMatch(script,/PROVISIONING_PROFILE|Apple Distribution|iphoneos\b/);
  const verifier=read('scripts/verify-ios-project.py');
  assert.match(verifier,/NSLocationWhenInUseUsageDescription/);
  assert.match(verifier,/NSMotionUsageDescription/);

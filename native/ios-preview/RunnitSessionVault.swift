@@ -83,7 +83,7 @@ public class RunnitSessionVault: CAPPlugin, CAPBridgedPlugin {
         RunnitPreviewSmoke.trace("vault read")
         guard let key = validKey(call) else { return }
         queue.async {
-            do { try self.prepare() } catch { RunnitPreviewSmoke.trace("vault prepare failed"); call.reject("Secure storage unavailable"); return }
+            do { try self.prepare() } catch { RunnitPreviewSmoke.trace("vault prepare failed code \((error as NSError).code) domain \((error as NSError).domain == NSCocoaErrorDomain ? "Cocoa" : (error as NSError).domain == "RunnitSessionVault" ? "Keychain" : "other")"); call.reject("Secure storage unavailable"); return }
             var q = self.query(key)
             q[kSecReturnData as String] = true
             q[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -103,7 +103,7 @@ public class RunnitSessionVault: CAPPlugin, CAPBridgedPlugin {
         guard let value = call.getString("value"), let data = value.data(using: .utf8),
               data.count <= 262144 else { call.reject("Invalid session value"); return }
         queue.async {
-            do { try self.prepare() } catch { RunnitPreviewSmoke.trace("vault prepare failed"); call.reject("Secure storage unavailable"); return }
+            do { try self.prepare() } catch { RunnitPreviewSmoke.trace("vault prepare failed code \((error as NSError).code) domain \((error as NSError).domain == NSCocoaErrorDomain ? "Cocoa" : (error as NSError).domain == "RunnitSessionVault" ? "Keychain" : "other")"); call.reject("Secure storage unavailable"); return }
             let q = self.query(key)
             let changes: [String: Any] = [
                 kSecValueData as String: data,
@@ -123,7 +123,7 @@ public class RunnitSessionVault: CAPPlugin, CAPBridgedPlugin {
         RunnitPreviewSmoke.trace("vault remove")
         guard let key = validKey(call) else { return }
         queue.async {
-            do { try self.prepare() } catch { RunnitPreviewSmoke.trace("vault prepare failed"); call.reject("Secure storage unavailable"); return }
+            do { try self.prepare() } catch { RunnitPreviewSmoke.trace("vault prepare failed code \((error as NSError).code) domain \((error as NSError).domain == NSCocoaErrorDomain ? "Cocoa" : (error as NSError).domain == "RunnitSessionVault" ? "Keychain" : "other")"); call.reject("Secure storage unavailable"); return }
             let status = SecItemDelete(self.query(key) as CFDictionary)
             guard status == errSecSuccess || status == errSecItemNotFound else {
                 call.reject("Secure storage removal failed"); return
