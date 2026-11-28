@@ -20,7 +20,7 @@ import { readyForDuel } from '../db/readyForDuel';
 import BottomNav from '../components/ui/BottomNav';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { LeaderboardSheet } from '../components/leaderboard/Sheet';
-import { leaderboardSourceLabel, type LeaderboardSource } from '../lib/leaderboardProvenance';
+import { type LeaderboardSource } from '../lib/leaderboardProvenance';
 import ArcadeMapChrome, { type ArcadeMapEntry, type ArcadeMapView } from '../components/map/ArcadeMapChrome';
 import { parseGeographyPoint } from '../lib/duelLocation';
 import { duelRealtimeRow, createDuelRealtimeLifetime } from '../lib/duelRealtime';
@@ -210,9 +210,7 @@ function useUserLocation() {
 }
 
 // Utility: format seconds to 0.00s string
-function formatSecondsToTimeString(seconds: number): string {
-  return `${seconds.toFixed(2)}s`;
-}
+
 
 // Utility: convert hsl() to hex via canvas (ensures stable colorHex)
 function colorToHex(hsl: string): string {
@@ -243,231 +241,6 @@ function hashStringToHsl(input: string): string {
 
 function colorForUsernameToHex(username: string): string {
   return colorToHex(hashStringToHsl(username || 'runner'));
-}
-
-// Avatar component (initials circle)
-function Avatar({ name, colorHex }: { name: string; colorHex: string }) {
-  const initials = useMemo(() => {
-    const parts = name.split(/[^a-zA-Z0-9]+/).filter(Boolean);
-    const first = parts[0]?.[0]?.toUpperCase() ?? 'R';
-    const second = parts[1]?.[0]?.toUpperCase() ?? '';
-    return `${first}${second}` || first;
-  }, [name]);
-  return (
-    <div
-      className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white"
-      style={{ backgroundColor: colorHex }}
-      aria-hidden
-    >
-      {initials}
-    </div>
-  );
-}
-
-// Stable demo data generators using seed-based randomness
-function seededRandom(seed: string): () => number {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    const char = seed.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  
-  return function() {
-    hash = ((hash * 9301) + 49297) % 233280;
-    return hash / 233280;
-  };
-}
-
-// Generate stable demo data once
-const generateNationalPlayers = (() => {
-  let cached: Player[] | null = null;
-  return () => {
-    if (cached) return cached;
-    const rng = seededRandom('national-germany-leaderboard');
-    cached = Array.from({ length: 50 }, (_, i) => ({
-      id: `national-${i}`,
-      username: `GermanRunner${String(i + 1).padStart(2, '0')}`,
-      rank: i + 1,
-      bestTimeSeconds: 8.5 + (i * 0.3) + (rng() * 0.5),
-      distanceMeters: 100,
-      location: { lat: 52.5 + (rng() - 0.5) * 2, lng: 13.4 + (rng() - 0.5) * 2 },
-      colorHex: colorForUsernameToHex(`GermanRunner${String(i + 1).padStart(2, '0')}`),
-      source: 'demo' as const,
-    }));
-    return cached;
-  };
-})();
-
-const generateInternationalPlayers = (() => {
-  let cached: Player[] | null = null;
-  return () => {
-    if (cached) return cached;
-    const rng = seededRandom('international-world-leaderboard');
-    cached = Array.from({ length: 100 }, (_, i) => ({
-      id: `international-${i}`,
-      username: `WorldRunner${String(i + 1).padStart(3, '0')}`,
-      rank: i + 1,
-      bestTimeSeconds: 7.8 + (i * 0.2) + (rng() * 0.3),
-      distanceMeters: 100,
-      location: { lat: rng() * 180 - 90, lng: rng() * 360 - 180 },
-      colorHex: colorForUsernameToHex(`WorldRunner${String(i + 1).padStart(3, '0')}`),
-      source: 'demo' as const,
-    }));
-    return cached;
-  };
-})();
-
-// Enhanced Leaderboard Modal with City/National/International tabs
-function GhostLeaderboardModal({
-  open,
-  onClose,
-  players,
-  currentUser,
-  cityName,
-}: {
-  open: boolean;
-  onClose: () => void;
-  players: Player[];
-  currentUser: CurrentUser | null;
-  cityName: string | null;
-}) {
-  const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<'city' | 'national' | 'international'>('city');
-  const [nationalPlayers, setNationalPlayers] = useState<Player[]>([]);
-  const [internationalPlayers, setInternationalPlayers] = useState<Player[]>([]);
-
-  // Load stable demo data for national and international leaderboards
-  useEffect(() => {
-    if (!open) return;
-    
-    // Use stable generators
-    setNationalPlayers(generateNationalPlayers());
-    setInternationalPlayers(generateInternationalPlayers());
-  }, [open]);
-
-  if (!open) return null;
-
-  const getCurrentPlayers = () => {
-    switch (activeTab) {
-      case 'city': return players;
-      case 'national': return nationalPlayers;
-      case 'international': return internationalPlayers;
-      default: return players;
-    }
-  };
-
-  const getTitle = () => {
-    switch (activeTab) {
-      case 'city': return `🏙️ ${cityName || 'Deine Stadt'}`;
-      case 'national': return '🇩🇪 Deutschland';
-      case 'international': return '🌍 International';
-      default: return 'Leaderboard';
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#050611]/75 backdrop-blur-[4px]">
-      <div className="w-full max-w-md rounded-t-[30px] border border-violet-300/20 bg-[#101322] p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white shadow-[0_-25px_80px_rgba(0,0,0,.5)]">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-extrabold tracking-tight text-white">{getTitle()}</h2>
-          <button
-            onClick={onClose}
-            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/70 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-            aria-label="Close leaderboard"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="mb-4 flex items-center gap-1 rounded-lg bg-white/5 p-1">
-          <button
-            onClick={() => setActiveTab('city')}
-            className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-              activeTab === 'city'
-                ? 'bg-indigo-600 text-white'
-                : 'text-white/70 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            🏙️ Stadt
-          </button>
-          <button
-            onClick={() => setActiveTab('national')}
-            className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-              activeTab === 'national'
-                ? 'bg-indigo-600 text-white'
-                : 'text-white/70 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            🇩🇪 National
-          </button>
-          <button
-            onClick={() => setActiveTab('international')}
-            className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-              activeTab === 'international'
-                ? 'bg-indigo-600 text-white'
-                : 'text-white/70 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            🌍 International
-          </button>
-        </div>
-
-        <p className="mb-3 rounded-lg border border-amber-300/30 bg-amber-400/10 px-3 py-2 text-xs leading-5 text-amber-100">Keine offiziell verifizierten Ergebnisse: Beispieldaten sind erfunden und gespeicherte Laufzeiten nicht geprüft.</p>
-        <div className="mb-2 grid grid-cols-12 gap-2 px-1 text-[11px] uppercase tracking-wide text-white/60">
-          <div className="col-span-2">Rang</div>
-          <div className="col-span-5">Name</div>
-          <div className="col-span-3">Zeit</div>
-          <div className="col-span-2 text-right">Distanz</div>
-        </div>
-        <div className="max-h-[45vh] space-y-2 overflow-y-auto pr-1">
-          {getCurrentPlayers().slice(0, 100).map((p) => (
-            <div
-              key={p.id}
-              className={`grid grid-cols-12 items-center gap-2 rounded-lg p-2 ring-1 ${
-                p.rank === 1
-                  ? 'bg-yellow-600/20 ring-yellow-500/30'
-                  : p.rank === 2
-                  ? 'bg-gray-400/20 ring-gray-400/30'
-                  : p.rank === 3
-                  ? 'bg-orange-600/20 ring-orange-500/30'
-                  : 'bg-white/5 ring-white/5'
-              }`}
-            >
-              <div className="col-span-2 text-sm font-semibold text-white/90">
-                #{p.rank}
-              </div>
-              <div className="col-span-5 flex items-center gap-2 text-sm text-white">
-                <Avatar name={p.username} colorHex={p.colorHex} />
-                <span className="min-w-0"><span className="block truncate">{p.username}</span><span className="block text-[10px] text-amber-200">{leaderboardSourceLabel(p.source)}</span></span>
-              </div>
-              <div className="col-span-3 text-sm text-white/90">
-                {formatSecondsToTimeString(p.bestTimeSeconds)}
-              </div>
-              <div className="col-span-2 text-right text-sm text-white/60">{p.distanceMeters}m</div>
-            </div>
-          ))}
-        </div>
-        {currentUser ? (
-          <div className="sticky bottom-0 mt-3 rounded-lg bg-[#111113] p-3 ring-1 ring-white/10">
-            <div className="mb-1 text-[10px] uppercase tracking-wide text-white/50">Du</div>
-            <div className="grid grid-cols-12 items-center gap-2">
-              <div className="col-span-2 text-sm font-semibold text-white/90">—</div>
-              <div className="col-span-5 flex items-center gap-2 text-sm text-white">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
-                  {currentUser.username[0]?.toUpperCase() || 'Y'}
-                </div>
-                <span className="truncate">{currentUser.username}</span>
-              </div>
-              <div className="col-span-3 text-sm text-white/90">—</div>
-              <div className="col-span-2 text-right text-sm text-white/60">—</div>
-            </div>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
 }
 
 // Host Run Dialog
@@ -742,7 +515,6 @@ function AuthModal({
 
 // Main Screen
 export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
-  const { t } = useI18n();
   const navigate = useNavigate();
   const { coords: userCoords, locationError, locating, requestOnce, insecureContext, unsupported } = useUserLocation();
   const liveUserCoordsRef = useRef(userCoords);
@@ -872,10 +644,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     setRegionalRuns(previous => previous.filter(run => run.id !== duelId));
     activeDuelIdRef.current = null;
     unconfirmedRecoveryHintRef.current = null;
-    if (authUser) {
-      forgetActiveDuelId(authUser.id, duelId);
-      forgetPendingFinish(authUser.id, duelId);
-    }
+    forgetActiveDuelId(authUser.id, duelId);
+    forgetPendingFinish(authUser.id, duelId);
     if (latestFinishPayloadRef.current?.duelId === duelId) latestFinishPayloadRef.current = null;
     setFinishSubmissionError(null);
     matchStartHandledRef.current = null;
@@ -1093,7 +863,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
         
         // If database has data, use it
         if (!error && ghostRows && ghostRows.length > 0) {
-          newPlayers = (ghostRows || []).map((r: any, idx: number) => {
+          newPlayers = ghostRows.map((r: any, idx: number) => {
             const username: string = r.username || `runner${String(idx + 1).padStart(2, '0')}`;
             const lat = typeof r.user_lat === 'number' ? r.user_lat : center.lat;
             const lng = typeof r.user_lng === 'number' ? r.user_lng : center.lng;
