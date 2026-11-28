@@ -1061,7 +1061,11 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     } else {
       // Demo mode: create a demo user for testing
       const demoUserId = 'demo-user-' + Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
-      const demoUsername = 'Runner' + (crypto.getRandomValues(new Uint32Array(1))[0] % 999).toString().padStart(3, '0');
+      const sample = new Uint32Array(1);
+      do {
+        crypto.getRandomValues(sample);
+      } while (sample[0] >= 999 * Math.floor(4294967296 / 999));
+      const demoUsername = 'Runner' + Math.floor(sample[0] / Math.floor(4294967296 / 999)).toString().padStart(3, '0');
       setCurrentUser({ id: demoUserId, username: demoUsername });
     }
   }, [authUser]);
