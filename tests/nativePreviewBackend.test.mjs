@@ -99,6 +99,7 @@ test('mixed preview output with additional project URL or private key fails clos
   ['https://zyxwvutsrqponmlkjihg.supabase.co',/Unexpected Supabase project URL/],
   ['http://abcdefghijklmnopqrst.supabase.co',/Unexpected Supabase project URL/],
   ['sb_secret_'+ 'synthetic_example_123456789',/Private Supabase key/],
+  ['sb_publishable_'+ 'another_synthetic_key_123456789',/Unexpected Supabase publishable key/],
  ]){
   writeFileSync(js,expected+'\n'+JSON.stringify(extra));
   assert.throws(()=>verifyPreviewBundle(dir,config),reason);
