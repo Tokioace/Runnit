@@ -3,14 +3,13 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import { verifyPreviewBundle } from './scripts/build-native-preview-web.mjs'
 import { readFileSync } from 'node:fs'
-import { matchesPreviewBuildIdentity } from './src/lib/previewBuildIdentity'
 import { assertExternalBetaBuild } from './src/lib/externalBetaBuild'
-import { previewBuildIdentity } from './src/lib/previewBuildIdentity'
+import { previewBuildIdentity, matchesPreviewBuildIdentity } from './src/lib/previewBuildIdentity'
 import { assertLegalBuildConfiguration } from './src/lib/parseApprovedLegalPages'
 
 export default defineConfig(({ command, mode }) => {
-  const env = command === 'build' ? loadEnv(mode, process.cwd(), 'VITE_') : null
-  if (env) {
+  const env = loadEnv(mode, process.cwd(), 'VITE_')
+  if (command === 'build') {
     assertLegalBuildConfiguration(env.VITE_APPROVED_LEGAL_PAGES_JSON, env.VITE_LEGAL_PAGES_ENABLED)
     assertExternalBetaBuild(process.env, env)
   }
