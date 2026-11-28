@@ -88,7 +88,10 @@ export function useSupabaseUser() {
     }
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(), password,
-      ...(nickname !== undefined ? { options: { data: { display_name: nickname } } } : {}),
+      options: {
+        ...(!isNativeAuthRuntime() ? { emailRedirectTo: authCallbackUrl(window.location.origin) } : {}),
+        ...(nickname !== undefined ? { data: { display_name: nickname } } : {}),
+      },
     });
     if (error) throw error;
     return data;

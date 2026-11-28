@@ -16,6 +16,7 @@ import SprintArenaLabScreen from './screens/SprintArenaLabScreen';
 import WelcomeAuthScreen from './components/auth/WelcomeAuthScreen';
 import AuthCallbackScreen from './components/auth/AuthCallbackScreen';
 import { AUTH_CALLBACK_PATH, isNativeAuthRuntime } from './lib/authRedirect';
+import { hasPendingWebRegistration, forgetWebRegistration } from './lib/pendingRegistration';
 import NativeSensorScreen from './screens/NativeSensorScreen';
 import { maybeRunPreviewSmoke } from './lib/nativePreviewSmoke';
 import { useSupabaseUser } from './hooks/useSupabaseUser';
@@ -58,6 +59,7 @@ export default function App() {
   const enterGuestMode = () => {
     // This is only a browsing preference. It never creates an Auth user.
     try { window.sessionStorage.setItem(GUEST_SESSION_KEY, '1'); } catch { /* Safari can restrict storage. */ }
+    forgetWebRegistration();
     setGuestAccess(true);
     navigate('/home');
   };
@@ -77,6 +79,7 @@ export default function App() {
     if (previousSignedInId.current && !auth.user) {
       navigate('/', { replace: true });
     }
+    if (auth.user) forgetWebRegistration();
     previousSignedInId.current = auth.user?.id ?? null;
   }, [auth.loading, auth.user?.id, navigate]);
 
@@ -106,6 +109,12 @@ export default function App() {
 
   if (location.pathname === AUTH_CALLBACK_PATH) {
     return auth.user ? <Navigate to="/home" replace /> : <AuthCallbackScreen onContinueAsGuest={enterGuestMode} />;
+  }
+
+  // Installed web apps may relaunch at manifest start_url while the user
+  // checks mail. Restore only the non-secret waiting screen, never a session.
+  if (!auth.user && location.pathname === '/' && !isNativeAuthRuntime() && hasPendingWebRegistration()) {
+    return <Navigate to="/register" replace />;
   }
 
   // Dedicated routes for the two intents. Keep the previous

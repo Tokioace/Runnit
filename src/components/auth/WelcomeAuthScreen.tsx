@@ -8,6 +8,7 @@ import LegalLinks from '../legal/LegalLinks';
 import { isNativeAuthRuntime, type SocialProvider } from '../../lib/authRedirect';
 import AccountAuthPanel from '../profile/AccountAuthPanel';
 import { Link } from 'react-router-dom';
+import { forgetWebRegistration } from '../../lib/pendingRegistration';
 
 type Props = Pick<UseSupabaseUserReturn,
   'signInWithProvider' | 'sendMagicLink' | 'verifyEmailOtp' | 'signIn' | 'signUp' | 'loadError'
@@ -140,7 +141,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
       </div>
 
       <div className="relative mx-auto w-full max-w-md">
-        <Link to="/" className="mb-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white/80 hover:text-white">
+        <Link to="/" onClick={forgetWebRegistration} className="mb-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white/80 hover:text-white">
           <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Zurück zu RUNNIT
         </Link>
 
@@ -250,7 +251,7 @@ export default function WelcomeAuthScreen({ signInWithProvider, sendMagicLink, v
           <p className="mt-5 text-center text-sm font-medium text-white/65">
             {initialMode === 'signin' ? 'Noch kein Konto?' : 'Schon registriert?'}
             {' '}
-            <Link to={initialMode === 'signin' ? '/register' : '/login'}
+            <Link to={initialMode === 'signin' ? '/register' : '/login'} onClick={initialMode === 'signup' ? forgetWebRegistration : undefined}
               className="inline-flex min-h-11 items-center font-black text-cyan-200 underline decoration-cyan-200/50 underline-offset-4 hover:text-white">
               {initialMode === 'signin' ? 'Jetzt registrieren' : 'Jetzt anmelden'}
             </Link>
