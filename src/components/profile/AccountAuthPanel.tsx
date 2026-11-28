@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { ArrowRight, LockKeyhole, Mail, ShieldCheck, UserPlus } from 'lucide-react';
 import type { UseSupabaseUserReturn } from '../../hooks/useSupabaseUser';
+import { isNativeAuthRuntime } from '../../lib/authRedirect';
+import { hasPendingWebRegistration, rememberWebRegistration, forgetWebRegistration } from '../../lib/pendingRegistration';
 import { getAccountDisplayNameError } from '../../lib/accountProfile';
 
 type Props = Pick<UseSupabaseUserReturn, 'signIn' | 'signUp'> & { initialMode?: Mode; hideModeSwitch?: boolean };
@@ -34,7 +36,8 @@ export default function AccountAuthPanel({ signIn, signUp, initialMode = 'signin
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-  const [registrationSubmitted, setRegistrationSubmitted] = useState(false);
+  const [registrationSubmitted, setRegistrationSubmitted] = useState(() =>
+    hideModeSwitch && initialMode === 'signup' && !isNativeAuthRuntime() && hasPendingWebRegistration());
 
   const switchMode = (next: Mode) => {
     if (pending) return;
@@ -67,6 +70,7 @@ export default function AccountAuthPanel({ signIn, signUp, initialMode = 'signin
         if (hideModeSwitch) {
           // Keep registration and login distinct: never switch the form to login
           // underneath a /register URL after a successful account request.
+          if (!isNativeAuthRuntime()) rememberWebRegistration();
           setRegistrationSubmitted(true);
         } else {
           setMode('signin');
@@ -103,7 +107,10 @@ export default function AccountAuthPanel({ signIn, signUp, initialMode = 'signin
       </div>}
 
       {registrationSubmitted ? (
-        <p role="status" className="mt-6 rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-4 py-4 text-sm leading-6 text-emerald-100">{info}</p>
+        <div className="mt-6 space-y-3">
+          <p role="status" className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-4 py-4 text-sm leading-6 text-emerald-100">{info ?? 'Bitte bestätige deine E-Mail-Adresse und melde dich anschließend an. Prüfe auch den Spamordner.'}</p>
+          <button type="button" onClick={() => { forgetWebRegistration(); setRegistrationSubmitted(false); setInfo(null); setError(null); }} className="min-h-11 w-full text-xs font-bold text-cyan-200">Erneut registrieren</button>
+        </div>
       ) : <form onSubmit={(event) => { void submit(event); }} className="mt-6 space-y-4">
         {mode === 'signup' && (
           <div>
