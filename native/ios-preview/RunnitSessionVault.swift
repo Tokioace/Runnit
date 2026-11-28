@@ -7,6 +7,9 @@ final class RunnitBridgeViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(RunnitSessionVault())
         bridge?.registerPluginInstance(RunnitSensorProbe())
+        #if DEBUG && targetEnvironment(simulator)
+        NSLog("RUNNIT_SMOKE bridge registered; nonce %@", RunnitPreviewSmoke.nonce() == nil ? "missing" : "present")
+        #endif
     }
 }
 
@@ -62,6 +65,7 @@ public class RunnitSessionVault: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc public func previewSmokeComplete(_ call: CAPPluginCall) {
+        RunnitPreviewSmoke.trace("completion")
         guard let nonce = RunnitPreviewSmoke.nonce() else { call.reject("Preview smoke disabled"); return }
         do {
             let folder = try FileManager.default.url(for: .cachesDirectory, in: .userDomainMask,
@@ -76,9 +80,10 @@ public class RunnitSessionVault: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc public func readSession(_ call: CAPPluginCall) {
+        RunnitPreviewSmoke.trace("vault read")
         guard let key = validKey(call) else { return }
         queue.async {
-            do { try self.prepare() } catch { call.reject("Secure storage unavailable"); return }
+            do { try self.prepare() } catch { RunnitPreviewSmoke.trace("vault prepare failed"); call.reject("Secure storage unavailable"); return }
             var q = self.query(key)
             q[kSecReturnData as String] = true
             q[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -87,17 +92,18 @@ public class RunnitSessionVault: CAPPlugin, CAPBridgedPlugin {
             if status == errSecItemNotFound { call.resolve(["value": NSNull()]); return }
             guard status == errSecSuccess, let data = raw as? Data,
                   let value = String(data: data, encoding: .utf8) else {
-                call.reject("Secure storage read failed"); return
+                RunnitPreviewSmoke.trace("vault read failed"); call.reject("Secure storage read failed"); return
             }
             call.resolve(["value": value])
         }
     }
     @objc public func writeSession(_ call: CAPPluginCall) {
+        RunnitPreviewSmoke.trace("vault write")
         guard let key = validKey(call) else { return }
         guard let value = call.getString("value"), let data = value.data(using: .utf8),
               data.count <= 262144 else { call.reject("Invalid session value"); return }
         queue.async {
-            do { try self.prepare() } catch { call.reject("Secure storage unavailable"); return }
+            do { try self.prepare() } catch { RunnitPreviewSmoke.trace("vault prepare failed"); call.reject("Secure storage unavailable"); return }
             let q = self.query(key)
             let changes: [String: Any] = [
                 kSecValueData as String: data,
@@ -109,14 +115,15 @@ public class RunnitSessionVault: CAPPlugin, CAPBridgedPlugin {
                 for (name, value) in changes { item[name] = value }
                 status = SecItemAdd(item as CFDictionary, nil)
             }
-            guard status == errSecSuccess else { call.reject("Secure storage write failed"); return }
+            guard status == errSecSuccess else { RunnitPreviewSmoke.trace("vault write failed"); call.reject("Secure storage write failed"); return }
             call.resolve()
         }
     }
     @objc public func removeSession(_ call: CAPPluginCall) {
+        RunnitPreviewSmoke.trace("vault remove")
         guard let key = validKey(call) else { return }
         queue.async {
-            do { try self.prepare() } catch { call.reject("Secure storage unavailable"); return }
+            do { try self.prepare() } catch { RunnitPreviewSmoke.trace("vault prepare failed"); call.reject("Secure storage unavailable"); return }
             let status = SecItemDelete(self.query(key) as CFDictionary)
             guard status == errSecSuccess || status == errSecItemNotFound else {
                 call.reject("Secure storage removal failed"); return
@@ -129,6 +136,12 @@ public class RunnitSessionVault: CAPPlugin, CAPBridgedPlugin {
 
 // Only the CI-launched, debug simulator preview can create a smoke marker.
 enum RunnitPreviewSmoke {
+    static func trace(_ stage: String) {
+        #if DEBUG && targetEnvironment(simulator)
+        guard nonce() != nil else { return }
+        NSLog("RUNNIT_SMOKE %@", stage)
+        #endif
+    }
     static func nonce() -> String? {
         #if DEBUG && targetEnvironment(simulator)
         guard Bundle.main.bundleIdentifier == "com.tokioace.runnit.preview",

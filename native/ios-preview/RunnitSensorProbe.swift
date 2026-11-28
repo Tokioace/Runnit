@@ -101,6 +101,7 @@ public class RunnitSensorProbe: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDe
         sprintStart = nil; sprintUptime = nil
     }
     @objc public func previewPing(_ call: CAPPluginCall) {
+        RunnitPreviewSmoke.trace("sensor ping")
         guard RunnitPreviewSmoke.nonce() != nil else { call.reject("Preview smoke disabled"); return }
         // Intentionally do not access CLLocationManager or motion permissions.
         call.resolve(["ready": true])
