@@ -934,10 +934,8 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
     endedDuelIdsRef.current.add(duelId);
     if (activeDuelIdRef.current === duelId) activeDuelIdRef.current = null;
     if (unconfirmedRecoveryHintRef.current === duelId) unconfirmedRecoveryHintRef.current = null;
-    if (authUser) {
-      forgetActiveDuelId(authUser.id, duelId);
-      forgetPendingFinish(authUser.id, duelId);
-    }
+    forgetActiveDuelId(authUser.id, duelId);
+    forgetPendingFinish(authUser.id, duelId);
     matchStartHandledRef.current = null;
     if (latestFinishPayloadRef.current?.duelId === duelId) latestFinishPayloadRef.current = null;
     setFinishSubmissionError(null);
@@ -1062,8 +1060,12 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
       setCurrentUser({ id: authUser.id, username: authUser.displayName });
     } else {
       // Demo mode: create a demo user for testing
-      const demoUserId = 'demo-user-' + Math.random().toString(36).substr(2, 9);
-      const demoUsername = 'Runner' + Math.floor(Math.random() * 999).toString().padStart(3, '0');
+      const demoUserId = 'demo-user-' + Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
+      const sample = new Uint32Array(1);
+      do {
+        crypto.getRandomValues(sample);
+      } while (sample[0] >= 999 * Math.floor(4294967296 / 999));
+      const demoUsername = 'Runner' + Math.floor(sample[0] / Math.floor(4294967296 / 999)).toString().padStart(3, '0');
       setCurrentUser({ id: demoUserId, username: demoUsername });
     }
   }, [authUser]);
@@ -1833,7 +1835,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
 
   const handleCancelHostedRun = (run: HostedOpenDuel) => {
     if (cancelHostedPendingRef.current || !authUser || finishAccountRef.current !== authUser.id) return;
-    if (!authUser || run.hostUserId !== authUser.id || run.id.startsWith('demo-run-')) return;
+    if (run.hostUserId !== authUser.id || run.id.startsWith('demo-run-')) return;
     if (knownNonOpenRunIdsRef.current.has(run.id) ||
         (run.expiresAt && !isOpenEventAvailable(run.expiresAt))) return;
     // No window.confirm: embedded iOS Safari/PWA and Leaflet popups can dismiss
@@ -1845,7 +1847,7 @@ export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
   const confirmCancelHostedRun = async () => {
     if (cancelHostedPendingRef.current || !authUser || finishAccountRef.current !== authUser.id) return;
     const run = cancelConfirmation;
-    if (!authUser || !run || run.hostUserId !== authUser.id || cancellingRunId) return;
+    if (!run || run.hostUserId !== authUser.id || cancellingRunId) return;
     if (knownNonOpenRunIdsRef.current.has(run.id) ||
         (run.expiresAt && !isOpenEventAvailable(run.expiresAt))) {
       setCancelConfirmation(previous => previous?.id === run.id ? null : previous);
