@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { ArrowRight, LockKeyhole, Mail, ShieldCheck, UserPlus } from 'lucide-react';
+import { ArrowRight, LockKeyhole, ShieldCheck, UserPlus } from 'lucide-react';
 import type { UseSupabaseUserReturn } from '../../hooks/useSupabaseUser';
 import { isNativeAuthRuntime } from '../../lib/authRedirect';
 import { hasPendingWebRegistration, rememberWebRegistration, forgetWebRegistration } from '../../lib/pendingRegistration';
