@@ -1,0 +1,26 @@
+name: iOS preview preparation
+# Manual dispatch registration only. Select develop in the Run workflow menu.
+# The develop branch contains the actual build implementation.
+on:
+  workflow_dispatch:
+    inputs:
+      build_simulator:
+        description: 'Run optional macOS simulator build (uses hosted runner minutes)'
+        required: true
+        type: boolean
+        default: false
+      test_backend:
+        description: 'Use explicitly configured synthetic-only Supabase test project (manual develop only)'
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  refuse-main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require develop branch
+        run: |
+          echo "::error::Select develop in the Run workflow branch menu. This default-branch registration does not build or deploy the app."
+          exit 1
