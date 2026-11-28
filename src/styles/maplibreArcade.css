@@ -1,0 +1,370 @@
+/* Runnit vector-first arcade map. No global raster filter or CSS tilt fakery. */
+.runnit-map-arcade .runnit-gl-canvas{position:absolute;inset:0;width:100%;height:100%;background:#10253c;z-index:1}
+.runnit-map-arcade .maplibregl-map{font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif}
+.runnit-map-arcade .maplibregl-control-container{position:relative;z-index:620}
+.runnit-map-arcade .maplibregl-ctrl-bottom-right{bottom:calc(80px + env(safe-area-inset-bottom,0px));right:5px}
+.runnit-map-arcade .maplibregl-ctrl-bottom-left{bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+.runnit-map-arcade .maplibregl-ctrl-attrib{color:#cce7fa!important;background:rgba(4,14,32,.88)!important;border:1px solid rgba(77,200,239,.36);border-radius:5px;padding:2px 5px}
+.runnit-map-arcade .maplibregl-ctrl-attrib a{color:#d7e9ff!important}
+.runnit-map-arcade .maplibregl-ctrl-attrib-button{background-color:rgba(9,20,49,.85)}
+.runnit-map-arcade .maplibregl-marker{z-index:20}
+.runnit-map-arcade .runnit-gl-marker{position:relative;display:grid;place-items:center;cursor:pointer;border:2px solid var(--runnit-pin);background:linear-gradient(145deg,#1b2d6a,#221246 85%);color:#fffbff;box-shadow:inset 0 1px #c5f6ff,0 0 10px var(--runnit-pin);width:37px;height:37px;border-radius:9px 4px 9px 4px;font-size:20px;text-shadow:0 0 6px white;transform:translateY(-7px)}
+.runnit-map-arcade .runnit-gl-marker::after{content:"";position:absolute;left:12px;top:31px;border-style:solid;border-width:10px 5px 0 5px;border-color:var(--runnit-pin) transparent transparent transparent}
+.runnit-map-arcade .runnit-gl-marker.is-demo{box-shadow:inset 0 1px #e5e4ff,0 0 0 2px rgba(255,109,254,.36),0 0 15px var(--runnit-pin)}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-gps{border:4px solid #d5faff;border-radius:50%;width:29px;height:29px;background:#2a82fb;box-shadow:0 0 0 8px rgba(21,200,255,.28),0 0 20px rgba(4,242,255,.9);transform:none;cursor:default}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-gps::after{display:none}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run:not(.is-demo){background:linear-gradient(145deg,#16323d,#547115)}
+.runnit-map-arcade .runnit-gl-tilt-button{pointer-events:auto;position:absolute;right:15px;top:calc(14.3rem + env(safe-area-inset-top,0px));z-index:950;min-width:46px;height:42px;border:1px solid #9beeff;border-radius:13px 4px;background:linear-gradient(145deg,#1e67a2,#132448);color:#fff;box-shadow:inset 0 1px #fff,0 0 13px rgba(40,218,255,.5);font-size:14px;font-weight:1000;font-style:italic}
+.runnit-map-arcade .runnit-gl-tilt-button:focus-visible,.runnit-map-arcade .runnit-gl-run-cta:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup{z-index:590}
+.runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup .maplibregl-popup-content{padding:7px;border:2px solid #65f3ff;border-bottom-color:#ff46e8;border-radius:16px 4px 16px 4px;background:linear-gradient(145deg,#1a3b70,#111b48 60%,#19133b);box-shadow:0 0 18px rgba(39,222,255,.62),0 9px 27px rgba(0,0,0,.7)}
+.runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup .maplibregl-popup-tip{border-top-color:#171944;border-bottom-color:#171944}
+.runnit-map-arcade .maplibregl-popup-close-button{font-size:21px;top:5px;right:6px;color:#fff;z-index:1;width:30px;height:30px}
+.runnit-gl-run-details{color:#fff;min-width:205px;max-width:240px;padding:4px;line-height:1.4;font-size:12px}
+.runnit-gl-run-title{display:block;font-size:21px;font-weight:1000;font-style:italic;letter-spacing:-.05em;margin-bottom:7px;text-shadow:0 0 6px #1dc9ff}
+.runnit-gl-run-details p{margin:3px 0!important;color:#e1f7ff}
+.runnit-gl-run-details .runnit-gl-demo-status{color:#ffe185;font-size:10px;font-weight:950;letter-spacing:.02em}
+.runnit-gl-run-details .runnit-gl-own-status{color:#b7f9ff;font-size:10px;font-weight:950}
+.runnit-gl-run-cta{display:block;width:100%;min-height:44px;margin-top:9px;border:1px solid #edff90;border-radius:9px 3px;background:linear-gradient(135deg,#efff7a,#cbff10 55%,#79ba12);color:#071c2b;font-size:14px;font-weight:1000;font-style:italic;box-shadow:0 0 10px rgba(190,255,0,.67)}
+.runnit-gl-run-cta.is-cancel{background:linear-gradient(135deg,#ff96cc,#e43c89);border-color:#ffa8df;color:#301329}
+@media(max-width:360px){.runnit-map-arcade .runnit-gl-tilt-button{right:8px;top:calc(14.7rem + env(safe-area-inset-top,0px))}.runnit-gl-run-details{min-width:180px}}
+@media(prefers-reduced-motion:reduce){.runnit-map-arcade .maplibregl-marker,.runnit-map-arcade .runnit-gl-marker{animation:none!important;transition:none!important}}
+
+
+/* Map legend encoded in pin silhouettes: violet round player = leaderboard,
+   magenta checkered flag = race details, lime checkered flag = own open race.
+   Colors never indicate distance or whether a marker is within the 500m ring. */
+.runnit-map-arcade .runnit-gl-marker-glyph {
+  display:block;width:24px;height:24px;
+  color:#fff;fill:none;stroke:currentColor;
+  stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round;
+  pointer-events:none;filter:drop-shadow(0 1px 4px rgba(255,255,255,.45));
+}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-runner {
+  width:43px;height:43px;
+  border-radius:50%;
+  transform:none;
+  background:linear-gradient(150deg,#53399c,#231445 77%);
+  border:2px solid #d3bbff;
+  box-shadow:inset 0 1px rgba(255,255,255,.75),0 0 0 2px rgba(168,113,255,.3),0 0 15px #ae7dff;
+}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-runner::after{display:none}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-runner.is-demo{
+  box-shadow:inset 0 1px rgba(255,255,255,.75),0 0 0 2px rgba(168,113,255,.3),0 0 15px #ae7dff;
+}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run {
+  width:42px;height:44px;
+  border-radius:7px 2px 7px 2px;
+  background:linear-gradient(145deg,#5a164e,#32134c 87%);
+  border-color:var(--runnit-pin);
+}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run:not(.is-demo) {
+  background:linear-gradient(145deg,#162d3c,#305437);
+}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run .runnit-gl-marker-glyph{width:27px;height:27px}
+
+
+/* Temporary, map-anchored host chooser; removed as soon as the hosting
+   dialog opens. This is never a persistent panel over the map or LISTE. */
+.runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup { z-index:600; }
+.runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup .maplibregl-popup-content {
+  padding:12px;border:2px solid #b5ff15;border-radius:15px 3px 15px 3px;
+  background:linear-gradient(155deg,#182c4f,#0b1231);
+  box-shadow:0 0 18px rgba(193,255,18,.45),0 10px 26px #000a;
+}
+.runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup .maplibregl-popup-tip { border-top-color:#142342; }
+.runnit-gl-host-details{width:min(240px,calc(100vw - 76px));color:#fff;line-height:1.45}
+.runnit-gl-host-details strong{display:block;padding-right:23px;font-weight:1000;font-style:italic;font-size:17px;color:#d5ff7c}
+.runnit-gl-host-details p{font-size:12px;color:#bbdef1;margin:8px 0 12px}
+.runnit-gl-host-cta{
+  width:100%;min-height:48px;padding:8px 10px;border:1px solid #deff8a;
+  border-radius:9px 3px;background:linear-gradient(125deg,#eaff86,#baff00,#78bb15);
+  color:#102122;font-size:13px;font-weight:1000;font-style:italic;
+}
+.runnit-map-arcade .maplibregl-canvas{-webkit-touch-callout:none;touch-action:none}
+
+
+/* MapLibre owns the geographic transform on the outer shell. The inner
+   button alone is zoom-scaled, so tiny distant markers cannot drift or clamp
+   at the edge of a tilted/rotated map. */
+.runnit-map-arcade .runnit-gl-marker-shell{
+  position:absolute;width:42px;height:44px;pointer-events:none;
+}
+.runnit-map-arcade .runnit-gl-marker-shell.is-runner{width:43px;height:43px}
+.runnit-map-arcade .runnit-gl-marker-shell.is-gps{width:29px;height:29px}
+.runnit-map-arcade .runnit-gl-marker-shell > .runnit-gl-marker{
+  pointer-events:auto;transition:none;
+}
+.runnit-map-arcade .runnit-gl-marker-shell > .runnit-gl-marker.runnit-gl-run{
+  transform-origin:center bottom;
+}
+.runnit-map-arcade .runnit-gl-marker-shell > .runnit-gl-marker.runnit-gl-runner,
+.runnit-map-arcade .runnit-gl-marker-shell > .runnit-gl-marker.runnit-gl-gps{
+  transform-origin:center center;
+}
+
+/* Real open challenges remain pink; ONLY the authenticated host's flag is lime.
+   Neither demo status nor distance alters the visual event ownership state. */
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run:not(.is-own){
+  background:linear-gradient(145deg,#54204e,#240f3f 88%);
+}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own{
+  background:linear-gradient(145deg,#668905,#1d3e2b 89%);
+  border-color:#cbff0b;
+  box-shadow:inset 0 1px #f5ffbe,0 0 0 2px rgba(180,255,0,.36),0 0 18px #cbff0b;
+}
+
+/* iPhone-safe race and long-press cards.
+   MapLibre's projected popup transform can crop a card beyond the edge of a
+   3D/pitched map. For narrow screens a bounded floating panel is more reliable
+   than moving the entire camera around to fit a tooltip. */
+@media(max-width:650px){
+  .runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup {
+    position:fixed!important;
+    top:auto!important;right:auto!important;
+    bottom:calc(105px + env(safe-area-inset-bottom,0px))!important;
+    left:50%!important;transform:translateX(-50%)!important;
+    width:min(310px,calc(100vw - 26px))!important;
+    max-width:calc(100vw - 26px)!important;
+    z-index:980!important;pointer-events:auto;
+  }
+  .runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup .maplibregl-popup-content,
+  .runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup .maplibregl-popup-content {
+    max-height:min(50dvh,380px);
+    overflow-y:auto;overscroll-behavior:contain;
+    box-sizing:border-box;
+  }
+  .runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup .maplibregl-popup-tip {
+    display:none;
+  }
+  .runnit-map-arcade .runnit-gl-run-details,
+  .runnit-map-arcade .runnit-gl-host-details {
+    width:100%;max-width:none;min-width:0;box-sizing:border-box;
+    overflow-wrap:anywhere;
+  }
+  .runnit-map-arcade .runnit-gl-run-details {padding-right:7px;}
+  .runnit-map-arcade .runnit-gl-host-details strong {padding-right:27px;}
+}
+
+
+/* HOST TARGET — tiny point-anchored arcade HUD, NOT the fixed race detail card. */
+.runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup {
+  position:absolute!important;
+  width:188px;max-width:min(188px,calc(100vw - 28px))!important;
+  z-index:960!important;pointer-events:auto;
+}
+.runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup .maplibregl-popup-content {
+  border:1px solid #d0ff54;border-bottom:2px solid #33e9ff;
+  border-radius:9px 2px 9px 2px;
+  padding:9px 9px 8px;
+  background:linear-gradient(130deg,#23447a,#101d46 62%,#10102c);
+  box-shadow:inset 0 1px #c7faff,0 0 13px #abff2766,0 10px 24px #030916cf;
+  overflow:visible;max-height:none;
+}
+.runnit-map-arcade .maplibregl-popup.runnit-gl-host-popup .maplibregl-popup-tip{
+  display:block;border-top-color:#1e335a;border-bottom-color:#1e335a;
+}
+.runnit-map-arcade .runnit-gl-host-details {
+  width:164px!important;min-width:0;max-width:164px!important;
+  color:white;line-height:1.28;box-sizing:border-box;
+}
+.runnit-map-arcade .runnit-gl-host-details strong {
+  font:italic 900 13px/1.15 system-ui,-apple-system,sans-serif;
+  color:#d9ff5f;letter-spacing:-.025em;
+  display:block;padding-right:20px;text-shadow:0 0 9px #b6ff6399;
+}
+.runnit-map-arcade .runnit-gl-host-details p {
+  margin:6px 0 7px;color:#bbf2fa;font-size:9px;
+  font-weight:850;letter-spacing:.018em;white-space:nowrap;
+}
+.runnit-map-arcade .runnit-gl-host-cta {
+  width:100%;min-height:37px;padding:6px 8px;
+  border:1px solid #f2ffa3;border-radius:7px 2px 7px 2px;
+  background:linear-gradient(125deg,#efff80,#c7ff0e 60%,#75ad16);
+  color:#0d2333;font-size:12px;font-weight:1000;font-style:italic;
+  box-shadow:0 0 9px #baff4099;
+}
+.runnit-map-arcade .runnit-gl-host-pulse{
+  position:absolute;width:17px;height:17px;box-sizing:border-box;
+  pointer-events:none;border:2px solid #efffaf;border-radius:50%;
+  background:#caff14;box-shadow:0 0 8px 4px #c8ff38ad,0 0 22px #25e7ff;
+}
+.runnit-map-arcade .runnit-gl-host-pulse::before,
+.runnit-map-arcade .runnit-gl-host-pulse::after{
+  content:"";position:absolute;inset:-3px;border:2px solid #b5ff48;
+  border-radius:50%;pointer-events:none;
+  animation:runnit-host-target-wave 1.8s ease-out infinite;
+}
+.runnit-map-arcade .runnit-gl-host-pulse::after{
+  border-color:#4deaff;animation-delay:-.9s;
+}
+@keyframes runnit-host-target-wave{
+  0%{transform:scale(.6);opacity:.95}
+  100%{transform:scale(3.5);opacity:0}
+}
+
+/* WIDE VIEW ATMOSPHERE — subtle arcade world-space mood without fake hubs. */
+.runnit-map-arcade .runnit-gl-distance-atmosphere{
+  position:absolute;inset:0;z-index:2;pointer-events:none;
+  opacity:0;transition:opacity 180ms linear;overflow:hidden;
+  background:
+    radial-gradient(ellipse 82% 70% at 52% 52%,transparent 18%,rgba(2,9,26,.35) 92%,rgba(2,8,24,.45)),
+    repeating-linear-gradient(0deg,transparent 0 86px,rgba(56,223,255,.048) 87px,transparent 89px),
+    repeating-linear-gradient(90deg,transparent 0 106px,rgba(56,223,255,.042) 107px,transparent 109px),
+    linear-gradient(140deg,rgba(6,21,54,.08),transparent 45%,rgba(25,10,65,.12));
+}
+.runnit-map-arcade .runnit-gl-distance-atmosphere::after{
+  content:"";position:absolute;left:-10%;right:-10%;top:-24%;height:17%;
+  background:linear-gradient(to bottom,transparent,rgba(60,239,255,.095),transparent);
+  transform:translateY(0);animation:runnit-map-signal-sweep 16s linear infinite;
+}
+.runnit-map-arcade .runnit-gl-distance-atmosphere.is-hidden{display:none}
+@keyframes runnit-map-signal-sweep{
+  to{transform:translateY(850%)}
+}
+@media(prefers-reduced-motion:reduce){
+  .runnit-map-arcade .runnit-gl-host-pulse::before,
+  .runnit-map-arcade .runnit-gl-host-pulse::after,
+  .runnit-map-arcade .runnit-gl-distance-atmosphere::after{animation:none}
+}
+
+
+/* A group badge represents ACTUAL adjacent race pins; the real locations
+   remain unchanged. Pink/lime return automatically as the pins separate. */
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-run-group,
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-own.is-run-group{
+  display:grid;place-items:center;
+  width:40px;height:40px;border-radius:50%;
+  border:2px solid #6beaff;
+  background:linear-gradient(145deg,#29649a,#171a56)!important;
+  color:#f7fcff;text-shadow:0 0 8px #6aedff;
+  box-shadow:inset 0 1px #dbf8ff,0 0 0 3px rgba(44,218,255,.18),0 0 17px #3ddeff;
+}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-run-group::after{display:none}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-run.is-run-group .runnit-gl-marker-glyph{display:none}
+.runnit-map-arcade .runnit-gl-run-group-count{
+  display:grid;place-items:center;font:italic 1000 18px/1 system-ui,sans-serif;
+  min-width:24px;min-height:24px;color:#f3ffff;
+}
+.runnit-map-arcade .runnit-gl-marker.runnit-gl-gps{
+  width:23px;height:23px;border-width:3px;
+  box-shadow:0 0 0 4px #18cefa42,0 0 10px #30b8fa99;
+}
+
+/* Private own-race detail: strong CTA but not an oversized map billboard. */
+.runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup.is-own-popup{
+  max-width:min(242px,calc(100vw - 38px))!important;
+  width:min(242px,calc(100vw - 38px))!important;
+}
+.runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup.is-own-popup .maplibregl-popup-content{
+  padding:7px;border-radius:12px 3px 12px 3px;
+  box-shadow:0 0 11px #48dffb66,0 7px 22px #030917bc;
+}
+.runnit-map-arcade .runnit-gl-run-details.is-own-run{
+  width:100%;min-width:0;max-width:none;
+  padding:4px;line-height:1.25;font-size:11px;
+}
+.runnit-map-arcade .runnit-gl-run-details.is-own-run .runnit-gl-run-title{
+  font-size:17px;letter-spacing:-.045em;margin-bottom:5px;
+}
+.runnit-map-arcade .runnit-gl-run-details.is-own-run p{margin:3px 0!important;font-size:10px}
+.runnit-map-arcade .runnit-gl-run-details.is-own-run .runnit-gl-run-cta{
+  min-height:40px;margin-top:7px;font-size:12px;
+}
+@media(max-width:650px){
+  .runnit-map-arcade .maplibregl-popup.runnit-gl-race-popup.is-own-popup{
+    width:min(242px,calc(100vw - 38px))!important;
+    bottom:calc(124px + env(safe-area-inset-bottom,0px))!important;
+  }
+}
+
+/* The country map is an atmosphere, not a claim of fake activity. All signal
+   rings are rendered from actual open-race coordinates; the global overlay is
+   purely decorative, light, and never intercepts gestures. */
+.runnit-map-arcade .runnit-gl-distance-atmosphere{
+  background:
+    radial-gradient(ellipse 105% 78% at 52% 54%,transparent 26%,rgba(2,8,28,.32) 78%,rgba(2,8,24,.60)),
+    repeating-linear-gradient(0deg,transparent 0 85px,rgba(80,226,254,.082) 86px,transparent 88px),
+    repeating-linear-gradient(90deg,transparent 0 104px,rgba(80,226,254,.07) 105px,transparent 107px),
+    linear-gradient(125deg,rgba(7,35,80,.16),transparent 50%,rgba(22,9,70,.18));
+}
+.runnit-map-arcade .runnit-gl-distance-atmosphere::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(160deg,transparent 40%,rgba(46,181,255,.075) 50%,transparent 60%);
+}
+
+
+/* Compact, shared Y2K control rail, immediately beneath KARTE/LISTE.
+   The header starts at 7px, its title row is 54px high, followed by a
+   6px margin and a 52px tab switch (42px button + 8px padding + borders).
+   At 7.75rem the controls start ~5px below its lower edge rather than
+   floating ~30px further down. Both buttons must use the same anchor.
+   The right edge follows the LISTE tab on compact iPhone widths. */
+.runnit-map-arcade{
+  --runnit-map-tools-top:calc(7.75rem + env(safe-area-inset-top,0px));
+  --runnit-map-tools-right:calc(15px + 2.5vw);
+}
+.runnit-map-arcade .runnit-map-locate-slot{
+  right:calc(var(--runnit-map-tools-right) + 56px);
+  top:var(--runnit-map-tools-top);
+}
+.runnit-map-arcade .runnit-gl-tilt-button{
+  right:var(--runnit-map-tools-right);
+  top:var(--runnit-map-tools-top);
+  width:48px;min-width:48px;height:48px;
+  border-radius:11px 4px 11px 4px;
+  font-size:13px;line-height:1;
+  box-shadow:inset 0 1px #d6f6ff,0 0 8px rgba(40,218,255,.45);
+  transition:opacity .12s ease,visibility .12s ease;
+}
+/* The long-press "RENNEN HIER" chooser does NOT obscure 2D/3D:
+   its anchored card is well below the shared KARTE/LISTE control rail.
+   Keep the existing obstruction safeguard for a full race detail popup. */
+.runnit-map-arcade:has(.maplibregl-popup.runnit-gl-race-popup) .runnit-gl-tilt-button{
+  opacity:0;visibility:hidden;pointer-events:none;
+}
+@media(prefers-reduced-motion:reduce){
+  .runnit-map-arcade .runnit-gl-tilt-button{transition:none}
+}
+
+/* Race-detail popup safety fallback for browsers with problematic :has().
+   Host chooser does not set this flag: the tilt button remains available. */
+.runnit-map-arcade .runnit-gl-tilt-button.is-obscured-by-popup {
+  opacity:0!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+
+/* Dynamic map titles are short by design, but preserve mobile layout at
+   fractional zoom/large-text configurations. */
+.runnit-arcade-map-heading-copy h1 {
+  text-wrap:balance;
+}
+
+
+/* On close street zoom, show an ordinary event flag and the phone's actual
+   GPS point. The cyan satellite exists ONLY on far-zoom MapLibre Y2K orbs. */
+
+/* Compact Y2K countdown belongs INSIDE the tapped event's popup (foreign
+   and own alike), not as a floating HUD covering the map or event flag. */
+.runnit-map-arcade .runnit-gl-run-expiry{
+  display:flex;align-items:center;gap:9px;justify-content:space-between;
+  padding:7px 9px;margin:9px 0 6px;border:1px solid #aef638af;
+  border-bottom:2px solid #35edff;border-radius:9px 3px;
+  background:linear-gradient(116deg,rgba(13,45,66,.96),rgba(5,24,45,.93));
+  box-shadow:inset 0 1px #ecfff341,0 0 9px #7efb2632;
+}
+.runnit-map-arcade .runnit-gl-run-expiry>span{
+  font:italic 950 9px/1.25 system-ui,-apple-system,sans-serif;
+  letter-spacing:.045em;color:#c9eeff;white-space:nowrap;
+}
+.runnit-map-arcade .runnit-gl-run-expiry>time{
+  font:italic 1000 19px/1 system-ui,-apple-system,sans-serif;
+  letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:#cfff66;
+  text-shadow:0 0 8px #94ff5275;white-space:nowrap;
+}
+.runnit-map-arcade .runnit-gl-run-expiry.is-urgent{
+  border-color:#ffba66;border-bottom-color:#ff5fa3;
+  box-shadow:0 0 11px #ff913e40;
+}
+.runnit-map-arcade .runnit-gl-run-expiry.is-urgent>time{color:#ffd09d}

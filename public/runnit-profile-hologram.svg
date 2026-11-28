@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 430" role="img" aria-label="Cyanfarbenes Runner-Hologramm">
+<defs><linearGradient id="body" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#073d51"/><stop offset=".43" stop-color="#37e6ee" stop-opacity=".34"/><stop offset=".8" stop-color="#062c42"/><stop offset="1" stop-color="#0b6e8e"/></linearGradient>
+<pattern id="mesh" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M12 0H0V12" fill="none" stroke="#59f9ff" stroke-opacity=".45" stroke-width=".65"/></pattern>
+<filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<g fill="url(#body)" stroke="#81ffff" stroke-width="2.2" stroke-linejoin="round" filter="url(#glow)">
+<path id="bodyShape" d="M111 28C96 29 89 43 91 61L96 76 104 85 103 98C91 103 75 104 63 112 50 120 44 142 42 168L34 211 28 257Q27 268 34 277L40 274 43 259 51 233 58 188 62 169 67 196 72 223 81 252 82 292 76 333 69 383 59 394 62 401 98 402 102 395 99 377 105 336 112 292 118 289 126 338 132 379 130 396 136 403 169 403 174 396 162 385 155 344 151 299 152 252 167 210 171 167 178 189 185 231 193 260 199 274 207 276Q215 271 209 257L200 213 194 166Q191 124 174 113L134 98 133 83 143 73 146 51Q144 30 127 28Z"/>
+<path d="M103 100Q114 93 134 100L151 115Q143 144 135 166L123 197 118 217 111 217 104 196 89 165 79 117Z" fill="#134459" stroke-width="1.1" opacity=".8"/>
+<path d="M81 118Q114 127 151 117M88 142Q115 150 144 141M98 167Q115 174 132 167M107 196Q118 201 128 196M102 225Q117 235 137 223" fill="none" stroke="#68f4ff" stroke-width="1.15" stroke-opacity=".64"/>
+<path d="M103 100Q115 111 134 100M91 61Q103 67 114 64M111 72Q125 75 142 65M86 247Q107 255 114 245M123 245Q137 250 152 245M80 292Q97 299 111 292M123 292Q139 299 154 292" fill="none" stroke="#a0ffff" stroke-opacity=".55" stroke-width="1"/>
+</g>
+<use href="#bodyShape" fill="url(#mesh)" stroke="#52efff" stroke-width=".5" stroke-opacity=".65"/>
+<g fill="none" stroke="#b7ffff" stroke-opacity=".5" stroke-width="1.1"><path d="M98 42Q114 35 137 44M100 78L109 86 127 84 138 76M68 123Q75 153 64 180M162 126Q161 153 171 177M85 251L101 278M145 252L129 278M85 338L104 344M135 344L151 338" /></g>
+</svg>

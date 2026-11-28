@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 708 390" width="708" height="390" aria-hidden="true">
+<defs>
+<linearGradient id="cyan" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#04e7ff" stop-opacity=".78"/><stop offset="1" stop-color="#002e8e" stop-opacity=".0"/></linearGradient>
+<linearGradient id="pink" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#8e09ff" stop-opacity=".02"/><stop offset=".7" stop-color="#ff10cc" stop-opacity=".75"/><stop offset="1" stop-color="#fa32e1" stop-opacity=".12"/></linearGradient>
+</defs>
+<g opacity=".85">
+<path fill="url(#cyan)" d="M-20 254L182 170L163 195L-17 285Z"/>
+<path fill="url(#cyan)" d="M-5 313L225 201L186 216L-12 333Z"/>
+<path fill="url(#cyan)" d="M-10 340L142 277L125 282L-10 350Z"/>
+<path fill="url(#pink)" d="M351 317L709 135L708 170L461 289Z"/>
+<path fill="url(#pink)" d="M436 337L712 210L706 228L499 334Z"/>
+<path fill="url(#pink)" d="M584 285L712 223L707 245L620 290Z"/>
+<path d="M-10 299L124 243M544 289L706 213" stroke="#d8faff" stroke-width="1.6" opacity=".43"/>
+</g></svg>

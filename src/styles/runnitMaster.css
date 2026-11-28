@@ -1,0 +1,673 @@
+
+/*
+ * RUNNIT dashboard reference-spacing pass.
+ * The original user supplied 864x1536 visual mock is the art-direction target.
+ * All cards/buttons/stats remain semantic DOM; no frozen screen overlay.
+ * These rules are scoped to Dashboard to avoid changing GPS, map, auth.
+ */
+.runnit-dash-master {
+  --dash-cyan: #3df4ff;
+  --dash-lime: #c6fc0b;
+  --dash-pink: #f127d5;
+  --dash-ink: #060c29;
+  background-color: #070a2c;
+}
+.runnit-dash-master .runnit-game-content {
+  max-width: 520px;
+}
+/* Original portrait illustration is cropped only as a decorative runner layer.
+   Remove the old splash wording by limiting the visible area under the logo. */
+.runnit-dash-master .runnit-game-hero {
+  position: relative;
+  isolation: isolate;
+}
+.runnit-dash-master .runnit-hero-glow {
+  position: absolute;
+  z-index: 0;
+  inset: 18% -2% 6%;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 45% 70% at 16% 48%,rgba(19,232,255,.25),transparent 75%),
+    linear-gradient(110deg,transparent 50%,rgba(237,46,217,.12));
+}
+.runnit-dash-master .runnit-hero-portrait {
+  z-index: 1;
+  width: 39%;
+  left: -11px;
+  top: 31px;
+  height: calc(100% - 20px);
+  background-size: auto 375%;
+  background-position: 60% 27%;
+  mask-image: linear-gradient(90deg,#000 58%,rgba(0,0,0,.84) 76%,transparent 99%);
+}
+.runnit-dash-master .runnit-game-logo {
+  width: min(75%,470px);
+  margin-inline: auto;
+}
+.runnit-dash-master .runnit-game-logo img {
+  max-height: none;
+}
+.runnit-dash-master .runnit-game-motto {
+  position: relative;
+  margin: 0 auto;
+  width: max-content;
+  max-width: 90%;
+  font-size: clamp(11px,3.2vw,17px);
+  transform: rotate(-3deg);
+  text-shadow: 0 2px 8px #03011e, 0 0 7px #3b125b;
+}
+.runnit-dash-master .runnit-game-settings {
+  position: absolute;
+  top: 8px;
+  right: 0;
+  z-index: 4;
+}
+.runnit-dash-master .runnit-game-ranks {
+  margin-left: 27%;
+  gap: 5px;
+}
+.runnit-dash-master .runnit-game-ranks > span:nth-child(2) {
+  border-color: #ff69fa;
+  box-shadow: inset 0 1px #fff, 0 3px #dd27ef,0 0 13px rgba(246,49,228,.54);
+}
+.runnit-dash-master .runnit-game-ranks > span:nth-child(3) {
+  border-color: #81abff;
+}
+/* High-contrast glossy glass, neon outline and beveled corners approximate
+   the art while allowing each section to grow for real strings later. */
+.runnit-dash-master .runnit-game-hud {
+  background:
+    linear-gradient(127deg,rgba(116,175,255,.28),transparent 28%),
+    linear-gradient(157deg,#18244d,#10264d 56%,#080d2c);
+  border-color:#fe61ff;
+  box-shadow:inset 0 2px #d6eeff, 0 0 0 1px rgba(40,238,255,.75),0 0 16px rgba(217,21,253,.65);
+}
+.runnit-dash-master .runnit-game-avatar {
+  border-color:#39f6ff;
+  background-position:center,52% 18%;
+  background-size:auto,auto 355%;
+}
+.runnit-dash-master .runnit-hud-xp-placeholder {
+  white-space:nowrap;
+  font-size: clamp(7px,1.65vw,9px);
+}
+.runnit-dash-master .runnit-game-xp {
+  background:linear-gradient(90deg,rgba(39,233,250,.13),rgba(12,16,46,.8));
+  border-color:#54cdea;
+}
+.runnit-dash-master .runnit-game-mode {
+  border:1.5px solid #81ddff;
+  box-shadow: inset 0 2px rgba(255,255,255,.8),0 2px #1381d7,0 0 12px #15cbef;
+  background:linear-gradient(138deg,#2472b0,#0e2b61 51%,#070e2f);
+}
+.runnit-dash-master .runnit-game-mode.is-lime {
+  border:2px solid #d9ff16;
+  color:#fff;
+  box-shadow:inset 0 2px #f3ffa8,0 2px #d6fb00,0 0 13px rgba(218,255,0,.8);
+  background:linear-gradient(135deg,#8edd00 0%,#518e02 24%,#121f1b 83%);
+}
+.runnit-dash-master .runnit-game-panel {
+  background:
+    repeating-linear-gradient(145deg,rgba(134,206,255,.035) 0 2px,transparent 2px 19px),
+    linear-gradient(135deg,rgba(66,178,255,.17),transparent 29%),
+    linear-gradient(170deg,#1c3264 0%,#0b2349 55%,#081334 100%);
+  border:1.5px solid #46e8ff;
+  box-shadow:inset 0 2px 0 rgba(231,253,255,.82),0 0 14px rgba(5,224,255,.48),0 5px 14px rgba(0,0,0,.36);
+}
+.runnit-dash-master .runnit-game-stat {
+  background:linear-gradient(142deg,#2775ae,#153869 38%,#0c1b49 100%);
+  box-shadow:inset 0 2px rgba(249,255,255,.87),0 2px #1cbdff,0 0 9px rgba(16,232,255,.55);
+}
+.runnit-dash-master .runnit-game-duel {
+  box-shadow:inset 0 2px #f9ffff,0 0 12px rgba(24,233,255,.64),0 3px #ec2df5;
+}
+.runnit-dash-master .runnit-game-start {
+  background:linear-gradient(172deg,#f9ffff 0%,#5af9ff 38%,#02d8f5 66%,#8860fd 100%);
+  box-shadow:inset 0 2px #fff,inset 0 -5px rgba(22,28,86,.28),0 0 0 3px #a81ad7,0 0 20px #0cf1ff,0 8px 21px #04041c;
+}
+.runnit-dash-master .runnit-game-start span { white-space:nowrap; }
+/* Reference width = 864, a 390 CSS px display has scale ~.45. Actual touch
+   targets must remain >=44px; we therefore compress gaps before button text. */
+@media (max-width:540px) and (orientation:portrait) {
+  .runnit-dash-master .runnit-game-content {
+    padding-left: max(10px,env(safe-area-inset-left));
+    padding-right:max(10px,env(safe-area-inset-right));
+    padding-bottom:calc(83px + env(safe-area-inset-bottom,0px));
+    padding-top:max(8px,env(safe-area-inset-top,0px));
+  }
+  .runnit-dash-master .runnit-game-hero {
+    min-height: 126px;
+    padding: 0 2px;
+  }
+  .runnit-dash-master .runnit-game-logo {
+    width: min(77%,335px);
+  }
+  .runnit-dash-master .runnit-game-logo img {
+    width:100%;
+    height:auto;
+    max-height:63px;
+  }
+  .runnit-dash-master .runnit-game-motto {
+    font-size:clamp(10px,2.8vw,13px);
+    margin-top:-1px;
+  }
+  .runnit-dash-master .runnit-game-settings {
+    top:1px;
+    width:34px;height:34px;
+  }
+  .runnit-dash-master .runnit-game-ranks {
+    position:absolute;
+    left:26%;
+    right:0;
+    bottom:1px;
+    margin-left:0;
+    margin-top:0;
+  }
+  .runnit-dash-master .runnit-game-ranks span {
+    min-height:35px;
+    font-size:clamp(7px,1.95vw,9px);
+    gap:2px;
+    padding:2px;
+    border-radius:9px 4px 10px 4px;
+  }
+  .runnit-dash-master .runnit-game-ranks svg {width:12px;height:12px}
+  .runnit-dash-master .runnit-hero-portrait {
+    width:38%;
+    top:33px;
+    bottom:0;
+    height:auto;
+    left:-11px;
+  }
+  .runnit-dash-master .runnit-game-hud {
+    min-height:64px;
+    padding:6px 9px;
+    margin-top:3px;
+    gap:7px;
+  }
+  .runnit-dash-master .runnit-game-avatar {width:48px;height:48px}
+  .runnit-dash-master .runnit-game-hud strong {
+    font-size:clamp(14px,4.4vw,18px);
+    line-height:1;
+  }
+  .runnit-dash-master .runnit-game-hud .text-cyan-200 {font-size:10px}
+  .runnit-dash-master .runnit-game-emblem {font-size:clamp(18px,5vw,24px)}
+  .runnit-dash-master .runnit-game-xp {height:9px;margin-top:4px}
+  .runnit-dash-master .runnit-game-modes {margin-top:10px;gap:6px}
+  .runnit-dash-master .runnit-game-mode {min-height:54px;padding:5px 1px;gap:3px}
+  .runnit-dash-master .runnit-game-mode svg {width:21px;height:21px}
+  .runnit-dash-master .runnit-game-mode span {font-size:clamp(9px,2.55vw,11px)}
+  .runnit-dash-master .runnit-game-activity {margin-top:10px;padding:7px 6px}
+  .runnit-dash-master .runnit-game-activity h1 {font-size:clamp(18px,5.4vw,24px)}
+  .runnit-dash-master .runnit-game-activity .mt-3 {margin-top:6px;gap:5px}
+  .runnit-dash-master .runnit-game-stat {
+    min-height:69px;
+    padding:5px 3px;
+    gap:4px;
+  }
+  .runnit-dash-master .runnit-stat-glyph {width:21px;height:21px}
+  .runnit-dash-master .runnit-game-stat-value {font-size:clamp(20px,5.7vw,27px);letter-spacing:-.06em}
+  .runnit-dash-master .runnit-game-stat .font-black {font-size:clamp(9px,2.6vw,12px);line-height:1.1}
+  .runnit-dash-master .runnit-game-stat .text-lime-300 {font-size:7px}
+  .runnit-dash-master .runnit-game-duel {
+    min-height:72px;
+    margin-top:10px;
+    padding:7px 11px;
+  }
+  .runnit-dash-master .runnit-game-duel h2 {font-size:clamp(22px,6.7vw,29px)}
+  .runnit-dash-master .runnit-game-duel p {margin-top:5px;font-size:clamp(9px,2.4vw,11px);line-height:1.05}
+  .runnit-dash-master .runnit-duel-speed {font-size:32px}
+  .runnit-dash-master .runnit-game-lower {margin-top:10px;gap:7px}
+  .runnit-dash-master .runnit-game-lower .runnit-game-panel {padding:6px}
+  .runnit-dash-master .runnit-game-lower h2 {min-height:18px;font-size:clamp(10px,2.9vw,13px)}
+  .runnit-dash-master .runnit-game-lower h2 svg {width:14px;height:14px}
+  .runnit-dash-master .runnit-game-empty {
+    min-height:65px;
+    margin-top:4px;
+    padding:5px;
+    gap:4px;
+  }
+  .runnit-dash-master .runnit-game-empty svg {width:22px;height:22px}
+  .runnit-dash-master .runnit-game-empty span {font-size:clamp(10px,2.6vw,12px)}
+  .runnit-dash-master .runnit-game-small-action {
+    min-height:44px;
+    margin-top:5px;
+    font-size:clamp(8px,2.15vw,10px);
+  }
+  .runnit-dash-master .runnit-game-start {
+    min-height:60px;
+    margin:14px auto 0;
+    padding:6px;
+    font-size:clamp(20px,5.6vw,26px);
+  }
+  .runnit-dash-master .runnit-game-start img {width:31px}
+  .runnit-dash-master .runnit-game-start svg {width:24px}
+  .runnit-dash-master .runnit-dashboard-lab-link {
+    width:max-content;
+    margin:10px auto 0;
+    min-height:44px;
+    font-size:10px;
+  }
+}
+/* A 320px portrait display needs its own text allowances, not ellipsis. */
+@media(max-width:360px) and (orientation:portrait) {
+  .runnit-dash-master .runnit-game-hero {min-height:120px}
+  .runnit-dash-master .runnit-game-settings {width:30px;height:30px}
+  .runnit-dash-master .runnit-game-ranks {left:22%}
+  .runnit-dash-master .runnit-game-ranks span {font-size:7px}
+  .runnit-dash-master .runnit-game-hud {padding:5px}
+  .runnit-dash-master .runnit-game-emblem {font-size:17px}
+  .runnit-dash-master .runnit-game-modes{gap:4px}
+  .runnit-dash-master .runnit-game-mode span{font-size:8.2px}
+  .runnit-dash-master .runnit-game-activity h1{font-size:18px}
+  .runnit-dash-master .runnit-game-stat{gap:2px}
+  .runnit-dash-master .runnit-stat-glyph{width:15px;height:15px}
+  .runnit-dash-master .runnit-game-stat-value{font-size:19px}
+  .runnit-dash-master .runnit-game-small-action{font-size:7.7px}
+  .runnit-dash-master .runnit-game-start{font-size:19px}
+}
+/* Five fully legible navigation links with a single clear active state.
+   Compact enough for in-app PWA, but full labels remain for native Safari. */
+@media(max-width:540px) {
+  .runnit-game-dock ul {
+    padding-top:4px;
+    padding-inline:5px;
+    padding-bottom:max(5px,env(safe-area-inset-bottom,0px));
+    gap:2px;
+  }
+  .runnit-game-dock .runnit-dock-item {
+    min-height:55px;
+    padding-block:4px;
+    gap:3px;
+    border-radius:11px;
+  }
+  .runnit-game-dock .runnit-dock-item svg {width:20px;height:20px}
+  .runnit-game-dock .runnit-dock-caption {
+    white-space:nowrap;
+    font-size:clamp(7.5px,2.12vw,10px);
+    letter-spacing:-.04em;
+    overflow:visible;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .runnit-dash-master .runnit-game-start * {transition:none}
+}
+
+
+/* RUNNIT ARCADE FIDELITY PASS 04
+   Art direction: the original full-size master, not a generic neon theme.
+   All records are real DOM and remain replaceable when verified data exists. */
+.runnit-dash-master::after {
+  content:"";position:absolute;pointer-events:none;inset:auto 0 0;height:360px;opacity:.45;
+  background:
+    radial-gradient(ellipse 35% 55% at 95% 68%,rgba(12,239,255,.32),transparent 80%),
+    repeating-linear-gradient(161deg,transparent 0 32px,rgba(39,231,255,.2) 34px 36px,transparent 38px 75px),
+    linear-gradient(180deg,transparent,#151452 75%,#060c29);
+  mask-image:linear-gradient(180deg,transparent,#000 45%);
+}
+.runnit-dash-master .runnit-game-activity {
+  border-radius:14px 4px 14px 4px;
+  box-shadow:inset 0 2px rgba(255,255,255,.75),0 3px rgba(20,179,249,.5),0 0 16px rgba(8,223,255,.48);
+}
+.runnit-dash-master .runnit-game-activity h1 {
+  color:#fcffff;
+  text-shadow:0 1px #16276b,0 0 16px #67d9ff;
+}
+.runnit-dash-master .runnit-game-activity h1 span{
+  color:#c8ff00;letter-spacing:-.31em;margin-left:6px;
+  filter:drop-shadow(0 0 5px #b3ff10);
+}
+.runnit-dash-master .runnit-game-duel{
+  background:
+    linear-gradient(90deg,#050e2f 0%,rgba(6,17,51,.95) 30%,rgba(6,17,51,.4) 52%,rgba(24,8,69,.02) 76%),
+    url('/runnit-duel-art.svg') 80% 52% / cover no-repeat;
+  border-color:#3bf6ff;
+  border-bottom:2px solid #ff39ec;
+}
+.runnit-duel-speedlines{display:block;flex:none;width:22%;height:100%;pointer-events:none;background:repeating-linear-gradient(155deg,transparent 0 13px,rgba(37,231,255,.18) 14px 17px,transparent 18px 31px);mask-image:linear-gradient(90deg,transparent,#000)}
+/* In the reference these are three close-fitting illustrated cards on each
+   side. Deliberately empty rows keep the composition without inventing times. */
+.runnit-dash-master .runnit-game-lower .runnit-game-panel{
+  background:
+    linear-gradient(148deg,rgba(24,225,255,.15),transparent 33%),
+    linear-gradient(165deg,#16284e,#071a3d 88%);
+}
+.runnit-arcade-rows{position:relative;min-width:0;min-height:116px;margin-top:6px}
+.runnit-arcade-empty-state {display:grid;gap:4px}
+.runnit-arcade-empty-caption{
+  display:block;min-height:13px;
+  color:#b9ddf8;text-align:center;letter-spacing:-.025em;
+  font-style:italic;font-size:clamp(7px,1.85vw,9px);font-weight:900;
+}
+.runnit-arcade-record{
+  display:flex;align-items:center;min-width:0;gap:4px;min-height:31px;
+  padding:3px 5px;
+  border:1px solid rgba(82,223,255,.72);
+  border-radius:6px 1px 7px 1px;
+  background:linear-gradient(140deg,rgba(60,163,245,.22),rgba(8,16,44,.92) 55%);
+  box-shadow:inset 0 1px rgba(255,255,255,.38),0 0 7px rgba(32,207,252,.24);
+}
+.runnit-arcade-record-thumb{
+  display:grid;place-items:center;flex:none;width:30px;height:23px;
+  border:1px solid #366eb6;border-radius:3px 2px;
+  background:linear-gradient(145deg,#294f85,#091837);
+}
+.runnit-arcade-record-thumb svg{height:16px;width:16px;color:#d6fbff}
+.runnit-arcade-record-copy{display:flex;flex-direction:column;justify-content:center;min-width:0;flex:1;gap:3px;overflow:hidden}
+.runnit-arcade-record-copy strong{
+  display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+  font-size:clamp(8px,2vw,10px);line-height:1.1;font-weight:1000;font-style:italic;
+}
+.runnit-arcade-record-copy small{color:#c7e6ff;font-size:clamp(7px,1.7vw,9px);line-height:1}
+.runnit-arcade-record-right{
+  flex:none;color:#abecff;font-size:clamp(8px,1.8vw,10px);font-weight:900;font-style:italic;
+}
+.runnit-arcade-ghost{opacity:.72}
+.runnit-arcade-ghost .runnit-arcade-record-thumb{background:repeating-linear-gradient(145deg,#193866 0 5px,#102b50 6px 11px)}
+.runnit-arcade-ghost .runnit-arcade-record-copy i{
+  display:block;height:5px;width:85%;border-radius:5px;
+  background:linear-gradient(90deg,rgba(109,215,255,.47),rgba(31,67,126,.14));
+}
+.runnit-arcade-ghost .runnit-arcade-record-copy i+ i{width:60%;height:4px}
+.runnit-arcade-rank-number{
+  display:grid;place-items:center;flex:none;width:22px;height:24px;
+  color:#d6e5ff;font-size:13px;font-weight:1000;font-style:italic;
+  border:1px solid rgba(188,225,255,.55);border-radius:5px 1px;
+  background:linear-gradient(135deg,#526b93,#14274c);
+}
+.runnit-arcade-ranking .runnit-arcade-record:nth-child(2) {border-color:#59ecff;box-shadow:inset 0 1px #ecfbff,0 0 8px rgba(36,236,255,.36)}
+.runnit-arcade-ranking .runnit-arcade-record:nth-child(3) {border-color:#a4b2f6}
+.runnit-dash-master .runnit-game-small-action{font-size:clamp(8px,2vw,11px);white-space:nowrap}
+.runnit-dash-master .runnit-game-start{
+  isolation:isolate;overflow:visible;
+  border:3px solid #f8ffff;
+  box-shadow:inset 0 3px #ffffff,inset 0 -5px rgba(46,16,110,.58),0 0 0 3px #ad24ff,0 0 22px #00e9ff,0 8px 17px #010a30;
+}
+.runnit-dash-master .runnit-game-start::before{
+  content:"";position:absolute;inset:5px;z-index:-1;pointer-events:none;
+  border:1px solid rgba(232,255,255,.8);
+  clip-path:polygon(13px 0,calc(100% - 13px) 0,100% 15px,calc(100% - 13px) 100%,13px 100%,0 calc(100% - 15px));
+  background:linear-gradient(125deg,rgba(255,255,255,.85),transparent 24%,rgba(0,224,252,.05) 70%,rgba(254,52,239,.4));
+}
+.runnit-dash-master .runnit-game-start::after{
+  content:"";position:absolute;inset:auto 6% -9px 6%;height:8px;z-index:-2;pointer-events:none;
+  border-radius:50%;background:linear-gradient(90deg,#14f4ff,#ff21dc);filter:blur(6px);opacity:.85;
+}
+/* Slotted panel density follows the 3-result illustrated card rows. */
+@media(max-width:540px) and (orientation:portrait){
+  .runnit-dash-master .runnit-game-lower .runnit-game-panel{padding:5px}
+  .runnit-arcade-rows{min-height:113px;margin-top:4px}
+  .runnit-arcade-record{min-height:29px;padding:2px 3px}
+  .runnit-arcade-record-thumb{width:24px;height:21px}
+  .runnit-arcade-rank-number{width:20px;height:21px;font-size:11px}
+  .runnit-arcade-empty-caption{font-size:clamp(6px,1.65vw,8px);min-height:12px}
+  .runnit-dash-master .runnit-game-small-action{margin-top:4px}
+  .runnit-dash-master .runnit-game-start{margin-top:12px}
+}
+@media(max-width:360px) and (orientation:portrait){
+  .runnit-arcade-record{gap:2px}
+  .runnit-arcade-record-thumb{width:19px}
+  .runnit-arcade-record-right{font-size:7px}
+  .runnit-arcade-rank-number{width:17px;font-size:9px}
+  .runnit-dash-master .runnit-game-small-action{font-size:7px}
+}
+
+
+/* RUNNIT Arcade Profile master – same palette and section hierarchy as the
+   user-approved 2000s street-game mock. Account forms and data remain DOM. */
+.runnit-profile-master {
+  --profile-cyan:#38efff;--profile-lime:#cbff08;
+  background:#070b2c;
+  background-image:radial-gradient(ellipse 70% 32% at 100% 6%,rgba(243,24,206,.2),transparent 70%),
+    linear-gradient(170deg,#11103d,#080f32 40%,#050b29 85%,#130931);
+}
+.runnit-profile-master::before {
+  height:min(95vw,550px);
+  background:linear-gradient(180deg,rgba(1,6,29,.02),rgba(4,10,37,.32) 70%,#080e2d 100%),
+    url('/runnit-arcade-city.svg') 55% top/cover no-repeat;
+}
+.runnit-profile-content{max-width:540px;position:relative}
+.runnit-profile-hero{position:relative;isolation:isolate;min-height:clamp(210px,55vw,300px);overflow:hidden}
+.runnit-profile-hero-head{position:relative;z-index:3}
+.runnit-profile-logo{width:min(59vw,270px);height:auto;max-height:67px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(225,32,248,.5))}
+.runnit-profile-back,.runnit-profile-settings{
+ display:grid;place-items:center;flex:none;width:43px;height:43px;color:white;
+ border:1px solid #73eaff;border-radius:13px 4px;
+ background:linear-gradient(135deg,#315494,#0b1337 80%);
+ box-shadow:inset 0 1px #e7ffff,0 0 13px rgba(13,239,255,.44);
+}
+.runnit-profile-hero-character{
+ pointer-events:none;position:absolute;left:-3%;top:31px;width:55%;height:calc(100% - 30px);z-index:1;
+ background:url('/runnit-launch-portrait.avif') 47% 17% / auto 460% no-repeat;
+ mask-image:linear-gradient(90deg,#000 62%,rgba(0,0,0,.75) 78%,transparent 99%);
+ filter:drop-shadow(0 0 12px rgba(22,216,255,.48));
+}
+.runnit-profile-player{
+ position:absolute;z-index:2;top:35%;right:1%;width:60%;min-width:0;
+ padding:8px 12px 11px;
+ background:linear-gradient(90deg,rgba(7,14,42,.64),rgba(16,19,63,.82));
+ border:1px solid rgba(58,234,255,.8);border-radius:14px 5px 14px 5px;
+ box-shadow:inset 0 1px rgba(244,255,255,.6),0 0 13px rgba(29,231,255,.43);
+}
+.runnit-profile-crown{position:absolute;right:9px;top:-32px;color:#c8ff0d;font-size:34px;text-shadow:0 0 9px #b8ff00}
+.runnit-profile-player-name{
+ max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+ font-style:italic;font-weight:1000;letter-spacing:-.05em;font-size:clamp(1.35rem,6vw,2.2rem);
+ text-shadow:0 1px #070e25,0 0 8px rgba(83,241,255,.7);
+}
+.runnit-profile-level{color:#60faff;font-size:clamp(11px,3.2vw,16px);font-weight:1000;font-style:italic}
+.runnit-profile-xp{height:12px;margin-top:5px;border:1px solid #79e2ff;border-radius:4px;background:linear-gradient(#101a42,#07132e);box-shadow:inset 0 1px 5px #070d2a}
+.runnit-profile-xp span{display:block;width:0%;height:100%;background:linear-gradient(90deg,#25ecff,#d4ffff)}
+.runnit-profile-xp-label{margin-top:3px;text-align:right;font-weight:900;font-style:italic;color:#c6ddf0;font-size:clamp(8px,2.1vw,10px)}
+.runnit-profile-tabs{margin-top:-4px;position:relative;z-index:3}
+.runnit-profile-tab{
+ display:flex;justify-content:center;align-items:center;gap:6px;min-width:0;min-height:57px;
+ padding:6px 5px;color:#fff;text-decoration:none;transform:skew(-6deg);
+ border:1px solid #50dcff;border-radius:14px 4px 12px 4px;
+ background:linear-gradient(130deg,#225f99,#0f234a 58%,#11133c);
+ box-shadow:inset 0 2px #f5ffff,0 2px #2355ba,0 0 13px rgba(34,224,255,.52);
+}
+.runnit-profile-tab svg,.runnit-profile-tab span{transform:skew(6deg)}
+.runnit-profile-tab svg{flex:none;height:23px;width:23px}
+.runnit-profile-tab span{font-size:clamp(10px,3.15vw,14px);font-style:italic;font-weight:1000}
+.runnit-profile-tab-active{
+ border:2px solid #ddff02;
+ background:linear-gradient(135deg,#abec00,#5f9700 36%,#17250b);
+ box-shadow:inset 0 2px #f8ffba,0 3px #8fd600,0 0 16px rgba(191,255,0,.69);
+}
+.runnit-profile-result-grid{margin-top:12px}
+.runnit-profile-result{
+ min-width:0;min-height:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 4px;
+ text-align:center;clip-path:polygon(12px 0,calc(100% - 10px) 0,100% 11px,calc(100% - 10px) 100%,10px 100%,0 calc(100% - 9px));
+ border:1px solid #49e8ff;border-radius:14px 4px;
+ background:linear-gradient(145deg,#2871ae,#0c2a5d 46%,#091334);
+ box-shadow:inset 0 2px rgba(255,255,255,.86),0 3px #0bc7f1,0 0 13px rgba(34,236,255,.5);
+}
+.runnit-profile-result svg{width:21px;height:21px;color:#fff}
+.runnit-profile-result>strong{font-size:clamp(1.3rem,5.2vw,2.1rem);font-weight:1000;font-style:italic;line-height:1}
+.runnit-profile-result h2{font-size:clamp(9px,2.7vw,13px);line-height:1.1;font-weight:1000;font-style:italic}
+.runnit-profile-result p{font-size:clamp(7px,1.9vw,10px);line-height:1.2;color:#c7dcf4}
+.runnit-profile-panel{
+ position:relative;isolation:isolate;min-width:0;overflow:hidden;padding:13px 11px 15px;
+ border:1px solid #5aeaff;border-radius:16px 4px 16px 4px;
+ background:repeating-linear-gradient(145deg,rgba(81,165,230,.06) 0 2px,transparent 2px 24px),
+   linear-gradient(150deg,#1a3466,#071a3c 65%,#0b1334);
+ box-shadow:inset 0 2px rgba(249,255,255,.66),0 0 14px rgba(7,228,255,.4),0 7px 19px rgba(0,2,19,.45);
+}
+.runnit-profile-section-head{display:flex;align-items:center;justify-content:space-between;gap:5px;min-height:27px}
+.runnit-profile-section-head h2,.runnit-profile-extra-title{
+ display:flex;align-items:center;gap:4px;min-width:0;
+ font-size:clamp(1.05rem,4.45vw,1.65rem);font-style:italic;font-weight:1000;
+ line-height:1.15;letter-spacing:-.055em;text-shadow:0 0 9px rgba(48,214,255,.4)
+}
+.runnit-profile-section-head h2 span{color:#c6ff0b;letter-spacing:-.25em}
+.runnit-profile-section-link,.runnit-profile-section-label{
+ display:flex;align-items:center;gap:1px;flex:none;color:#e7fcff;
+ font-size:clamp(8px,2.1vw,11px);font-style:italic;font-weight:1000;
+}
+.runnit-profile-section-link svg{height:14px;width:14px}
+.runnit-profile-goal-grid{margin-top:14px}
+.runnit-profile-goal{min-width:0;display:flex;align-items:center;flex-direction:column;gap:3px;text-align:center}
+.runnit-profile-goal-ring{
+ --goal-color:#31efff;display:flex;flex-direction:column;align-items:center;justify-content:center;
+ width:min(100%,116px);aspect-ratio:1;border-radius:50%;border:10px solid #476691;
+ background:linear-gradient(155deg,#1c2e5c,#06132e);
+ box-shadow:inset 0 1px 9px #060c22,0 0 11px var(--goal-shadow,rgba(21,216,246,.3));
+}
+.runnit-profile-ring-cyan{--goal-color:#38f6ff;--goal-shadow:rgba(26,225,255,.3)}
+.runnit-profile-ring-lime{--goal-color:#bdff00;--goal-shadow:rgba(172,255,0,.25)}
+.runnit-profile-ring-pink{--goal-color:#f73be5;--goal-shadow:rgba(247,59,229,.24)}
+.runnit-profile-goal-ring strong{font-size:clamp(1.4rem,5vw,2rem);font-style:italic;font-weight:1000}
+.runnit-profile-goal-ring small{font-size:9px;color:#d3e8f5}
+.runnit-profile-goal>strong{margin-top:4px;font-size:clamp(9px,2.45vw,12px);font-weight:1000;font-style:italic}
+.runnit-profile-goal>span{font-size:clamp(7px,1.8vw,10px);color:#b9d5e7}
+.runnit-profile-empty-note{margin-top:12px;font-size:10px;line-height:1.5;color:#b3cce5}
+.runnit-profile-badges{margin-top:13px}
+.runnit-profile-badge{min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center;gap:5px}
+.runnit-profile-badge-hex{
+ display:grid;place-items:center;position:relative;width:min(100%,71px);aspect-ratio:1;
+ clip-path:polygon(50% 0,93% 24%,93% 75%,50% 100%,7% 75%,7% 24%);
+ border:0;background:linear-gradient(145deg,#76f7ff,#153c85 36%,#07112e 62%,#2a6ab8);
+ box-shadow:inset 0 0 14px #000;
+}
+.runnit-profile-badge-hex::before{content:"";position:absolute;inset:5px;clip-path:inherit;background:linear-gradient(145deg,#1b407b,#080d2f)}
+.runnit-profile-badge-hex svg{position:relative;z-index:1;width:43%;height:43%;filter:drop-shadow(0 0 7px #7ce6ff)}
+.runnit-profile-badge-gold{background:linear-gradient(145deg,#ffea91,#be7a0f,#fff1a5)}
+.runnit-profile-badge-lime{background:linear-gradient(145deg,#e0ff48,#437c14,#bcff22)}
+.runnit-profile-badge-violet{background:linear-gradient(145deg,#ecc5ff,#5529a7,#e6c8ff)}
+.runnit-profile-badge-blue{background:linear-gradient(145deg,#a1d7ff,#2262bb,#a5eaff)}
+.runnit-profile-badge strong{font-size:clamp(7px,1.85vw,10px);line-height:1.1;font-style:italic;font-weight:1000;overflow-wrap:anywhere}
+.runnit-profile-badge small{font-size:clamp(6px,1.6vw,8px);line-height:1.2;color:#b5c9d9}
+.runnit-profile-extra-title{margin-bottom:10px;font-size:clamp(1rem,4.1vw,1.5rem)}
+.runnit-profile-account-section{scroll-margin-top:20px}
+.runnit-profile-account-section>section{
+ border-color:rgba(72,219,255,.55);
+ background:linear-gradient(135deg,#182c60,#0a1436 72%);
+ border-radius:15px 4px;
+ box-shadow:0 0 15px rgba(21,231,255,.26);
+}
+.runnit-profile-action{
+ display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;
+ margin-top:13px;padding:10px 12px;color:white;text-align:center;
+ border:1px solid #50eeff;border-radius:11px 4px;
+ background:linear-gradient(120deg,#235b91,#10264c 55%,#42206a);
+ box-shadow:inset 0 1px #ddf7ff,0 0 12px rgba(15,218,255,.35);
+ font-size:clamp(10px,2.7vw,13px);font-weight:1000;font-style:italic;
+}
+.runnit-profile-action-lime{border-color:#d7ff00;color:#091c22;background:linear-gradient(145deg,#deff20,#9de003)}
+.runnit-profile-lab-links .runnit-profile-action{justify-content:flex-start;margin-top:0}
+.runnit-profile-lab-links .runnit-profile-action svg:last-child{margin-left:auto}
+.runnit-profile-trust{padding:12px;color:#b9d5e6;font-size:10px;line-height:1.5}
+.runnit-profile-master a:focus-visible,.runnit-profile-master button:focus-visible{
+ outline:3px solid white;outline-offset:3px;
+}
+#profil,#ziele,#erfolge{scroll-margin-top:15px}
+@media(max-width:380px){
+ .runnit-profile-hero{min-height:200px}
+ .runnit-profile-hero-character{width:52%}
+ .runnit-profile-player{width:62%;right:0;padding:6px 7px}
+ .runnit-profile-result{min-height:86px}
+ .runnit-profile-goal-ring{border-width:7px}
+ .runnit-profile-tab{gap:3px;min-height:53px}
+ .runnit-profile-tab svg{width:19px;height:19px}
+ .runnit-profile-badges{gap:3px}
+}
+
+
+/* PR #99: real iPhone screenshot corrections, 2026-11-14.
+ * The original full-height launch splash contained typography behind the runner.
+ * Use the already existing dedicated launch hero asset, not the complete
+ * 1672px splash, for the editable profile composition. */
+.runnit-profile-master .runnit-profile-hero-character {
+  left: -4%;
+  top: 41px;
+  width: 58%;
+  height: calc(100% - 38px);
+  background-image: url('/runnit-launch-hero.webp');
+  background-position: 43% 47%;
+  background-size: cover;
+  background-repeat: no-repeat;
+  mask-image: linear-gradient(90deg,#000 0%,#000 57%,rgba(0,0,0,.76) 76%,transparent 100%);
+  filter: drop-shadow(0 0 9px rgba(10,228,255,.5));
+}
+/* Player HUD overlays the art but its text never intrudes into the portrait. */
+.runnit-profile-master .runnit-profile-player {
+  top: 38%;
+  right: 0;
+  width: 59%;
+  padding: 9px 10px;
+  border-color: rgba(107,238,255,.9);
+  background:
+    linear-gradient(106deg,rgba(5,15,52,.75),rgba(12,26,65,.88) 59%,rgba(14,18,53,.95));
+  box-shadow: inset 0 2px 0 rgba(235,255,255,.63),0 0 12px rgba(30,231,255,.47);
+}
+.runnit-profile-master .runnit-profile-crown {
+  position: absolute;
+  right: 8px;
+  top: -30px;
+  width: 25px;
+  height: 25px;
+  color: #c9ff12;
+  filter: drop-shadow(0 0 6px rgba(190,255,0,.7));
+}
+.runnit-profile-master .runnit-profile-player-name {
+  font-size: clamp(1.18rem,5.2vw,1.82rem);
+  letter-spacing:-.045em;
+  padding-right: 10px;
+}
+.runnit-profile-master .runnit-profile-xp-label {
+  white-space: normal;
+  text-wrap: balance;
+  font-size: clamp(8px,2vw,10px);
+  line-height: 1.18;
+}
+.runnit-profile-master .runnit-profile-section-head {
+  flex-wrap: nowrap;
+}
+.runnit-profile-master .runnit-profile-section-head > h2 {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: clamp(12px,3.35vw,16px);
+  letter-spacing:-.065em;
+  white-space:nowrap;
+}
+.runnit-profile-master .runnit-profile-section-link {
+  flex: 0 0 auto;
+  white-space:nowrap;
+  font-size: clamp(8px,1.88vw,10px);
+}
+.runnit-profile-master .runnit-profile-section-head h2 span {
+  display:inline-block;
+  margin-left: 3px;
+  font-size:.9em;
+  vertical-align:baseline;
+}
+/* Achievements must not split mid-word; reduce font size instead. */
+.runnit-profile-master .runnit-profile-badge strong {
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+  font-size: clamp(6px,1.68vw,9px);
+  letter-spacing: -.05em;
+  line-height: 1.12;
+}
+.runnit-profile-master .runnit-profile-badge:last-child strong {
+  font-size: clamp(5.9px,1.6vw,8px);
+  white-space: nowrap;
+}
+@media (max-width:380px) {
+  .runnit-profile-master .runnit-profile-hero-character {
+    top: 37px;
+    width:56%;
+  }
+  .runnit-profile-master .runnit-profile-player {
+    top:39%;
+    width:62%;
+    padding:7px 8px;
+  }
+  .runnit-profile-master .runnit-profile-section-head > h2 {
+    font-size:12px;
+  }
+  .runnit-profile-master .runnit-profile-section-link {
+    font-size:8px;
+  }
+}

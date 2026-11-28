@@ -1,0 +1,77 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
+
+test('iPhone portrait launch fills viewport without stretching or moving its hotspots', () => {
+  const screen = read('src/screens/HomeScreen.tsx');
+  const css = read('src/index.css');
+  assert.match(screen, /runnit-launch-screen/);
+  assert.match(screen, /h-\[100dvh\]/);
+  assert.match(screen, /runnit-launch-art/);
+  assert.match(screen, /aspect-\[941\/1672\]/);
+  assert.match(screen, /object-contain/);
+  assert.doesNotMatch(screen, /object-fill/);
+  assert.match(css, /@media \(max-width: 640px\) and \(orientation: portrait\)/);
+  assert.match(css, /width: max\(100vw, calc\(100dvh \* 0\.5628\)\)/);
+  assert.match(css, /transform: translateX\(-50%\)/);
+});
+
+test('focused iOS form fields avoid automatic zoom while pinch zoom remains available', () => {
+  const html = read('index.html');
+  const css = read('src/index.css');
+  assert.match(html, /initial-scale=1\.0/);
+  assert.doesNotMatch(html, /user-scalable=no|maximum-scale=1/);
+  assert.match(css, /pointer: coarse/);
+  assert.match(css, /#root input:not/);
+  assert.match(css, /font-size: 16px !important/);
+});
+
+test('page titles, navigation and map CTAs respect narrow mobile widths', () => {
+  const css = read('src/index.css');
+  const frame = read('src/components/ui/PageFrame.tsx');
+  const nav = read('src/components/ui/BottomNav.tsx');
+  const map = read('src/screens/MapScreen.tsx');
+  const app = read('src/App.tsx');
+  assert.match(css, /overflow-x: clip/);
+  assert.match(frame, /break-normal/);
+  assert.doesNotMatch(frame, /break-words/);
+  assert.match(nav, /max-w-full overflow-hidden/);
+  assert.match(nav, /min-w-0/);
+  assert.match(map, /<ArcadeMapChrome/);
+  assert.doesNotMatch(map, /runnit-arcade-controls/);
+  assert.match(read('src/components/map/ArcadeMapChrome.tsx'), /runnit-arcade-map-switch/);
+  assert.match(app, /window\.scrollTo\(0, 0\)/);
+});
+
+
+test('account form fonts remain 16px without depending only on focus CSS', () => {
+  const panel = read('src/components/profile/AccountAuthPanel.tsx');
+  assert.equal(panel.match(/px-4 py-3 text-base text-white outline-none/g)?.length, 3);
+  assert.match(panel, /id="account-email"/);
+  assert.match(panel, /id="account-password"/);
+  assert.match(panel, /id="account-nickname"/);
+});
+
+test('the unmodified portrait launch remains viewport-filling while wide art is centered', () => {
+  const launch = read('src/screens/HomeScreen.tsx');
+  const css = read('src/index.css');
+  assert.match(launch, /h-full w-full flex-col items-center justify-center overflow-hidden/);
+  assert.match(css, /\.runnit-launch-art/);
+  assert.match(css, /height: 100dvh/);
+});
+
+test('map status messages respect iOS safe area and removed CTAs remain available in LISTE', () => {
+  const map = read('src/screens/MapScreen.tsx');
+  // Auto-refresh status banners were deliberately removed; safe-area notices remain.
+  assert.doesNotMatch(map, /Loading…|No nearby activity yet/);
+  assert.match(map, /top-\[calc\(145px\+env\(safe-area-inset-top,0px\)\)\]/);
+  const list = read('src/components/map/ArcadeMapChrome.tsx');
+  const styles = read('src/styles/arcadeMap.css');
+  assert.doesNotMatch(list, /onClick=\{onHost\}/);
+  assert.match(list, /Halte einen Punkt innerhalb deines 500-m-Radars/);
+  assert.match(list, /BEITRETEN/);
+  assert.match(styles, /safe-area-inset-bottom/);
+  assert.doesNotMatch(map, /runnit-arcade-controls/);
+});

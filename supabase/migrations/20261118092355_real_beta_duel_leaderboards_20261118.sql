@@ -1,0 +1,2 @@
+-- Second idempotent execution of the same schema change was recorded in Supabase on 2026-11-18.
+-- No additional DDL is required because the original version 20261118091810 contains the full change.

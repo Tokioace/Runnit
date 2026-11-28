@@ -1,0 +1,1148 @@
+/* LEGENDS visual pass against the approved 708 × 1536 reference.
+ * Artwork comes from the supplied composition; counters remain live DOM data.
+ * All rules are scoped to the leaderboard screen. */
+.runnit-competition.runnit-legends {
+  --l-lime:#c8ff0b; --l-cyan:#13eaff; --l-pink:#fa36ed;
+  --arena-dock-reserve:91px;
+  padding-bottom:var(--arena-dock-reserve);
+  background:
+    radial-gradient(ellipse 48% 29% at 100% 47%,#8d0fb640,transparent),
+    radial-gradient(ellipse 58% 28% at 0 73%,#03c7ff26,transparent),
+    repeating-linear-gradient(154deg,transparent 0 76px,#16bfff09 77px 80px,transparent 81px 161px),
+    #060b24;
+}
+.runnit-legends .arena-stage {
+  max-width:630px;
+  padding:0 8px;
+  gap:clamp(3px,.55dvh,5px);
+}
+/* Moving the already-cropped reference art down 20 CSS pixels preserves the
+   full RUNNIT logo below the iPhone status text instead of hiding it there. */
+.runnit-legends .arena-hero {
+  position:relative;
+  flex:0 0 clamp(260px,40.5dvh,325px);
+  height:clamp(260px,40.5dvh,325px);
+  margin:0 -8px;
+  overflow:hidden;
+  background:
+    linear-gradient(180deg,transparent 0%,transparent 54%,#08102c10 69%,#090b27de 91%,#070a20 100%),
+    url('/runnit-legends-hero.webp') center 20px/100% auto no-repeat,
+    url('/runnit-arcade-city.svg') center 23%/cover no-repeat;
+}
+.runnit-legends .arena-hero::before {
+  opacity:.75;
+  background:
+    linear-gradient(173deg,transparent 0 78%,#d3ff0b55 80%,transparent 82%),
+    linear-gradient(116deg,transparent 10%,#00dfff24 26%,transparent 28% 75%,#ff19de2d 78%,transparent 85%);
+}
+/* A typographic layer, not text baked into the graphic. */
+.runnit-legends .legends-hero-crown {
+  position:absolute;z-index:2;bottom:58px;left:50%;transform:translateX(-50%);
+  color:var(--l-lime);filter:drop-shadow(0 0 5px #cfff08);
+}
+.runnit-legends .legends-hero-crown svg {width:28px;height:28px;stroke-width:3.2}
+.runnit-legends .arena-hero h1 {
+  position:absolute;z-index:3;left:0;right:0;bottom:25px;
+  margin:0;color:#f5f8ff;text-align:center;
+  font:italic 1000 clamp(48px,14.5vw,78px)/.92 system-ui,sans-serif;
+  letter-spacing:-.078em;transform:skewX(-9deg);
+  text-shadow:2px 3px 0 #08152d,4px 5px 0 #35126d,0 0 10px #e0eaff55;
+}
+.runnit-legends .arena-hero h1::before {
+  content:"";position:absolute;z-index:-1;pointer-events:none;
+  left:-8%;right:-8%;height:49%;top:39%;
+  transform:rotate(-6deg);
+  background:linear-gradient(90deg,#ceff04 0%,#c2ff00 68%,#d6ff0d 88%,transparent 100%);
+  clip-path:polygon(0 61%,7% 8%,91% 4%,100% 64%,73% 84%,0 94%);
+}
+.runnit-legends .arena-hero-bottom {
+  position:absolute;z-index:4;left:5%;right:5%;bottom:5px;
+  margin:0;white-space:nowrap;text-align:center;
+  font:italic 950 clamp(11px,3.35vw,17px)/1.1 system-ui,sans-serif;
+  text-shadow:0 2px 2px #07071d,0 0 7px #02020b;
+}
+.runnit-legends .arena-hero-bottom b {color:var(--l-cyan)}
+.runnit-legends .arena-hero-bottom em {color:var(--l-pink)}
+.runnit-legends .arena-tabs {
+  flex:0 0 clamp(30px,4.2dvh,35px);
+  margin:1px 3px 3px;
+  gap:5px;
+}
+.runnit-legends .arena-tabs button {
+  display:flex;align-items:center;justify-content:center;gap:4px;min-width:0;
+  padding:1px 2px;
+  border:2px solid #f4fbff;border-radius:15px 3px 14px 3px;
+  transform:skewX(-10deg);
+  background:linear-gradient(160deg,#273d57,#0a122a);
+  box-shadow:inset 0 1px #e8ffffb0,0 0 6px #72e0fff0;
+  color:white;font:italic 950 clamp(10px,2.85vw,16px)/1 system-ui,sans-serif;
+  text-shadow:0 1px 3px #070c1c;
+}
+.runnit-legends .arena-tabs button>*{transform:skewX(10deg)}
+.runnit-legends .arena-tabs button svg {width:clamp(14px,4vw,20px);height:clamp(14px,4vw,20px);flex:none}
+.runnit-legends .arena-tabs button.is-active {
+  color:#07120d;border-color:#f4ff63;
+  background:linear-gradient(145deg,#ecff63,#bdff04 73%,#88d909);
+  box-shadow:inset 0 1px #fff9d8,0 0 11px #bcff0de6;
+  text-shadow:none;
+}
+.runnit-legends .arena-content {
+  flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;
+  scrollbar-width:thin;overscroll-behavior:contain;
+}
+.runnit-legends .arena-panel-area {height:auto;min-height:100%;gap:5px;flex-shrink:0}
+.runnit-legends .arena-section-bar {
+  flex:0 0 clamp(30px,4.2dvh,36px);
+  gap:9px;padding:2px 10px;
+  border:2px solid var(--l-cyan);border-right-color:var(--l-pink);
+  border-radius:15px 3px 14px 3px;
+  background:
+    linear-gradient(90deg,#0a1630 27%,#1b1041d9 65%,#42144a64),
+    url('/runnit-arcade-city.svg') right 37%/auto 235% no-repeat;
+  box-shadow:0 0 6px #11edff8f,inset 0 1px #d3f5ff99;
+}
+.runnit-legends .arena-section-bar>span:first-child {color:var(--l-lime)}
+.runnit-legends .arena-section-bar svg {width:27px;height:27px;filter:drop-shadow(0 0 3px #b6ff0b)}
+.runnit-legends .arena-section-bar strong {font-size:clamp(19px,5.3vw,30px);letter-spacing:-.03em}
+.runnit-legends .arena-section-bar em {color:var(--l-lime);letter-spacing:.005em}
+/* The split portraits contain the decorative avatar-outline artwork already:
+   never draw a second SVG avatar over the same portrait. */
+.runnit-legends .arena-rivals .arena-showdown {
+  position:relative;isolation:isolate;
+  flex:0 0 clamp(138px,18.3dvh,150px);
+  height:clamp(138px,18.3dvh,150px);min-height:0;
+  overflow:hidden;padding:4px;
+  border:2px solid var(--l-cyan);border-right-color:var(--l-pink);border-bottom-color:var(--l-pink);
+  border-radius:15px 3px 15px 3px;
+  background:linear-gradient(100deg,#05203acc 0%,#101a3d 51%,#380b54a8);
+  box-shadow:0 0 8px #ff24e583;
+}
+.runnit-legends .arena-rivals .arena-showdown::before {
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(180deg,transparent 0 53%,#07122b77 77%,#090c2ce0 94%);
+}
+.runnit-legends .legends-showdown-art {
+  position:absolute;top:0;width:50%;height:76%;z-index:-2;opacity:1;
+  background-size:100% 100%;background-repeat:no-repeat;pointer-events:none;
+  mask-image:linear-gradient(#000 0 43%,transparent 69%);
+}
+.runnit-legends .legends-showdown-art--left {
+  left:0;background-image:url('/runnit-legends-duel-left.webp');background-position:left top;
+}
+.runnit-legends .legends-showdown-art--right {
+  right:0;background-image:url('/runnit-legends-duel-right.webp');background-position:right top;
+}
+.runnit-legends .arena-showdown-people {
+  position:absolute;inset:24px 6px 37px;z-index:1;
+  display:grid;grid-template-columns:1fr 31% 1fr;
+  align-items:end;padding:0;gap:0;
+}
+.runnit-legends .arena-showdown-person {position:relative;min-width:0;align-self:end;gap:0}
+.runnit-legends .arena-showdown-person .arena-avatar--large {visibility:visible;width:52px;height:52px;max-width:52px;max-height:52px;background:#06132be8;border:2px solid #effaff;box-shadow:0 0 8px #21e7ff8a}
+.runnit-legends .arena-showdown-person strong {
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;border:0;
+  overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;
+}
+.runnit-legends .arena-showdown-person>span:last-child {
+  display:grid;place-items:center;
+  width:min(95%,79px);height:19px;margin:0 auto;
+  padding:1px 3px;border:2px solid var(--l-cyan);border-radius:9px 2px;
+  background:linear-gradient(130deg,#0b293df2,#08152ef0);
+  color:#fff;font:italic 1000 clamp(10px,2.85vw,14px)/1 system-ui,sans-serif;
+  box-shadow:0 0 7px #04e9ffb0;
+  transform:skewX(-8deg);
+}
+.runnit-legends .arena-showdown-person:last-child>span:last-child {
+  border-color:var(--l-pink);box-shadow:0 0 7px #ff24eab8;
+}
+.runnit-legends .arena-versus {
+  position:absolute;left:50%;top:10px;transform:translateX(-50%);
+  width:32%;display:flex;align-items:center;flex-direction:column;gap:1px;
+  text-align:center;white-space:nowrap;
+}
+.runnit-legends .arena-versus strong {
+  color:var(--l-lime);
+  font:italic 1000 clamp(45px,13.5vw,65px)/.9 system-ui,sans-serif;
+  transform:skewX(-13deg) rotate(-7deg);
+  text-shadow:3px 3px #031027,0 0 11px #c5ff0d;
+}
+.runnit-legends .arena-versus small {
+  font:italic 1000 clamp(7px,2.2vw,11px)/1 system-ui,sans-serif;
+  text-shadow:0 2px 3px #010818;
+}
+.runnit-legends .arena-versus b {
+  color:var(--l-lime);font:italic 1000 clamp(21px,6.5vw,35px)/1 system-ui,sans-serif;
+  text-shadow:0 0 8px #b6ff1b88;
+}
+.runnit-legends .arena-rematch {
+  position:absolute;bottom:5px;left:50%;z-index:3;
+  width:77%;height:clamp(31px,4.3dvh,36px);margin:0;
+  transform:translateX(-50%) skewX(-10deg);
+  display:grid;place-items:center;
+  padding:2px 4px;color:#07190b;text-decoration:none;
+  border:2px solid #ebff61;border-radius:4px 2px 9px 2px;
+  background:linear-gradient(148deg,#e6ff3e,#caff00 64%,#88e20d);
+  box-shadow:inset 0 1px #fff9b9,0 0 13px #c7ff1dd1;
+  font:italic 1000 clamp(16px,4.95vw,25px)/1 system-ui,sans-serif;
+  letter-spacing:-.035em;
+}
+.runnit-legends .arena-rivals .arena-duel-grid {
+  flex:0 1 auto;min-height:57px;max-height:min(23dvh,160px);gap:6px;
+}
+.runnit-legends .arena-rivals .arena-duel-panel {
+  height:auto;min-height:57px;max-height:min(23dvh,160px);
+  padding:3px 4px;gap:1px;overflow-y:auto;
+  border:2px solid var(--l-cyan);border-radius:11px 3px 11px 3px;
+  background:linear-gradient(160deg,#081830,#061025);
+  box-shadow:0 0 7px #00dffb73;
+}
+.runnit-legends .arena-rivals .arena-duel-panel--magenta {
+  border-color:var(--l-pink);box-shadow:0 0 7px #f328fba8;
+}
+.runnit-legends .arena-duel-panel h2 {
+  font-size:clamp(10px,2.5vw,14px);min-height:18px;
+}
+.runnit-legends .arena-duel-panel h2 svg {width:19px;height:19px}
+.runnit-legends .arena-rivals .arena-mini-row {
+  flex:0 0 24px;min-height:24px;font-size:clamp(10px,2.6vw,14px);
+}
+.runnit-legends .arena-rivals .arena-self-strip {
+  flex:0 0 clamp(47px,6.3dvh,53px);margin-top:2px;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:0;padding:3px 6px;border:2px solid var(--l-lime);
+  border-right-color:var(--l-pink);border-radius:13px 3px 13px 3px;
+  background:linear-gradient(120deg,#071e24,#07152d 55%,#2f1139);
+  box-shadow:0 0 10px #d3ff0c9c;
+}
+.runnit-legends .legends-summary {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-width:0;border-right:1px solid #d5e5ffb8;
+}
+.runnit-legends .legends-summary:last-child{border-right:0}
+.runnit-legends .legends-summary strong {
+  color:var(--l-lime);font:italic 1000 clamp(24px,6.6vw,39px)/1 system-ui,sans-serif;
+}
+.runnit-legends .legends-summary small {
+  color:white;font:italic 900 clamp(10px,2.9vw,14px)/1 system-ui,sans-serif;
+}
+.runnit-legends .arena-beta-note {
+  flex:0 0 auto;min-height:22px;
+  color:#dce9fc;text-align:center;white-space:normal;
+  font-size:clamp(8px,2.2vw,12px);
+}
+.runnit-legends .arena-beta-note svg {color:var(--l-lime)}
+/* LEGENDS uses the same shared BottomNav appearance as every other page. */
+@media(max-height:700px) {
+  .runnit-legends .arena-hero {
+    flex-basis:clamp(228px,37dvh,270px);
+    height:clamp(228px,37dvh,270px);
+  }
+  .runnit-legends .legends-hero-crown {bottom:53px}
+  .runnit-legends .arena-rivals .arena-showdown {
+    flex-basis:132px;height:132px;
+  }
+  .runnit-legends .arena-rivals .arena-duel-panel {min-height:57px}
+}
+@media(max-width:350px) {
+  .runnit-legends .arena-hero h1 {font-size:46px}
+  .runnit-legends .arena-hero-bottom {font-size:10px}
+  .runnit-legends .arena-tabs button {font-size:9px;gap:2px}
+  .runnit-legends .arena-tabs button svg {width:13px;height:13px}
+  .runnit-legends .arena-section-bar strong {font-size:17px}
+}
+@media(prefers-reduced-motion:reduce) {
+}
+
+
+/* LEGENDS ART-DIRECTED COMPOSITION — reference 708x1536.
+ * Image assets drive the hero, title, portraits and VS. Only scores, names,
+ * controls and accessibility text are live DOM. No home-screen styles touched.
+ */
+.runnit-legends .arena-stage {
+  gap:3px;
+}
+.runnit-legends .arena-hero {
+  flex:0 0 clamp(300px,45dvh,355px);
+  height:clamp(300px,45dvh,355px);
+  background:
+    linear-gradient(180deg,transparent 0%,transparent 62%,#070a2400 71%,#070a24c9 91%,#070a24 100%),
+    url('/runnit-legends-hero.webp') center top/100% 75% no-repeat,
+    url('/runnit-arcade-city.svg') center top/cover no-repeat;
+}
+.runnit-legends .arena-hero::before {opacity:0;content:none}
+.runnit-legends .legends-hero-crown {display:none}
+.runnit-legends .arena-hero h1 {
+  position:absolute;left:0;right:0;bottom:18px;
+  width:100%;height:clamp(116px,18dvh,148px);
+  margin:0;transform:none;
+  color:transparent;font-size:0;line-height:0;letter-spacing:0;text-shadow:none;
+  background:url('/runnit-legends-title.svg') center bottom/100% 100% no-repeat;
+}
+.runnit-legends .arena-hero h1::before {display:none;content:none}
+.runnit-legends .arena-hero-bottom {
+  bottom:1px;left:4%;right:4%;
+  font-size:clamp(12px,3.25vw,17px);
+  letter-spacing:.01em;
+}
+.runnit-legends .arena-tabs {
+  flex-basis:clamp(34px,4.6dvh,39px);
+  margin:1px 4px 2px;
+  gap:6px;
+}
+.runnit-legends .arena-tabs button {
+  border-width:2px;
+  border-radius:16px 3px 16px 3px;
+  font-size:clamp(11px,3vw,17px);
+}
+.runnit-legends .arena-section-bar {
+  background:
+    linear-gradient(90deg,#0a1930 10%,#15133fdb 52%,#48184db0),
+    url('/runnit-ranking-city.svg') right center/auto 140% no-repeat;
+  border-radius:15px 3px 15px 3px;
+}
+.runnit-legends .arena-section-sky {opacity:.72}
+.runnit-legends .arena-rivals .arena-showdown {
+  flex:0 0 clamp(138px,18.3dvh,146px);
+  height:clamp(138px,18.3dvh,146px);
+  border-radius:14px 3px 14px 3px;
+  background:linear-gradient(110deg,#071d38,#090c29 54%,#291039);
+}
+.runnit-legends .arena-rivals .arena-showdown::before {
+  z-index:0;
+  background:linear-gradient(180deg,transparent 0 47%,#07152b1c 59%,#060b25cc 86%,#0a0d2be8 100%);
+}
+.runnit-legends .legends-showdown-art {
+  z-index:0;top:0;width:50%;height:74%;
+  mask-image:linear-gradient(#000 0%,#000 35%,transparent 57%);
+  -webkit-mask-image:linear-gradient(#000 0%,#000 35%,transparent 57%);
+}
+.runnit-legends .arena-showdown-people {
+  position:absolute;z-index:2;inset:0 8px 41px;
+  display:grid;grid-template-columns:29% 42% 29%;
+  gap:0;align-items:end;padding:0;
+}
+.runnit-legends .arena-showdown-person {
+  min-width:0;display:flex;flex-direction:column;align-items:center;
+  justify-self:center;align-self:end;gap:0;width:100%;
+}
+.runnit-legends .arena-showdown-person:first-child {grid-column:1}
+.runnit-legends .arena-showdown-person:last-child {grid-column:3}
+.runnit-legends .arena-showdown-person .arena-avatar--large {
+  visibility:visible;flex:none;width:52px;height:52px;
+  max-width:52px;max-height:52px;
+  border:2px solid #f3faff;border-radius:10px 2px 10px 2px;
+  background:linear-gradient(140deg,#0b2440e8,#081026f5);
+  box-shadow:0 0 0 2px #0b1a33a8,0 0 8px #12e6ffb0;
+}
+.runnit-legends .arena-showdown-person:last-child .arena-avatar--large {
+  border-color:#fff5ff;box-shadow:0 0 0 2px #280d3e,0 0 9px #ff34eead;
+}
+.runnit-legends .arena-showdown-person>span:last-child {
+  width:min(100%,83px);height:20px;margin:0 auto;
+  font-size:clamp(10px,2.7vw,14px);
+}
+.runnit-legends .arena-versus {
+  z-index:3;left:50%;top:9px;width:35%;
+  transform:translateX(-50%);gap:0;
+  pointer-events:none;
+}
+.runnit-legends .arena-versus strong {
+  display:block;flex:none;width:100%;height:46px;
+  font-size:0;line-height:0;color:transparent;text-shadow:none;transform:none;
+  background:url('/runnit-legends-vs.svg') center/contain no-repeat;
+}
+.runnit-legends .arena-versus small {
+  color:#fff;font-size:clamp(8px,2.1vw,11px);
+  text-shadow:0 2px 2px #030820,0 0 3px #030820;
+}
+.runnit-legends .arena-versus b {
+  color:#caff00;font-size:clamp(23px,6.3vw,33px);
+  text-shadow:0 2px #041023,0 0 6px #bfff047a;
+}
+.runnit-legends .arena-rematch {
+  z-index:4;bottom:4px;width:72%;
+  height:clamp(32px,4.4dvh,36px);
+  border-radius:5px 2px 11px 2px;
+}
+.runnit-legends .arena-rematch::after {
+  content:"";position:absolute;right:-14px;top:3px;bottom:3px;width:12px;
+  border-left:5px solid #caff05;border-right:3px solid #caff05;
+  transform:skewX(-17deg);
+}
+.runnit-legends .arena-rivals .arena-duel-grid {
+  flex:0 1 auto;min-height:46px;max-height:min(20dvh,140px);
+}
+.runnit-legends .arena-rivals .arena-duel-panel {
+  min-height:46px;max-height:min(20dvh,140px);
+  padding:3px 5px;gap:1px;
+}
+.runnit-legends .arena-duel-panel h2 {min-height:19px}
+.runnit-legends .arena-rivals .arena-mini-row {min-height:23px;flex-basis:23px}
+.runnit-legends .arena-rivals .arena-self-strip {
+  flex:0 0 clamp(46px,6.4dvh,52px);margin-top:2px;
+}
+@media (max-height:700px) {
+  .runnit-legends .arena-hero {
+    flex-basis:clamp(260px,42dvh,302px);
+    height:clamp(260px,42dvh,302px);
+  }
+  .runnit-legends .arena-hero h1 {height:clamp(108px,18dvh,134px)}
+  .runnit-legends .arena-rivals .arena-showdown {flex-basis:135px;height:135px}
+}
+@media (max-width:350px) {
+  .runnit-legends .arena-hero-bottom {font-size:11px}
+  .runnit-legends .arena-versus strong {height:39px}
+  .runnit-legends .arena-showdown-person .arena-avatar--large {width:46px;height:46px}
+  .runnit-legends .arena-showdown-person>span:last-child {font-size:9px}
+}
+
+
+/* iPhone 13 mini visual acceptance, 2026-11-19.
+   Match the approved screenshot without modifying any Home page component.
+   The compact heights guarantee the 3-value result strip is not below the
+   fixed dock on small phone viewports. */
+.runnit-competition.runnit-legends .arena-stage {
+  gap:1px;
+}
+.runnit-competition.runnit-legends .arena-hero {
+  flex:0 0 clamp(282px,43.4dvh,337px);
+  height:clamp(282px,43.4dvh,337px);
+  background:
+    linear-gradient(180deg,#080c2400 0%,#070c2400 74%,#070a22c4 92%,#070a24 100%),
+    url('/runnit-legends-hero.webp') center 16px/100% 75% no-repeat,
+    linear-gradient(155deg,#0b0925,#070a23 75%,#14103b);
+}
+/* The existing image is a composition, not another city overlay.
+   This prevents the empty synthetic road between the title and tabs. */
+.runnit-competition.runnit-legends .arena-hero h1 {
+  bottom:-28px;
+}
+.runnit-competition.runnit-legends .arena-hero-bottom {
+  bottom:-2px;
+}
+.runnit-competition.runnit-legends .arena-tabs {
+  margin:8px 4px 0;
+  flex-basis:clamp(34px,4.6dvh,39px);
+}
+.runnit-competition.runnit-legends .arena-panel-area {
+  gap:2px;
+}
+.runnit-competition.runnit-legends .arena-section-bar {
+  flex:0 0 30px;
+  height:30px;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-showdown {
+  flex:0 0 clamp(122px,17.2dvh,134px);
+  height:clamp(122px,17.2dvh,134px);
+}
+.runnit-competition.runnit-legends .arena-showdown-people {
+  inset:0 8px 35px;
+}
+ .runnit-competition.runnit-legends .arena-versus {
+  top:8px;
+}
+.runnit-competition.runnit-legends .arena-versus strong {
+  height:clamp(34px,5.2dvh,40px);
+}
+.runnit-competition.runnit-legends .arena-rematch {
+  width:68%;
+  height:clamp(27px,3.8dvh,32px);
+}
+.runnit-competition.runnit-legends .arena-showdown-person .arena-avatar--large {
+  width:46px;height:46px;max-width:46px;max-height:46px;
+}
+.runnit-competition.runnit-legends .arena-versus b {
+  font-size:clamp(21px,5.7vw,28px);
+}
+.runnit-competition.runnit-legends .arena-versus small {
+  font-size:clamp(7px,2.1vw,9px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-grid {
+  flex:0 0 auto;
+  height:46px;
+  min-height:46px;
+  max-height:46px;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-panel {
+  height:46px;
+  min-height:46px;
+  max-height:46px;
+  padding:1px 4px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+.runnit-competition.runnit-legends .arena-duel-panel h2 {
+  min-height:17px;
+  height:17px;
+  font-size:clamp(9px,2.35vw,13px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-mini-row {
+  flex:0 0 20px;
+  min-height:20px;
+  height:20px;
+  font-size:clamp(9px,2.4vw,13px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip {
+  flex:0 0 47px;
+  height:47px;
+  min-height:47px;
+  margin-top:2px;
+}
+.runnit-competition.runnit-legends .arena-beta-note {
+  min-height:19px;
+  line-height:1.1;
+}
+@media (max-height:720px) {
+  .runnit-competition.runnit-legends .arena-hero {
+    flex-basis:clamp(265px,41.5dvh,295px);
+    height:clamp(265px,41.5dvh,295px);
+  }
+  .runnit-competition.runnit-legends .arena-hero h1 {
+    height:clamp(102px,17dvh,125px);
+    bottom:-25px;
+  }
+  .runnit-competition.runnit-legends .arena-rivals .arena-showdown {
+    flex-basis:124px;
+    height:124px;
+  }
+  .runnit-competition.runnit-legends .arena-rivals .arena-self-strip {
+    flex-basis:43px;
+    height:43px;
+    min-height:43px;
+  }
+}
+
+
+/* Final LEGENDS iPhone layout fix (2026-11-19):
+ * Give the dynamic three-number summary room ABOVE the fixed 5-tab dock.
+ * The Home page, shared navigation implementation and Supabase data stay intact. */
+.runnit-competition.runnit-legends {
+  --arena-dock-reserve: calc(58px + max(8px, env(safe-area-inset-bottom, 0px)) + 9px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-showdown {
+  flex: 0 0 clamp(112px, 15.7dvh, 121px);
+  height: clamp(112px, 15.7dvh, 121px);
+}
+.runnit-competition.runnit-legends .arena-showdown-people {
+  inset: 0 8px 30px;
+}
+.runnit-competition.runnit-legends .arena-versus {
+  top: 5px;
+}
+.runnit-competition.runnit-legends .arena-versus strong {
+  height: clamp(29px, 4.4dvh, 35px);
+}
+.runnit-competition.runnit-legends .arena-showdown-person .arena-avatar--large {
+  width: 42px;
+  height: 42px;
+  max-width: 42px;
+  max-height: 42px;
+}
+.runnit-competition.runnit-legends .arena-rematch {
+  width: 67%;
+  height: 27px;
+  bottom: 3px;
+  font-size: clamp(14px, 4.2vw, 22px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-grid {
+  flex: 0 0 42px;
+  height: 42px;
+  min-height: 42px;
+  max-height: 42px;
+  gap: 4px;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-panel {
+  height: 42px;
+  min-height: 42px;
+  max-height: 42px;
+  padding: 1px 4px;
+}
+.runnit-competition.runnit-legends .arena-duel-panel h2 {
+  min-height: 15px;
+  height: 15px;
+  font-size: clamp(8px, 2.15vw, 12px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-mini-row {
+  flex: 0 0 18px;
+  min-height: 18px;
+  height: 18px;
+  font-size: clamp(8px, 2.2vw, 12px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip {
+  flex: 0 0 40px;
+  height: 40px;
+  min-height: 40px;
+  margin-top: 1px;
+}
+.runnit-competition.runnit-legends .legends-summary strong {
+  font-size: clamp(19px, 5.8vw, 28px);
+}
+.runnit-competition.runnit-legends .legends-summary small {
+  font-size: clamp(8px, 2.4vw, 12px);
+}
+.runnit-competition.runnit-legends .arena-beta-note {
+  min-height: 15px;
+  font-size: clamp(7px, 1.9vw, 10px);
+  line-height: 1.05;
+}
+
+
+/* ARTWORK PARITY PASS — approved screenshot is the source for the wordmark,
+ * the RIVALEN heading and the brush-stroke VS (traced SVG image assets).
+ * Original photo crops for both character portraits are used below.
+ * Keep all live scores/buttons and DO NOT override the shared BottomNav. */
+.runnit-competition.runnit-legends .arena-hero {
+  flex:0 0 clamp(268px,41.7dvh,325px);
+  height:clamp(268px,41.7dvh,325px);
+}
+/* The complete reference lettering, crown, checkers and lime spray are ONE
+   vector image, not separately reconstructed typography or CSS paint. */
+.runnit-competition.runnit-legends .arena-hero h1 {
+  width:100%;
+  height:clamp(65px,20vw,89px);
+  bottom:18px;
+  background:url('/runnit-legends-reference-wordmark.svg') center/100% 100% no-repeat;
+  color:transparent;
+  font-size:0;
+  text-shadow:none;
+}
+.runnit-competition.runnit-legends .arena-hero-bottom {bottom:2px}
+.runnit-competition.runnit-legends .arena-tabs {margin:5px 4px 2px}
+/* Reference-extracted RIVALEN / 1V1 banner is an image; the existing real
+   heading remains in the DOM and accessibility tree, but is not duplicated. */
+.runnit-competition.runnit-legends .arena-rivals .arena-section-bar {
+  flex:0 0 clamp(31px,4.25dvh,35px);
+  height:clamp(31px,4.25dvh,35px);
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:url('/runnit-legends-reference-rivals.svg') center/100% 100% no-repeat;
+  box-shadow:none;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-section-bar > span,
+.runnit-competition.runnit-legends .arena-rivals .arena-section-bar > strong {
+  opacity:0;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-showdown {
+  flex:0 0 clamp(127px,18dvh,144px);
+  height:clamp(127px,18dvh,144px);
+  overflow:hidden;
+  background:linear-gradient(120deg,#051327,#111032 54%,#320e41);
+}
+/* Exactly the two photographic illustrations that were cropped from the
+   approved image for PR #169; remove the aggressive fade and stretching. */
+.runnit-competition.runnit-legends .legends-showdown-art {
+  top:0;
+  width:50%;
+  height:clamp(85px,13dvh,105px);
+  opacity:1;
+  z-index:0;
+  background-size:100% 100%;
+  background-repeat:no-repeat;
+  mask-image:linear-gradient(#000 0%,#000 62%,transparent 94%);
+  -webkit-mask-image:linear-gradient(#000 0%,#000 62%,transparent 94%);
+}
+.runnit-competition.runnit-legends .legends-showdown-art--left {
+  background-image:url('/runnit-legends-duel-left.webp');
+}
+.runnit-competition.runnit-legends .legends-showdown-art--right {
+  background-image:url('/runnit-legends-duel-right.webp');
+}
+.runnit-competition.runnit-legends .arena-showdown-people {
+  inset:0 7px 36px;
+}
+.runnit-competition.runnit-legends .arena-showdown-person .arena-avatar--large {
+  width:51px;height:51px;max-width:51px;max-height:51px;
+  background:#071026f0;
+  border-radius:10px 2px 10px 2px;
+}
+.runnit-competition.runnit-legends .arena-versus {
+  top:4px;
+  width:35%;
+}
+.runnit-competition.runnit-legends .arena-versus strong {
+  width:100%;
+  height:clamp(47px,7.1dvh,56px);
+  background:url('/runnit-legends-reference-versus.svg') center/contain no-repeat;
+}
+.runnit-competition.runnit-legends .arena-versus small {
+  font-size:clamp(8px,2.1vw,11px);
+}
+.runnit-competition.runnit-legends .arena-versus b {
+  font-size:clamp(22px,6vw,30px);
+}
+.runnit-competition.runnit-legends .arena-rematch {
+  bottom:4px;
+  height:clamp(28px,4dvh,32px);
+  width:68%;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-grid {
+  flex:0 0 47px;
+  height:47px;
+  min-height:47px;
+  max-height:47px;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-panel {
+  height:47px;
+  min-height:47px;
+  max-height:47px;
+}
+.runnit-competition.runnit-legends .arena-duel-panel h2 {
+  min-height:19px;
+  height:19px;
+  font-size:clamp(9px,2.45vw,13px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip {
+  flex:0 0 46px;
+  height:46px;
+  min-height:46px;
+  margin-top:2px;
+  background:
+    url('/runnit-legends-laurels.svg') center center/100% 100% no-repeat,
+    linear-gradient(112deg,#082026,#0b152c 49%,#301034);
+  box-shadow:inset 0 1px #e7ff65,0 0 9px #d4ff1599;
+}
+.runnit-competition.runnit-legends .legends-summary strong {font-size:clamp(24px,6.4vw,34px)}
+.runnit-competition.runnit-legends .legends-summary small {font-size:clamp(9px,2.5vw,13px)}
+/* Short-height Safari webviews keep scorecard visible in a scrollable well.
+   The common bottom navigation is deliberately not styled here. */
+@media(max-height:720px) {
+  .runnit-competition.runnit-legends .arena-hero {
+    flex-basis:clamp(249px,40dvh,285px);
+    height:clamp(249px,40dvh,285px);
+  }
+  .runnit-competition.runnit-legends .arena-rivals .arena-showdown {
+    flex-basis:clamp(124px,17dvh,138px);
+    height:clamp(124px,17dvh,138px);
+  }
+  .runnit-competition.runnit-legends .arena-versus strong {
+    height:43px;
+  }
+}
+
+
+/* EXACT REFERENCE PHOTO PASS — 2026-11-19
+ * Every photo in this section is a lossily-compressed pixel crop of the
+ * user-approved 708×1536 concept image, not a redrawn CSS approximation.
+ * Scores, rivals, buttons and tabs stay live; shared BottomNav is untouched.
+ */
+.runnit-competition.runnit-legends .arena-hero h1 {
+  /* Includes the original brushstroke, silver lettering, crown and checkers. */
+  height:clamp(61px,18.5vw,78px);
+  bottom:17px;
+  background-image:url('/runnit-legends-wordmark-photo.webp');
+  background-position:center center;
+  background-size:100% 100%;
+  background-repeat:no-repeat;
+  transform:none;
+}
+.runnit-competition.runnit-legends .arena-hero-bottom {
+  bottom:1px;
+  font-size:clamp(11px,3.25vw,16px);
+  text-shadow:0 1px 4px #050616;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-section-bar {
+  /* Full exact banner: crossed swords, type, neon frame and skyline. */
+  height:clamp(32px,4.3dvh,36px);
+  flex-basis:clamp(32px,4.3dvh,36px);
+  background-image:url('/runnit-legends-rivals-photo.webp');
+  background-size:100% 100%;
+  background-repeat:no-repeat;
+  background-position:center;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-showdown {
+  isolation:isolate;
+  background:
+    radial-gradient(ellipse 56% 82% at 0% 21%,#064d69a8,transparent 94%),
+    radial-gradient(ellipse 54% 85% at 100% 18%,#a5167f8c,transparent 93%),
+    linear-gradient(100deg,#061426,#0b1026 50%,#2e0d3b);
+  border-left-color:#13efff;
+  border-right-color:#ff36ed;
+  border-top-color:#25e9ff;
+  border-bottom-color:#ed36e3;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-showdown::before {
+  background:linear-gradient(180deg,transparent 0%,transparent 46%,#07112c29 63%,#060b26a3 91%,#060a25f5 100%);
+  pointer-events:none;
+  z-index:0;
+}
+.runnit-competition.runnit-legends .legends-showdown-art {
+  /* Full-width original half-frame maps to 50% of the duel card. Use
+     original aspect ratio (339×156), never stretch into a tall portrait. */
+  width:50%;
+  height:clamp(72px,10.15dvh,83px);
+  top:0;
+  z-index:1;
+  background-size:100% 100%;
+  background-position:top center;
+  background-repeat:no-repeat;
+  opacity:1;
+  mask-image:none;
+  -webkit-mask-image:none;
+  pointer-events:none;
+}
+.runnit-competition.runnit-legends .legends-showdown-art--left {
+  background-image:url('/runnit-legends-zak-photo.webp');
+}
+.runnit-competition.runnit-legends .legends-showdown-art--right {
+  background-image:url('/runnit-legends-zoe-photo.webp');
+}
+.runnit-competition.runnit-legends .arena-showdown-people {
+  z-index:3;
+  inset:0 7px 36px;
+  grid-template-columns:29% 42% 29%;
+}
+.runnit-competition.runnit-legends .arena-showdown-person .arena-avatar--large {
+  /* Cover the original concept-art avatar placeholders without a second
+     surrounding picture-frame effect. The icon itself remains live DOM. */
+  visibility:visible;
+  width:54px;
+  height:46px;
+  max-width:54px;
+  max-height:46px;
+  border:2px solid #f4faff;
+  border-radius:8px 2px 8px 2px;
+  background:linear-gradient(145deg,#0a1c36ed,#070e27f7);
+  box-shadow:0 1px #ebfeff9e,0 0 6px #10f7ff9c;
+}
+.runnit-competition.runnit-legends .arena-showdown-person:last-child .arena-avatar--large {
+  box-shadow:0 1px #fff5ff9e,0 0 7px #ff26e8c8;
+}
+.runnit-competition.runnit-legends .arena-showdown-person>span:last-child {
+  height:18px;
+  font-size:clamp(9px,2.7vw,13px);
+}
+.runnit-competition.runnit-legends .arena-versus {
+  z-index:4;
+  top:2px;
+  width:35%;
+}
+.runnit-competition.runnit-legends .arena-versus strong {
+  /* Exact yellow VS brush from the user's reference image. */
+  display:block;
+  width:100%;
+  height:clamp(51px,7.2dvh,58px);
+  background-image:url('/runnit-legends-versus-photo.webp');
+  background-position:center top;
+  background-size:contain;
+  background-repeat:no-repeat;
+  filter:drop-shadow(1px 2px 1px #020819);
+}
+.runnit-competition.runnit-legends .arena-versus small {
+  font-size:clamp(8px,2.15vw,11px);
+  text-shadow:0 2px 4px #050b1c;
+}
+.runnit-competition.runnit-legends .arena-versus b {
+  font-size:clamp(22px,6vw,31px);
+  text-shadow:1px 2px #071021;
+}
+.runnit-competition.runnit-legends .arena-rematch {
+  width:72%;
+  height:clamp(28px,4.1dvh,33px);
+  bottom:4px;
+  border-radius:3px 2px 9px 1px;
+  background:linear-gradient(145deg,#e4ff4e,#c7ff00 66%,#87de11);
+  box-shadow:inset 0 1px #ffffa6,0 0 9px #b8ff02bb;
+}
+.runnit-competition.runnit-legends .arena-rematch::after {
+  right:-15px;
+  width:12px;
+  transform:skewX(-17deg);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip {
+  position:relative;
+  isolation:isolate;
+  background:linear-gradient(110deg,#071e25,#0b122a 55%,#2c1139);
+  border-color:#c8ff15;
+  border-right-color:#f7f8ff;
+  box-shadow:inset 0 1px #e7ff5e,0 0 8px #aeff0c8c;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::before,
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::after {
+  content:'';
+  position:absolute;
+  z-index:1;
+  pointer-events:none;
+  top:0;
+  left:0;
+  width:45px;
+  height:100%;
+  background:url('/runnit-legends-laurels.svg') -12px center/330px 100% no-repeat;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::after {
+  left:auto;
+  right:0;
+  transform:scaleX(-1);
+}
+.runnit-competition.runnit-legends .legends-summary {
+  position:relative;
+  z-index:2;
+}
+@media(max-width:350px) {
+  .runnit-competition.runnit-legends .arena-showdown-person .arena-avatar--large {
+    width:49px;
+    height:43px;
+  }
+  .runnit-competition.runnit-legends .arena-hero h1 {
+    height:clamp(58px,18.5vw,69px);
+  }
+}
+
+
+/* FINAL REFERENCE CLEANUP (2026-11-19): six scoped corrections.
+ * Deliberately no BottomNav / shared dock / Home overrides.
+ * The original photographic wordmark, duo faces and LIVE data remain intact. */
+.runnit-competition.runnit-legends {
+  background-image:
+    url('/runnit-legends-street-brush.svg'),
+    radial-gradient(ellipse 48% 29% at 100% 47%,#8d0fb640,transparent),
+    radial-gradient(ellipse 58% 28% at 0 73%,#03c7ff26,transparent),
+    repeating-linear-gradient(154deg,transparent 0 76px,#16bfff09 77px 80px,transparent 81px 161px);
+  background-size:100% 29%,auto,auto,auto;
+  background-repeat:no-repeat,no-repeat,no-repeat,repeat;
+  background-position:center 85%,center,center,center;
+}
+/* Keep the supplied wordmark pixels, but align its baseline 2px lower. */
+.runnit-competition.runnit-legends .arena-hero h1 {
+  bottom:15px;
+}
+/* Fine diagonal halftone texture belongs BELOW real buttons and live avatars.
+   The transparent grid is deliberately masked off the faces above. */
+.runnit-competition.runnit-legends .arena-rivals .arena-showdown::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:2;
+  background:url('/runnit-legends-duel-grit.svg') center/100% 100% no-repeat;
+  -webkit-mask-image:linear-gradient(180deg,transparent 0 36%,#0008 57%,#000 100%);
+  mask-image:linear-gradient(180deg,transparent 0 36%,#0008 57%,#000 100%);
+  opacity:.36;
+  pointer-events:none;
+}
+/* The CTA is a hard-edged racing wedge, not a pill. It keeps its live Link. */
+.runnit-competition.runnit-legends .arena-rematch {
+  width:74%;
+  height:clamp(30px,4.35dvh,34px);
+  border-radius:2px 0 5px 0;
+  border-color:#f0ff81;
+  box-shadow:inset 0 1px #ffffbb,0 0 7px #c6ff04b3;
+}
+.runnit-competition.runnit-legends .arena-rematch::after {
+  right:-15px;
+  top:3px;
+  bottom:3px;
+  width:13px;
+  border-left:5px solid #caff00;
+  border-right:3px solid #caff00;
+  border-radius:0;
+  transform:skewX(-16deg);
+}
+/* Match the slightly sharper panel corners/glow from the reference artwork. */
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-panel {
+  border-radius:10px 2px 10px 2px;
+  padding:2px 5px;
+  box-shadow:0 0 7px #00e3fa72;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-panel--magenta {
+  box-shadow:0 0 7px #f32af286;
+}
+/* Smaller, edge-aligned laurels: do not cover any of the three LIVE metrics.
+   No giant duplicated pseudo-images on top of the numbers. */
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip {
+  background:
+    url('/runnit-legends-laurels-compact.svg') center/100% 100% no-repeat,
+    repeating-linear-gradient(145deg,transparent 0 24px,#b3d8f307 25px 28px,transparent 29px 54px),
+    linear-gradient(110deg,#071e25,#0b122a 55%,#2c1139);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::before,
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::after {
+  content:none;
+  display:none;
+}
+/* Dense iPhone layout stays intact; no controls or totals are repositioned. */
+
+
+/* LEGENDS FINAL GRAPHIC PARITY — maintain shared dock, Hero and all live state.
+ * Buttons/labels still use real DOM and respond to clicks.
+ * Source geometry traced from the user-approved image; no fake scores. */
+
+/* Replace the incorrect stylized VS type with the reference paint silhouettes.
+ * Use a taller image slot so the strokes are neither compressed nor skewed. */
+.runnit-competition.runnit-legends .arena-versus {
+  top:1px;
+  width:35%;
+  gap:0;
+}
+.runnit-competition.runnit-legends .arena-versus strong {
+  display:block;
+  width:100%;
+  height:clamp(48px,7.4dvh,59px);
+  background:url('/runnit-legends-vs-refined.svg') center top/auto 100% no-repeat;
+  transform:none;
+  filter:drop-shadow(1px 2px 1px #020819);
+}
+.runnit-competition.runnit-legends .arena-versus small {
+  margin-top:0;
+  font-size:clamp(8px,2.13vw,11px);
+  letter-spacing:-.015em;
+}
+.runnit-competition.runnit-legends .arena-versus b {
+  margin-top:0;
+  font-size:clamp(23px,6.35vw,32px);
+}
+
+/* Entire angled neon racing board is artwork. The clickable Link and its
+ * readable text are unchanged; the twin bars are rendered only once. */
+.runnit-competition.runnit-legends .arena-rematch {
+  width:81%;
+  height:clamp(30px,4.25dvh,35px);
+  bottom:3px;
+  padding:0 6px 0 1px;
+  border:0;
+  border-radius:0;
+  background:url('/runnit-legends-cta-plate.svg') center center/100% 100% no-repeat;
+  box-shadow:none;
+  transform:translateX(-50%);
+  color:#07140d;
+  font-size:clamp(16px,4.4vw,24px);
+  line-height:1;
+  letter-spacing:-.04em;
+  text-shadow:0 1px #efff75;
+}
+.runnit-competition.runnit-legends .arena-rematch::after {
+  content:none;
+  display:none;
+}
+.runnit-competition.runnit-legends .arena-rematch:focus-visible {
+  outline:2px solid #f5ffff;
+  outline-offset:2px;
+}
+
+/* Real reflective, diagonally engraved panel texture rather than a flat fill.
+ * Compact laurels are a separate upper image, kept outside the three columns. */
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip {
+  overflow:hidden;
+  background:
+    url('/runnit-legends-laurels-compact.svg') center center/100% 76% no-repeat,
+    url('/runnit-legends-stats-metal.svg') center center/100% 100% no-repeat,
+    linear-gradient(112deg,#071c27,#0b132c 54%,#321137);
+  border:2px solid #d7ff18;
+  border-right-color:#f6f7ff;
+  border-radius:12px 2px 12px 2px;
+  box-shadow:
+    inset 0 1px 0 #ffffff68,
+    inset 0 -1px 0 #011019,
+    0 0 9px #bdfb11a0,
+    0 0 5px #ef25ff22;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::before,
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::after {
+  content:none;
+  display:none;
+}
+.runnit-competition.runnit-legends .legends-summary {
+  z-index:2;
+}
+
+/* Extra reflective top plane and hairline diagonal engraving on the small
+ * panels, without affecting their content or scroll behavior. */
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-panel {
+  background:
+    linear-gradient(147deg,#d4f5ff24 0%,#ffffff05 17%,transparent 42%),
+    repeating-linear-gradient(146deg,transparent 0 14px,#a4bbd00d 15px 16px,transparent 17px 32px),
+    linear-gradient(165deg,#102443 0%,#07162d 53%,#071226 100%);
+  border-top-color:#9afdff;
+  box-shadow:
+    inset 0 1px 0 #d5eeff48,
+    0 0 8px #00e5ff88;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-duel-panel--magenta {
+  background:
+    linear-gradient(147deg,#ffcaff1c 0%,transparent 29%),
+    repeating-linear-gradient(146deg,transparent 0 14px,#bda5e90e 15px 16px,transparent 17px 32px),
+    linear-gradient(165deg,#211a43 0%,#0c1431 55%,#140e32 100%);
+  border-top-color:#ffd4fb;
+  box-shadow:inset 0 1px 0 #ffdfff40,0 0 8px #fc39ff96;
+}
+
+
+/* Fix: 2026-11-19 — never render the two-sided laurel graphic as a
+ * full-width background. On narrow iPhones that scaling put leaves on top of
+ * the values 1 and 0. Keep the separate metallic material and position the
+ * cropped single-sided SVG at the two outside edges only. */
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip {
+  position:relative;
+  isolation:isolate;
+  background:
+    url('/runnit-legends-stats-metal.svg') center center / 100% 100% no-repeat,
+    linear-gradient(112deg,#071c27,#0b132c 54%,#321137);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::before,
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::after {
+  content:"";
+  display:block;
+  position:absolute;
+  z-index:1;
+  top:50%;
+  left:auto;
+  right:auto;
+  width:clamp(15px,5.3vw,22px);
+  height:clamp(30px,10.5vw,40px);
+  background:url('/runnit-legends-laurel-side.svg') center center / contain no-repeat;
+  pointer-events:none;
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::before {
+  left:clamp(3px,1vw,7px);
+  transform:translateY(-50%);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::after {
+  right:clamp(3px,1vw,7px);
+  transform:translateY(-50%) scaleX(-1);
+}
+.runnit-competition.runnit-legends .arena-rivals .legends-summary {
+  position:relative;
+  z-index:2;
+}
+
+
+/* LEGENDS screenshot micro-polish, 2026-11-19. Only graphic layers.
+   Keep Home, hero illustration, tabs, data and shared BottomNav unchanged. */
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip {
+  background:
+    linear-gradient(180deg,#0309192c 0%,transparent 37%,#04071638 100%),
+    url('/runnit-legends-stats-metal.svg') center center/100% 100% no-repeat,
+    linear-gradient(112deg,#061622,#0a1028 54%,#260b31);
+  border-color:#dfff2e;
+  border-right-color:#f4ebff;
+  box-shadow:
+    inset 0 1px 0 #eafaff6e,
+    inset 0 -1px 0 #010817,
+    0 0 12px #caff11b5,
+    0 0 6px #f333f643;
+}
+/* More visible wreaths but never full-width or above the metric values. */
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::before,
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::after {
+  width:clamp(19px,6.5vw,26px);
+  height:clamp(34px,12vw,43px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::before {
+  left:clamp(1px,.5vw,4px);
+}
+.runnit-competition.runnit-legends .arena-rivals .arena-self-strip::after {
+  right:clamp(1px,.5vw,4px);
+}
+/* The physical reference's twin slashes and sharper board are part of SVG
+   art; keep React Link (including keyboard focus) and dynamic labels. */
+.runnit-competition.runnit-legends .arena-rematch {
+  width:85%;
+  height:clamp(30px,4.4dvh,36px);
+  bottom:3px;
+}
+/* VS retains current live score positioning; refined paint flecks live in SVG. */
+.runnit-competition.runnit-legends .arena-versus strong {
+  background-image:url('/runnit-legends-vs-refined.svg');
+}

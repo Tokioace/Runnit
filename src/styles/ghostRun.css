@@ -1,0 +1,71 @@
+.runnit-ghost-page{min-height:100dvh;overflow-x:hidden;color:#f7fdff;background:
+ radial-gradient(ellipse at 20% 7%,#196d9a85,transparent 43%),
+ radial-gradient(ellipse at 93% 90%,#9b1ebd70,transparent 40%),
+ linear-gradient(145deg,#051c42,#071333 52%,#080e27 100%);
+ padding:calc(17px + env(safe-area-inset-top,0px)) 15px calc(38px + env(safe-area-inset-bottom,0px))}
+.runnit-ghost-wrap{max-width:560px;margin:0 auto;display:grid;gap:19px}
+.runnit-ghost-top{display:flex;align-items:center;justify-content:space-between;gap:12px;
+ color:#65ecff;letter-spacing:.13em;font-size:10px;font-style:italic;font-weight:950}
+.runnit-ghost-back{display:grid;place-items:center;flex-shrink:0;width:44px;height:44px;
+ background:linear-gradient(130deg,#154879,#081d42);border:2px solid #55ddff;border-radius:14px 5px;box-shadow:0 0 14px #05b8f76b;color:white}
+.runnit-ghost-beta{border:1px solid #bbff36;border-radius:6px 13px 6px 13px;padding:6px 8px;color:#d8ff44}
+.runnit-ghost-hero{text-align:center;margin:12px 0 7px}
+.runnit-ghost-hero p{font-size:11px;letter-spacing:.25em;font-weight:950;color:#b5ff38;font-style:italic}
+.runnit-ghost-hero h1{margin:11px auto;font-size:clamp(42px,13vw,66px);line-height:.91;font-weight:1000;
+ letter-spacing:-.065em;font-style:italic;text-shadow:3px 5px 0 #112866,0 0 26px #41eafa9e}
+.runnit-ghost-hero>span{font-size:11px;color:#a6e8fa;letter-spacing:.15em;font-weight:900}
+.runnit-ghost-card{display:grid;gap:16px;padding:20px 16px 19px;
+ background:linear-gradient(140deg,rgba(23,76,125,.94),rgba(15,25,70,.96) 76%,rgba(55,20,88,.95));
+ border:2px solid #61eafd;border-bottom-color:#fc44d7;border-radius:28px 8px 28px 8px;
+ box-shadow:0 0 28px #2dd5fb50,inset 0 2px #c5f7ff85}
+.runnit-ghost-card h2{font-size:18px;letter-spacing:.04em;font-weight:1000;font-style:italic}
+.runnit-ghost-card p{line-height:1.5}
+.runnit-ghost-kicker{font-size:11px;font-weight:1000;letter-spacing:.19em;font-style:italic;color:#84f5ff}
+.runnit-ghost-targets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.runnit-ghost-targets button{display:flex;justify-content:center;align-items:baseline;gap:3px;
+ min-height:69px;border-radius:15px 5px 15px 5px;border:1.5px solid #7adcf6;
+ background:linear-gradient(#194b8b,#131f52);color:white;font-style:italic;
+ font-weight:1000;font-size:29px;box-shadow:inset 0 2px #bfefff75}
+.runnit-ghost-targets button.selected{background:linear-gradient(145deg,#efff60,#adff1a);
+ color:#12213a;border-color:#f8ffa7;box-shadow:0 0 16px #d6ff379e}
+.runnit-ghost-targets button small{font-size:12px;font-weight:1000}
+.runnit-ghost-targets button:disabled{opacity:.6}
+.runnit-ghost-metric{display:flex;align-items:center;justify-content:space-between;gap:12px;
+ padding:12px 4px;border-bottom:1px solid #a3edff3f;font-weight:800;font-size:12px}
+.runnit-ghost-metric strong{color:#cbff36;font-size:17px;font-weight:1000;white-space:nowrap}
+.runnit-ghost-small{font-size:11px;color:#e0edfcce;line-height:1.6}
+.runnit-ghost-optin{display:flex;align-items:flex-start;gap:9px;font-size:12px;line-height:1.5;color:#e1faff}
+.runnit-ghost-optin input{width:18px;height:18px;flex-shrink:0;accent-color:#c6ff25}
+.runnit-ghost-timer{text-align:center;color:#d6ff29;font-size:clamp(65px,20vw,103px);font-variant-numeric:tabular-nums;
+ letter-spacing:-.08em;line-height:1.0;font-style:italic;font-weight:1000;text-shadow:0 0 24px #b9ff478c}
+.runnit-ghost-timer small{font-size:.36em;letter-spacing:0;margin-left:5px}
+.runnit-ghost-distance{text-align:center;color:#effcff;font-size:clamp(26px,9vw,42px);font-weight:1000;font-style:italic}
+.runnit-ghost-distance span{color:#dbff32}
+.runnit-ghost-progress{height:15px;border:1px solid #67e8ff;background:#081936;border-radius:25px;overflow:hidden}
+.runnit-ghost-progress>span{display:block;height:100%;border-radius:inherit;
+ background:linear-gradient(90deg,#35ebf9,#ff49df,#dcff26);box-shadow:0 0 19px #baff45;
+ transition:width .15s linear}
+.runnit-ghost-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.runnit-ghost-grid>div{display:grid;gap:5px;padding:13px 8px;background:#0c254d;
+ border:1px solid #63dbf5;border-radius:13px 4px 13px 4px}
+.runnit-ghost-grid svg{color:#6feaff}
+.runnit-ghost-grid strong{font-size:29px;color:#d8ff35;font-weight:1000;font-variant-numeric:tabular-nums}
+.runnit-ghost-grid small{font-size:10px;color:#e7f7ff;letter-spacing:.08em;font-weight:900}
+.runnit-ghost-secondary{display:block;min-height:44px;padding:11px 12px;border:1px solid #81eafa;
+ border-radius:8px 15px;text-align:center;font-size:12px;font-weight:1000;letter-spacing:.06em;
+ background:#153359;color:#e5fbff}
+.runnit-ghost-status{text-align:center;color:#d4f4ff;font-size:12px;line-height:1.6;font-weight:800}
+.runnit-ghost-disclaimer{display:flex;gap:8px;color:#ffe0ac;font-size:11px;line-height:1.65}
+.runnit-ghost-alert{color:#ffc7d5;background:#5b154b7d;padding:10px;border-radius:7px}
+.runnit-ghost-page button:focus-visible,.runnit-ghost-page a:focus-visible{outline:3px solid #fff;outline-offset:3px}
+@media(prefers-reduced-motion:reduce){.runnit-ghost-page *{animation:none!important;transition:none!important}}
+
+/* Small iPhone portrait: intrinsic button text must not push the card outside viewport. */
+.runnit-ghost-page,.runnit-ghost-wrap,.runnit-ghost-card{box-sizing:border-box;min-width:0;max-width:100%}
+.runnit-ghost-targets{min-width:0;width:100%;gap:clamp(5px,1.7vw,8px)}
+.runnit-ghost-targets button{min-width:0;width:100%;box-sizing:border-box;white-space:nowrap;gap:2px;font-size:clamp(20px,7vw,29px)}
+.runnit-ghost-targets button small{font-size:clamp(10px,3vw,12px)}
+.runnit-ghost-top{min-width:0;gap:clamp(5px,2vw,12px)}
+.runnit-ghost-top>span:nth-child(2){min-width:0;flex:1;text-align:center;letter-spacing:.07em;white-space:nowrap;font-size:clamp(8px,2.4vw,10px)}
+.runnit-ghost-beta{flex-shrink:0;padding:6px 5px;font-size:clamp(8px,2.3vw,10px);letter-spacing:.02em}
+.runnit-ghost-hero h1{font-size:clamp(37px,11vw,66px);overflow-wrap:normal;white-space:nowrap}

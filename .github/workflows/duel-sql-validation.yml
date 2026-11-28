@@ -1,0 +1,124 @@
+name: Isolated duel SQL validation
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main, 'fix/duel-release-integration-20261125']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres:
+    name: PostgreSQL duel guard execution
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local-ci-only
+          POSTGRES_DB: runnit_test
+        options: >-
+          --health-cmd "pg_isready -U postgres -d runnit_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Execute isolated SQL fixture
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker cp db/release-candidates/duel_result_guard.sql "$DB_CONTAINER:/tmp/duel_result_guard.sql"
+          docker cp db/release-candidates/beta_ranking_guard.sql "$DB_CONTAINER:/tmp/beta_ranking_guard.sql"
+          docker cp db/release-candidates/test_duel_result_guard.sql "$DB_CONTAINER:/tmp/test_duel_result_guard.sql"
+          docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_test -v ON_ERROR_STOP=1 -f /tmp/test_duel_result_guard.sql
+      - name: Execute full duel lifecycle and concurrent finishes
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker cp supabase/migrations/202611100001_guard_duel_cancellation.sql "$DB_CONTAINER:/tmp/cancellation.sql"
+          docker cp supabase/migrations/20261116_003_arcade_ready_ten_second_start.sql "$DB_CONTAINER:/tmp/ready.sql"
+          docker cp supabase/migrations/20261116_004_abort_matched_duel.sql "$DB_CONTAINER:/tmp/abort.sql"
+          docker cp db/release-candidates/duel_integration_setup.sql "$DB_CONTAINER:/tmp/duel_integration_setup.sql"
+          bash db/release-candidates/test_duel_integration.sh "$DB_CONTAINER"
+      - name: Verify account deletion request permissions
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker cp db/release-candidates/account_deletion_requests.sql "$DB_CONTAINER:/tmp/account_deletion_requests.sql"
+          docker cp db/release-candidates/test_account_deletion_requests.sql "$DB_CONTAINER:/tmp/test_account_deletion_requests.sql"
+          docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_test -v ON_ERROR_STOP=1 -f /tmp/test_account_deletion_requests.sql
+      - name: Verify account erasure FK and shared-race safety
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker cp db/release-candidates/account_erasure_guard.sql "$DB_CONTAINER:/tmp/account_erasure_guard.sql"
+          docker cp db/release-candidates/shared_duel_erasure.sql "$DB_CONTAINER:/tmp/shared_duel_erasure.sql"
+          docker cp db/release-candidates/test_account_erasure_guard.sql "$DB_CONTAINER:/tmp/test_account_erasure_guard.sql"
+          docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_test -v ON_ERROR_STOP=1 -f /tmp/test_account_erasure_guard.sql
+      - name: Verify revoked and mismatched session access
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker cp db/release-candidates/session_access_guard.sql "$DB_CONTAINER:/tmp/session_access_guard.sql"
+          docker cp db/release-candidates/test_session_access_guard.sql "$DB_CONTAINER:/tmp/test_session_access_guard.sql"
+          docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_test -v ON_ERROR_STOP=1 -f /tmp/test_session_access_guard.sql
+
+  full-schema:
+    name: Fresh schema and combined release candidates
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local-ci-only
+          POSTGRES_DB: runnit_schema_test
+        options: >-
+          --health-cmd "pg_isready -U postgres -d runnit_schema_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Replay repository schema and staged candidates in disposable PostGIS
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker cp supabase "$DB_CONTAINER:/tmp/supabase"
+          docker cp db "$DB_CONTAINER:/tmp/db"
+          # Generate a psql capture wrapper from the exact read-only SQL.
+          python3 - <<'PY'
+          from pathlib import Path
+          query = Path("db/release-candidates/release_preflight.sql").read_text().rstrip()
+          assert query.endswith(";")
+          Path("/tmp/runnit-preflight-ci.sql").write_text(query[:-1] + " " + chr(92) + "gset preflight_\n")
+          PY
+          docker cp /tmp/runnit-preflight-ci.sql "$DB_CONTAINER:/tmp/db/release-candidates/release_preflight_ci.sql"
+          python3 scripts/build-release-rehearsal.py --output "$RUNNER_TEMP/release_bundle"
+          python3 scripts/test_release_rehearsal.py
+          python3 scripts/build-release-rehearsal.py --verify "$RUNNER_TEMP/release_bundle"
+          docker cp "$RUNNER_TEMP/release_bundle" "$DB_CONTAINER:/tmp/db/release-candidates/release_bundle"
+          docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_schema_test -v ON_ERROR_STOP=1 -f /tmp/db/release-candidates/test_fresh_schema.sql
+      - name: Complete actual-schema race and rehearse account erasure
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_schema_test -v ON_ERROR_STOP=1 -f /tmp/db/release-candidates/test_fresh_schema_finish.sql
+      - name: Verify stale duel cleanup boundaries and privileges
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          python3 scripts/extract-stale-duel-cleanup.py db/one_active_event_60min_cron.sql > "$RUNNER_TEMP/runnit-cleanup-function.sql"
+          docker cp "$RUNNER_TEMP/runnit-cleanup-function.sql" "$DB_CONTAINER:/tmp/runnit-cleanup-function.sql"
+          docker exec "$DB_CONTAINER" psql -X -U postgres -d runnit_schema_test -v ON_ERROR_STOP=1 -f /tmp/db/release-candidates/test_stale_duel_cleanup.sql
+      - name: Archive reviewed disposable release bundle
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: runnit-db-rehearsal-bundle
+          path: ${{ runner.temp }}/release_bundle/
+          retention-days: 7
+          if-no-files-found: error

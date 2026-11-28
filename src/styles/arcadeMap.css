@@ -1,0 +1,583 @@
+/* RUNNIT neon street map over real Leaflet/OSM. Artwork is decorative only. */
+.runnit-map-arcade{isolation:isolate;background:#080e2d}
+.runnit-map-arcade .leaflet-tile-pane{filter:invert(.9) hue-rotate(172deg) brightness(.63) contrast(1.36) saturate(.9)}
+.runnit-map-arcade .leaflet-container{background:#08132a}
+.runnit-map-arcade::after{content:"";pointer-events:none;position:absolute;inset:0;z-index:400;background:linear-gradient(180deg,rgba(9,10,38,.06),transparent 27%,transparent 58%,rgba(4,7,28,.10) 100%)}
+.runnit-map-arcade .leaflet-control-attribution{background:rgba(3,10,29,.93)!important;color:#d9f5ff!important;box-shadow:0 0 5px rgba(0,0,0,.5)}
+.runnit-map-arcade .leaflet-bottom.leaflet-right{bottom:calc(5.8rem + env(safe-area-inset-bottom,0px));z-index:650}
+.runnit-map-arcade .leaflet-popup-content-wrapper,.runnit-map-arcade .leaflet-popup-tip{background:#071331;border:1px solid #59ecff;box-shadow:0 0 21px rgba(40,235,255,.4);color:#f9ffff}
+.runnit-map-arcade .leaflet-marker-icon.openrun-badge > div > div:last-child{border-radius:11px 3px 11px 3px!important;box-shadow:inset 0 1px rgba(255,255,255,.75),0 0 0 2px #00e5ff,0 0 17px #f526d8!important;transform:rotate(-9deg);border:1px solid #bcfff9}
+.runnit-map-arcade .leaflet-marker-icon.user-badge > div > div:last-child{box-shadow:0 0 0 3px #d7ffff,0 0 0 8px rgba(43,232,255,.2),0 0 18px #27d7ff!important}
+.runnit-map-arcade .runnit-arcade-map-radar{filter:drop-shadow(0 0 8px rgba(12,225,255,.8))}
+.runnit-arcade-map-header{pointer-events:auto;position:absolute;z-index:970;left:10px;right:10px;top:calc(7px + env(safe-area-inset-top,0px));color:#fff}
+.runnit-arcade-map-heading{display:flex;align-items:center;gap:8px;min-height:54px;position:relative}
+.runnit-arcade-map-back{flex:none;display:grid;place-items:center;width:43px;height:43px;color:white;border:1px solid #72edff;border-radius:13px 4px;background:linear-gradient(145deg,#244f89,#0c1637);box-shadow:inset 0 2px rgba(249,255,255,.7),0 0 10px rgba(34,235,255,.43)}
+.runnit-arcade-map-back svg{width:23px;height:23px}
+.runnit-arcade-map-heading-copy{min-width:0;flex:1;text-align:center;text-shadow:0 2px 9px #00082b}
+.runnit-arcade-map-heading-copy>span{font-size:8px;font-weight:950;font-style:italic;letter-spacing:.18em;color:#58edff}
+.runnit-arcade-map-heading-copy h1{font-size:clamp(15px,4.6vw,24px);line-height:1;font-style:italic;font-weight:1000;letter-spacing:-.055em;white-space:nowrap;color:#fff;text-shadow:1px 2px #24246f,0 0 12px #2faffd}
+.runnit-arcade-map-heading-copy p{font-size:9px;font-weight:800;color:#c6e7ff;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.runnit-arcade-map-title-mark{display:grid;place-items:center;flex:none;width:33px;height:36px;font-size:29px;font-weight:1000;font-style:italic;color:#19efff;transform:skew(-12deg);text-shadow:0 0 9px #09e7ff}
+.runnit-arcade-map-switch{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px auto 0;width:min(95%,385px);padding:4px;border:1px solid #78b8ef;border-radius:14px 4px;background:linear-gradient(145deg,#0b1637,#040a23);box-shadow:0 0 12px rgba(15,183,251,.32)}
+.runnit-arcade-map-switch button{min-height:42px;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid rgba(112,203,247,.35);border-radius:10px 3px;color:#edf8ff;font-style:italic;font-weight:1000;font-size:13px;background:linear-gradient(130deg,#121c46,#090e2d)}
+.runnit-arcade-map-switch button.is-active{background:linear-gradient(125deg,#e9ff5d,#bdff00 40%,#569800);border:1px solid #f6ff94;color:#0b1f2d;box-shadow:inset 0 1px #fbffd3,0 0 13px rgba(194,255,0,.7)}
+.runnit-arcade-map-switch button svg{width:15px;height:15px}
+.runnit-arcade-map-list{pointer-events:auto;position:absolute;z-index:930;inset-inline:10px;top:calc(123px + env(safe-area-inset-top,0px));bottom:calc(84px + env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;border:1px solid #53eaff;border-radius:18px 5px;padding:11px 10px;background:linear-gradient(160deg,rgba(12,30,65,.98),rgba(5,11,35,.96));box-shadow:inset 0 1px #c5ffff,0 0 19px rgba(28,234,255,.37)}
+.runnit-arcade-map-list-heading{display:flex;gap:6px;align-items:center;font-weight:1000;font-style:italic;letter-spacing:-.04em;font-size:clamp(13px,3.2vw,18px);margin-bottom:10px}
+.runnit-arcade-map-list-heading svg{width:18px;height:18px;color:#caff0a;flex:none}
+.runnit-arcade-map-list-heading small{margin-left:auto;font-size:10px;font-weight:750;white-space:nowrap;color:#a4d9f6}
+.runnit-arcade-map-list-hint{text-align:center;margin-block:18px;color:#b0eaff;font-size:12px}
+.runnit-arcade-map-race{display:flex;gap:9px;align-items:center;min-width:0;padding:11px 10px;color:white;border:1.5px solid #36ecff;border-bottom:2px solid #f22adb;border-radius:17px 5px 17px 5px;background:linear-gradient(130deg,rgba(44,83,161,.94),rgba(8,22,56,.99) 36%,rgba(29,16,76,.96));box-shadow:inset 0 2px rgba(235,255,255,.86),0 0 12px rgba(45,230,255,.55),0 8px 30px #020a23;overflow:hidden}
+.runnit-arcade-map-race-thumb{flex:none;display:grid;place-items:center;width:55px;height:63px;border:1px solid #28deff;border-radius:9px 3px;background:linear-gradient(150deg,rgba(8,12,47,.22),rgba(10,7,47,.6)),url('/runnit-duel-art.svg') 78% 52% / auto 100% no-repeat;box-shadow:inset 0 1px #b1faff,0 0 12px rgba(11,219,255,.37)}
+.runnit-arcade-map-race-thumb svg{height:22px;width:22px;color:white;filter:drop-shadow(0 0 5px #21f4ff)}
+.runnit-arcade-map-race-info{flex:1;min-width:0}
+.runnit-arcade-map-race-title{font-size:clamp(14px,4vw,20px);font-weight:1000;font-style:italic;line-height:1;letter-spacing:-.05em}
+.runnit-arcade-map-race-title span{color:#c6ff00}
+.runnit-arcade-map-race-info p{display:flex;align-items:center;gap:5px;font-size:clamp(9px,2.5vw,12px);line-height:1.35;color:#ecf8ff;margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.runnit-arcade-map-race-info p svg{width:13px;height:13px;flex:none}
+.runnit-arcade-demo-tag,.runnit-arcade-own-tag{display:block;margin-top:4px;font-size:9px;font-weight:1000;letter-spacing:.03em;color:#ffdc78}
+.runnit-arcade-own-tag{color:#9af7ff}
+.runnit-arcade-map-race-actions{display:flex;flex-direction:column;gap:5px;align-self:stretch;justify-content:center;flex:none}
+.runnit-arcade-map-action{display:flex;align-items:center;justify-content:center;gap:1px;min-width:92px;min-height:44px;padding:7px 6px;border:1px solid #f8ff9e;border-radius:11px 3px 11px 3px;color:#061326;background:linear-gradient(136deg,#edff6f,#caff08 53%,#65a400);box-shadow:inset 0 1px #faffcc,0 0 12px rgba(190,254,0,.6);font-size:clamp(10px,2.6vw,12px);font-weight:1000;font-style:italic}
+.runnit-arcade-map-action svg{width:14px;height:14px}
+.runnit-arcade-map-action.is-cancel{background:linear-gradient(135deg,#fa8ac4,#df397a);color:#25102d;border-color:#ffc4e8}
+.runnit-arcade-map-list .runnit-arcade-map-race{margin-bottom:9px;min-height:93px}
+.runnit-arcade-map-list .runnit-arcade-map-race-actions{gap:3px}
+.runnit-arcade-map-empty{display:flex;align-items:center;gap:10px;border-radius:12px;padding:13px;background:rgba(4,14,41,.9);color:#def8ff}
+.runnit-arcade-map-empty{flex-direction:column;text-align:center;padding:18px}
+.runnit-arcade-map-empty p{font-size:12px;line-height:1.5}
+.runnit-map-arcade .runnit-map-demo-link{left:auto;right:10px;top:calc(176px + env(safe-area-inset-top,0px));bottom:auto;inset-inline-start:auto;width:auto;max-width:190px;min-height:38px;padding:6px 10px;font-size:10px;color:#c5ebff;border:1px solid rgba(95,233,255,.45);border-radius:9px 3px;background:rgba(7,17,45,.82);box-shadow:0 0 9px rgba(15,224,255,.26)}
+.runnit-map-arcade .runnit-arcade-status,.runnit-map-arcade .runnit-arcade-demo-notice{top:calc(136px + env(safe-area-inset-top,0px))}
+.runnit-map-arcade .runnit-arcade-hosted{top:calc(155px + env(safe-area-inset-top,0px))}
+.runnit-map-arcade button:focus-visible,.runnit-arcade-map-header a:focus-visible,.runnit-arcade-map-race button:focus-visible{outline:3px solid #fff;outline-offset:3px}
+@media(max-width:360px){.runnit-arcade-map-heading-copy h1{font-size:14px}.runnit-arcade-map-heading-copy>span{font-size:7px}.runnit-arcade-map-title-mark{width:20px;font-size:22px}.runnit-arcade-map-race{gap:5px;padding:7px 6px}.runnit-arcade-map-race-thumb{width:42px;height:57px}.runnit-arcade-map-action{min-width:82px;font-size:9px;padding:5px 3px}.runnit-arcade-map-race-info p{font-size:9px}}
+@media(prefers-reduced-motion:reduce){.runnit-map-arcade .leaflet-marker-icon.openrun-badge span{animation:none!important}}
+
+.runnit-map-arcade .runnit-arcade-alert {top:calc(140px + env(safe-area-inset-top,0px))}
+.runnit-map-arcade .runnit-arcade-gps-prompt {bottom:auto;top:calc(178px + env(safe-area-inset-top,0px))}
+.runnit-map-arcade .runnit-arcade-race-notice {bottom:auto;top:calc(190px + env(safe-area-inset-top,0px))}
+
+/* iPhone visual acceptance: map preview is the sole event detail surface.
+   The old Leaflet popup and oversized independent demo tiles were removed. */
+.runnit-arcade-map-lab-link{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  margin:0 0 12px;min-height:44px;padding:8px 10px;
+  border:1px solid #5dc9eb;border-radius:10px 3px;
+  background:rgba(20,33,76,.85);color:#cef7ff;
+  font-size:11px;font-weight:850;
+}
+.runnit-arcade-map-lab-link svg{height:14px;width:14px}
+.runnit-map-arcade .runnit-arcade-status{
+  top:calc(207px + env(safe-area-inset-top,0px));
+  left:10px;right:auto;width:auto;max-width:calc(100% - 20px);
+  transform:none;font-size:11px;
+}
+.runnit-map-arcade .runnit-arcade-alert{
+  top:calc(208px + env(safe-area-inset-top,0px));
+  max-height:36dvh;overflow-y:auto;
+}
+.runnit-map-arcade .runnit-arcade-hosted{
+  top:calc(211px + env(safe-area-inset-top,0px));
+  max-height:26dvh;
+}
+.runnit-map-arcade .runnit-arcade-gps-prompt{
+  top:calc(212px + env(safe-area-inset-top,0px));
+}
+@media(max-width:360px){
+ .runnit-arcade-map-race-info p{font-size:8px}
+}
+
+/* Clean map surface: all interactive run actions live inside LISTE, never over
+   the map itself. One source of truth for pins and cards; bottom dock intact. */
+.runnit-arcade-map-host-action{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:7px;
+  min-height:48px;margin:0 0 9px;padding:9px 12px;
+  border:1px solid #e2ff88;border-radius:12px 3px 12px 3px;
+  color:#0b1d2a;background:linear-gradient(145deg,#e8ff68,#baff00 55%,#70ab09);
+  box-shadow:inset 0 2px rgba(255,255,255,.72),0 0 12px rgba(192,255,0,.42);
+  font-size:12px;font-style:italic;font-weight:1000;
+}
+.runnit-arcade-map-host-action svg{width:16px;height:16px}
+.runnit-arcade-map-list .runnit-arcade-map-race.is-selected{
+  border-color:#d4ff36;
+  box-shadow:inset 0 1px #fff,0 0 14px rgba(195,255,0,.42);
+}
+
+
+/* An event-pin tap opens one anchored, short-lived Leaflet popup.
+   The full search-radius listing remains a different view behind LISTE.
+   Only popup surfaces receive these rules; no persistent lower map cards. */
+.runnit-map-arcade .leaflet-popup.runnit-arcade-marker-popup {
+  max-width:calc(100vw - 28px);
+}
+.runnit-map-arcade .leaflet-popup.runnit-arcade-marker-popup .leaflet-popup-content-wrapper {
+  max-width:calc(100vw - 28px);
+  padding:5px;
+  border:1px solid #5eefff;
+  border-radius:14px 4px 14px 4px;
+  background:linear-gradient(145deg,#101b46,#080e2f);
+  box-shadow:0 0 15px rgba(23,227,255,.55),0 10px 30px rgba(1,4,19,.75);
+}
+.runnit-map-arcade .leaflet-popup.runnit-arcade-marker-popup .leaflet-popup-content {
+  width:min(270px,calc(100vw - 64px))!important;
+  max-width:100%;
+  margin:0;
+}
+.runnit-map-arcade .leaflet-popup.runnit-arcade-marker-popup .leaflet-popup-tip {
+  border:1px solid #5eefff;
+  background:#111a47;
+}
+.runnit-map-arcade .leaflet-popup.runnit-arcade-marker-popup .leaflet-popup-close-button {
+  top:8px;right:8px;z-index:5;
+  display:grid;place-items:center;
+  width:26px;height:26px;line-height:1;
+  border-radius:6px;color:#fff;
+  background:rgba(8,21,56,.88);
+  text-shadow:0 0 8px #59eaff;
+}
+.runnit-map-arcade .leaflet-popup.runnit-arcade-marker-popup .runnit-arcade-map-race.is-popup-card {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  padding:9px 8px 7px;
+  border:0;
+  border-radius:8px 3px 8px 3px;
+  box-shadow:none;
+  background:linear-gradient(140deg,rgba(41,86,159,.8),rgba(8,17,48,.92));
+}
+.runnit-map-arcade .is-popup-card .runnit-arcade-map-race-thumb {
+  width:36px;height:40px;
+}
+.runnit-map-arcade .is-popup-card .runnit-arcade-map-race-info {
+  min-width:calc(100% - 48px);
+  padding-right:12px;
+}
+.runnit-map-arcade .is-popup-card .runnit-arcade-map-race-title {
+  font-size:16px;
+}
+.runnit-map-arcade .is-popup-card .runnit-arcade-map-race-info p {
+  font-size:10px;
+  margin-top:3px;
+}
+.runnit-map-arcade .is-popup-card .runnit-arcade-map-race-actions {
+  width:100%;
+}
+.runnit-map-arcade .is-popup-card .runnit-arcade-map-action {
+  width:100%;
+  min-height:40px;
+  font-size:12px;
+  padding:6px 10px;
+}
+.runnit-map-arcade .is-popup-card .runnit-arcade-demo-tag,
+.runnit-map-arcade .is-popup-card .runnit-arcade-own-tag {
+  font-size:8px;
+  margin-top:2px;
+}
+
+/* Persistent hosted-races panel and obsolete list-host CTA are removed; own races use their lime pin. */
+
+/* Unobtrusive status: never insert/remove rows during auto-refresh. */
+.runnit-arcade-live-dot {
+  display:inline-flex;align-items:center;gap:4px;margin-right:8px;
+  font-size:9px;font-weight:900;letter-spacing:.09em;color:#d0f7ff;
+}
+.runnit-arcade-live-dot::before {
+  content:"";height:6px;width:6px;flex:none;border-radius:50%;
+  background:#ff4e63;box-shadow:0 0 7px rgba(255,78,99,.65);
+}
+.runnit-arcade-map-list{overflow-anchor:none;-webkit-overflow-scrolling:touch;}
+.runnit-community-map-legend{
+  pointer-events:none;position:absolute;left:12px;
+  bottom:calc(91px + env(safe-area-inset-bottom,0px));z-index:900;
+  max-width:calc(100% - 95px);display:flex;align-items:center;gap:6px;
+  padding:7px 10px;border:1px solid rgba(66,229,255,.48);
+  border-radius:9px 3px;background:rgba(6,18,47,.88);
+  color:#e1f8ff;font-size:10px;font-weight:900;letter-spacing:.035em;
+  box-shadow:0 0 12px rgba(20,219,255,.22);
+}
+.runnit-community-map-signal{
+  width:7px;height:7px;flex:none;border-radius:50%;
+  background:#f14d66;box-shadow:0 0 8px #f14d66;
+}
+
+
+/* CHALLENGE CREATOR — EA BIG/Y2K-inspired, purposeful single-choice sprint HUD.
+   Keep the card comfortably inside the iPhone safe areas, without a tall form. */
+.runnit-host-setup-backdrop{
+  position:fixed;inset:0;z-index:1200;
+  display:grid;place-items:center;
+  padding:max(16px,env(safe-area-inset-top,0px)) 16px
+    max(20px,env(safe-area-inset-bottom,0px));
+  background:radial-gradient(circle at 50% 70%,rgba(29,94,138,.18),rgba(3,8,27,.82) 65%);
+  backdrop-filter:blur(6px);
+}
+.runnit-host-setup-panel{
+  position:relative;isolation:isolate;
+  width:min(100%,390px);max-height:min(86dvh,640px);
+  overflow-y:auto;overscroll-behavior:contain;
+  padding:16px 17px 13px;
+  border:1px solid #5ceaff;border-bottom:3px solid #ccff24;
+  border-radius:19px 5px 19px 5px;
+  color:#fff;
+  background:
+    linear-gradient(145deg,rgba(37,111,158,.46),transparent 27%),
+    repeating-linear-gradient(135deg,transparent 0 17px,rgba(70,202,242,.025) 18px,transparent 20px),
+    linear-gradient(158deg,#162f66,#0d1b44 55%,#171138);
+  box-shadow:inset 0 1px #d4fbff,0 0 26px #25ddff61,0 25px 90px #000e;
+}
+.runnit-host-setup-panel::before{
+  content:"";position:absolute;pointer-events:none;
+  top:0;left:0;right:0;height:5px;
+  background:linear-gradient(90deg,#48dfff,#bfff1e,#41ceff 80%,transparent);
+}
+.runnit-host-setup-top{position:relative;padding-right:38px;}
+.runnit-host-setup-eyebrow{
+  color:#7feaff;font-size:9px;font-weight:950;font-style:italic;
+  letter-spacing:.18em;
+}
+.runnit-host-setup-top h2{
+  margin:7px 0 0;font-size:clamp(29px,8vw,38px);
+  font-style:italic;font-weight:1000;line-height:.96;
+  letter-spacing:-.06em;text-shadow:1px 2px #23276c,0 0 12px #44baff;
+}
+.runnit-host-setup-top h2 span{color:#c7ff23;text-shadow:0 0 9px #b6ff2670;}
+.runnit-host-setup-top p{
+  margin-top:5px;color:#b9d6fa;font-size:10px;font-weight:900;
+  letter-spacing:.12em;
+}
+.runnit-host-setup-close{
+  position:absolute;right:0;top:0;
+  width:35px;height:35px;border-radius:10px 3px;
+  color:#ebf9ff;background:#11244d;border:1px solid #80cfff;
+  font-size:19px;font-weight:800;box-shadow:0 0 8px #21cfff55;
+}
+.runnit-host-setup-location{
+  display:flex;align-items:center;gap:7px;
+  min-height:36px;margin:16px 0;
+  padding:8px 10px;border:1px solid #8dff6260;
+  border-radius:8px 2px;background:#19395c;
+  color:#d8ffb1;font-size:9px;font-weight:1000;
+  letter-spacing:.03em;white-space:nowrap;
+}
+.runnit-host-setup-location span:last-child{color:#a9e7fb;}
+.runnit-host-setup-beacon{
+  display:block;flex:none;width:8px;height:8px;border-radius:50%;
+  background:#c5ff24;box-shadow:0 0 0 3px #b3ff2530,0 0 8px #c8ff28;
+  animation:runnit-host-beacon 1.5s ease-in-out infinite;
+}
+@keyframes runnit-host-beacon{50%{box-shadow:0 0 0 6px #b3ff250b,0 0 12px #c8ff28}}
+.runnit-host-setup-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.runnit-host-setup-heading label{
+  font-size:12px;font-weight:1000;letter-spacing:.06em;font-style:italic;
+  color:#f1f9ff;
+}
+.runnit-host-setup-heading small{
+  font-size:9px;font-weight:900;letter-spacing:.1em;color:#71dff8;
+}
+.runnit-host-setup-distances{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;margin:9px 0 10px;
+}
+.runnit-host-setup-distances button{
+  display:flex;align-items:baseline;justify-content:center;gap:3px;
+  min-height:66px;border:1px solid #5f9bbf;
+  border-radius:11px 3px 11px 3px;
+  background:linear-gradient(155deg,#203a71,#0e1b44 75%);
+  box-shadow:inset 0 1px #80c9e566;color:#bce9ff;
+  transform:skew(-3deg);transition:background .15s,box-shadow .15s;
+}
+.runnit-host-setup-distances button strong{
+  font-size:29px;font-weight:1000;font-style:italic;
+  letter-spacing:-.07em;line-height:1;
+}
+.runnit-host-setup-distances button span{font-size:12px;font-weight:1000;font-style:italic;}
+.runnit-host-setup-distances button.is-selected{
+  background:linear-gradient(140deg,#efff84,#c3ff15 60%,#7fbd0b);
+  border-color:#f7ffc0;color:#112738;
+  box-shadow:inset 0 1px #fff,0 0 13px #b4ff2699;
+}
+.runnit-host-setup-note{margin:10px 0 16px;color:#c8ddfa;font-size:10px;line-height:1.55;font-weight:650;}
+.runnit-host-setup-error{
+  border:1px solid #ff99aa79;background:#591b40;
+  color:#ffe1e9;padding:9px;margin-bottom:9px;border-radius:8px;font-size:11px;
+}
+.runnit-host-setup-create{
+  width:100%;min-height:52px;
+  border:1px solid #f3ff9e;border-radius:12px 3px 12px 3px;
+  background:linear-gradient(128deg,#e8ff7f,#c0ff0d 55%,#6ea50d);
+  box-shadow:inset 0 2px #fffbc6,0 0 18px #b7ff239c;
+  color:#0c2533;font-size:clamp(13px,3.5vw,16px);
+  font-style:italic;font-weight:1000;letter-spacing:-.02em;
+}
+.runnit-host-setup-bottom{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  margin-top:12px;
+}
+.runnit-host-setup-bottom button{
+  padding:8px 2px;min-height:40px;color:#a8cee3;
+  font-size:10px;font-weight:950;font-style:italic;letter-spacing:.04em;
+}
+.runnit-host-setup-bottom button:last-child{color:#64e5ff}
+.runnit-host-setup-panel button:disabled{opacity:.6;cursor:progress}
+.runnit-host-setup-panel button:focus-visible{outline:3px solid #fff;outline-offset:3px}
+@media(max-width:350px){
+  .runnit-host-setup-panel{padding:13px 12px 11px}
+  .runnit-host-setup-location{font-size:8px}
+  .runnit-host-setup-distances button strong{font-size:25px}
+}
+/* Compact, unobtrusive world-signal readout. */
+.runnit-community-map-legend{
+  width:max-content;max-width:calc(100% - 110px);
+  padding:6px 9px;font-size:10px;line-height:1.3;letter-spacing:.045em;
+  border-radius:9px 2px;border-color:#44dbf76e;
+  box-shadow:inset 0 1px #6cb1f642,0 0 10px #38dcff30;
+  background:linear-gradient(140deg,rgba(8,30,65,.95),rgba(10,13,42,.9));
+}
+@media(prefers-reduced-motion:reduce){
+  .runnit-host-setup-beacon{animation:none}
+  .runnit-host-setup-distances button{transition:none}
+}
+
+
+/* Cancel confirmation uses the same Runnit arcade geometry as race creation.
+   Destructive action remains explicit, server-verified and reversible until sent. */
+.runnit-cancel-overlay{
+  position:fixed;inset:0;z-index:1450;
+  display:grid;place-items:center;
+  padding:max(15px,env(safe-area-inset-top,0px)) 16px
+    max(18px,env(safe-area-inset-bottom,0px));
+  background:radial-gradient(circle at 50% 60%,rgba(51,42,84,.21),rgba(2,7,25,.9) 70%);
+  backdrop-filter:blur(7px);
+}
+.runnit-cancel-panel{
+  position:relative;isolation:isolate;
+  width:min(100%,355px);max-height:85dvh;overflow-y:auto;
+  color:#f5ffff;padding:18px 17px 14px;
+  border:1px solid #77d9ff;border-bottom:3px solid #ff569d;
+  border-radius:17px 4px 17px 4px;
+  background:linear-gradient(145deg,#203d72,#101a43 55%,#1d1436);
+  box-shadow:inset 0 1px #caeeff,0 0 22px #40d1ff42,0 18px 60px #000d;
+}
+.runnit-cancel-panel::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:4px;
+  background:linear-gradient(90deg,#58e6ff,#f34d9f 65%,transparent);
+}
+.runnit-cancel-header{position:relative;padding-right:38px}
+.runnit-cancel-header>span:first-child{
+  font:italic 900 9px/1.4 system-ui,sans-serif;letter-spacing:.17em;color:#80e6ff;
+}
+.runnit-cancel-header h2{
+  font-size:clamp(21px,6vw,27px);line-height:1.06;
+  font-weight:1000;font-style:italic;letter-spacing:-.045em;
+  text-transform:uppercase;margin:11px 0 13px;
+  text-shadow:0 0 8px #3ecdfb6a;
+}
+.runnit-cancel-header h2 em{font-style:italic;color:#ff93cb}
+.runnit-cancel-warning{
+  position:absolute;right:0;top:0;
+  display:grid;place-items:center;width:31px;height:31px;
+  border:1px solid #ff8ec5;border-radius:8px 2px;
+  background:#491e52;color:#ff98ca;font-size:21px;font-weight:1000;
+}
+.runnit-cancel-run-info{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
+  gap:6px;background:#173b5d;border:1px solid #4ddcfb62;
+  border-radius:8px 2px;padding:9px 10px;margin-bottom:12px;
+}
+.runnit-cancel-run-info strong{color:#e4f7ff;font-size:12px;font-weight:1000;font-style:italic}
+.runnit-cancel-run-info span{color:#c5ff61;font-size:9px;font-weight:1000;letter-spacing:.07em}
+.runnit-cancel-explainer{font-size:11px;line-height:1.55;color:#c1d8e9;margin-bottom:14px}
+.runnit-cancel-error{color:#ffe9f0;background:#6b2546;border:1px solid #ff779c80;
+  border-radius:8px;padding:9px;font-size:11px;margin-bottom:10px}
+.runnit-cancel-confirm{
+  width:100%;min-height:47px;border-radius:10px 3px 10px 3px;
+  border:1px solid #ffc2db;background:linear-gradient(125deg,#ff98cd,#ee4d97 60%,#c82d74);
+  color:#24122c;font-size:13px;font-weight:1000;font-style:italic;
+  box-shadow:inset 0 1px #ffe8f6,0 0 14px #f35aa066;
+}
+.runnit-cancel-keep{
+  display:block;min-height:42px;width:100%;margin-top:8px;
+  color:#baf0ff;background:transparent;border:1px solid #69bdd973;
+  border-radius:8px 2px;font-size:11px;font-weight:900;letter-spacing:.02em;
+}
+.runnit-cancel-panel button:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.runnit-cancel-panel button:disabled{opacity:.55}
+@media(prefers-reduced-motion:reduce){
+  .runnit-cancel-panel button{transition:none}
+}
+
+
+/* HOTSPOT LAB: a small persistent DEMO chip; the large HUD is opt-in.
+   Neither mode inserts fake activity into the real map source. */
+.runnit-hotspot-test-console{
+  pointer-events:auto;position:absolute;z-index:960;
+  left:12px;bottom:calc(154px + env(safe-area-inset-bottom,0px));
+  width:min(212px,calc(100% - 98px));
+  color:#eefbff;overflow:hidden;
+  background:linear-gradient(145deg,rgba(25,43,87,.96),rgba(11,15,47,.96));
+  border:1px solid #8f7aff;border-left:3px solid #ffd15d;
+  border-radius:11px 3px 11px 3px;
+  box-shadow:inset 0 1px #c3eaff5c,0 0 11px rgba(130,81,255,.22),0 10px 22px #02081788;
+}
+.runnit-hotspot-test-console.is-expanded{
+  width:min(320px,calc(100% - 96px));
+  max-height:min(250px,43dvh);
+  overflow-y:auto;overscroll-behavior:contain;
+}
+.runnit-hotspot-test-expander{
+  display:flex;align-items:center;justify-content:space-between;gap:5px;
+  width:100%;min-height:39px;padding:7px 9px;
+  border:0;background:transparent;color:#effcff;text-align:left;cursor:pointer;
+}
+.runnit-hotspot-test-title{
+  font:italic 900 11px/1.1 system-ui,-apple-system,sans-serif;
+  letter-spacing:.035em;white-space:nowrap;
+}
+.runnit-hotspot-test-title span{color:#ffce6e}
+.runnit-hotspot-test-toggle-icon{
+  display:grid;place-items:center;flex:none;width:23px;height:23px;
+  border:1px solid #72cee8;border-radius:6px 2px;
+  color:#c3faff;background:#112e53;font:900 17px/1 system-ui,sans-serif;
+}
+.runnit-hotspot-test-console.is-expanded .runnit-hotspot-test-expander{
+  border-bottom:1px solid #6b8fc64f;
+}
+.runnit-hotspot-test-details{padding:7px 9px 10px}
+.runnit-hotspot-test-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.runnit-hotspot-test-disclaimer{
+  flex:1;margin:0;font-size:9px;line-height:1.35;
+  font-weight:850;color:#ffe19a;letter-spacing:.02em;
+}
+.runnit-hotspot-test-power{
+  flex:none;min-width:59px;min-height:35px;padding:5px 7px;
+  color:#081d33;background:linear-gradient(115deg,#edff9d,#b4f321);
+  border:1px solid #efffb8;border-radius:7px 2px 7px 2px;
+  font:italic 950 11px/1 system-ui,sans-serif;
+}
+.runnit-hotspot-test-keys{display:flex;align-items:center;gap:4px 7px;flex-wrap:wrap;margin-top:10px}
+.runnit-hotspot-test-keys span{
+  display:inline-flex;align-items:center;gap:4px;
+  color:#eff4ff;font-size:9px;font-weight:850;white-space:nowrap;
+}
+.runnit-hotspot-test-keys i{display:inline-block;width:7px;height:7px;flex:none;border-radius:50%}
+.runnit-hotspot-test-keys .is-open{background:#f33edb;box-shadow:0 0 6px #f33edb}
+.runnit-hotspot-test-keys .is-runner{background:#9d6cfb;box-shadow:0 0 6px #9d6cfb}
+.runnit-hotspot-test-keys .is-match{background:#ffb73d;box-shadow:0 0 6px #ffb73d}
+.runnit-hotspot-test-cities{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:5px;margin-top:9px;
+}
+.runnit-hotspot-test-cities button{
+  min-height:34px;padding:5px 4px;border:1px solid #4b80aa;
+  border-radius:6px 2px 6px 2px;background:#102750;
+  color:#bde9ff;font-size:10px;line-height:1.15;font-weight:950;
+}
+.runnit-hotspot-test-cities button[aria-pressed="true"]{
+  border-color:#c1ff5e;background:#344b48;color:#e8ffbc;
+  box-shadow:inset 0 0 7px #acff1f44;
+}
+.runnit-hotspot-test-console button:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+@media(max-width:365px){
+  .runnit-hotspot-test-console{width:min(206px,calc(100% - 94px))}
+  .runnit-hotspot-test-console.is-expanded{width:calc(100% - 94px)}
+  .runnit-hotspot-test-cities button{font-size:9px}
+}
+
+
+/* 2000s chrome/acrylic sheen for the compact demo control. Map icons are
+   pre-rasterized in src/lib/mapEnergyOrb.ts (no DOM elements per marker). */
+.runnit-hotspot-test-console{
+  border-color:#a483ff;
+  background:linear-gradient(155deg,rgba(31,37,99,.96),rgba(10,16,49,.97) 74%);
+  box-shadow:inset 0 1px rgba(241,251,255,.40),inset 0 -1px rgba(110,68,255,.4),
+    0 0 16px rgba(141,65,245,.28),0 13px 25px #020817aa;
+}
+.runnit-hotspot-test-expander{position:relative;isolation:isolate;overflow:hidden}
+.runnit-hotspot-test-expander::before{
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(ellipse at 83% 110%,rgba(202,68,253,.37),transparent 55%),
+    linear-gradient(120deg,transparent 56%,rgba(56,227,255,.13) 68%,transparent 84%);
+  background-size:100% 100%,180% 100%;
+  animation:runnit-hotspot-chip-shine 7s ease-in-out infinite alternate;
+}
+.runnit-hotspot-test-expander::after{
+  content:"";position:absolute;left:10px;right:50px;bottom:4px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(251,73,243,.75),rgba(52,216,255,.65),transparent);
+  pointer-events:none;
+}
+.runnit-hotspot-test-title{
+  font:italic 950 11px/1.1 system-ui,-apple-system,sans-serif;
+  text-shadow:0 1px 0 #061025,0 0 10px rgba(104,225,255,.35);
+}
+.runnit-hotspot-test-toggle-icon{
+  box-shadow:inset 0 1px rgba(235,250,255,.29),0 0 8px rgba(42,216,255,.31);
+}
+@keyframes runnit-hotspot-chip-shine{
+  0%{background-position:0 0,100% 0}
+  100%{background-position:0 0,0 0}
+}
+@media(prefers-reduced-motion:reduce){
+  .runnit-hotspot-test-expander::before{animation:none}
+}
+
+
+/* One-open-event anti-spam HUD: compact sport-tech timer, visually separate
+   from the lower LIVE SIGNAL badge and the iPhone navigation dock. */
+.runnit-open-countdown-hud{
+  pointer-events:none;position:absolute;z-index:926;
+  left:12px;bottom:calc(149px + env(safe-area-inset-bottom,0px));
+  width:min(280px,calc(100vw - 24px));padding:9px 11px 8px;
+  border:1px solid rgba(196,255,34,.83);border-bottom:2px solid #47eeff;
+  border-radius:11px 3px 11px 3px;
+  background:linear-gradient(130deg,rgba(24,47,88,.95),rgba(6,14,46,.95));
+  box-shadow:inset 0 1px rgba(240,255,255,.47),
+    0 0 13px rgba(170,255,33,.26),0 7px 20px #0206199c;
+  color:#edf9ff;
+}
+.runnit-open-countdown-heading{
+  display:flex;align-items:center;gap:7px;
+  font:italic 950 10px/1.2 system-ui,-apple-system,sans-serif;
+  letter-spacing:.055em;
+}
+.runnit-open-countdown-heading>span:nth-child(2){flex:1;white-space:nowrap}
+.runnit-open-countdown-heading time{
+  color:#d6ff58;font-size:19px;letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;text-shadow:0 0 8px rgba(202,255,31,.4);
+}
+.runnit-open-countdown-led{
+  width:8px;height:8px;border-radius:50%;flex:none;
+  background:#d7ff42;box-shadow:0 0 8px #c9ff24;
+}
+.runnit-open-countdown-track{
+  height:3px;background:rgba(130,177,238,.26);border-radius:2px;
+  margin-top:6px;overflow:hidden;
+}
+.runnit-open-countdown-track>span{
+  display:block;height:100%;
+  background:linear-gradient(90deg,#3ce2ff,#b9ff24);
+  box-shadow:0 0 7px #acff20;transition:width 1s linear;
+}
+.runnit-open-countdown-hud.is-urgent{
+  border-color:#ffb34a;box-shadow:0 0 15px #ff8c3e59;
+}
+.runnit-open-countdown-hud.is-urgent time{color:#ffd27c}
+.runnit-open-countdown-hud.is-urgent .runnit-open-countdown-track>span{
+  background:linear-gradient(90deg,#ff4aad,#ffd35c);
+}
+.runnit-open-countdown-list{display:flex;align-items:center;gap:6px!important}
+.runnit-open-countdown-list>span{
+  font:italic 900 10px/1.2 system-ui,sans-serif;color:#9eeefb;
+}
+.runnit-open-countdown-inline{
+  font:italic 1000 12px/1 system-ui,sans-serif;color:#ceff64;
+  letter-spacing:.055em;font-variant-numeric:tabular-nums;
+  text-shadow:0 0 6px rgba(156,255,60,.42);
+}
+.runnit-open-countdown-inline.is-urgent{color:#ffcf83}
+@media(max-width:360px){
+  .runnit-open-countdown-hud{width:min(258px,calc(100vw - 24px));padding:8px}
+  .runnit-open-countdown-heading{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){
+  .runnit-open-countdown-track>span{transition:none}
+}

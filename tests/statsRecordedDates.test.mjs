@@ -1,0 +1,41 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {calculateStatsOverview} from '../src/lib/statsDashboard.ts';
+import {calculateActivityTotals,currentLocalWeekStart} from '../src/lib/runnerHistory.ts';
+const now=new Date(2026,10,19,13);
+const iso=offset=>new Date(now.getTime()+offset).toISOString();
+const race={id:'r',occurredAt:iso(-1000),distanceM:50,timeMs:15000,stepsCount:20,measuredDistanceM:51,completed:true,outcome:'won',opponentTimeMs:16000};
+const ghost={id:'g',created_at:iso(-2000),target_distance_m:50,run_state:'finished',elapsed_ms:16000,observed_distance_m:52,steps_count:21,motion_permission:'granted'};
+test('future or invalid dates cannot inflate current activity, wins or records',()=>{
+ const races=[race,{...race,id:'future',occurredAt:iso(1),timeMs:1000},{...race,id:'bad',occurredAt:'invalid',timeMs:500}];
+ const ghosts=[ghost,{...ghost,id:'future',created_at:iso(3600000)},{...ghost,id:'bad',created_at:'invalid'}];
+ const stats=calculateStatsOverview(races,ghosts,now);
+ const totals=calculateActivityTotals(races,ghosts,currentLocalWeekStart(now),now.getTime());
+ assert.equal(stats.completedDuels,1);
+ assert.equal(stats.ghostTrainings,1);
+ assert.equal(stats.wins,1);
+ assert.equal(stats.bestTimes[50],15000);
+ assert.equal(stats.weeklyMeasuredDistanceM,103);
+ assert.equal(stats.totalRecordedDistanceM,103);
+ assert.equal(stats.activeDaysThisWeek,1);
+ assert.equal(totals.completedDuels,1);
+ assert.equal(totals.recordedSessions,2);
+ assert.equal(totals.weeklySessions,2);
+ assert.equal(totals.weeklySteps,41);
+ assert.equal(totals.best50Ms,15000);
+ assert.equal(totals.weeklyDistanceM,103);
+});
+test('a record exactly at the observation time counts, but invalid race times never count',()=>{
+ const races=[{...race,occurredAt:iso(0)},{...race,id:'invalid',timeMs:0}];
+ const stats=calculateStatsOverview(races,[],now);
+ const totals=calculateActivityTotals(races,[],currentLocalWeekStart(now),now.getTime());
+ assert.equal(stats.completedDuels,1);
+ assert.equal(totals.completedDuels,1);
+});
+test('live history uses an explicit observation time while historical week queries retain their range semantics',()=>{
+ const future={...ghost,created_at:iso(1000)};
+ assert.equal(calculateActivityTotals([],[future],currentLocalWeekStart(now)).weeklySessions,1);
+ const source=readFileSync(new URL('../src/hooks/useRunnerHistory.ts',import.meta.url),'utf8');
+ assert.match(source,/calculateActivityTotals\(visibleState.races, visibleState.ghostSessions, currentLocalWeekStart\(now\), now.getTime\(\)\)/);
+});

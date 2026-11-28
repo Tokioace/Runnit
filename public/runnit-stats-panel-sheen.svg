@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 360" width="1080" height="360" preserveAspectRatio="none" aria-hidden="true">
+<defs>
+ <linearGradient id="l" x1="0" y1="0" x2=".36" y2=".9"><stop stop-color="#bdfcff" stop-opacity=".38"/><stop offset=".15" stop-color="#35e7ff" stop-opacity=".14"/><stop offset=".52" stop-color="#1d8bff" stop-opacity="0"/></linearGradient>
+ <linearGradient id="p" x1=".43" y1="0" x2="1" y2="1"><stop stop-color="#ae4aff" stop-opacity="0"/><stop offset=".56" stop-color="#c237fa" stop-opacity=".07"/><stop offset=".95" stop-color="#f21bdf" stop-opacity=".29"/><stop offset="1" stop-color="#fc28d7" stop-opacity=".55"/></linearGradient>
+ <linearGradient id="top" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#dcffff" stop-opacity=".17"/><stop offset=".23" stop-color="#7bcbfc" stop-opacity=".06"/><stop offset="1" stop-color="#07122a" stop-opacity="0"/></linearGradient>
+ <pattern id="grit" width="53" height="53" patternUnits="userSpaceOnUse" patternTransform="rotate(-26)">
+ <path d="M1 0V53M33 0V53" fill="none" stroke="#b8ecff" stroke-width=".9" stroke-opacity=".09"/>
+ <path d="M15 0V53" fill="none" stroke="#071024" stroke-width="3" stroke-opacity=".25"/>
+ </pattern>
+</defs>
+<path d="M0 0H1080V360H0Z" fill="url(#grit)" opacity=".65"/>
+<path d="M0 0H1080V360H0Z" fill="url(#top)"/>
+<path d="M0 0H1080V360H0Z" fill="url(#l)"/>
+<path d="M0 0H1080V360H0Z" fill="url(#p)"/>
+<path d="M0 0H375L0 77Z" fill="#d7ffff" opacity=".05"/>
+<path d="M570 0L788 0L305 360L252 360Z" fill="#93d9ff" opacity=".023"/>
+<path d="M1080 205L1080 360L753 360Z" fill="#c22fff" opacity=".045"/>
+<path d="M16 5H1035" stroke="#d2fbff" stroke-width="2" opacity=".12"/>
+<path d="M260 344H1000" stroke="#da4cff" stroke-width="2" opacity=".11"/>
+</svg>

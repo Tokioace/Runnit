@@ -1,35 +1,29 @@
-'use client';
-import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Map, Trophy, User } from 'lucide-react';
+import { BarChart3, Home, Map, Trophy, User } from 'lucide-react';
 
+// All screens use one five-slot dock. Keep labels, order, icons and sizing
+// stable when navigating; only the current route changes its highlighted state.
 const tabs = [
-  { href: '/', label: 'Map', icon: Map },
-  { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-  { href: '/profile', label: 'Profile', icon: User },
+  { href: '/home', label: 'Start', display: 'HOME', icon: Home },
+  { href: '/map', label: 'Karte', display: 'KARTE', icon: Map },
+  { href: '/stats', label: 'Stats', display: 'STATS', icon: BarChart3 },
+  { href: '/leaderboard', label: 'Rangliste', display: 'RANGLISTE', icon: Trophy },
+  { href: '/profile', label: 'Profil', display: 'PROFIL', icon: User },
 ];
 
 export default function BottomNav() {
   const location = useLocation();
-  
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/75 border-t border-white/5">
-      <ul className="mx-auto grid max-w-lg grid-cols-3 gap-1 p-2">
-        {tabs.map(({ href, label, icon: Icon }) => {
+    <nav aria-label="Hauptnavigation" className="runnit-game-dock fixed inset-x-0 bottom-0 z-[950] w-full max-w-full overflow-hidden border-t border-cyan-300/40 bg-[#090f30]/95 shadow-[0_-10px_35px_rgba(0,0,0,.45)] backdrop-blur-md">
+      <ul className="mx-auto grid w-full max-w-lg grid-cols-5 gap-0.5 px-2 pb-[max(0.25rem,env(safe-area-inset-bottom,0px))] pt-1.5">
+        {tabs.map(({ href, label, display, icon: Icon }) => {
           const active = location.pathname === href;
           return (
-            <li key={href}>
-              <Link 
-                to={href} 
-                className={`flex items-center justify-center gap-2 rounded-2xl px-4 py-2 text-sm transition will-change-transform ${
-                  active 
-                    ? 'text-text bg-primary/15 shadow-soft' 
-                    : 'text-muted hover:text-text hover:bg-white/5'
-                }`} 
-                aria-current={active ? 'page' : undefined}
-              >
-                <Icon className={`h-5 w-5 ${active ? 'text-primary' : 'text-muted'}`} />
-                <span>{label}</span>
+            <li key={href} className="min-w-0">
+              <Link to={href} aria-label={label} aria-current={active ? 'page' : undefined}
+                className={'runnit-dock-item flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 py-1 text-[9px] font-black italic transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ' + (active ? 'runnit-dock-active text-cyan-100' : 'text-white/80 hover:bg-white/10 hover:text-white')}>
+                <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <span className="runnit-dock-caption block w-full text-center">{active && href === '/leaderboard' ? 'LEGENDS' : display}</span>
               </Link>
             </li>
           );

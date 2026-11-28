@@ -1,26 +1,56 @@
+import { createMeasurementLifetime } from '../lib/measurementLifetime';
+import { classifyDuelJoinError } from '../lib/duelJoinError';
+import { canReleaseUnconfirmedDuelHint } from '../lib/duelRecoveryHint';
+import { mergeDuelReadiness, clearReadyRequest, readyRequestView } from '../lib/duelReadiness';
+import { createDuelStartLatch, isDuelStartRecoverable } from '../lib/duelStartLatch';
+import { createDuelWriteGate } from '../lib/duelWriteGate';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import type { LatLngExpression } from 'leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { useNavigate } from 'react-router-dom';
+import ArcadeMapLibreView from '../components/map/ArcadeMapLibreView';
+import { isOpenEventAvailable } from '../lib/duelExpiry.ts';
+import { LocateFixed } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
-import { useSupabaseUser } from '../hooks/useSupabaseUser';
+import type { UseSupabaseUserReturn } from '../hooks/useSupabaseUser';
 import { createDuel } from '../db/createDuel';
 import { getNearbyDuels } from '../db/getNearbyDuels';
 import { joinDuel } from '../db/joinDuel';
 import { getTopGhostRuns } from '../db/getTopGhostRuns';
 import { submitDuelResult, type DuelMetrics } from '../db/submitDuelResult';
 import { readyForDuel } from '../db/readyForDuel';
-import { getDuelResults } from '../db/getDuelResults';
 import BottomNav from '../components/ui/BottomNav';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { LeaderboardSheet } from '../components/leaderboard/Sheet';
-import { MapHUD } from '../components/map/MapHUD';
+import { type LeaderboardSource } from '../lib/leaderboardProvenance';
+import ArcadeMapChrome, { type ArcadeMapEntry, type ArcadeMapView } from '../components/map/ArcadeMapChrome';
+import { parseGeographyPoint } from '../lib/duelLocation';
+import { duelRealtimeRow, createDuelRealtimeLifetime } from '../lib/duelRealtime';
+import { createDuelRecoveryQueue, isCurrentRecovery } from '../lib/duelRecovery';
+import { reconcileOpenRaces } from '../lib/reconcileOpenRaces';
+import { cancelHostedOpenDuel, cancelHostedDuelMessage, listHostedOpenDuels, type HostedOpenDuel } from '../db/cancelHostedDuel';
+import { abortMatchedDuel } from '../db/abortMatchedDuel';
+import { readActiveDuelId, rememberActiveDuelId, forgetActiveDuelId } from '../lib/activeDuelStorage';
+import { LiveStepPeakCounter } from '../lib/liveStepPeaks';
+import { readPendingFinish, rememberPendingFinish, forgetPendingFinish, type PendingFinish } from '../lib/pendingDuelFinish.ts';
+import { DuelMotionCapture, requestDuelMotionPermission, motionEventSample } from '../lib/duelMotionEvidence';
+import { createDuelGpsMeasurement, advanceDuelGpsMeasurement, duelGpsMetrics, resumeDuelGpsMeasurement } from '../lib/duelGpsMeasurement';
+import { duelGpsLiveNotice, duelGpsErrorNotice } from '../lib/duelGpsStatus';
+import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
+import { screenWakeLockMessage, type ScreenWakeLockStatus } from '../lib/screenWakeLock';
+import { canHostAt, HOST_PLACEMENT_RADIUS_METERS, mapDistanceMeters } from '../lib/mapHostPlacement';
+import type { HotspotTestCity } from '../lib/mapHotspotSignals';
+import ReadyLobby from '../components/race/ReadyLobby';
+import RaceCountdown, { ARCADE_COUNTDOWN_SECONDS } from '../components/race/RaceCountdown';
+import DuelFinishScreen from '../components/race/DuelFinishScreen';
+import { unlockRaceAudio, setRaceAudioMuted } from '../lib/arcadeRaceAudio';
+import '../styles/raceArcade.css';
 
 // Types
 type Coordinates = {
   lat: number;
   lng: number;
+  // Browser-reported GPS accuracy & freshness; never sourced from IP position.
+  accuracyMeters?: number;
+  sampledAtMs?: number;
 };
 
 type Player = {
@@ -31,6 +61,7 @@ type Player = {
   distanceMeters: number;
   location: Coordinates;
   colorHex: string;
+  source: LeaderboardSource;
 };
 
 type OpenRun = {
@@ -40,6 +71,7 @@ type OpenRun = {
   distanceMeters: number;
   location: Coordinates;
   createdAt?: string;
+  expiresAt?: string;
   targetDistanceM?: number;
 };
 
@@ -49,11 +81,21 @@ type CurrentUser = {
   location?: Coordinates;
 };
 
+type MatchedDuelState = {
+  id: string;
+  hostUserId: string;
+  challengerUserId: string;
+  targetDistanceM: number;
+  hostReady: boolean;
+  challengerReady: boolean;
+  startAt: string | null;
+};
+
 // German translations for Runnit
 type TranslationDict = Record<string, string>;
 const de: TranslationDict = {
-  'buttons.ghostRun': '👻 Leaderboards',
-  'buttons.hostRun': 'Rennen starten',
+  'buttons.ghostRun': 'Rangliste',
+  'buttons.hostRun': 'Rennen erstellen',
   'buttons.cancel': 'Abbrechen',
   'buttons.joinRun': 'Rennen beitreten',
 
@@ -79,261 +121,96 @@ function useI18n() {
   return { t };
 }
 
-// Geolocation hook
+// Geolocation errors are different: denied (1), unavailable (2), timeout (3).
+// Do not infer a denial solely from the Permissions API: mobile browsers can
+// report an out-of-date permission state after a setting changes.
+type LocationError = 'denied' | 'unavailable' | 'timeout' | null;
+
 function useUserLocation() {
   const [coords, setCoords] = useState<Coordinates | null>(null);
-  const [permissionDenied, setPermissionDenied] = useState(false);
+  const [locationError, setLocationError] = useState<LocationError>(null);
+  const [locating, setLocating] = useState(false);
   const [insecureContext, setInsecureContext] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
   const watchIdRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    if (!('geolocation' in navigator)) {
-      setUnsupported(true);
-      return;
-    }
-
-    if (typeof isSecureContext !== 'undefined' && !isSecureContext) {
-      setInsecureContext(true);
-      return;
-    }
-
-    // Reflect actual permission state and react to changes
-    let permissionHandle: any | null = null;
-    try {
-      const anyNavigator: any = navigator as any;
-      if (anyNavigator.permissions?.query) {
-        anyNavigator.permissions
-          .query({ name: 'geolocation' as any })
-          .then((status: any) => {
-            permissionHandle = status;
-            setPermissionDenied(status.state === 'denied');
-            status.onchange = () => setPermissionDenied(status.state === 'denied');
-          })
-          .catch(() => {});
-      }
-    } catch {}
-
-    const success = (pos: GeolocationPosition) => {
-      setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      setPermissionDenied(false);
-    };
-
-    const error = (err: GeolocationPositionError | any) => {
-      const deniedByCode = typeof err?.code === 'number' && err.code === (err as any).PERMISSION_DENIED;
-      const deniedByName = err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError';
-      if (deniedByCode || deniedByName) {
-        setPermissionDenied(true);
-      }
-    };
-
-    // Try watchPosition for continuous updates
-    try {
-      watchIdRef.current = navigator.geolocation.watchPosition(success, error, {
-        enableHighAccuracy: true,
-        maximumAge: 5000,
-        timeout: 8000,
-      });
-    } catch (_e) {
-      // ignore
-    }
-
-    // Fallback: single read if no updates yet
-    if (!coords) {
-      try {
-        navigator.geolocation.getCurrentPosition(success, error, {
-          enableHighAccuracy: true,
-          maximumAge: 5000,
-          timeout: 8000,
-        });
-      } catch {}
-    }
-
-    return () => {
-      if (watchIdRef.current !== null && 'geolocation' in navigator) {
-        try {
-          navigator.geolocation.clearWatch(watchIdRef.current);
-        } catch (_e) {
-          // ignore
-        }
-      }
-      if (permissionHandle) {
-        try { permissionHandle.onchange = null; } catch {}
-      }
-    };
+  const onSuccess = React.useCallback((pos: GeolocationPosition) => {
+    setCoords({
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude,
+      accuracyMeters: pos.coords.accuracy,
+      sampledAtMs: pos.timestamp,
+    });
+    setLocationError(null);
+    setLocating(false);
   }, []);
 
-  const requestOnce = () => {
-    if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
-    if (typeof isSecureContext !== 'undefined' && !isSecureContext) return;
-    try {
-      // Always restart the watch after permission changes or retries
-      try {
-        if (watchIdRef.current !== null) {
-          navigator.geolocation.clearWatch(watchIdRef.current);
-          watchIdRef.current = null;
-        }
-      } catch (_e) {
-        // ignore
-      }
-
-      const onSuccess = (pos: GeolocationPosition) => {
-        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setPermissionDenied(false);
-      };
-      const onError = (err: GeolocationPositionError | any) => {
-        const deniedByCode = typeof err?.code === 'number' && err.code === (err as any).PERMISSION_DENIED;
-        const deniedByName = err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError';
-        if (deniedByCode || deniedByName) setPermissionDenied(true);
-      };
-
-      // Start a fresh continuous watch to pick up updates
-      try {
-        watchIdRef.current = navigator.geolocation.watchPosition(onSuccess, onError, {
-          enableHighAccuracy: true,
-          maximumAge: 5000,
-          timeout: 8000,
-        });
-      } catch (_e) {
-        // ignore
-      }
-
-      // Also attempt an immediate one-off read
-      try {
-        navigator.geolocation.getCurrentPosition(onSuccess, onError, {
-          enableHighAccuracy: true,
-          maximumAge: 1000,
-          timeout: 8000,
-        });
-      } catch {}
-    } catch (_e) {
-      // ignore
+  const onError = React.useCallback((err: GeolocationPositionError) => {
+    // Use numeric error codes documented by the Geolocation API; relying on
+    // instance constants like err.PERMISSION_DENIED is not cross-browser safe.
+    switch (err.code) {
+      case 1:
+        setCoords(null);
+        setLocationError('denied');
+        break;
+      case 2:
+        setLocationError('unavailable');
+        break;
+      case 3:
+        setLocationError('timeout');
+        break;
+      default:
+        setLocationError('unavailable');
     }
-  };
+    setLocating(false);
+  }, []);
 
-  return { coords, permissionDenied, requestOnce, insecureContext, unsupported };
+  const stopWatch = React.useCallback(() => {
+    if (watchIdRef.current === null || !navigator.geolocation) return;
+    navigator.geolocation.clearWatch(watchIdRef.current);
+    watchIdRef.current = null;
+  }, []);
+
+  const requestOnce = React.useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (!navigator.geolocation) {
+      setUnsupported(true);
+      setLocating(false);
+      return;
+    }
+    if (!window.isSecureContext) {
+      setInsecureContext(true);
+      setLocating(false);
+      return;
+    }
+
+    // One active watch at a time. A manual retry is a fresh request, which
+    // allows Safari to reevaluate permissions changed in iOS Settings.
+    stopWatch();
+    setLocationError(null);
+    setLocating(true);
+    try {
+      watchIdRef.current = navigator.geolocation.watchPosition(onSuccess, onError, {
+        enableHighAccuracy: true,
+        maximumAge: 3000,
+        timeout: 20000,
+      });
+    } catch {
+      setLocationError('unavailable');
+      setLocating(false);
+    }
+  }, [onSuccess, onError, stopWatch]);
+
+  useEffect(() => {
+    requestOnce();
+    return stopWatch;
+  }, [requestOnce, stopWatch]);
+
+  return { coords, locationError, locating, requestOnce, insecureContext, unsupported };
 }
 
 // Utility: format seconds to 0.00s string
-function formatSecondsToTimeString(seconds: number): string {
-  return `${seconds.toFixed(2)}s`;
-}
 
-// Utility: create badge-like DivIcon (no external assets)
-type BadgeIconOptions = {
-  backgroundHex: string;
-  ringHex?: string;
-  contentHtml?: string; // inner HTML (emoji/text)
-  sizePx?: number;
-  showPing?: boolean;
-  pingColorHex?: string;
-  extraClassNames?: string;
-};
-
-function createBadgeDivIcon(options: BadgeIconOptions): L.DivIcon {
-  const {
-    backgroundHex,
-    ringHex = '#111827',
-    contentHtml = '',
-    sizePx = 36,
-    showPing = false,
-    pingColorHex = backgroundHex,
-    extraClassNames = '',
-  } = options;
-
-  const diameter = sizePx;
-  const half = diameter / 2;
-
-  // Use minimal inline styles to avoid external CSS
-  const html = `
-    <div style="position: relative; width: ${diameter}px; height: ${diameter}px;">
-      ${
-        showPing
-          ? `<span style="position:absolute; inset:0; border-radius:9999px; background:${pingColorHex}; opacity:0.35; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>`
-          : ''
-      }
-      <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; border-radius:9999px; background:${backgroundHex}; box-shadow: 0 0 0 3px ${ringHex}; color:#fff; font-size:${Math.max(12, Math.floor(sizePx/2.75))}px; font-weight:700;">
-        ${contentHtml}
-      </div>
-    </div>
-  `;
-
-  // Attach keyframes for ping if not already present
-  if (typeof document !== 'undefined') {
-    const styleId = 'runnit-ping-keyframes';
-    if (!document.getElementById(styleId)) {
-      const style = document.createElement('style');
-      style.id = styleId;
-      style.innerHTML = `@keyframes ping { 0% { transform: scale(1); opacity: 0.6; } 75%, 100% { transform: scale(2.25); opacity: 0; } }`;
-      document.head.appendChild(style);
-    }
-  }
-
-  return L.divIcon({
-    html,
-    className: `runnit-badge ${extraClassNames}`,
-    iconSize: [diameter, diameter],
-    iconAnchor: [half, half],
-    popupAnchor: [0, -half],
-  });
-}
-
-// Marker utility component
-type MapBadgeMarkerProps = {
-  position: LatLngExpression;
-  iconOptions: BadgeIconOptions;
-  children?: React.ReactNode;
-};
-
-function MapBadgeMarker(props: MapBadgeMarkerProps & { onClick?: () => void }) {
-  const { position, iconOptions, children, onClick } = props;
-  const icon = useMemo(() => createBadgeDivIcon(iconOptions), [iconOptions]);
-  return (
-    <Marker
-      position={position}
-      icon={icon}
-      eventHandlers={onClick ? { click: onClick } : undefined}
-    >
-      {children}
-    </Marker>
-  );
-}
-
-// Recenter map when position changes initially
-function RecenterOnUser({ position, trigger }: { position: Coordinates | null; trigger?: number }) {
-  const map = useMap();
-  const hasCenteredRef = useRef(false);
-  const lastTriggerRef = useRef<number | undefined>(undefined);
-
-  useEffect(() => {
-    const triggerChanged = lastTriggerRef.current !== trigger;
-    if (position && (!hasCenteredRef.current || triggerChanged)) {
-      map.setView([position.lat, position.lng], Math.max(map.getZoom(), 16), {
-        animate: true,
-      });
-      hasCenteredRef.current = true;
-      lastTriggerRef.current = trigger;
-    }
-  }, [map, position, trigger]);
-
-  return null;
-}
-
-function RecenterOnIp({ position }: { position: Coordinates | null }) {
-  const map = useMap();
-  const hasCenteredRef = useRef(false);
-  useEffect(() => {
-    if (position && !hasCenteredRef.current) {
-      map.setView([position.lat, position.lng], Math.max(map.getZoom(), 13), {
-        animate: true,
-      });
-      hasCenteredRef.current = true;
-    }
-  }, [map, position]);
-  return null;
-}
 
 // Utility: convert hsl() to hex via canvas (ensures stable colorHex)
 function colorToHex(hsl: string): string {
@@ -366,296 +243,106 @@ function colorForUsernameToHex(username: string): string {
   return colorToHex(hashStringToHsl(username || 'runner'));
 }
 
-// Avatar component (initials circle)
-function Avatar({ name, colorHex }: { name: string; colorHex: string }) {
-  const initials = useMemo(() => {
-    const parts = name.split(/[^a-zA-Z0-9]+/).filter(Boolean);
-    const first = parts[0]?.[0]?.toUpperCase() ?? 'R';
-    const second = parts[1]?.[0]?.toUpperCase() ?? '';
-    return `${first}${second}` || first;
-  }, [name]);
-  return (
-    <div
-      className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white"
-      style={{ backgroundColor: colorHex }}
-      aria-hidden
-    >
-      {initials}
-    </div>
-  );
-}
-
-// Stable demo data generators using seed-based randomness
-function seededRandom(seed: string): () => number {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    const char = seed.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  
-  return function() {
-    hash = ((hash * 9301) + 49297) % 233280;
-    return hash / 233280;
-  };
-}
-
-// Generate stable demo data once
-const generateNationalPlayers = (() => {
-  let cached: Player[] | null = null;
-  return () => {
-    if (cached) return cached;
-    const rng = seededRandom('national-germany-leaderboard');
-    cached = Array.from({ length: 50 }, (_, i) => ({
-      id: `national-${i}`,
-      username: `GermanRunner${String(i + 1).padStart(2, '0')}`,
-      rank: i + 1,
-      bestTimeSeconds: 8.5 + (i * 0.3) + (rng() * 0.5),
-      distanceMeters: 100,
-      location: { lat: 52.5 + (rng() - 0.5) * 2, lng: 13.4 + (rng() - 0.5) * 2 },
-      colorHex: colorForUsernameToHex(`GermanRunner${String(i + 1).padStart(2, '0')}`),
-    }));
-    return cached;
-  };
-})();
-
-const generateInternationalPlayers = (() => {
-  let cached: Player[] | null = null;
-  return () => {
-    if (cached) return cached;
-    const rng = seededRandom('international-world-leaderboard');
-    cached = Array.from({ length: 100 }, (_, i) => ({
-      id: `international-${i}`,
-      username: `WorldRunner${String(i + 1).padStart(3, '0')}`,
-      rank: i + 1,
-      bestTimeSeconds: 7.8 + (i * 0.2) + (rng() * 0.3),
-      distanceMeters: 100,
-      location: { lat: rng() * 180 - 90, lng: rng() * 360 - 180 },
-      colorHex: colorForUsernameToHex(`WorldRunner${String(i + 1).padStart(3, '0')}`),
-    }));
-    return cached;
-  };
-})();
-
-// Enhanced Leaderboard Modal with City/National/International tabs
-function GhostLeaderboardModal({
-  open,
-  onClose,
-  players,
-  currentUser,
-  cityName,
-}: {
-  open: boolean;
-  onClose: () => void;
-  players: Player[];
-  currentUser: CurrentUser | null;
-  cityName: string | null;
-}) {
-  const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<'city' | 'national' | 'international'>('city');
-  const [nationalPlayers, setNationalPlayers] = useState<Player[]>([]);
-  const [internationalPlayers, setInternationalPlayers] = useState<Player[]>([]);
-
-  // Load stable demo data for national and international leaderboards
-  useEffect(() => {
-    if (!open) return;
-    
-    // Use stable generators
-    setNationalPlayers(generateNationalPlayers());
-    setInternationalPlayers(generateInternationalPlayers());
-  }, [open]);
-
-  if (!open) return null;
-
-  const getCurrentPlayers = () => {
-    switch (activeTab) {
-      case 'city': return players;
-      case 'national': return nationalPlayers;
-      case 'international': return internationalPlayers;
-      default: return players;
-    }
-  };
-
-  const getTitle = () => {
-    switch (activeTab) {
-      case 'city': return `🏙️ ${cityName || 'Deine Stadt'}`;
-      case 'national': return '🇩🇪 Deutschland';
-      case 'international': return '🌍 International';
-      default: return 'Leaderboard';
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60">
-      <div className="w-full max-w-md rounded-t-2xl bg-[#0b0b0d] p-4 shadow-2xl ring-1 ring-white/10">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">{getTitle()}</h2>
-          <button
-            onClick={onClose}
-            className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
-            aria-label="Close leaderboard"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="mb-4 flex items-center gap-1 rounded-lg bg-white/5 p-1">
-          <button
-            onClick={() => setActiveTab('city')}
-            className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-              activeTab === 'city'
-                ? 'bg-indigo-600 text-white'
-                : 'text-white/70 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            🏙️ Stadt
-          </button>
-          <button
-            onClick={() => setActiveTab('national')}
-            className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-              activeTab === 'national'
-                ? 'bg-indigo-600 text-white'
-                : 'text-white/70 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            🇩🇪 National
-          </button>
-          <button
-            onClick={() => setActiveTab('international')}
-            className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-              activeTab === 'international'
-                ? 'bg-indigo-600 text-white'
-                : 'text-white/70 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            🌍 International
-          </button>
-        </div>
-
-        <div className="mb-2 grid grid-cols-12 gap-2 px-1 text-[11px] uppercase tracking-wide text-white/60">
-          <div className="col-span-2">Rang</div>
-          <div className="col-span-5">Name</div>
-          <div className="col-span-3">Zeit</div>
-          <div className="col-span-2 text-right">Distanz</div>
-        </div>
-        <div className="max-h-[45vh] space-y-2 overflow-y-auto pr-1">
-          {getCurrentPlayers().slice(0, 100).map((p) => (
-            <div
-              key={p.id}
-              className={`grid grid-cols-12 items-center gap-2 rounded-lg p-2 ring-1 ${
-                p.rank === 1
-                  ? 'bg-yellow-600/20 ring-yellow-500/30'
-                  : p.rank === 2
-                  ? 'bg-gray-400/20 ring-gray-400/30'
-                  : p.rank === 3
-                  ? 'bg-orange-600/20 ring-orange-500/30'
-                  : 'bg-white/5 ring-white/5'
-              }`}
-            >
-              <div className="col-span-2 text-sm font-semibold text-white/90">
-                {p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `#${p.rank}`}
-              </div>
-              <div className="col-span-5 flex items-center gap-2 text-sm text-white">
-                <Avatar name={p.username} colorHex={p.colorHex} />
-                <span className="truncate">{p.username}</span>
-              </div>
-              <div className="col-span-3 text-sm text-white/90">
-                {formatSecondsToTimeString(p.bestTimeSeconds)}
-              </div>
-              <div className="col-span-2 text-right text-sm text-white/60">{p.distanceMeters}m</div>
-            </div>
-          ))}
-        </div>
-        {currentUser ? (
-          <div className="sticky bottom-0 mt-3 rounded-lg bg-[#111113] p-3 ring-1 ring-white/10">
-            <div className="mb-1 text-[10px] uppercase tracking-wide text-white/50">Du</div>
-            <div className="grid grid-cols-12 items-center gap-2">
-              <div className="col-span-2 text-sm font-semibold text-white/90">—</div>
-              <div className="col-span-5 flex items-center gap-2 text-sm text-white">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
-                  {currentUser.username[0]?.toUpperCase() || 'Y'}
-                </div>
-                <span className="truncate">{currentUser.username}</span>
-              </div>
-              <div className="col-span-3 text-sm text-white/90">—</div>
-              <div className="col-span-2 text-right text-sm text-white/60">—</div>
-            </div>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 // Host Run Dialog
 function HostRunDialog({
   open,
   onClose,
   onHost,
+  onDemo,
   defaultDistance,
+  selectedLocationDistance,
 }: {
   open: boolean;
   onClose: () => void;
-  onHost: (distanceMeters: number) => void;
+  onHost: (distanceMeters: number) => Promise<void>;
+  onDemo: () => void;
   defaultDistance?: number;
+  selectedLocationDistance?: number;
 }) {
   const { t } = useI18n();
   const [distance, setDistance] = useState<number>(defaultDistance ?? 50);
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const [hostError, setHostError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setDistance(defaultDistance ?? 50);
+      setHostError(null);
     }
   }, [open, defaultDistance]);
 
+  const submitHost = async () => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    setHostError(null);
+    try {
+      await onHost(distance);
+      onClose();
+    } catch (error) {
+      const code = typeof error === 'object' && error !== null && 'code' in error
+        ? String(error.code) : '';
+      const message = error instanceof Error ? error.message.toLowerCase() : '';
+      if (code === '23505' || message.includes('aktives event') || message.includes('aktive challenge')) {
+        setHostError('Du hast bereits ein aktives Event. Beende oder storniere es, bevor du ein neues erstellst.');
+      } else if (code === '42501' || message.includes('row-level security') || message.includes('permission denied')) {
+        setHostError('Du hast derzeit keine Berechtigung, ein Rennen zu speichern. Bitte melde dich erneut an.');
+      } else if (message.includes('außerhalb') || message.includes('gps-standort')) {
+        setHostError(error instanceof Error ? error.message : 'Standort nicht mehr verfügbar.');
+      } else if (message.includes('network') || message.includes('fetch') || message.includes('timeout')) {
+        setHostError('Keine Verbindung zur Datenbank. Bitte prüfe deine Internetverbindung und versuche es erneut.');
+      } else {
+        setHostError('Das Rennen konnte nicht gespeichert werden. Bitte versuche es erneut.');
+      }
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
+  };
+
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60">
-      <div className="w-full max-w-md rounded-t-2xl bg-[#0b0b0d] p-4 shadow-2xl ring-1 ring-white/10">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">{t('host.title')}</h2>
-          <button
-            onClick={onClose}
-            className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
-            aria-label="Close host dialog"
-          >
-            ✕
-          </button>
+    <div className="runnit-host-setup-backdrop" role="presentation">
+      <section className="runnit-host-setup-panel" role="dialog" aria-modal="true" aria-labelledby="runnit-host-setup-title">
+        <header className="runnit-host-setup-top">
+          <span className="runnit-host-setup-eyebrow">RUNNIT // STREET CHALLENGE</span>
+          <button type="button" onClick={onClose} disabled={submitting}
+            className="runnit-host-setup-close" aria-label="Rennen-Dialog schließen">✕</button>
+          <h2 id="runnit-host-setup-title">1V1 <span>DUELL</span></h2>
+          <p>SETZE DEINE CHALLENGE</p>
+        </header>
+        {selectedLocationDistance !== undefined && (
+          <div className="runnit-host-setup-location">
+            <span className="runnit-host-setup-beacon" aria-hidden="true" />
+            STARTPUNKT FIXIERT <span>· {Math.round(selectedLocationDistance)} M ENTFERNT</span>
+          </div>
+        )}
+        <div className="runnit-host-setup-section">
+          <div className="runnit-host-setup-heading">
+            <label id="runnit-host-distance-label">{t('host.distanceLabel').toUpperCase()}</label>
+            <small>01 / DISTANZ</small>
+          </div>
+          <div className="runnit-host-setup-distances" role="group" aria-labelledby="runnit-host-distance-label">
+            {[50, 75, 100].map(value => (
+              <button type="button" key={value} disabled={submitting}
+                aria-pressed={distance === value}
+                className={distance === value ? 'is-selected' : ''}
+                onClick={() => setDistance(value)}>
+                <strong>{value}</strong><span>M</span>
+              </button>
+            ))}
+          </div>
+          <p className="runnit-host-setup-note">OFFENE CHALLENGE · 60 MINUTEN ZEIT FÜR EINEN GEGNER. NUR EIN AKTIVES EVENT PRO USER.</p>
         </div>
-        <label className="mb-2 block text-sm font-medium text-white/80">
-          {t('host.distanceLabel')}
-        </label>
-        <div className="mb-5">
-          <select
-            value={distance}
-            onChange={(e) => setDistance(parseInt(e.target.value))}
-            className="w-full rounded-lg bg-white/5 p-3 text-white outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-indigo-500"
-            aria-label={t('host.selectDistance')}
-          >
-            <option value={50}>{t('host.distance.50')}</option>
-            <option value={75}>{t('host.distance.75')}</option>
-            <option value={100}>{t('host.distance.100')}</option>
-          </select>
+        {hostError && <p role="alert" className="runnit-host-setup-error">{hostError}</p>}
+        <button type="button" className="runnit-host-setup-create" onClick={() => { void submitHost(); }}
+          disabled={submitting}>{submitting ? 'RENNEN WIRD GESPEICHERT …' : 'CHALLENGE ERSTELLEN  ›'}</button>
+        <div className="runnit-host-setup-bottom">
+          <button type="button" onClick={onClose} disabled={submitting}>ABBRECHEN</button>
+          <button type="button" onClick={onDemo} disabled={submitting}>SIMULATION TESTEN ↗</button>
         </div>
-        <div className="flex items-center justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
-          >
-            {t('buttons.cancel')}
-          </button>
-          <button
-            onClick={() => {
-              onHost(distance);
-              onClose();
-            }}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-          >
-            {t('buttons.hostRun')}
-          </button>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }
@@ -739,16 +426,16 @@ function AuthModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60">
-      <div className="w-full max-w-md rounded-t-2xl bg-[#0b0b0d] p-4 shadow-2xl ring-1 ring-white/10">
+    <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#050611]/75 backdrop-blur-[4px]">
+      <div className="w-full max-w-md rounded-t-[30px] border border-violet-300/20 bg-[#101322] p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white shadow-[0_-25px_80px_rgba(0,0,0,.5)]">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">
+          <h2 className="text-lg font-extrabold tracking-tight text-white">
             {user ? 'Account' : mode === 'signin' ? 'Sign in' : 'Sign up'}
           </h2>
           <button
             onClick={onClose}
-            className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
-            aria-label="Close auth"
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/70 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            aria-label="Anmeldung schließen"
           >
             ✕
           </button>
@@ -760,10 +447,10 @@ function AuthModal({
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={handleSignOut}
-                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 disabled={submitting}
               >
-                Sign out
+                Abmelden
               </button>
             </div>
           </div>
@@ -774,13 +461,13 @@ function AuthModal({
                 className={`rounded-md px-2 py-1 font-medium ${mode === 'signin' ? 'bg-indigo-600 text-white' : 'bg-white/10 text-white/80'} `}
                 onClick={() => setMode('signin')}
               >
-                Sign in
+                Anmelden
               </button>
               <button
                 className={`rounded-md px-2 py-1 font-medium ${mode === 'signup' ? 'bg-indigo-600 text-white' : 'bg-white/10 text-white/80'} `}
                 onClick={() => setMode('signup')}
               >
-                Sign up
+                Registrieren
               </button>
             </div>
 
@@ -790,14 +477,14 @@ function AuthModal({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
-                className="w-full rounded-lg bg-white/5 p-3 text-white outline-none ring-1 ring-white/10 placeholder:text-white/40 focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-xl border border-white/15 bg-[#161a2b] p-4 text-white outline-none placeholder:text-white/35 focus:ring-2 focus:ring-violet-400"
               />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
-                className="w-full rounded-lg bg-white/5 p-3 text-white outline-none ring-1 ring-white/10 placeholder:text-white/40 focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-xl border border-white/15 bg-[#161a2b] p-4 text-white outline-none placeholder:text-white/35 focus:ring-2 focus:ring-violet-400"
               />
             </div>
 
@@ -807,16 +494,16 @@ function AuthModal({
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={onClose}
-                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/75 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
-                Cancel
+                Abbrechen
               </button>
               <button
                 onClick={handleSubmit}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(99,102,241,.20)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 disabled={submitting || !email || !password}
               >
-                {mode === 'signin' ? 'Sign in' : 'Create account'}
+                {mode === 'signin' ? 'Anmelden' : 'Konto erstellen'}
               </button>
             </div>
           </div>
@@ -827,77 +514,341 @@ function AuthModal({
 }
 
 // Main Screen
-export default function MapScreen() {
-  const { t } = useI18n();
-  const { coords: userCoords, permissionDenied, requestOnce, insecureContext, unsupported } = useUserLocation();
-  const { user: authUser, loading: authLoading, signIn, signUp, signOut } = useSupabaseUser();
-  console.log('MapScreen loaded');
+export default function MapScreen({ auth }: { auth: UseSupabaseUserReturn }) {
+  const navigate = useNavigate();
+  const { coords: userCoords, locationError, locating, requestOnce, insecureContext, unsupported } = useUserLocation();
+  const liveUserCoordsRef = useRef(userCoords);
+  liveUserCoordsRef.current = userCoords;
+  const { user: authUser, signIn, signUp, signOut } = auth;
 
-  const defaultCenter = useMemo<Coordinates>(() => ({ lat: 0, lng: 0 }), []);
+  // Neutral global overview when neither permission nor network IP lookup succeeds.
+  // Do not suggest a real user location without a valid location fix.
+  const defaultCenter = useMemo<Coordinates>(() => ({ lat: 22, lng: 0 }), []);
   const [ipCoords, setIpCoords] = useState<Coordinates | null>(null);
   const [recenterTick, setRecenterTick] = useState(0);
   const center = userCoords ?? ipCoords ?? defaultCenter;
-  const initialZoom = userCoords ? 14 : ipCoords ? 12 : 3;
+  const initialZoom = userCoords ? 14 : ipCoords ? 12 : 2;
+  // CARTO returns watermarked tiles without an API key (HTTP success), so
+  // tileerror never fires. Use the OSM standard style for our small beta.
+  const [tileRetryCount, setTileRetryCount] = useState(0);
+  const [mapTilesUnavailable, setMapTilesUnavailable] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [ghostOpen, setGhostOpen] = useState(false);
   const [hostOpen, setHostOpen] = useState(false);
+  const [hostLocation, setHostLocation] = useState<Coordinates | null>(null);
+  const [raceNotice, setRaceNotice] = useState<string | null>(null);
+  // Only genuine user actions create a notice; dismiss automatically so a
+  // previous warning cannot cover the next long-press dialog indefinitely.
+  useEffect(() => {
+    if (!raceNotice) return;
+    const id = window.setTimeout(() => setRaceNotice(null), 4200);
+    return () => window.clearTimeout(id);
+  }, [raceNotice]);
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [cityName, setCityName] = useState<string | null>(null);
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [openRuns, setOpenRuns] = useState<OpenRun[]>([]);
-  const [loadingGhosts, setLoadingGhosts] = useState(false);
+  const [regionalRuns, setRegionalRuns] = useState<Array<{ id: string; location: Coordinates; expiresAt?: string }>>([]);
+  const [wideMapView, setWideMapView] = useState(false);
+  // The synthetic load test is opt-in via ?hotspotDemo=1, off for all normal
+  // visitors. No synthetic race/player/match is persisted or queried.
+  const hotspotTestAvailable = typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('hotspotDemo') === '1';
+  const [hotspotDemoEnabled, setHotspotDemoEnabled] = useState(hotspotTestAvailable);
+  // The map stays visible by default. An explicit chip opens this test-only HUD.
+  const [hotspotLabExpanded, setHotspotLabExpanded] = useState(false);
+  const [hotspotFocus, setHotspotFocus] = useState<{ city: HotspotTestCity; tick: number }>({ city: 'all', tick: 0 });
+  const [mapCamera, setMapCamera] = useState({ zoom: initialZoom, lat: center.lat, lng: center.lng });
+  // The ranking screen's RENNEN dock link opens the existing race list.
+  // Creating/starting a race still requires the same account and GPS checks.
+  const [arcadeMapView, setArcadeMapView] = useState<ArcadeMapView>(() =>
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'list'
+      ? 'list' : 'map');
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  // Own live lobby is visible even when its map popup is closed or GPS changes.
+  const [hostedOpenDuels, setHostedOpenDuels] = useState<HostedOpenDuel[]>([]);
+  // An older hosted snapshot cannot overwrite a confirmed creation, including another device.
+  const hostedCreationRevisionRef = useRef(0);
+  const requestHostedDiscoveryRef = useRef<(() => void) | null>(null);
+  const requestRegionalDiscoveryRef = useRef<(() => void) | null>(null);
+  const [hostedDuelsLoadError, setHostedDuelsLoadError] = useState(false);
+  const [cancelConfirmation, setCancelConfirmation] = useState<HostedOpenDuel | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [cancellingRunId, setCancellingRunId] = useState<string | null>(null);
+  const cancelHostedPendingRef = useRef(false);
+  const [, setLoadingGhosts] = useState(false);
   const [loadingDuels, setLoadingDuels] = useState(false);
-  const [userTimes, setUserTimes] = useState<number[]>([]);
-  const [matchOverlay, setMatchOverlay] = useState<{ duelId: string; startsAt: number; targetDistanceM: number } | null>(null);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
+  const discoveryLoadedRef = useRef(false);
+  const [discoveryCoords, setDiscoveryCoords] = useState<Coordinates | null>(null);
+  const [discoveryRefreshTick, setDiscoveryRefreshTick] = useState(0);
+  const [finishSubmissionError, setFinishSubmissionError] = useState<string | null>(null);
+  const latestFinishPayloadRef = useRef<PendingFinish | null>(null);
+  const finishSubmittingRef = useRef<PendingFinish | null>(null);
+  const duelWriteGate = useRef(createDuelWriteGate());
+  // App keys this screen by account. Retire the old instance synchronously
+  // during unmount, even before passive subscription cleanup runs.
+  const finishAccountRef = useRef<string | null>(authUser?.id ?? null);
+  React.useLayoutEffect(() => {
+    finishAccountRef.current = authUser?.id ?? null;
+    return () => { finishAccountRef.current = null; };
+  }, [authUser?.id]);
+  const [matchOverlay, setMatchOverlay] = useState<{ duelId: string; startsAt: number; targetDistanceM: number; lobby?: MatchedDuelState } | null>(null);
+  const [matchedDuel, setMatchedDuel] = useState<MatchedDuelState | null>(null);
+  const [dismissedMatchId, setDismissedMatchId] = useState<string | null>(null);
+  const [readyBusyDuelId, setReadyBusy] = useState<string | null>(null);
+  const [readyErrorForDuel, setReadyError] = useState<{ duelId: string; message: string } | null>(null);
+  const ownReady = matchedDuel !== null && (matchedDuel.hostUserId === authUser?.id
+    ? matchedDuel.hostReady : matchedDuel.challengerReady);
+  const { busy: readyBusy, error: readyError } = readyRequestView(
+    matchedDuel?.id ?? null, ownReady, readyBusyDuelId, readyErrorForDuel);
+  const [raceSoundEnabled, setRaceSoundEnabled] = useState(true);
+  useEffect(() => { setRaceAudioMuted(!raceSoundEnabled); }, [raceSoundEnabled]);
+  const [matchedNames, setMatchedNames] = useState<Record<string, string>>({});
+  const joiningRunRef = useRef<string | null>(null);
+  const hostingRunPendingRef = useRef(false);
+  const matchStartHandledRef = useRef<string | null>(null);
+  const duelStartLatch = useRef(createDuelStartLatch());
+  // The account-keyed screen must reserve the saved duel before Realtime
+  // or discovery can replace it. Storage is a recovery hint, not a server result.
+  const [initialActiveDuelId] = useState(() => authUser ? readActiveDuelId(authUser.id) : null);
+  const activeDuelIdRef = useRef<string | null>(initialActiveDuelId);
+  const unconfirmedRecoveryHintRef = useRef<string | null>(initialActiveDuelId);
+  const recoveryRevisionRef = useRef(0);
+  const requestMatchRecoveryRef = useRef<(() => void) | null>(null);
+  // Ignore late Realtime/poll responses for duels confirmed as terminated.
+  const endedDuelIdsRef = useRef<Set<string>>(new Set());
+  // Open events never return to open after a confirmed non-open transition.
+  // Keep this separate from duel recovery: a map marker is not a race result.
+  const knownNonOpenRunIdsRef = useRef<Set<string>>(new Set());
+  // Completed results remain visible until closed, but their lobby is already retired.
+  const completedDuelIdsRef = useRef<Set<string>>(new Set());
   const [race, setRace] = useState<
     | { status: 'idle' }
     | { status: 'countdown'; duelId: string; startsAt: number; targetDistanceM: number }
     | { status: 'running'; duelId: string; startedAt: number; targetDistanceM: number }
     | { status: 'finished'; duelId: string; startedAt: number; endedAt: number; targetDistanceM: number }
   >({ status: 'idle' });
+  // Browser motion and GPS callbacks can be suspended when iOS locks the screen.
+  // Keep it awake for the entire countdown and race, not just the step sampler.
+  const wakeStatus = useScreenWakeLock(Boolean(matchOverlay) || race.status === 'countdown' || race.status === 'running');
+
+  const clearAbortedDuel = React.useCallback((duelId: string, remote: boolean) => {
+    if (!authUser || finishAccountRef.current !== authUser.id || activeDuelIdRef.current !== duelId) return;
+    recoveryRevisionRef.current += 1;
+    endedDuelIdsRef.current.add(duelId);
+    knownNonOpenRunIdsRef.current.add(duelId);
+    setRegionalRuns(previous => previous.filter(run => run.id !== duelId));
+    activeDuelIdRef.current = null;
+    unconfirmedRecoveryHintRef.current = null;
+    forgetActiveDuelId(authUser.id, duelId);
+    forgetPendingFinish(authUser.id, duelId);
+    if (latestFinishPayloadRef.current?.duelId === duelId) latestFinishPayloadRef.current = null;
+    setFinishSubmissionError(null);
+    matchStartHandledRef.current = null;
+    setMatchOverlay(previous => previous?.duelId === duelId ? null : previous);
+    setMatchedDuel(previous => previous?.id === duelId ? null : previous);
+    setRace(previous => previous.status !== 'idle' && previous.duelId === duelId
+      ? { status: 'idle' } : previous);
+    setDismissedMatchId(null);
+    setReadyError(null);
+    setCancelError(null);
+    setCancelConfirmation(previous => previous?.id === duelId ? null : previous);
+    setOpenRuns(previous => previous.filter(run => run.id !== duelId));
+    setHostedOpenDuels(previous => previous.filter(run => run.id !== duelId));
+    setRaceNotice(remote
+      ? 'Dein Gegner hat das Duell abgebrochen. Du kannst wieder ein Rennen starten.'
+      : 'Duell für beide Spieler abgebrochen. Du kannst ein neues Rennen starten.');
+    setDiscoveryRefreshTick(tick => tick + 1);
+  }, [authUser?.id]);
+
+  // Once the server confirms completed, both participants must see their
+  // results. Do not mark the race as seen until THIS phone closes the overlay.
+  const showCompletedDuel = React.useCallback((row: any) => {
+    if (!authUser || finishAccountRef.current !== authUser.id || row?.status !== 'completed' || typeof row.id !== 'string' ||
+        endedDuelIdsRef.current.has(row.id) ||
+        (row.host_user_id !== authUser.id && row.challenger_user_id !== authUser.id)) return;
+    const active = activeDuelIdRef.current;
+    if (active && active !== row.id) return;
+    completedDuelIdsRef.current.add(row.id);
+    knownNonOpenRunIdsRef.current.add(row.id);
+    setRegionalRuns(previous => previous.filter(run => run.id !== row.id));
+    setOpenRuns(previous => previous.filter(run => run.id !== row.id));
+    setHostedOpenDuels(previous => previous.filter(run => run.id !== row.id));
+    unconfirmedRecoveryHintRef.current = null;
+    recoveryRevisionRef.current += 1;
+    activeDuelIdRef.current = row.id;
+    rememberActiveDuelId(authUser.id, row.id);
+    forgetPendingFinish(authUser.id, row.id);
+    if (latestFinishPayloadRef.current?.duelId === row.id) latestFinishPayloadRef.current = null;
+    setFinishSubmissionError(null);
+    setMatchOverlay(previous => previous?.duelId === row.id ? null : previous);
+    setMatchedDuel(previous => previous?.id === row.id ? null : previous);
+    setDismissedMatchId(null);
+    const start = typeof row.start_at === 'string' ? Date.parse(row.start_at) : NaN;
+    const startedAt = Number.isFinite(start) ? start : Date.now();
+    const targetDistanceM = Number(row.target_distance_m) > 0 ? Number(row.target_distance_m) : 50;
+    setRace(previous => previous.status === 'finished' && previous.duelId === row.id
+      ? previous : { status: 'finished', duelId: row.id, startedAt,
+        endedAt: Date.now(), targetDistanceM });
+  }, [authUser?.id]);
+
+  const closeCompletedDuel = React.useCallback((duelId: string) => {
+    if (!authUser || finishAccountRef.current !== authUser.id) return;
+    if (endedDuelIdsRef.current.has(duelId) ||
+        (activeDuelIdRef.current !== null && activeDuelIdRef.current !== duelId)) return;
+    recoveryRevisionRef.current += 1;
+    endedDuelIdsRef.current.add(duelId);
+    if (activeDuelIdRef.current === duelId) activeDuelIdRef.current = null;
+    if (unconfirmedRecoveryHintRef.current === duelId) unconfirmedRecoveryHintRef.current = null;
+    forgetActiveDuelId(authUser.id, duelId);
+    forgetPendingFinish(authUser.id, duelId);
+    matchStartHandledRef.current = null;
+    if (latestFinishPayloadRef.current?.duelId === duelId) latestFinishPayloadRef.current = null;
+    setFinishSubmissionError(null);
+    setMatchOverlay(previous => previous?.duelId === duelId ? null : previous);
+    setMatchedDuel(previous => previous?.id === duelId ? null : previous);
+    setDismissedMatchId(null);
+    setRace(previous => previous.status !== 'idle' && previous.duelId === duelId
+      ? { status: 'idle' } : previous);
+    setOpenRuns(previous => previous.filter(run => run.id !== duelId));
+    setHostedOpenDuels(previous => previous.filter(run => run.id !== duelId));
+    setDiscoveryRefreshTick(tick => tick + 1);
+  }, [authUser?.id]);
+
+  // A DB-confirmed match is authoritative. Realtime, a join response and
+  // foreground recovery all use this same idempotent transition.
+  const applyMatchedDuel = React.useCallback((row: any) => {
+    if (!authUser || finishAccountRef.current !== authUser.id || row?.status !== 'matched' || typeof row.id !== 'string' ||
+        endedDuelIdsRef.current.has(row.id) || completedDuelIdsRef.current.has(row.id) ||
+        (row.host_user_id !== authUser.id && row.challenger_user_id !== authUser.id)) return;
+    // Preserve the current race or its unread result until it is retired.
+    // A different matched row can be recovered after that transition.
+    if (activeDuelIdRef.current !== null && activeDuelIdRef.current !== row.id) return;
+    // A matched race requires two distinct participants and a coherent start.
+    if (typeof row.host_user_id !== 'string' || !row.host_user_id.trim() ||
+        typeof row.challenger_user_id !== 'string' || !row.challenger_user_id.trim() ||
+        row.host_user_id === row.challenger_user_id ||
+        (row.start_at !== null && typeof row.start_at !== 'string')) return;
+    const startAt = typeof row.start_at === 'string' ? row.start_at : null;
+    if (startAt !== null && (row.host_ready !== true || row.challenger_ready !== true)) return;
+    // Once a server start is observed, an older lobby row cannot reset it.
+    if (!duelStartLatch.current.accept(row.id, startAt)) return;
+    unconfirmedRecoveryHintRef.current = null;
+    recoveryRevisionRef.current += 1;
+    activeDuelIdRef.current = row.id;
+    rememberActiveDuelId(authUser.id, row.id);
+    knownNonOpenRunIdsRef.current.add(row.id);
+    setRegionalRuns(previous => previous.filter(run => run.id !== row.id));
+    setOpenRuns(previous => previous.filter(run => run.id !== row.id));
+    setHostedOpenDuels(previous => previous.filter(run => run.id !== row.id));
+    setCancelConfirmation(previous => previous?.id === row.id ? null : previous);
+    setSelectedRunId(previous => previous === row.id ? null : previous);
+    const targetDistanceM = Number(row.target_distance_m) > 0 ? Number(row.target_distance_m) : 50;
+    if (startAt) {
+      const serverStart = Date.parse(startAt);
+      const key = row.id + ':' + serverStart;
+      // A recorded finish takes precedence over restarting an old countdown.
+      // Only restore after the server confirms this account and duel are matched.
+      const current = latestFinishPayloadRef.current;
+      if (current?.userId === authUser.id && current.duelId === row.id) return;
+      const pending = readPendingFinish(authUser.id, row.id);
+      if (pending && Number.isFinite(serverStart) && serverStart === pending.startedAt &&
+          pending.targetDistanceM === targetDistanceM) {
+        latestFinishPayloadRef.current = pending;
+        matchStartHandledRef.current = key;
+        setMatchedDuel(null);
+        setMatchOverlay(null);
+        setFinishSubmissionError('Zielzeit lokal wiederhergestellt. Falls sie noch fehlt, erneut speichern.');
+        setRace({ status: 'finished', duelId: row.id, startedAt: pending.startedAt,
+          endedAt: pending.startedAt + pending.timeMs, targetDistanceM });
+        return;
+      }
+      if (isDuelStartRecoverable(serverStart, Date.now()) &&
+          matchStartHandledRef.current !== key) {
+        matchStartHandledRef.current = key;
+        const startsAt = serverStart; // exact DB timestamp; late devices catch up instead of shifting GO
+        setMatchedDuel(null);
+        setMatchOverlay({ duelId: row.id, startsAt, targetDistanceM, lobby: {
+          id: row.id, hostUserId: row.host_user_id, challengerUserId: row.challenger_user_id,
+          targetDistanceM, hostReady: row.host_ready === true, challengerReady: row.challenger_ready === true, startAt,
+        } });
+        setRace({ status: 'countdown', duelId: row.id, startsAt, targetDistanceM });
+      } else if (matchStartHandledRef.current !== key) {
+        // Do not start an hours-old duel from a resumed Safari tab.
+        setMatchedDuel(previous => mergeDuelReadiness(previous, {
+          id: row.id, hostUserId: row.host_user_id,
+          challengerUserId: row.challenger_user_id, targetDistanceM,
+          hostReady: row.host_ready === true, challengerReady: row.challenger_ready === true, startAt,
+        }));
+      }
+      return;
+    }
+    setMatchedDuel(previous => mergeDuelReadiness(previous, {
+      id: row.id, hostUserId: row.host_user_id,
+      challengerUserId: row.challenger_user_id, targetDistanceM,
+      hostReady: row.host_ready === true, challengerReady: row.challenger_ready === true, startAt: null,
+    }));
+  }, [authUser?.id]);
+
+  // Display only profile nicknames (never email addresses). Names are optional:
+  // the lobby still works when public.users is temporarily unavailable.
+  useEffect(() => {
+    if (!matchedDuel || !authUser) return;
+    let active = true;
+    const participantIds = [matchedDuel.hostUserId, matchedDuel.challengerUserId];
+    setMatchedNames({});
+    void (async () => {
+      try {
+        const { data, error } = await supabase.from('users').select('id, username')
+          .in('id', participantIds);
+        if (!active || error || !Array.isArray(data)) return;
+        const resolved: Record<string, string> = {};
+        const seen = new Set<string>();
+        for (const row of data) {
+          if (!row || typeof row.id !== 'string' || !participantIds.includes(row.id) || seen.has(row.id)) return;
+          seen.add(row.id);
+          if (typeof row.username === 'string' && row.username.trim()) {
+            resolved[row.id] = row.username.trim().slice(0, 36);
+          }
+        }
+        setMatchedNames(resolved);
+      } catch {
+        // Optional nicknames must never interrupt lobby readiness.
+      }
+    })();
+    return () => { active = false; };
+  }, [matchedDuel?.id, matchedDuel?.hostUserId, matchedDuel?.challengerUserId, authUser?.id]);
 
   // Derive current user display - Demo mode with generated user
   useEffect(() => {
     if (authUser) {
-      const fallbackName = authUser.email?.split('@')[0] || 'you';
-      setCurrentUser({ id: authUser.id, username: fallbackName });
+      // Use the account's editable nickname, not the private email address.
+      setCurrentUser({ id: authUser.id, username: authUser.displayName });
     } else {
       // Demo mode: create a demo user for testing
-      const demoUserId = 'demo-user-' + Math.random().toString(36).substr(2, 9);
-      const demoUsername = 'Runner' + Math.floor(Math.random() * 999).toString().padStart(3, '0');
+      const demoUserId = 'demo-user-' + Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
+      const sample = new Uint32Array(1);
+      do {
+        crypto.getRandomValues(sample);
+      } while (sample[0] >= 999 * Math.floor(4294967296 / 999));
+      const demoUsername = 'Runner' + Math.floor(sample[0] / Math.floor(4294967296 / 999)).toString().padStart(3, '0');
       setCurrentUser({ id: demoUserId, username: demoUsername });
     }
   }, [authUser]);
 
-  // Stable city demo data generator
-  const generateCityPlayers = useMemo(() => {
-    const seed = `city-${cityName || 'Berlin'}-${Math.floor(center.lat * 1000)}-${Math.floor(center.lng * 1000)}`;
-    const rng = seededRandom(seed);
-    const demoNames = [
-      'SpeedRunner23', 'FlashFeet', 'RocketRunner', 'TurboTom', 'LightningLisa',
-      'FastFreddy', 'QuickQuinn', 'RapidRyan', 'SwiftSarah', 'ZoomZoe',
-      'BlazeRunner', 'VelocityVic', 'DashDave', 'RushRita', 'BoltBen'
-    ];
-    
-    return Array.from({ length: 15 }, (_, i) => ({
-      id: `city-demo-${i}`,
-      username: demoNames[i] || `CityRunner${String(i + 1).padStart(2, '0')}`,
-      rank: i + 1,
-      bestTimeSeconds: 9.2 + (i * 0.4) + (rng() * 0.3),
-      distanceMeters: 100,
-      location: { 
-        lat: center.lat + (rng() - 0.5) * 0.01, 
-        lng: center.lng + (rng() - 0.5) * 0.01 
-      },
-      colorHex: colorForUsernameToHex(demoNames[i] || `CityRunner${String(i + 1).padStart(2, '0')}`),
-    }));
-  }, [cityName, Math.floor(center.lat * 1000), Math.floor(center.lng * 1000)]);
-
-  // Load leaderboard (ghost runs) for city - with demo data fallback
+  // Normal map renders only verified activity. The opt-in Hotspot Lab
+  // has its own isolated synthetic source and never populates players.
+  // Leaderboard rows without verified geographic proof stay off the map.
   useEffect(() => {
+    if (!authUser) {
+      setPlayers([]);
+      setLoadingGhosts(false);
+      return;
+    }
     let isActive = true;
     const city = cityName || 'Berlin';
     (async () => {
@@ -912,7 +863,7 @@ export default function MapScreen() {
         
         // If database has data, use it
         if (!error && ghostRows && ghostRows.length > 0) {
-          newPlayers = (ghostRows || []).map((r: any, idx: number) => {
+          newPlayers = ghostRows.map((r: any, idx: number) => {
             const username: string = r.username || `runner${String(idx + 1).padStart(2, '0')}`;
             const lat = typeof r.user_lat === 'number' ? r.user_lat : center.lat;
             const lng = typeof r.user_lng === 'number' ? r.user_lng : center.lng;
@@ -924,12 +875,11 @@ export default function MapScreen() {
               distanceMeters: 100,
               location: { lat, lng },
               colorHex: colorForUsernameToHex(username),
+              source: 'server-unverified',
             } as Player;
           });
-        } else {
-          // Use stable demo data for city leaderboard
-          newPlayers = generateCityPlayers;
         }
+        // No invented users on the real map if the request is empty or fails.
         
         if (!isActive) return;
         setPlayers(newPlayers);
@@ -940,7 +890,7 @@ export default function MapScreen() {
     return () => {
       isActive = false;
     };
-  }, [generateCityPlayers, cityName]);
+  }, [cityName, authUser?.id]);
 
   // Fetch approximate IP-based location when precise location is unavailable
   useEffect(() => {
@@ -1048,127 +998,392 @@ export default function MapScreen() {
     };
   }, [userCoords, ipCoords]);
 
-  // Stable demo runs generator
-  const generateDemoRuns = useMemo(() => {
-    if (!userCoords) return [];
-    
-    const seed = `demo-runs-${Math.floor(userCoords.lat * 10000)}-${Math.floor(userCoords.lng * 10000)}`;
-    const rng = seededRandom(seed);
-    const demoHosts = ['ChallengeMaster', 'RaceKing', 'SprintQueen'];
-    const distances = [50, 75, 100];
-    
-    return Array.from({ length: 3 }, (_, i) => ({
-      id: `demo-run-${i}`,
-      hostUserId: `demo-host-${i}`,
-      hostUsername: demoHosts[i],
-      distanceMeters: distances[i],
-      location: {
-        lat: userCoords.lat + (rng() - 0.5) * 0.005, // ~250m radius
-        lng: userCoords.lng + (rng() - 0.5) * 0.005,
-      },
-      createdAt: new Date(Date.now() - rng() * 300000).toISOString(), // Stable time in last 5 min
-      targetDistanceM: distances[i],
-    }));
-  }, [userCoords ? Math.floor(userCoords.lat * 10000) : 0, userCoords ? Math.floor(userCoords.lng * 10000) : 0]);
-
-  // Load nearby open duels - with demo data fallback
+  // GPS can update every second. Nearby discovery should not flicker or
+  // reload for ordinary sensor drift; Realtime handles urgent race changes.
   useEffect(() => {
-    if (!userCoords) {
-      // Ensure loading state is not stuck when location is unavailable
+    if (!userCoords) { setDiscoveryCoords(null); return; }
+    setDiscoveryCoords(previous => !previous ||
+      haversineM(previous.lat, previous.lng, userCoords.lat, userCoords.lng) >= 100
+      ? { lat: userCoords.lat, lng: userCoords.lng } : previous);
+  }, [userCoords?.lat, userCoords?.lng]);
+
+  useEffect(() => {
+    if (!authUser) return;
+    const id = window.setInterval(() => setDiscoveryRefreshTick(value => value + 1), 90_000);
+    return () => window.clearInterval(id);
+  }, [authUser?.id]);
+
+  // Guests have an empty real challenge feed: protected user/duel data stays private.
+  // Background refreshes never inject fabricated example races.
+  useEffect(() => {
+    if (!authUser) {
+      discoveryLoadedRef.current = false;
+      setOpenRuns([]);
+      setLoadingDuels(false);
+      return;
+    }
+    if (!discoveryCoords) {
       setLoadingDuels(false);
       return;
     }
     let isActive = true;
     (async () => {
-      if (!isActive) return;
-      setLoadingDuels(true);
+      if (!discoveryLoadedRef.current) setLoadingDuels(true);
       try {
-        const { data, error } = await getNearbyDuels(supabase, { userLocation: userCoords, radiusKm: 5 });
-        if (!isActive) return;
-        
+        const { data, error } = await getNearbyDuels(supabase, { userLocation: discoveryCoords, radiusKm: 5 });
+        if (!isActive || error) return; // never replace real races with demo on a network failure
+        if (finishAccountRef.current !== authUser.id) return;
+
         let mapped: OpenRun[] = [];
-        
-        // Try to use real data first
-        if (!error && data && data.length > 0) {
+        if (data && data.length > 0) {
           const hostIds = Array.from(new Set(data.map((d: any) => d.host_user_id).filter(Boolean)));
-          const { data: hostUsers } = await supabase
-            .from('users')
-            .select('id, username')
-            .in('id', hostIds);
-          const hostById = new Map<string, any>((hostUsers || []).map((u: any) => [u.id, u]));
+          // Nicknames are optional enrichment, not a prerequisite for
+          // showing a server-confirmed open challenge.
+          let hostUsers: Array<{ id: string; username: string }> = [];
+          if (hostIds.length > 0) {
+            try {
+              const { data: names, error: namesError } = await supabase
+                .from('users')
+                .select('id, username')
+                .in('id', hostIds);
+              if (!namesError && names) hostUsers = names;
+            } catch {
+              // A rejected nickname request must not discard valid races.
+            }
+          }
+          if (!isActive || finishAccountRef.current !== authUser.id) return;
+          const hostById = new Map<string, any>(hostUsers.map(u => [u.id, u]));
           mapped = data
-            .filter((d: any) => d.status === 'open')
+            .filter((d: any) => d.status === 'open' &&
+              (typeof d.expires_at !== 'string' || isOpenEventAvailable(d.expires_at)))
             .map((d: any) => {
-              let lat = center.lat;
-              let lng = center.lng;
-              if (d.location && (d.location as any).coordinates) {
-                const coords = (d.location as any).coordinates as [number, number];
-                lng = coords[0];
-                lat = coords[1];
-              }
+              const location = parseGeographyPoint(d.location);
+              if (!location) return null;
               return {
                 id: d.id,
                 hostUserId: d.host_user_id,
                 hostUsername: hostById.get(d.host_user_id)?.username || 'host',
                 distanceMeters: d.target_distance_m || (d.max_distance_km ?? 0) * 1000 || 100,
-                location: { lat, lng },
+                location,
                 createdAt: d.created_at,
+                expiresAt: d.expires_at,
                 targetDistanceM: d.target_distance_m || undefined,
               } as OpenRun;
-            });
-        } else {
-          // Use stable demo runs
-          mapped = generateDemoRuns;
+            })
+            .filter((run): run is OpenRun => run !== null);
         }
-        
-        if (!isActive) return;
-        setOpenRuns(mapped);
+
+        if (isActive && finishAccountRef.current === authUser.id) setOpenRuns(previous => reconcileOpenRaces(previous, mapped, authUser.id)
+          .filter(run => !knownNonOpenRunIdsRef.current.has(run.id)));
+      } catch {
+        // Preserve the last confirmed event feed on transport rejection.
       } finally {
-        if (isActive) setLoadingDuels(false);
+        if (isActive) {
+          discoveryLoadedRef.current = true;
+          setLoadingDuels(false);
+        }
       }
     })();
-    return () => {
-      isActive = false;
-    };
-  }, [generateDemoRuns, userCoords]);
+    return () => { isActive = false; };
+  }, [discoveryCoords?.lat, discoveryCoords?.lng, authUser?.id, discoveryRefreshTick]);
 
+  // A regional view must reflect real open challenges, not invented demo
+  // accounts or private users. Existing authenticated RLS permits reading
+  // open races. We fetch only ID + geometry, never host identity.
+  useEffect(() => {
+    if (!authUser || !wideMapView) {
+      setRegionalRuns([]);
+      return;
+    }
+    let active = true;
+    const regionalQueue = createDuelRecoveryQueue(async () => {
+      const { data, error } = await supabase
+        .from('duels')
+        .select('id, location, expires_at')
+        .eq('status', 'open')
+        .gt('expires_at', new Date().toISOString())
+        .limit(500);
+      if (!active || error) return;
+      if (finishAccountRef.current !== authUser.id) return;
+      setRegionalRuns((data ?? []).flatMap(row => {
+        if (knownNonOpenRunIdsRef.current.has(row.id)) return [];
+        if (!isOpenEventAvailable(row.expires_at)) return [];
+        const location = parseGeographyPoint(row.location);
+        return location ? [{ id: row.id as string, location, expiresAt: row.expires_at as string }] : [];
+      }));
+    });
+    const whenRegionalVisible = () => {
+      if (document.visibilityState === 'visible') regionalQueue.request();
+    };
+    requestRegionalDiscoveryRef.current = whenRegionalVisible;
+    regionalQueue.request();
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') regionalQueue.poll();
+    }, 90_000);
+    document.addEventListener('visibilitychange', whenRegionalVisible);
+    window.addEventListener('online', whenRegionalVisible);
+    return () => {
+      active = false;
+      regionalQueue.close();
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', whenRegionalVisible);
+      window.removeEventListener('online', whenRegionalVisible);
+      if (requestRegionalDiscoveryRef.current === whenRegionalVisible) {
+        requestRegionalDiscoveryRef.current = null;
+      }
+    };
+  }, [authUser?.id, wideMapView]);
+
+  // Fetch only this authenticated host's open, unjoined lobbies. Keep the
+  // cancellation action independent from the 5-km map search and Leaflet popup.
+  useEffect(() => {
+    if (!authUser) {
+      setHostedOpenDuels([]);
+      setHostedDuelsLoadError(false);
+      setCancelConfirmation(null);
+      return;
+    }
+    let active = true;
+    const hostedDiscoveryQueue = createDuelRecoveryQueue(async () => {
+      const hostedRevision = hostedCreationRevisionRef.current;
+      const hostedReadCurrent = () => active && finishAccountRef.current === authUser.id &&
+        hostedCreationRevisionRef.current === hostedRevision;
+      await listHostedOpenDuels(supabase, authUser.id)
+        .then(runs => {
+          if (!hostedReadCurrent()) return;
+          const open = runs.filter(run => !knownNonOpenRunIdsRef.current.has(run.id));
+          setHostedOpenDuels(open);
+          setOpenRuns(previous => {
+            const restored: OpenRun[] = open
+              .filter(run => Boolean(run.location) && !knownNonOpenRunIdsRef.current.has(run.id))
+              .map(run => ({
+                id: run.id,
+                hostUserId: authUser.id,
+                hostUsername: authUser.displayName,
+                distanceMeters: run.distanceMeters,
+                location: run.location!,
+                createdAt: run.createdAt ?? undefined,
+                expiresAt: run.expiresAt ?? undefined,
+                targetDistanceM: run.distanceMeters,
+              }));
+            const others = previous.filter(run => run.hostUserId !== authUser.id);
+            return [...restored, ...others];
+          });
+          setHostedDuelsLoadError(false);
+        })
+        .catch(() => {
+          if (!hostedReadCurrent()) return;
+          setHostedDuelsLoadError(true);
+        });
+    });
+    requestHostedDiscoveryRef.current = hostedDiscoveryQueue.request;
+    const whenHostedVisible = () => {
+      if (document.visibilityState === 'visible') hostedDiscoveryQueue.request();
+    };
+    hostedDiscoveryQueue.request();
+    document.addEventListener('visibilitychange', whenHostedVisible);
+    window.addEventListener('online', whenHostedVisible);
+    return () => {
+      active = false;
+      hostedDiscoveryQueue.close();
+      document.removeEventListener('visibilitychange', whenHostedVisible);
+      window.removeEventListener('online', whenHostedVisible);
+      if (requestHostedDiscoveryRef.current === hostedDiscoveryQueue.request) {
+        requestHostedDiscoveryRef.current = null;
+      }
+    };
+  }, [authUser?.id]);
+
+  // Mobile Safari may suspend Realtime while the tab is hidden or the screen
+  // locks. Recover existing confirmed matches on mount, on focus and during
+  // a waiting lobby without relying on a missed websocket message.
+  useEffect(() => {
+    if (!authUser) {
+      setMatchedDuel(null);
+      setDismissedMatchId(null);
+      return;
+    }
+    let active = true;
+    const queue = createDuelRecoveryQueue(async () => {
+      const revision = recoveryRevisionRef.current;
+      const current = () => isCurrentRecovery(active, finishAccountRef.current, authUser.id,
+        recoveryRevisionRef.current, revision);
+      if (!current()) return;
+      const { data, error } = await supabase.from('duels')
+        .select('id, status, host_user_id, challenger_user_id, target_distance_m, host_ready, challenger_ready, start_at')
+        .eq('status', 'matched')
+        .or(`host_user_id.eq.${authUser.id},challenger_user_id.eq.${authUser.id}`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!current() || error) return;
+      const activeBeforeRecovery = activeDuelIdRef.current;
+      if (data && (!activeBeforeRecovery || data.id === activeBeforeRecovery) &&
+          !endedDuelIdsRef.current.has(data.id) && !completedDuelIdsRef.current.has(data.id)) {
+        applyMatchedDuel(data);
+        // An accepted transition advances the revision. A rejected candidate
+        // must not prevent the exact active-duel status check below.
+        if (!current()) return;
+      }
+      // A different match must not hide the current race or unread result.
+      // Check the original duel's status even when a newer match exists.
+      // A race already in countdown/running hides the lobby. The active ref
+      // remains and must be checked when another iPhone aborts the match.
+      const activeId = activeDuelIdRef.current || readActiveDuelId(authUser.id);
+      if (activeId) activeDuelIdRef.current = activeId;
+      if (!activeId) {
+        setMatchedDuel(null);
+        return;
+      }
+      const { data: latest, error: statusError } = await supabase.from('duels')
+        .select('id, status, host_user_id, challenger_user_id, start_at, target_distance_m, host_ready, challenger_ready')
+        .eq('id', activeId).maybeSingle();
+      if (!current() || statusError || activeDuelIdRef.current !== activeId) return;
+      // A different row cannot confirm the state of this active duel.
+      if (latest && latest.id !== activeId) return;
+      // Absence alone is not a terminal result. A saved, never-confirmed hint
+      // may yield to a different confirmed match only when no finish is at risk.
+      if (latest === null &&
+          canReleaseUnconfirmedDuelHint({
+            activeId, hintId: unconfirmedRecoveryHintRef.current,
+            candidate: data, userId: authUser.id,
+            candidateRetired: !!data && (endedDuelIdsRef.current.has(data.id) || completedDuelIdsRef.current.has(data.id)),
+            hasPendingFinish: latestFinishPayloadRef.current?.duelId === activeId ||
+              readPendingFinish(authUser.id, activeId) !== null,
+          }) && data && duelStartLatch.current.accept(data.id, data.start_at)) {
+        activeDuelIdRef.current = null;
+        unconfirmedRecoveryHintRef.current = null;
+        forgetActiveDuelId(authUser.id, activeId);
+        applyMatchedDuel(data);
+        return;
+      }
+      // Never infer termination from a missing row or a failed/RLS-hidden read.
+      if (latest && (latest.host_user_id !== authUser.id && latest.challenger_user_id !== authUser.id)) return;
+      if (latest?.status === 'abandoned') {
+        clearAbortedDuel(activeId, true);
+      } else if (latest?.status === 'completed') {
+        showCompletedDuel(latest);
+      } else if (latest?.status === 'matched') {
+        applyMatchedDuel(latest);
+      }
+    });
+    requestMatchRecoveryRef.current = queue.request;
+    const whenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        queue.request();
+        setDiscoveryRefreshTick(tick => tick + 1);
+      }
+    };
+    queue.request();
+    const id = window.setInterval(() => { if (document.visibilityState === 'visible') queue.poll(); }, 4_000);
+    document.addEventListener('visibilitychange', whenVisible);
+    window.addEventListener('focus', whenVisible);
+    window.addEventListener('online', whenVisible);
+    return () => {
+      active = false;
+      queue.close();
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', whenVisible);
+      window.removeEventListener('focus', whenVisible);
+      window.removeEventListener('online', whenVisible);
+      if (requestMatchRecoveryRef.current === queue.request) {
+        requestMatchRecoveryRef.current = null;
+      }
+    };
+  }, [authUser?.id, applyMatchedDuel, clearAbortedDuel, showCompletedDuel]);
+
+  // No Realtime subscription while exploring as an unauthenticated guest.
   // Realtime updates for duels
   useEffect(() => {
+    if (!authUser) { setRealtimeConnected(false); return; }
+    setRealtimeConnected(false);
+    const lifetime = createDuelRealtimeLifetime();
     const channel = supabase
       .channel('duels-realtime')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'duels' },
-        async (payload: any) => {
-          const row: any = payload.new ?? payload.old;
+        (payload: any) => {
+          if (!lifetime.isActive()) return;
+          const row: any = duelRealtimeRow(payload);
+          if (finishAccountRef.current !== authUser.id) return;
           if (!row) return;
 
-          // Show match overlay if this duel becomes matched and involves current user
-          if (
-            payload.eventType === 'UPDATE' &&
-            (row.status === 'matched' || (row.start_at && row.status === 'matched')) &&
-            authUser &&
-            (row.host_user_id === authUser.id || row.challenger_user_id === authUser.id)
-          ) {
-            const serverStart = row.start_at ? new Date(row.start_at).getTime() : Date.now() + 3000;
-            const startsAt = Math.max(Date.now() + 1000, serverStart); // ensure at least 1s buffer
-            const targetM = row.target_distance_m || 50;
-            setMatchOverlay({ duelId: row.id, startsAt, targetDistanceM: targetM });
-            setRace({ status: 'countdown', duelId: row.id, startsAt, targetDistanceM: targetM });
+          if (payload.eventType === 'DELETE' || row.status !== 'open') {
+            knownNonOpenRunIdsRef.current.add(row.id);
+            setRegionalRuns(previous => previous.filter(run => run.id !== row.id));
+          } else if (knownNonOpenRunIdsRef.current.has(row.id)) {
+            return; // a delayed open notification must not resurrect a retired marker
+          }
+
+          // An open event created on another device also belongs in the
+          // authoritative hosted list, independent of GPS or popup visibility.
+          if (row.host_user_id === authUser.id && row.status === 'open' &&
+              payload.eventType !== 'DELETE' && row.challenger_user_id == null &&
+              typeof row.expires_at === 'string' && isOpenEventAvailable(row.expires_at)) {
+            hostedCreationRevisionRef.current += 1;
+            requestHostedDiscoveryRef.current?.();
+          }
+
+          // Retire only the dialog for the affected event, never a new one.
+          if (payload.eventType === 'DELETE' || row.status !== 'open' ||
+              (typeof row.expires_at === 'string' && !isOpenEventAvailable(row.expires_at))) {
+            setCancelConfirmation(previous => previous?.id === row.id ? null : previous);
+          }
+
+          // DELETE supplies only the old primary key. Remove known local
+          // markers; do not infer match completion or participant identity.
+          if (payload.eventType === 'DELETE') {
+            setOpenRuns(previous => previous.filter(run => run.id !== row.id));
+            setHostedOpenDuels(previous => previous.filter(run => run.id !== row.id));
+            setRegionalRuns(previous => previous.filter(run => run.id !== row.id));
+            return;
+          }
+
+          // A second browser/device can join or cancel the host's lobby.
+          // Stop the visible open-lobby timer as soon as the server confirms
+          // a non-open status; the matched race uses its own start countdown.
+          if (row.host_user_id === authUser.id &&
+              (payload.eventType === 'DELETE' || row.status !== 'open' ||
+               (typeof row.expires_at === 'string' && !isOpenEventAvailable(row.expires_at)))) {
+            setHostedOpenDuels(previous => previous.filter(run => run.id !== row.id));
+          }
+
+          // Do not invent a 3-second countdown when the database is only
+          // matched. A real start_at is created after BOTH players confirm ready.
+          if (payload.eventType === 'UPDATE' && row.status === 'matched') {
+            applyMatchedDuel(row);
+          }
+          if (payload.eventType === 'UPDATE' && row.status === 'abandoned') {
+            clearAbortedDuel(row.id, true);
+          }
+          if (payload.eventType === 'UPDATE' && row.status === 'completed') {
+            showCompletedDuel(row);
           }
 
           setOpenRuns((prev) => {
             const copy = [...prev];
-            if (payload.eventType === 'DELETE' || (payload.eventType === 'UPDATE' && row.status !== 'open')) {
+            // INSERT can also carry a non-open row, and a queued open
+            // update may execute after a later message has retired its ID.
+            if (payload.eventType === 'DELETE' || row.status !== 'open' ||
+                knownNonOpenRunIdsRef.current.has(row.id)) {
               return copy.filter((r) => r.id !== row.id);
             }
-            // INSERT or UPDATE open
-            let lat = center.lat;
-            let lng = center.lng;
-            if (row.location && (row.location as any).coordinates) {
-              const coords = (row.location as any).coordinates as [number, number];
-              lng = coords[0];
-              lat = coords[1];
+            // INSERT or UPDATE open; cron or client may deliver an expired
+            // event before its status transition is observed.
+            if (typeof row.expires_at === 'string' && !isOpenEventAvailable(row.expires_at)) {
+              return copy.filter(r => r.id !== row.id);
+            }
+            const location = parseGeographyPoint(row.location);
+            if (!location) return copy;
+            // A global open-duels feed must not inject distant events into
+            // the local 5-km list. Use the latest GPS fix without rebuilding
+            // the Realtime subscription on every geolocation update.
+            const gps = liveUserCoordsRef.current;
+            const mine = row.host_user_id === authUser.id;
+            if (!mine && (!gps ||
+              haversineM(gps.lat, gps.lng, location.lat, location.lng) > 5_000)) {
+              return copy.filter(r => r.id !== row.id);
             }
             const existingIdx = copy.findIndex((r) => r.id === row.id);
             const updated: OpenRun = {
@@ -1176,103 +1391,457 @@ export default function MapScreen() {
               hostUserId: row.host_user_id,
               hostUsername: 'host',
               distanceMeters: row.target_distance_m || (row.max_distance_km ?? 0) * 1000 || 100,
-              location: { lat, lng },
+              location,
               createdAt: row.created_at,
+              expiresAt: row.expires_at,
               targetDistanceM: row.target_distance_m || undefined,
             };
             if (existingIdx >= 0) {
               copy[existingIdx] = updated;
             } else {
-              copy.unshift(updated);
+              // Append new events instead of pushing the user's current list
+              // viewport down while they are reading an existing challenge.
+              copy.push(updated);
             }
             return copy;
           });
         }
       )
-      .subscribe();
+      .subscribe(status => {
+        if (!lifetime.isActive() || finishAccountRef.current !== authUser.id) return;
+        setRealtimeConnected(status === 'SUBSCRIBED');
+        // Reconcile the authoritative discovery list after (re)subscription.
+        if (status === 'SUBSCRIBED') setDiscoveryRefreshTick(tick => tick + 1);
+        // A websocket can reconnect without a browser online/visibility event.
+        if (status === 'SUBSCRIBED') requestHostedDiscoveryRef.current?.();
+        if (status === 'SUBSCRIBED') requestRegionalDiscoveryRef.current?.();
+        // Recover missed Ready/start/terminal transitions even when the
+        // websocket reconnects while the browser remains online.
+        if (status === 'SUBSCRIBED' && document.visibilityState === 'visible') {
+          requestMatchRecoveryRef.current?.();
+        }
+      });
     return () => {
-      supabase.removeChannel(channel);
+      lifetime.close();
+      void supabase.removeChannel(channel);
     };
-  }, [center.lat, center.lng, authUser?.id]);
+  }, [authUser?.id, applyMatchedDuel, clearAbortedDuel, showCompletedDuel]);
 
-  // Auto-expire duels older than 30 minutes
+  // The server is the authority for expiration. Client-side pruning only
+  // keeps the map truthful until a cron/realtime update arrives, even after
+  // waking Safari from the background. No client UPDATE/DELETE is attempted.
   useEffect(() => {
-    const interval = setInterval(() => {
-      const cutoff = Date.now() - 30 * 60 * 1000;
-      setOpenRuns((prev) => prev.filter((r) => !r.createdAt || new Date(r.createdAt).getTime() >= cutoff));
-    }, 60 * 1000);
-    return () => clearInterval(interval);
+    const pruneExpired = () => {
+      const now = Date.now();
+      // Let an in-flight cancellation resolve; otherwise an expired event
+      // must not leave a stale confirmation dialog covering the map.
+      if (!cancelHostedPendingRef.current) {
+        setCancelConfirmation(previous => previous?.expiresAt &&
+          !isOpenEventAvailable(previous.expiresAt, now) ? null : previous);
+      }
+      // Return the previous array when nothing expires: a 1Hz deadline
+      // check must NOT rerender the entire MapLibre scene every second.
+      setOpenRuns(previous => {
+        const next = previous.filter(run => !run.expiresAt || isOpenEventAvailable(run.expiresAt, now));
+        return next.length === previous.length ? previous : next;
+      });
+      setHostedOpenDuels(previous => {
+        const next = previous.filter(run => !run.expiresAt || isOpenEventAvailable(run.expiresAt, now));
+        return next.length === previous.length ? previous : next;
+      });
+      setRegionalRuns(previous => {
+        const next = previous.filter(run => !run.expiresAt || isOpenEventAvailable(run.expiresAt, now));
+        return next.length === previous.length ? previous : next;
+      });
+    };
+    pruneExpired();
+    const interval = window.setInterval(pruneExpired, 1000);
+    document.addEventListener('visibilitychange', pruneExpired);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', pruneExpired);
+    };
   }, []);
 
-  // Host a run: create local open run marker at user location
-  const handleHostRun = async (distanceMeters: number) => {
-    if (!userCoords || !currentUser) return;
-    const geojson = { type: 'Point', coordinates: [userCoords.lng, userCoords.lat] } as any;
-    // In demo mode, create local run without database
-    if (!authUser) {
-      // Demo mode: create local run
-      const demoRun: OpenRun = {
-        id: 'demo-run-' + Date.now(),
-        hostUserId: currentUser.id,
-        hostUsername: currentUser.username,
-        distanceMeters: distanceMeters,
-        location: userCoords,
-        createdAt: new Date().toISOString(),
-        targetDistanceM: distanceMeters,
-      };
-      setOpenRuns(prev => [demoRun, ...prev]);
-      return;
-    }
-    
-    // Persist to DB; rely on realtime to show it
-    await createDuel(supabase as any, {
-      hostUserId: authUser.id,
-      location: geojson,
-      distanceKm: Math.max(1, Math.round(distanceMeters / 100) / 10),
-      targetDistanceM: distanceMeters,
-    });
-    // Optimistically refresh nearby duels to surface the marker immediately
-    try {
-      const { data, error } = await getNearbyDuels(supabase, { userLocation: userCoords, radiusKm: 5 });
-      if (!error && data) {
-        const hostIds = Array.from(new Set(data.map((d: any) => d.host_user_id).filter(Boolean)));
-        const { data: hostUsers } = await supabase
-          .from('users')
-          .select('id, username')
-          .in('id', hostIds);
-        const hostById = new Map<string, any>((hostUsers || []).map((u: any) => [u.id, u]));
-        const mapped: OpenRun[] = data
-          .filter((d: any) => d.status === 'open')
-          .map((d: any) => {
-            let lat = center.lat;
-            let lng = center.lng;
-            if (d.location && (d.location as any).coordinates) {
-              const coords = (d.location as any).coordinates as [number, number];
-              lng = coords[0];
-              lat = coords[1];
-            }
-            return {
-              id: d.id,
-              hostUserId: d.host_user_id,
-              hostUsername: hostById.get(d.host_user_id)?.username || 'host',
-              distanceMeters: d.target_distance_m || (d.max_distance_km ?? 0) * 1000 || 100,
-              location: { lat, lng },
-              createdAt: d.created_at,
-              targetDistanceM: d.target_distance_m || undefined,
-            } as OpenRun;
-          });
-        setOpenRuns(mapped);
-      }
-    } catch (_e) {}
+  // Guest restriction applies to every entry point, including handlers.
+  // There is no local guest race creation or guest race countdown.
+  const requireRaceAccount = (): boolean => {
+    if (authUser) return true;
+    navigate('/login?next=%2Fmap');
+    return false;
   };
 
-  // Join a run - works in demo mode
+  // A confirmed participant match reserves the local race flow regardless
+  // of whether this account is the host or challenger. An unconfirmed
+  // recovery hint alone does not prove that a match is still active.
+  const hasConfirmedOrJoiningDuel = () => joiningRunRef.current !== null ||
+    (activeDuelIdRef.current !== null &&
+      activeDuelIdRef.current !== unconfirmedRecoveryHintRef.current);
+
+  const openHostRunAt = (point: Coordinates) => {
+    if (!requireRaceAccount()) return;
+    if (hostingRunPendingRef.current) return;
+    setRaceNotice(null);
+    if (race.status !== 'idle' || hasConfirmedOrJoiningDuel()) {
+      setRaceNotice('Du hast bereits ein aktives Duell. Schließe es zuerst ab.');
+      return;
+    }
+    if (hostedOpenDuels.some(run => !run.expiresAt || isOpenEventAvailable(run.expiresAt))) {
+      setRaceNotice('Du hast bereits ein offenes Event. Warte auf einen Gegner oder storniere es zuerst.');
+      return;
+    }
+    if (!userCoords || !canHostAt(userCoords, point)) {
+      setRaceNotice(`Wähle einen Punkt innerhalb deines ${HOST_PLACEMENT_RADIUS_METERS}-m-Radars. Dein GPS-Standort muss verfügbar sein.`);
+      if (!userCoords) requestOnce();
+      return;
+    }
+    setHostLocation({ lat: point.lat, lng: point.lng });
+    setHostOpen(true);
+  };
+
+  // A new duel is a lobby: it waits for a challenger before the countdown.
+  // Only close the creation dialog after Supabase confirms the inserted row.
+  const handleHostRun = async (distanceMeters: number) => {
+    if (!requireRaceAccount()) return;
+    if (!authUser || finishAccountRef.current !== authUser.id) {
+      throw new Error('Anmeldung erforderlich.');
+    }
+    if (race.status !== 'idle' || hasConfirmedOrJoiningDuel()) {
+      throw new Error('Du hast bereits ein aktives Event. Schließe zuerst dein Duell ab.');
+    }
+    if (!userCoords || !hostLocation || !currentUser) {
+      throw new Error('GPS-Standort oder gewählter Kartenpunkt nicht verfügbar.');
+    }
+    if (!canHostAt(userCoords, hostLocation)) {
+      throw new Error('Der gewählte Punkt liegt jetzt außerhalb deines 500-m-Radars. Bitte wähle erneut einen Punkt.');
+    }
+
+    if (hostingRunPendingRef.current) throw new Error('Ein Event wird bereits gespeichert.');
+    hostingRunPendingRef.current = true;
+    try {
+      // Friendly preflight for the UI. The UNIQUE PARTIAL INDEX in Postgres
+      // is still the real atomic protection against racing double-clicks,
+      // extra tabs, malicious HTTP requests and concurrent devices.
+      const { data: activeHosted, error: activeCheckError } = await supabase
+        .from('duels')
+        .select('id, status')
+        .eq('host_user_id', authUser.id)
+        .in('status', ['open', 'matched'])
+        .limit(1);
+      if (finishAccountRef.current !== authUser.id) return;
+      if (activeCheckError) throw activeCheckError;
+      if (activeHosted?.length) {
+        throw new Error('Du hast bereits ein aktives Event. Schließe zuerst dein vorheriges Rennen ab oder storniere es.');
+      }
+
+      // A match or join may arrive while the host preflight is in flight.
+      if (hasConfirmedOrJoiningDuel()) {
+        throw new Error('Du hast bereits ein aktives Event. Schließe zuerst dein Duell ab.');
+      }
+
+      // GPS can change during the preflight. Do not submit a point that is
+      // outside the placement radius of the latest observed position.
+      const latestCoords = liveUserCoordsRef.current;
+      if (!latestCoords || !canHostAt(latestCoords, hostLocation)) {
+        throw new Error('Der gewählte Punkt liegt jetzt außerhalb deines 500-m-Radars. Bitte wähle erneut einen Punkt.');
+      }
+      const { data, error } = await createDuel(supabase, {
+        hostUserId: authUser.id,
+        location: hostLocation,
+        distanceKm: 1,
+        targetDistanceM: distanceMeters,
+      });
+      if (finishAccountRef.current !== authUser.id) return;
+      if (error) throw error;
+      if (!data?.id || data.status !== 'open' || !data.expires_at) {
+        throw new Error('Renn-Erstellung wurde nicht bestätigt.');
+      }
+
+      // Realtime may have already observed a match or terminal transition while
+      // the create response was in flight. Never restore that event as open.
+      if (knownNonOpenRunIdsRef.current.has(data.id)) {
+        setDiscoveryRefreshTick(tick => tick + 1);
+        return;
+      }
+      if (!isOpenEventAvailable(data.expires_at)) {
+        setDiscoveryRefreshTick(tick => tick + 1);
+        setRaceNotice('Die bestätigte Challenge ist bereits abgelaufen.');
+        return;
+      }
+
+      // Display the confirmed creation without depending on realtime delivery.
+      const created: OpenRun = {
+        id: data.id,
+        hostUserId: authUser.id,
+        hostUsername: currentUser.username,
+        distanceMeters,
+        location: hostLocation,
+        createdAt: data.created_at,
+        expiresAt: data.expires_at,
+        targetDistanceM: distanceMeters,
+      };
+      hostedCreationRevisionRef.current += 1;
+      setOpenRuns(previous => [created, ...previous.filter(run => run.id !== created.id)]);
+      setHostedOpenDuels(previous => [
+        { id: created.id, hostUserId: authUser.id, distanceMeters,
+          createdAt: created.createdAt ?? null, expiresAt: created.expiresAt,
+          location: created.location },
+        ...previous.filter(run => run.id !== created.id),
+      ]);
+      setHostedDuelsLoadError(false);
+      setRaceNotice(`Dein ${distanceMeters}-m-Event ist 60 Minuten offen. Sobald jemand beitritt, endet das Wartefenster.`);
+    } catch (error) {
+      // A failed response is not proof that the insert failed. Reconcile
+      // owned events without retrying the write or claiming success.
+      if (finishAccountRef.current === authUser.id) {
+        hostedCreationRevisionRef.current += 1;
+        requestHostedDiscoveryRef.current?.();
+      }
+      throw error;
+    } finally {
+      hostingRunPendingRef.current = false;
+    }
+  };
+
+  const handleCancelHostedRun = (run: HostedOpenDuel) => {
+    if (cancelHostedPendingRef.current || !authUser || finishAccountRef.current !== authUser.id) return;
+    if (run.hostUserId !== authUser.id || run.id.startsWith('demo-run-')) return;
+    if (knownNonOpenRunIdsRef.current.has(run.id) ||
+        (run.expiresAt && !isOpenEventAvailable(run.expiresAt))) return;
+    // No window.confirm: embedded iOS Safari/PWA and Leaflet popups can dismiss
+    // the native prompt before the user sees what happened.
+    setCancelError(null);
+    setCancelConfirmation(run);
+  };
+
+  const confirmCancelHostedRun = async () => {
+    if (cancelHostedPendingRef.current || !authUser || finishAccountRef.current !== authUser.id) return;
+    const run = cancelConfirmation;
+    if (!run || run.hostUserId !== authUser.id || cancellingRunId) return;
+    if (knownNonOpenRunIdsRef.current.has(run.id) ||
+        (run.expiresAt && !isOpenEventAvailable(run.expiresAt))) {
+      setCancelConfirmation(previous => previous?.id === run.id ? null : previous);
+      return;
+    }
+    setCancellingRunId(run.id);
+    cancelHostedPendingRef.current = true;
+    setCancelError(null);
+    setRaceNotice(null);
+    try {
+      const result = await cancelHostedOpenDuel(supabase, run.id, authUser.id);
+      if (finishAccountRef.current !== authUser.id) return;
+      const message = cancelHostedDuelMessage(result);
+      if (result.status === 'cancelled') {
+        knownNonOpenRunIdsRef.current.add(run.id);
+        setRegionalRuns(previous => previous.filter(item => item.id !== run.id));
+        setHostedOpenDuels(previous => previous.filter(item => item.id !== run.id));
+        setOpenRuns(previous => previous.filter(item => item.id !== run.id));
+        setCancelConfirmation(null);
+        setRaceNotice(message);
+      } else {
+        // Do not remove a row unless the server actually returned cancellation.
+        setCancelError(message);
+        setRaceNotice(message);
+        // A zero-row update can mean the opponent already joined. Query the
+        // authoritative row, close the stale cancel dialog and recover its match.
+        const { data: latest, error: readbackError } = await supabase.from('duels')
+          .select('id, status, host_user_id, challenger_user_id, target_distance_m, host_ready, challenger_ready, start_at')
+          .eq('id', run.id).eq('host_user_id', authUser.id).maybeSingle();
+        if (finishAccountRef.current !== authUser.id) return;
+        if (readbackError) throw readbackError;
+        if (latest && (latest.id !== run.id || latest.host_user_id !== authUser.id)) {
+          throw new Error('Rennstatus nicht für dieses Event bestätigt.');
+        }
+        if (latest?.status === 'matched') {
+          applyMatchedDuel(latest);
+          setCancelError(null);
+          setRaceNotice('Dein Gegner ist bereits beigetreten. Das Rennen kann nicht mehr als offene Challenge abgesagt werden.');
+        } else if (latest && latest.status !== 'open') {
+          knownNonOpenRunIdsRef.current.add(run.id);
+          setRegionalRuns(previous => previous.filter(item => item.id !== run.id));
+          setHostedOpenDuels(previous => previous.filter(item => item.id !== run.id));
+          setOpenRuns(previous => previous.filter(item => item.id !== run.id));
+          setCancelConfirmation(null);
+          setCancelError(null);
+          // A readback can confirm cancellation after the write response was lost.
+          setRaceNotice(latest.status === 'cancelled'
+            ? 'Dein Rennen ist laut Server abgesagt.'
+            : 'Dieses Rennen ist nicht mehr offen und wurde von der Karte entfernt.');
+        } else {
+          // Share the lifecycle queue so reconnect and cancel follow-up reads
+          // never overlap or publish owned snapshots out of order.
+          requestHostedDiscoveryRef.current?.();
+        }
+      }
+    } catch {
+      // The follow-up status read may reject even though cancellation itself
+      // returns a structured result. Do not leave an unhandled promise or
+      // claim a successful cancellation without an authoritative response.
+      if (finishAccountRef.current !== authUser.id || knownNonOpenRunIdsRef.current.has(run.id)) return;
+      const message = 'Rennstatus konnte nicht geprüft werden. Bitte Verbindung prüfen und erneut versuchen.';
+      setCancelError(message);
+      setRaceNotice(message);
+    } finally {
+      cancelHostedPendingRef.current = false;
+      if (finishAccountRef.current === authUser.id) setCancellingRunId(null);
+    }
+  };
+
+  const sendFinishedTime = async (payload: PendingFinish) => {
+    const stillCurrent = () => finishAccountRef.current === payload.userId &&
+      latestFinishPayloadRef.current === payload &&
+      activeDuelIdRef.current === payload.duelId &&
+      !endedDuelIdsRef.current.has(payload.duelId) &&
+      !completedDuelIdsRef.current.has(payload.duelId);
+    if (finishSubmittingRef.current || !stillCurrent()) return;
+    const releaseWrite = duelWriteGate.current.tryAcquire(payload.duelId);
+    if (!releaseWrite) {
+      setFinishSubmissionError('Für dieses Duell läuft bereits eine Änderung. Bitte Zielzeit erneut speichern.');
+      return;
+    }
+    finishSubmittingRef.current = payload;
+    let writeAttempted = false;
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (!stillCurrent()) return;
+      if (sessionError || sessionData.session?.user.id !== payload.userId) {
+        setFinishSubmissionError('Bitte erneut anmelden, bevor du deine Zielzeit speicherst.');
+        return;
+      }
+      writeAttempted = true;
+      const { error } = await submitDuelResult(supabase, payload.duelId, payload.timeMs, payload.metrics);
+      if (!stillCurrent()) return;
+      // The other runner may already have finished. Read the authoritative
+      // outcome immediately, including after a rejected acknowledgement.
+      requestMatchRecoveryRef.current?.();
+      if (error) {
+        if (error.code === '23514') {
+          setFinishSubmissionError('Der Server hat die Messung nicht akzeptiert. Bitte Rennstatus prüfen.');
+        } else {
+          setFinishSubmissionError('Zielzeit nicht gespeichert. Bitte erneut versuchen.');
+        }
+        return;
+      }
+      // Retain the local finish until both players complete or the duel is
+      // abandoned. A lost response/reload can safely retry the same payload.
+      setFinishSubmissionError(null);
+    } catch {
+      if (stillCurrent()) setFinishSubmissionError('Netzwerkfehler. Bitte Zielzeit erneut speichern.');
+      if (writeAttempted && stillCurrent()) requestMatchRecoveryRef.current?.();
+    } finally {
+      if (finishSubmittingRef.current === payload) finishSubmittingRef.current = null;
+      releaseWrite();
+    }
+  };
+
+  const retryFinishedTime = async (duelId: string) => {
+    const payload = latestFinishPayloadRef.current;
+    if (payload?.duelId === duelId) await sendFinishedTime(payload);
+  };
+
+  const confirmAbortMatchedDuel = async (duelId: string) => {
+    if (!authUser || !duelId || duelId.startsWith('demo-run-')) {
+      throw new Error('Du musst angemeldet sein, um dieses Rennen abzubrechen.');
+    }
+    const stillCurrent = () => finishAccountRef.current === authUser.id &&
+      activeDuelIdRef.current === duelId &&
+      !endedDuelIdsRef.current.has(duelId) &&
+      !completedDuelIdsRef.current.has(duelId);
+    if (!stillCurrent()) throw new Error('Dieses Duell ist nicht mehr aktiv.');
+    const releaseWrite = duelWriteGate.current.tryAcquire(duelId);
+    if (!releaseWrite) throw new Error('Für dieses Duell läuft bereits eine Änderung. Bitte erneut versuchen.');
+    try {
+      // Leave the countdown/race visible until Supabase confirms termination.
+      const confirmed = await abortMatchedDuel(supabase, duelId);
+      if (finishAccountRef.current !== authUser.id) return;
+      if (!stillCurrent()) return;
+      if (confirmed.id !== duelId || confirmed.status !== 'abandoned') {
+        throw new Error('Der Server hat den Abbruch nicht bestätigt.');
+      }
+      clearAbortedDuel(duelId, false);
+    } catch (error) {
+      // Realtime may already have retired this duel while the RPC was pending.
+      // A lost acknowledgement must trigger a read, not another abort write.
+      if (stillCurrent()) requestMatchRecoveryRef.current?.();
+      if (stillCurrent()) throw error;
+    } finally {
+      releaseWrite();
+    }
+  };
+
+  const confirmMatchReady = async () => {
+    if (!matchedDuel || !authUser || readyBusy || matchedDuel.startAt) return;
+    const mine = matchedDuel.hostUserId === authUser.id
+      ? matchedDuel.hostReady : matchedDuel.challengerReady;
+    if (mine) return;
+    const stillCurrent = () => finishAccountRef.current === authUser.id &&
+      activeDuelIdRef.current === matchedDuel.id &&
+      !endedDuelIdsRef.current.has(matchedDuel.id) &&
+      !completedDuelIdsRef.current.has(matchedDuel.id);
+    if (!stillCurrent()) return;
+    const releaseWrite = duelWriteGate.current.tryAcquire(matchedDuel.id);
+    if (!releaseWrite) return;
+    setReadyBusy(matchedDuel.id);
+    setReadyError(null);
+    try {
+      const { data, error } = await readyForDuel(supabase, matchedDuel.id);
+      if (!stillCurrent()) return;
+      if (error) throw error;
+      if (!data || data.id !== matchedDuel.id || data.status !== 'matched') {
+        throw new Error('Der Server hat den Bereitschaftsstatus nicht bestätigt.');
+      }
+      if (data.host_user_id !== matchedDuel.hostUserId ||
+          data.challenger_user_id !== matchedDuel.challengerUserId ||
+          (authUser.id === matchedDuel.hostUserId ? data.host_ready !== true : data.challenger_ready !== true)) {
+        throw new Error('Der Server hat die eigene Bereitschaft nicht eindeutig bestätigt.');
+      }
+      applyMatchedDuel(data);
+    } catch {
+      if (stillCurrent()) setReadyError({ duelId: matchedDuel.id,
+        message: 'Bereitschaft konnte nicht gespeichert werden. Bitte erneut versuchen.' });
+      // The Ready write may already have committed despite a lost response.
+      if (stillCurrent()) requestMatchRecoveryRef.current?.();
+    } finally {
+      releaseWrite();
+      if (finishAccountRef.current === authUser.id) {
+        setReadyBusy(previous => clearReadyRequest(previous, matchedDuel.id));
+      }
+    }
+  };
+
+  // Joining and starting races are exclusively for signed-in accounts.
   const handleJoinRun = async (run: OpenRun) => {
-    if (!currentUser) return;
-    
-    // In demo mode, start race immediately
-    if (!authUser) {
-      const startsAt = Date.now() + 3000; // 3 seconds countdown
+    if (!requireRaceAccount()) return;
+    if (!currentUser || !authUser || joiningRunRef.current ||
+        finishAccountRef.current !== authUser.id) return;
+    if (race.status !== 'idle' || (activeDuelIdRef.current !== null &&
+        activeDuelIdRef.current !== unconfirmedRecoveryHintRef.current)) {
+      setRaceNotice('Du hast bereits ein aktives Duell. Schließe es zuerst ab.');
+      return;
+    }
+
+    if (hostingRunPendingRef.current) {
+      setRaceNotice('Dein Event wird gerade gespeichert. Bitte warte auf die Bestätigung.');
+      return;
+    }
+
+    // A stale click can outlive the marker that originally rendered it.
+    // Keep the server authoritative, but avoid a request for a locally known
+    // closed event or one whose visible deadline has already passed.
+    if (knownNonOpenRunIdsRef.current.has(run.id) ||
+        (run.expiresAt && !isOpenEventAvailable(run.expiresAt))) {
+      setOpenRuns(previous => previous.filter(item => item.id !== run.id));
+      setHostedOpenDuels(previous => previous.filter(item => item.id !== run.id));
+      setRegionalRuns(previous => previous.filter(item => item.id !== run.id));
+      setSelectedRunId(previous => previous === run.id ? null : previous);
+      setDiscoveryRefreshTick(tick => tick + 1);
+      setRaceNotice('Dieses Rennen ist bereits besetzt oder nicht mehr verfügbar.');
+      return;
+    }
+
+    // Signed-in runners may try explicitly labeled, non-scored sample races.
+    if (run.id.startsWith('demo-run-')) {
+      const startsAt = Date.now() + ARCADE_COUNTDOWN_SECONDS * 1000; // local demo only; real time is stored by server
       setMatchOverlay({ duelId: run.id, startsAt, targetDistanceM: run.targetDistanceM || run.distanceMeters });
       setRace({ status: 'countdown', duelId: run.id, startsAt, targetDistanceM: run.targetDistanceM || run.distanceMeters });
       // Remove the run from open runs
@@ -1280,143 +1849,242 @@ export default function MapScreen() {
       return;
     }
     
+    joiningRunRef.current = run.id;
+    setRaceNotice('Beitritt wird geprüft …');
     try {
-      await joinDuel(supabase as any, run.id);
-      // Success will trigger realtime update (status -> matched) and remove from open list
+      // Inspect the RPC response, not just a Realtime event which iOS may miss.
+      const confirmed = await joinDuel(supabase, run.id);
+      if (finishAccountRef.current !== authUser.id) return;
+      if (confirmed.challenger_user_id !== authUser.id) {
+        throw new Error('Beitritt nicht für dieses Konto bestätigt.');
+      }
+      applyMatchedDuel(confirmed);
+      setRaceNotice(null);
     } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to join duel', e);
+      // Realtime may have confirmed a match before a lost RPC response.
+      if (finishAccountRef.current !== authUser.id ||
+          endedDuelIdsRef.current.has(run.id) || completedDuelIdsRef.current.has(run.id) ||
+          (activeDuelIdRef.current !== null &&
+            activeDuelIdRef.current !== unconfirmedRecoveryHintRef.current)) return;
+      const kind = classifyDuelJoinError(e);
+      if (kind === 'unavailable') {
+        setOpenRuns(prev => prev.filter(r => r.id !== run.id));
+        // The join RPC rejects missing, expired or already joined events.
+        // Retire discovery only; recovery can still confirm a lost join.
+        knownNonOpenRunIdsRef.current.add(run.id);
+        setRegionalRuns(previous => previous.filter(item => item.id !== run.id));
+        setHostedOpenDuels(previous => previous.filter(item => item.id !== run.id));
+        setSelectedRunId(previous => previous === run.id ? null : previous);
+        setDiscoveryRefreshTick(tick => tick + 1);
+        setRaceNotice('Dieses Rennen ist bereits besetzt oder nicht mehr verfügbar.');
+      } else if (kind === 'permission') {
+        setRaceNotice('Beitritt nicht erlaubt. Bitte prüfe deine Anmeldung.');
+      } else {
+        setDiscoveryRefreshTick(tick => tick + 1);
+        setRaceNotice('Beitritt nicht bestätigt. Bitte überprüfe die Verbindung und den Rennstatus.');
+      }
+      // A lost join acknowledgement (or an unavailable retry) can hide a
+      // committed match. Reuse the existing serialized recovery, not the RPC.
+      if (kind !== 'permission') requestMatchRecoveryRef.current?.();
+    } finally {
+      joiningRunRef.current = null;
     }
   };
 
-  // Icons
-  const userIconOptions: BadgeIconOptions = useMemo(
-    () => ({
-      backgroundHex: '#2563eb',
-      ringHex: '#0b0b0d',
-      contentHtml: '',
-      sizePx: 18,
-      showPing: true,
-      pingColorHex: '#3b82f6',
-      extraClassNames: 'user-badge',
-    }),
-    []
-  );
+  // Both views use the exact same secure callbacks; the popup never bypasses
+  // authentication, server confirmation or the existing cancel dialog.
+  const joinArcadeRun = (id: string) => {
+    const run = openRuns.find((item) => item.id === id);
+    if (run) { void handleJoinRun(run); }
+  };
+  const cancelArcadeRun = (id: string) => {
+    const run = openRuns.find((item) => item.id === id);
+    if (run && authUser?.id === run.hostUserId) {
+      handleCancelHostedRun({
+        id: run.id,
+        hostUserId: run.hostUserId ?? '',
+        distanceMeters: run.distanceMeters,
+        createdAt: run.createdAt ?? null,
+        expiresAt: run.expiresAt,
+      });
+    }
+  };
 
-  function getPlayerIconOptions(player: Player): BadgeIconOptions {
-    return {
-      backgroundHex: '#a16207', // amber-700
-      ringHex: '#fbbf24', // amber-400 ring for gold look
-      contentHtml: '👻',
-      sizePx: 28,
-      showPing: false,
-      extraClassNames: 'player-badge',
-    };
-  }
-
-  function getOpenRunIconOptions(isOwn: boolean): BadgeIconOptions {
-    return {
-      backgroundHex: '#b91c1c',
-      ringHex: isOwn ? '#2563eb' : '#111827',
-      contentHtml: '🏁',
-      sizePx: 28,
-      showPing: true,
-      pingColorHex: '#ef4444',
-      extraClassNames: 'openrun-badge',
-    };
-  }
+  const arcadeRuns: ArcadeMapEntry[] = openRuns.map((run) => ({
+    id: run.id,
+    hostUsername: run.hostUsername,
+    distanceMeters: run.distanceMeters,
+    distanceAwayMeters: userCoords ? haversineM(userCoords.lat, userCoords.lng, run.location.lat, run.location.lng) : null,
+    isOwn: Boolean(authUser && (run.hostUserId === authUser.id || hostedOpenDuels.some(own => own.id === run.id))),
+    isDemo: run.id.startsWith('demo-run-'),
+    expiresAt: run.expiresAt,
+  }));
 
   return (
-    <div className="relative h-screen w-screen bg-bg">
-      <MapContainer
-        center={[center.lat, center.lng]}
-        zoom={initialZoom}
-        zoomControl={false}
-        className="h-full w-full"
-        style={{ height: '100%', width: '100%' }}
-        preferCanvas
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        />
+    <div className="runnit-map runnit-map-arcade relative h-[100dvh] w-full max-w-full overflow-hidden bg-[#090b13] text-white">
+      <ArcadeMapLibreView
+        initialCenter={center}
+        initialZoom={initialZoom}
+        userCoords={userCoords}
+        ipCoords={ipCoords}
+        recenterTick={recenterTick}
+        retryTick={tileRetryCount}
+        view={arcadeMapView}
+        players={players.filter((player) => player.source !== 'server-unverified').map((player) => ({
+          id: player.id,
+          location: player.location,
+          colorHex: player.colorHex,
+          source: player.source,
+        }))}
+        regionalRuns={regionalRuns}
+        hotspotDemoEnabled={hotspotDemoEnabled}
+        hotspotFocus={hotspotFocus}
+        onWideViewChange={setWideMapView}
+        onCameraChange={setMapCamera}
+        hostDialogOpen={hostOpen}
+        hostLocation={hostLocation}
+        runs={openRuns.map((run, index) => ({
+          ...arcadeRuns[index],
+          location: run.location,
+        }))}
+        onSelectRun={setSelectedRunId}
+        onJoinRun={joinArcadeRun}
+        onCancelRun={cancelArcadeRun}
+        onRunExpired={(id) => {
+          // Device-only instant cleanup; Supabase cron is authoritative.
+          setOpenRuns(previous => previous.filter(run => run.id !== id));
+          setHostedOpenDuels(previous => previous.filter(run => run.id !== id));
+          setRegionalRuns(previous => previous.filter(run => run.id !== id));
+          setDiscoveryRefreshTick(tick => tick + 1);
+        }}
+        onOpenRunGroup={() => setArcadeMapView('list')}
+        onGhostClick={() => setGhostOpen(true)}
+        onHostAt={openHostRunAt}
+        onInvalidHostAt={setRaceNotice}
+        onTilesLoaded={() => setMapTilesUnavailable(false)}
+        onTilesError={() => setMapTilesUnavailable(true)}
+      />
 
-        <RecenterOnUser position={userCoords} trigger={recenterTick} />
-        <RecenterOnIp position={ipCoords} />
-
-        {userCoords ? (
-          <MapBadgeMarker
-            position={[userCoords.lat, userCoords.lng]}
-            iconOptions={userIconOptions}
-          />
-        ) : null}
-
-        {players.map((p) => (
-          <MapBadgeMarker
-            key={p.id}
-            position={[p.location.lat, p.location.lng]}
-            iconOptions={getPlayerIconOptions(p)}
-            onClick={() => setGhostOpen(true)}
-          />
-        ))}
-
-        {openRuns.map((r) => (
-          <MapBadgeMarker
-            key={r.id}
-            position={[r.location.lat, r.location.lng]}
-            iconOptions={getOpenRunIconOptions(Boolean(authUser && r.hostUserId && authUser.id === r.hostUserId))}
-          >
-            <Popup>
-              <div className="min-w-[200px] space-y-2 text-[13px] text-white">
-                <div className="flex items-center justify-between">
-                  <div className="font-semibold">@{r.hostUsername}</div>
-                  <div className="text-white/70">{r.distanceMeters}m</div>
-                </div>
-                <button
-                  onClick={() => handleJoinRun(r)}
-                  className="w-full rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400"
-                >
-                  {t('buttons.joinRun')}
+      {arcadeMapView === 'list' && hostedDuelsLoadError && (
+        <p className="pointer-events-none absolute inset-x-4 bottom-36 z-[931] mx-auto max-w-sm rounded-lg border border-amber-300/30 bg-[#111827]/95 p-2 text-center text-xs text-amber-100">
+          Deine eigenen offenen Rennen konnten nicht aktualisiert werden. Bitte verbinde dich erneut.
+        </p>
+      )}
+      {hotspotTestAvailable && arcadeMapView === 'map' && !hostOpen && (
+        <section className={'runnit-hotspot-test-console' + (hotspotLabExpanded ? ' is-expanded' : '')}
+          aria-label="Simulierter Community-Hotspot-Test">
+          <button type="button" className="runnit-hotspot-test-expander"
+            aria-expanded={hotspotLabExpanded}
+            aria-controls="runnit-hotspot-test-details"
+            onClick={() => setHotspotLabExpanded(value => !value)}>
+            <span className="runnit-hotspot-test-title">HOTSPOT LAB <span>· DEMO</span></span>
+            <span className="runnit-hotspot-test-toggle-icon" aria-hidden="true">{hotspotLabExpanded ? '−' : '+'}</span>
+          </button>
+          {hotspotLabExpanded && (
+            <div id="runnit-hotspot-test-details" className="runnit-hotspot-test-details">
+              <div className="runnit-hotspot-test-top">
+                <p className="runnit-hotspot-test-disclaimer">SIMULATION · KEINE ECHTEN SPIELER ODER MATCHES</p>
+                <button type="button" className="runnit-hotspot-test-power"
+                  onClick={() => {
+                    setHotspotDemoEnabled(value => !value);
+                    setHotspotLabExpanded(false);
+                  }} aria-pressed={hotspotDemoEnabled}>
+                  {hotspotDemoEnabled ? 'AUS' : 'TESTEN'}
                 </button>
               </div>
-            </Popup>
-          </MapBadgeMarker>
-        ))}
-      </MapContainer>
+              {hotspotDemoEnabled && (
+                <>
+                  <div className="runnit-hotspot-test-keys" aria-label="Simulierte Testaktivität">
+                    <span><i className="is-open" /> 3 OFFENE</span>
+                    <span><i className="is-runner" /> 10 RUNNER</span>
+                    <span><i className="is-match" /> 25 MATCHES</span>
+                  </div>
+                  <div className="runnit-hotspot-test-cities">
+                    {([
+                      ['all', 'ALLE'],
+                      ['backnang', 'BACKNANG'],
+                      ['stuttgart', 'STUTTGART'],
+                      ['munich', 'MÜNCHEN'],
+                    ] as const).map(([city, label]) => (
+                      <button type="button" key={city} aria-pressed={hotspotFocus.city === city}
+                        onClick={() => {
+                          setHotspotFocus(previous => ({ city, tick: previous.tick + 1 }));
+                          setHotspotLabExpanded(false);
+                        }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
-      {/* Loading and Empty states */}
-      {(loadingGhosts || loadingDuels) && (
-        <div className="pointer-events-none absolute left-1/2 top-4 z-[900] -translate-x-1/2 rounded-full bg-white/10 px-4 py-2 text-sm text-white ring-1 ring-white/15 backdrop-blur">
-          <span className="mr-2 inline-block h-3 w-3 animate-ping rounded-full bg-white/70"></span>
-          Loading…
+      {mapTilesUnavailable && (
+        <div role="alert" className="runnit-arcade-alert pointer-events-auto absolute inset-x-4 top-24 z-[950] mx-auto max-w-sm rounded-2xl border border-rose-300/40 bg-[#1a1321]/95 p-4 text-sm text-white shadow-xl backdrop-blur">
+          <p className="font-bold">Die Karte kann gerade nicht geladen werden.</p>
+          <p className="mt-2 text-xs leading-5 text-white/70">
+            Prüfe deine Internetverbindung. Der Vektorkartendienst konnte gerade keine Kartendaten liefern.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button type="button" onClick={() => { setMapTilesUnavailable(false); setTileRetryCount((count) => count + 1); }}
+              className="rounded-lg bg-white/15 px-3 py-2 text-xs font-bold text-white">Erneut versuchen</button>
+            <a href="/" className="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold text-white">Zur Startseite</a>
+          </div>
         </div>
       )}
-      {!loadingGhosts && !loadingDuels && players.length === 0 && openRuns.length === 0 && (
-        <div className="pointer-events-none absolute left-1/2 top-4 z-[900] -translate-x-1/2 rounded-lg bg-white/5 px-3 py-2 text-xs text-white/80 ring-1 ring-white/10">
-          No nearby activity yet
+      {!userCoords && !ipCoords && !locationError && !insecureContext && !unsupported && !locating && (
+        <div className="runnit-arcade-gps-prompt pointer-events-auto absolute inset-x-4 bottom-44 z-[950] mx-auto max-w-sm rounded-xl border border-white/20 bg-[#111827]/90 px-4 py-3 text-center text-xs leading-5 text-white/80 shadow-lg backdrop-blur">
+          <p className="font-semibold text-white">Noch kein Standort ermittelt</p>
+          <p className="mt-1">Du siehst die Weltübersicht. Für Herausforderungen in deiner Nähe kannst du deinen Standort aktivieren.</p>
+          <button type="button" onClick={() => { requestOnce(); setRecenterTick(x => x + 1); }} className="mt-2 rounded-lg bg-violet-500 px-3 py-2 font-bold text-white">Standort erneut suchen</button>
+        </div>
+      )}
+      {/* Background updates are silent; a fixed LIVE chip never shifts content. */}
+      {arcadeMapView === 'map' && wideMapView && !hotspotDemoEnabled && (
+        <div className="runnit-community-map-legend" aria-label="Übersicht über echte offene Rennen">
+          <span className="runnit-community-map-signal" aria-hidden="true" />
+          {!authUser ? 'NETWORK · LIVE-RENNEN NACH ANMELDUNG'
+            : regionalRuns.length > 0
+              ? `LIVE SIGNAL · ${regionalRuns.length} ${regionalRuns.length === 1 ? 'CHALLENGE' : 'CHALLENGES'}`
+              : 'NETWORK · KEINE LIVE-CHALLENGES'}
         </div>
       )}
 
-      {/* MapHUD */}
-      {cityName && <MapHUD city={cityName} />}
+      {/* KARTE stays unobstructed. LISTE contains the interactive run cards. */}
+      <ArcadeMapChrome
+        view={arcadeMapView}
+        onViewChange={setArcadeMapView}
+        cityName={cityName}
+        hasGps={Boolean(userCoords)}
+        camera={mapCamera}
+        entries={arcadeRuns}
+        selectedId={selectedRunId}
+        onJoin={joinArcadeRun}
+        onCancel={cancelArcadeRun}
+        loading={loadingDuels && !discoveryLoadedRef.current}
+        live={realtimeConnected}
+      />
 
-      {/* Locate me control */}
-      <div className="pointer-events-auto absolute right-4 top-4 z-[950]">
+      {/* Map-only controls must not float over scrollable race cards. */}
+      {arcadeMapView === 'map' && <div className="runnit-map-locate-slot pointer-events-auto absolute z-[950]">
         <button
           onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
-          className="rounded-full bg-white/10 p-2 text-white ring-1 ring-white/15 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-          aria-label="Locate me"
-          title="Locate me"
+          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/70 bg-[#10254f]/90 text-cyan-100 shadow-[0_12px_35px_rgba(0,0,0,.4)] backdrop-blur-xl transition hover:bg-violet-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          aria-label="Meinen Standort anzeigen"
+          title="Standort suchen"
         >
-          📍
+          <LocateFixed className="h-6 w-6" aria-hidden="true" />
         </button>
-      </div>
+      </div>}
 
       {/* Location notices */}
       {insecureContext && (
         <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-amber-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
           <div className="flex items-center gap-3">
-            <span>Location requires a secure context (HTTPS or localhost). Open the app via HTTPS, then retry.</span>
+            <span>Die Standortsuche benötigt eine sichere HTTPS-Verbindung. Bitte öffne Runnit über HTTPS und versuche es erneut.</span>
             <button
               onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
               className="rounded-md bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
@@ -1429,100 +2097,172 @@ export default function MapScreen() {
       {unsupported && !insecureContext && (
         <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-rose-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
           <div className="flex items-center gap-3">
-            <span>Your browser does not support geolocation.</span>
+            <span>Dieser Browser unterstützt keine Standortermittlung.</span>
           </div>
         </div>
       )}
-      {!insecureContext && permissionDenied && (
-        <div className="pointer-events-auto absolute left-1/2 top-16 z-[950] -translate-x-1/2 rounded-lg bg-rose-600/90 px-4 py-2 text-sm text-white ring-1 ring-white/20">
-          <div className="flex items-center gap-3">
-            <span>Location permission denied. Enable it in your browser settings, then retry.</span>
-            <button
-              onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
-              className="rounded-md bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
-            >
-              Retry
-            </button>
-          </div>
+      {!insecureContext && !unsupported && !userCoords && locationError && (
+        <div role="alert" className="runnit-arcade-alert pointer-events-auto absolute inset-x-4 top-28 z-[950] mx-auto max-w-sm rounded-2xl border border-rose-300/40 bg-[#201321]/95 p-4 text-sm text-white shadow-xl backdrop-blur">
+          <p className="font-extrabold">
+            {locationError === 'denied' ? 'Standortzugriff vom Gerät verweigert (GPS 1)' :
+              locationError === 'timeout' ? 'Standortsuche hat zu lange gedauert (GPS 3)' :
+              'Standort aktuell nicht verfügbar (GPS 2)'}
+          </p>
+          <p className="mt-2 text-xs leading-5 text-white/85">
+            {locationError === 'denied'
+              ? 'Selbst wenn Safari für diese Website „Erlauben“ zeigt: Prüfe auf dem iPhone unter Einstellungen → Datenschutz & Sicherheit → Ortungsdienste → Safari-Websites, ob der Zugriff beim Verwenden erlaubt und „Genauer Standort“ aktiviert ist.'
+              : locationError === 'timeout'
+                ? 'Safari hat innerhalb von 20 Sekunden keine GPS-Position erhalten. Prüfe WLAN/Mobilfunk und versuche es möglichst draußen erneut.'
+                : 'Die Ortungsdienste konnten keine Position liefern. Prüfe die Ortungsdienste des iPhones, deine Verbindung und versuche es erneut.'}
+          </p>
+          <button type="button" disabled={locating}
+            onClick={() => { requestOnce(); setRecenterTick((x) => x + 1); }}
+            className="mt-3 min-h-11 rounded-xl bg-violet-500 px-4 py-2 text-xs font-extrabold text-white disabled:opacity-60">
+            {locating ? 'Standort wird gesucht …' : 'Standort erneut prüfen'}
+          </button>
         </div>
       )}
 
-      {/* Match countdown overlay */}
-      {matchOverlay && (
-        <MatchCountdownOverlay
-          startsAt={matchOverlay.startsAt}
-          onReady={async () => {
-            try { await readyForDuel(supabase as any, matchOverlay.duelId); } catch (_e) {}
+      {/* Server-confirmed matched lobby: explicit readiness on both phones.
+          A matched duel is not a running race until the server supplies start_at. */}
+      {matchedDuel && !matchOverlay && race.status === 'idle' &&
+        dismissedMatchId !== matchedDuel.id && (
+        <ReadyLobby
+          key={matchedDuel.id}
+          hostName={matchedDuel.hostUserId === authUser?.id
+            ? (authUser?.displayName || 'HOST')
+            : (matchedNames[matchedDuel.hostUserId] || 'HOST')}
+          challengerName={matchedDuel.challengerUserId === authUser?.id
+            ? (authUser?.displayName || 'RUNNER')
+            : (matchedNames[matchedDuel.challengerUserId] || 'CHALLENGER')}
+          hostReady={matchedDuel.hostReady}
+          challengerReady={matchedDuel.challengerReady}
+          isHost={matchedDuel.hostUserId === authUser?.id}
+          targetDistanceM={matchedDuel.targetDistanceM}
+          readyBusy={readyBusy}
+          readyError={readyError}
+          startMissed={matchedDuel.startAt !== null}
+          soundEnabled={raceSoundEnabled}
+          onReady={() => {
+            // A restored lobby with a confirmed start cannot be made Ready again.
+            if (matchedDuel.startAt !== null) return;
+            // Unlock audio before the async Ready RPC (iOS user-gesture rule).
+            if (raceSoundEnabled) unlockRaceAudio();
+            // iOS requires the permission request to begin in this user gesture.
+            // Denial or unavailable sensors never block server readiness.
+            void requestDuelMotionPermission();
+            void confirmMatchReady();
           }}
-          onDone={() => {
-            setMatchOverlay(null);
-            if (race.status === 'countdown') {
-              setRace({ status: 'running', duelId: race.duelId, startedAt: Date.now(), targetDistanceM: race.targetDistanceM });
-            }
+          onSoundToggle={() => {
+            const next = !raceSoundEnabled;
+            setRaceSoundEnabled(next);
+            setRaceAudioMuted(!next);
+            if (next) unlockRaceAudio();
           }}
+          onBack={() => setDismissedMatchId(matchedDuel.id)}
+          onAbort={() => confirmAbortMatchedDuel(matchedDuel.id)}
         />
       )}
-
-      {race.status === 'running' && (
-        <RaceOverlay
-          startedAt={race.startedAt}
-          targetDistanceM={race.targetDistanceM}
-          onFinish={async (endedAt, metrics) => {
-            const timeMs = endedAt - race.startedAt;
-            // try submit result; ignore failure for now
-            try {
-              await submitDuelResult(supabase as any, race.duelId, timeMs, metrics);
-            } catch (_e) {}
-            setRace({ status: 'finished', duelId: race.duelId, startedAt: race.startedAt, endedAt, targetDistanceM: race.targetDistanceM });
-          }}
-        />
-      )}
-
-      {race.status === 'finished' && (
-        <RaceFinishedOverlay
-          startedAt={race.startedAt}
-          endedAt={race.endedAt}
-          targetDistanceM={race.targetDistanceM}
-          duelId={race.duelId}
-          currentUser={currentUser}
-          cityName={cityName}
-          onAddToLeaderboard={(time) => {
-            setUserTimes(prev => [...prev, time]);
-            // Add user to city leaderboard if they have a good time
-            if (currentUser && time < 15) { // Only add if time is reasonable
-              const newPlayer: Player = {
-                id: currentUser.id,
-                username: currentUser.username,
-                rank: 1, // Will be recalculated
-                bestTimeSeconds: time,
-                distanceMeters: race.targetDistanceM,
-                location: userCoords || { lat: 0, lng: 0 },
-                colorHex: colorForUsernameToHex(currentUser.username),
-              };
-              setPlayers(prev => {
-                const filtered = prev.filter(p => p.id !== currentUser.id);
-                const updated = [newPlayer, ...filtered].sort((a, b) => a.bestTimeSeconds - b.bestTimeSeconds);
-                return updated.map((p, i) => ({ ...p, rank: i + 1 }));
-              });
-            }
-          }}
-          onClose={() => {
-            setRace({ status: 'idle' });
-            // Optionally open leaderboard after race
-            setTimeout(() => setGhostOpen(true), 500);
-          }}
-        />
-      )}
-
-      {/* Floating leaderboard button */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-24 z-[950] flex justify-center p-4">
-        <button 
-          onClick={() => setGhostOpen(true)}
-          className="pointer-events-auto rounded-2xl bg-primary text-white px-5 py-3 font-semibold shadow-soft hover:bg-primary-600 transition-colors"
-        >
-          {t('buttons.ghostRun')}
+      {matchedDuel && dismissedMatchId === matchedDuel.id && race.status === 'idle' && (
+        <button type="button" onClick={() => setDismissedMatchId(null)}
+          className="absolute inset-x-4 bottom-28 z-[1050] rounded-xl border border-cyan-300 bg-[#13204b] p-3 text-sm font-extrabold text-white shadow-xl">
+          DUELL GEFUNDEN · BEREITSCHAFT ÖFFNEN
         </button>
-      </div>
+      )}
+
+      {/* Server-synchronized countdown, never triggered before both READY. */}
+      {matchOverlay && (
+        <RaceCountdown
+          key={matchOverlay.duelId}
+          wakeStatus={wakeStatus}
+          startsAt={matchOverlay.startsAt}
+          targetDistanceM={matchOverlay.targetDistanceM}
+          soundEnabled={raceSoundEnabled}
+          onAbort={() => confirmAbortMatchedDuel(matchOverlay.duelId)}
+          onDone={() => {
+            if (!authUser) {
+              setMatchOverlay(null);
+              setRace({ status: 'idle' });
+              navigate('/login?next=%2Fmap');
+              return false;
+            }
+            if (finishAccountRef.current !== authUser.id ||
+                completedDuelIdsRef.current.has(matchOverlay.duelId) ||
+                (!matchOverlay.duelId.startsWith('demo-run-') && activeDuelIdRef.current !== matchOverlay.duelId)) return false;
+            if (race.status === 'countdown' && race.duelId === matchOverlay.duelId &&
+                race.startsAt === matchOverlay.startsAt && !endedDuelIdsRef.current.has(race.duelId)) {
+              setMatchOverlay(previous => previous?.duelId === matchOverlay.duelId &&
+                previous.startsAt === matchOverlay.startsAt ? null : previous);
+              // A suspended browser can deliver GO long after the same
+              // recovery window used to admit a server countdown has closed.
+              if (!isDuelStartRecoverable(race.startsAt, Date.now())) {
+                setRace({ status: 'idle' });
+                setMatchedDuel(matchOverlay.lobby ?? null);
+                setDismissedMatchId(null);
+                setRaceNotice('Rennstart verpasst. Bitte das Duell abbrechen und neu starten.');
+                // Keep the confirmed match and handled-start key: no local
+                // abort, no automatic restart and no fabricated finish.
+                return false;
+              }
+              // Use the exact server start timestamp rather than each phone's
+              // callback timestamp for a synchronized, fair elapsed time.
+              setRace({ status: 'running', duelId: race.duelId,
+                startedAt: race.startsAt, targetDistanceM: race.targetDistanceM });
+              return true;
+            }
+            return false;
+          }}
+        />
+      )}
+
+      {race.status === 'running' && authUser && (
+        <RaceOverlay
+          key={race.duelId}
+          startFix={userCoords}
+          wakeStatus={wakeStatus}
+          startedAt={race.startedAt}
+          targetDistanceM={race.targetDistanceM}
+          onAbort={() => confirmAbortMatchedDuel(race.duelId)}
+          onFinish={(endedAt, metrics) => {
+            if (finishAccountRef.current !== authUser.id || endedDuelIdsRef.current.has(race.duelId)) return;
+            if (completedDuelIdsRef.current.has(race.duelId) ||
+                (!race.duelId.startsWith('demo-run-') && activeDuelIdRef.current !== race.duelId)) return;
+            const timeMs = Math.max(1, endedAt - race.startedAt);
+            setRace({ status: 'finished', duelId: race.duelId,
+              startedAt: race.startedAt, endedAt, targetDistanceM: race.targetDistanceM });
+            setFinishSubmissionError(null);
+            if (!race.duelId.startsWith('demo-run-')) {
+              const payload: PendingFinish = { userId: authUser.id, duelId: race.duelId,
+                timeMs: Math.round(timeMs), startedAt: race.startedAt,
+                targetDistanceM: race.targetDistanceM, metrics };
+              latestFinishPayloadRef.current = payload;
+              rememberPendingFinish(payload);
+              void sendFinishedTime(payload);
+            }
+          }}
+        />
+      )}
+
+      {race.status === 'finished' && authUser && (
+        <DuelFinishScreen
+          key={race.duelId}
+          supabase={supabase}
+          duelId={race.duelId}
+          userId={authUser.id}
+          targetDistanceM={race.targetDistanceM}
+          isDemo={race.duelId.startsWith('demo-run-')}
+          submissionError={finishSubmissionError}
+          onRetrySubmit={() => retryFinishedTime(race.duelId)}
+          onAbort={() => confirmAbortMatchedDuel(race.duelId)}
+          onClose={() => closeCompletedDuel(race.duelId)}
+        />
+      )}
+
+      {raceNotice && (
+        <div role="status" className="runnit-arcade-race-notice pointer-events-none absolute inset-x-4 top-[calc(145px+env(safe-area-inset-top,0px))] z-[938] mx-auto max-w-sm rounded-xl border border-amber-300/25 bg-[#191827]/90 px-3 py-2 text-center text-xs leading-5 text-amber-100 shadow-lg">
+          {raceNotice}
+        </div>
+      )}
 
       {/* New Bottom Sheet for Leaderboards */}
       <BottomSheet 
@@ -1532,19 +2272,52 @@ export default function MapScreen() {
       >
         <LeaderboardSheet 
           city={cityName || 'Your City'} 
-          entries={players.slice(0, 10).map(p => ({
+          entries={players.map(p => ({
             rank: p.rank,
             name: p.username,
             time: `${p.bestTimeSeconds.toFixed(2)}s`,
-            distance: `${p.distanceMeters}m`
+            distance: `${p.distanceMeters}m`,
+            source: p.source
           }))} 
         />
       </BottomSheet>
 
+      {cancelConfirmation && (
+        <div className="runnit-cancel-overlay">
+          <section role="dialog" aria-modal="true" aria-labelledby="cancel-hosted-title"
+            className="runnit-cancel-panel">
+            <div className="runnit-cancel-header">
+              <span>RUNNIT // RACE CONTROL</span>
+              <span className="runnit-cancel-warning" aria-hidden="true">!</span>
+              <h2 id="cancel-hosted-title">Rennen wirklich absagen?</h2>
+            </div>
+            <div className="runnit-cancel-run-info">
+              <strong>1V1 DUELL · {cancelConfirmation.distanceMeters} M</strong>
+              <span>WARTET AUF GEGNER</span>
+            </div>
+            <p className="runnit-cancel-explainer">
+              Absagen ist nur möglich, solange noch niemand beigetreten ist.
+              Danach verschwindet die offene Challenge von der Karte.
+            </p>
+            {cancelError && <p role="alert" className="runnit-cancel-error">{cancelError}</p>}
+            <button type="button" disabled={Boolean(cancellingRunId)}
+              onClick={() => { void confirmCancelHostedRun(); }}
+              className="runnit-cancel-confirm">
+              {cancellingRunId ? 'ABSAGE WIRD BESTÄTIGT …' : 'JA, RENNEN ABSAGEN ›'}
+            </button>
+            <button type="button" disabled={Boolean(cancellingRunId)}
+              onClick={() => { if (cancelHostedPendingRef.current) return; setCancelConfirmation(null); setCancelError(null); }}
+              className="runnit-cancel-keep">NEIN, RENNEN BEHALTEN</button>
+          </section>
+        </div>
+      )}
+
       <HostRunDialog
-        open={hostOpen}
-        onClose={() => setHostOpen(false)}
+        open={hostOpen && Boolean(authUser)}
+        onClose={() => { setHostOpen(false); setHostLocation(null); }}
         onHost={handleHostRun}
+        selectedLocationDistance={hostLocation && userCoords ? mapDistanceMeters(userCoords, hostLocation) : undefined}
+        onDemo={() => { setHostOpen(false); navigate('/sprint-lab'); }}
         defaultDistance={50}
       />
 
@@ -1571,329 +2344,192 @@ export default function MapScreen() {
   );
 }
 
-function MatchCountdownOverlay({ startsAt, onReady, onDone }: { startsAt: number; onReady: () => void; onDone: () => void }) {
-  const [remainingMs, setRemainingMs] = useState(Math.max(0, startsAt - Date.now()));
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  useEffect(() => {
-    onReady();
-    // Simple audio sequence: 3,2,1, go
-    try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const playBeep = (t: number, freq: number, durMs: number, gain=0.2) => {
-        const osc = ctx.createOscillator();
-        const g = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        g.gain.value = gain;
-        osc.connect(g).connect(ctx.destination);
-        osc.start(ctx.currentTime + t);
-        osc.stop(ctx.currentTime + t + durMs / 1000);
-      };
-      const total = Math.max(0, (startsAt - Date.now()) / 1000);
-      // schedule beeps at 3,2,1,go within the remaining timeframe
-      // fallback if short: only final go
-      if (total > 2.5) {
-        playBeep(total - 3, 600, 120);
-        playBeep(total - 2, 650, 120);
-        playBeep(total - 1, 700, 120);
-        playBeep(total - 0.02, 900, 240, 0.25);
-      } else if (total > 0.8) {
-        playBeep(total - 1, 700, 120);
-        playBeep(total - 0.02, 900, 240, 0.25);
-      } else {
-        playBeep(0, 900, 200, 0.25);
-      }
-    } catch {}
-    const id = setInterval(() => {
-      const ms = Math.max(0, startsAt - Date.now());
-      setRemainingMs(ms);
-      if (ms <= 0) {
-        clearInterval(id);
-        onDone();
-      }
-    }, 50);
-    return () => clearInterval(id);
-  }, [startsAt, onDone]);
-  const seconds = Math.ceil(remainingMs / 1000);
-  return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
-      <div className="flex h-32 w-32 items-center justify-center rounded-full bg-white/10 text-5xl font-black text-white ring-2 ring-white/30">
-        {seconds}
-      </div>
-    </div>
-  );
-}
-
-function RaceOverlay({ startedAt, targetDistanceM, onFinish }: { startedAt: number; targetDistanceM: number; onFinish: (endedAt: number, metrics?: DuelMetrics) => void }) {
+function RaceOverlay({ startedAt, targetDistanceM, startFix, wakeStatus, onFinish, onAbort }: { startedAt: number; targetDistanceM: number; startFix: Coordinates | null; wakeStatus: ScreenWakeLockStatus | 'idle'; onFinish: (endedAt: number, metrics?: DuelMetrics) => void; onAbort: () => Promise<void> }) {
   const [elapsedMs, setElapsedMs] = useState(Math.max(0, Date.now() - startedAt));
-  const [acceptedDistanceM, setAcceptedDistanceM] = useState(0);
   const [displayDistanceM, setDisplayDistanceM] = useState(0);
+  const [gpsErrorNotice, setGpsErrorNotice] = useState<string | null>(null);
   const [maxSpeed, setMaxSpeed] = useState(0);
-  const [maxAccel, setMaxAccel] = useState(0);
-  const [accumAccuracyM, setAccumAccuracyM] = useState(0);
-  const [samplesUsed, setSamplesUsed] = useState(0);
-  const lastSampleRef = useRef<{ t: number; lat: number; lng: number; v: number } | null>(null);
-  const stepStateRef = useRef<{ lastAcc: number; lastPeakAt: number | null; steps: number } | null>({ lastAcc: 0, lastPeakAt: null, steps: 0 });
-  const overTargetStreakRef = useRef(0);
+  const [initialMeasurement] = useState(() => createDuelGpsMeasurement(targetDistanceM, startedAt, startFix ? {
+    latitude: startFix.lat,
+    longitude: startFix.lng,
+    accuracyM: startFix.accuracyMeters ?? NaN,
+    timestampMs: startFix.sampledAtMs ?? NaN,
+  } : null));
+  const measurementRef = useRef(initialMeasurement);
+  const finishCallbackRef = useRef(onFinish);
+  finishCallbackRef.current = onFinish;
+  const liveStepCounter = useRef(new LiveStepPeakCounter());
+  const motionCapture = useRef(new DuelMotionCapture(startedAt));
+  const [liveStepCount, setLiveStepCount] = useState(0);
   const finishedRef = useRef(false);
+  const measurementLifetime = useRef(createMeasurementLifetime());
+  React.useLayoutEffect(() => {
+    const lifetime = measurementLifetime.current;
+    lifetime.open();
+    return () => lifetime.close();
+  }, []);
+  const [confirmAbort, setConfirmAbort] = useState(false);
+  const [abortBusy, setAbortBusy] = useState(false);
+  const [abortError, setAbortError] = useState<string | null>(null);
+  const abortBusyRef = useRef(false);
+  const doAbort = async () => {
+    if (abortBusyRef.current || finishedRef.current) return;
+    const isLive = measurementLifetime.current.capture();
+    if (!isLive()) return;
+    abortBusyRef.current = true;
+    finishedRef.current = true; // do not count GPS distance during termination
+    setAbortBusy(true);
+    setAbortError(null);
+    try {
+      await onAbort(); // the parent clears race UI only after Supabase confirms
+    } catch {
+      if (!isLive()) return;
+      finishedRef.current = false;
+      const resumedAtMs = Date.now();
+      measurementRef.current = resumeDuelGpsMeasurement(measurementRef.current, resumedAtMs);
+      liveStepCounter.current.resumeAfter(resumedAtMs);
+      motionCapture.current.resumeAfter(resumedAtMs);
+      abortBusyRef.current = false;
+      setAbortBusy(false);
+      setAbortError('Rennabbruch nicht bestätigt. Bitte Verbindung prüfen und erneut versuchen.');
+    }
+  };
   const watchIdRef = useRef<number | null>(null);
   useEffect(() => {
+    const isLive = measurementLifetime.current.capture();
     const id = setInterval(() => {
+      if (!isLive()) return;
       setElapsedMs(Math.max(0, Date.now() - startedAt));
     }, 50);
     return () => clearInterval(id);
   }, [startedAt]);
 
-  // Very simple GPS sampler with accuracy filter, EMA smoothing, and sanity caps
+  // Use GPS fix timestamps, not callback arrival times. Keep measurement and
+  // completion side effects outside React state updaters (which may be replayed).
   useEffect(() => {
-    if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
+    if (typeof window === 'undefined') return;
+    if (!('geolocation' in navigator)) {
+      setGpsErrorNotice('GPS wird auf diesem Gerät nicht unterstützt.');
+      return;
+    }
+    let active = true;
+    const isLive = measurementLifetime.current.capture();
     const handle = (pos: GeolocationPosition) => {
-      if (finishedRef.current) return;
-      const t = Date.now();
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-      const acc = typeof pos.coords.accuracy === 'number' ? pos.coords.accuracy : 9999;
-      // Filter: require reasonable accuracy
-      const MAX_ACC_M = 15;
-      if (acc > MAX_ACC_M) return;
-      const prev = lastSampleRef.current;
-      if (prev) {
-        const dt = (t - prev.t) / 1000;
-        const MIN_DT = 0.2;
-        if (dt < MIN_DT) return;
-        const d = haversineM(prev.lat, prev.lng, lat, lng);
-        const v = d / Math.max(dt, 1e-3);
-        // Speed cap (~43 km/h)
-        const MAX_V = 12; // m/s
-        if (v > MAX_V) {
-          // Skip unrealistic spikes
-          lastSampleRef.current = { t, lat, lng, v: prev.v };
-          return;
-        }
-        const a = (v - prev.v) / Math.max(dt, 1e-3);
-        // Accept sample
-        setMaxSpeed((x) => Math.max(x, v));
-        setMaxAccel((x) => Math.max(x, Math.abs(a)));
-        setSamplesUsed((n) => n + 1);
-        setAccumAccuracyM((s) => s + acc);
-        setAcceptedDistanceM((prevDist) => {
-          const nextDist = prevDist + d;
-          // EMA smoothing for display
-          const ALPHA = 0.35;
-          setDisplayDistanceM((disp) => disp + ALPHA * (nextDist - disp));
-          // Finish check: require two consecutive accepted samples over target
-          const margin = 0.5;
-          if (nextDist >= Math.max(1, targetDistanceM - margin)) {
-            overTargetStreakRef.current += 1;
-          } else {
-            overTargetStreakRef.current = 0;
-          }
-          if (overTargetStreakRef.current >= 2 && !finishedRef.current) {
-            finishedRef.current = true;
-            try {
-              const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-              const osc = ctx.createOscillator();
-              const g = ctx.createGain();
-              osc.type = 'triangle';
-              osc.frequency.value = 950;
-              g.gain.value = 0.25;
-              osc.connect(g).connect(ctx.destination);
-              osc.start();
-              osc.stop(ctx.currentTime + 0.22);
-            } catch {}
-            const steps = stepStateRef.current?.steps ?? 0;
-            const stepLen = steps > 0 ? nextDist / steps : undefined;
-            onFinish(Date.now(), {
-              stepsCount: steps,
-              stepLengthAvgM: stepLen,
-              maxSpeedMps: Math.max(maxSpeed, v),
-              maxAccelMps2: maxAccel,
-              distanceM: nextDist,
-              metricsJson: { avgAccuracyM: (accumAccuracyM + acc) / Math.max(1, samplesUsed + 1), samplesUsed: samplesUsed + 1 },
-            });
-          }
-          return nextDist;
-        });
-        lastSampleRef.current = { t, lat, lng, v };
-      } else {
-        lastSampleRef.current = { t, lat, lng, v: 0 };
+      if (!active || finishedRef.current) return;
+      if (!isLive()) return;
+      const next = advanceDuelGpsMeasurement(measurementRef.current, {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        accuracyM: pos.coords.accuracy,
+        timestampMs: pos.timestamp,
+      }, Date.now());
+      measurementRef.current = next;
+      if (next.sprint.lastDecision !== 'accepted') return;
+      setGpsErrorNotice(null);
+      setMaxSpeed(next.sprint.maxSpeedMps);
+      const distance = next.sprint.distanceM;
+      setDisplayDistanceM(previous => previous + 0.35 * (distance - previous));
+      if (next.sprint.finishTimestampMs !== null) {
+        finishedRef.current = true;
+        setDisplayDistanceM(distance);
+        finishCallbackRef.current(next.sprint.finishTimestampMs,
+          duelGpsMetrics(next, liveStepCounter.current.timestampsMs.filter(t => t <= next.sprint.finishTimestampMs!).length,
+            motionCapture.current.summarize(next.sprint.finishTimestampMs, next.sprint.targetMeters)));
       }
     };
+    const handleError = (error: GeolocationPositionError) => {
+      if (!active || !isLive() || finishedRef.current) return;
+      setGpsErrorNotice(duelGpsErrorNotice(error.code));
+      // A reported GPS outage invalidates any unconfirmed crossing. The
+      // next accepted observation must be newer than the error boundary.
+      measurementRef.current = resumeDuelGpsMeasurement(measurementRef.current, Date.now());
+    };
     try {
-      watchIdRef.current = navigator.geolocation.watchPosition(handle, () => {}, {
+      watchIdRef.current = navigator.geolocation.watchPosition(handle, handleError, {
         enableHighAccuracy: true,
-        maximumAge: 500,
+        maximumAge: 0,
         timeout: 5000,
       });
-    } catch {}
+    } catch {
+      if (active && isLive() && !finishedRef.current) {
+        setGpsErrorNotice('GPS konnte nicht gestartet werden.');
+      }
+    }
     return () => {
+      active = false;
       if (watchIdRef.current !== null) {
         try { navigator.geolocation.clearWatch(watchIdRef.current); } catch {}
+        watchIdRef.current = null;
       }
     };
   }, []);
 
-  // DeviceMotion-based step detection (peak detect on resultant acceleration)
+  // Shared foreground peak detector; no extrapolation across iOS sensor suspensions.
   useEffect(() => {
-    const handler = (e: DeviceMotionEvent) => {
-      const ax = e.accelerationIncludingGravity?.x ?? 0;
-      const ay = e.accelerationIncludingGravity?.y ?? 0;
-      const az = e.accelerationIncludingGravity?.z ?? 0;
-      const g = Math.sqrt(ax * ax + ay * ay + az * az);
-      const state = stepStateRef.current!;
-      const t = Date.now();
-      const threshold = 11; // approx >1.1g, tune empirically
-      const refractoryMs = 300; // min time between steps ~200-400ms
-      if (g > threshold && state.lastAcc <= threshold) {
-        if (!state.lastPeakAt || t - state.lastPeakAt > refractoryMs) {
-          state.steps += 1;
-          state.lastPeakAt = t;
-        }
-      }
-      state.lastAcc = g;
+    const isLive = measurementLifetime.current.capture();
+    const handler = (event: DeviceMotionEvent) => {
+      if (finishedRef.current) return;
+      if (!isLive()) return;
+      if (document.visibilityState !== 'visible') return;
+      const sample = motionEventSample(event, performance.timeOrigin, performance.now());
+      if (!sample || !motionCapture.current.push(sample)) return;
+      const updated = liveStepCounter.current.push(sample);
+      if (updated !== null) setLiveStepCount(updated);
     };
-    try {
-      window.addEventListener('devicemotion', handler, { passive: true } as any);
-    } catch {}
-    return () => {
-      try { window.removeEventListener('devicemotion', handler as any); } catch {}
-    };
+    window.addEventListener('devicemotion', handler, { passive: true });
+    return () => window.removeEventListener('devicemotion', handler);
   }, []);
 
-  // Auto-finish moved into GPS sampler for accuracy-stable detection
+  // GPS remains authoritative for measured distance. Live steps are diagnostics.
   const seconds = (elapsedMs / 1000).toFixed(2);
+  const gpsNotice = duelGpsLiveNotice(measurementRef.current.sprint, startedAt + elapsedMs, gpsErrorNotice);
+  const progress = Math.max(0, Math.min(100, displayDistanceM / targetDistanceM * 100));
   return (
-    <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-center gap-6 bg-black/60">
-      <div className="rounded-lg bg-white/10 px-6 py-3 text-4xl font-extrabold text-white ring-2 ring-white/20">
-        {seconds}s
-      </div>
-      <div className="rounded-lg bg-white/10 px-6 py-2 text-sm font-semibold text-white ring-1 ring-white/15">
-        {displayDistanceM.toFixed(1)} m · max {maxSpeed.toFixed(2)} m/s · a_max {maxAccel.toFixed(2)} m/s²
-      </div>
-      <button
-        onClick={() => {
-          const steps = stepStateRef.current?.steps ?? 0;
-          const stepLen = steps > 0 ? acceptedDistanceM / steps : undefined;
-          onFinish(Date.now(), {
-            stepsCount: steps,
-            stepLengthAvgM: stepLen,
-            maxSpeedMps: maxSpeed,
-            maxAccelMps2: maxAccel,
-            distanceM: acceptedDistanceM,
-          });
-        }}
-        className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400"
-      >
-        Finish
-      </button>
-    </div>
-  );
-}
-
-function RaceFinishedOverlay({ 
-  startedAt, 
-  endedAt, 
-  targetDistanceM, 
-  duelId, 
-  onClose,
-  currentUser,
-  cityName,
-  onAddToLeaderboard 
-}: { 
-  startedAt: number; 
-  endedAt: number; 
-  targetDistanceM: number; 
-  duelId: string; 
-  onClose: () => void;
-  currentUser: CurrentUser | null;
-  cityName: string | null;
-  onAddToLeaderboard?: (time: number) => void;
-}) {
-  const seconds = ((endedAt - startedAt) / 1000).toFixed(2);
-  const timeInSeconds = (endedAt - startedAt) / 1000;
-  
-  // Auto-add to leaderboard when race finishes
-  useEffect(() => {
-    if (currentUser && onAddToLeaderboard) {
-      onAddToLeaderboard(timeInSeconds);
-    }
-  }, [currentUser, onAddToLeaderboard, timeInSeconds]);
-
-  return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70">
-      <div className="w-full max-w-md rounded-xl bg-[#0b0b0d] p-5 text-white ring-1 ring-white/10">
-        <div className="mb-3 text-center text-lg font-semibold">🏁 Rennen beendet!</div>
-        <div className="mb-1 text-center text-3xl font-extrabold text-green-400">{seconds}s</div>
-        <div className="mb-4 text-center text-xs text-white/70">Ziel: {targetDistanceM}m erreicht</div>
-        
-        {/* Celebration message */}
-        <div className="mb-4 rounded-lg bg-green-600/20 border border-green-500/30 p-3 text-center">
-          <div className="text-sm font-medium text-green-300">
-            🎉 Zeit hinzugefügt zu:
+    <div className="race-arcade-screen race-arcade-live">
+      <div className="race-arcade-light race-arcade-light-a" aria-hidden="true" />
+      <div className="race-arcade-light race-arcade-light-b" aria-hidden="true" />
+      <div className="race-arcade-shell">
+        <div className="race-arcade-topline"><span>RUNNIT // LIVE RACE</span><span>● LIVE</span></div>
+        <div className="race-arcade-headline">
+          <h2>FULL SPEED!</h2>
+          <div className="race-arcade-duel-tag">1V1 DUELL <b>· {targetDistanceM} M</b></div>
+        </div>
+        <div className="race-arcade-live-panel">
+          <p className="race-arcade-eyebrow">LIVE TIMER</p>
+          <p className="race-arcade-live-big">{seconds}<span style={{ fontSize: '.38em', color: '#d0ff25' }}>s</span></p>
+          <p className="race-arcade-live-distance">{displayDistanceM.toFixed(1)} / {targetDistanceM} M</p>
+          <div className="race-arcade-live-meter" role="progressbar" aria-label="Gelaufene Distanz"
+            aria-valuemin={0} aria-valuemax={targetDistanceM}
+            aria-valuenow={Math.min(targetDistanceM, Math.round(displayDistanceM))}>
+            <span style={{ width: `${progress}%` }} />
           </div>
-          <div className="mt-1 text-xs text-green-200">
-            • 🏙️ {cityName || 'Stadt'} Leaderboard<br/>
-            • 🇩🇪 Deutschland Leaderboard<br/>
-            • 🌍 Internationales Leaderboard
+          <div className="race-arcade-mini-stat">
+            <span>LIVE STEPS · EXPERIMENTELL</span><strong>{liveStepCount}</strong>
           </div>
+          <div className="race-arcade-mini-stat">
+            <span>GPS MAX SPEED</span><strong>{maxSpeed.toFixed(1)} m/s</strong>
+          </div>
+          <p className="race-arcade-wake">GPS-Bewertung experimentell · nicht verifiziert{gpsNotice ? ' · ' + gpsNotice : ''}</p>
         </div>
-
-        <SideBySideResults duelId={duelId} />
-        
-        <div className="mt-5 space-y-2">
-          <button
-            onClick={() => {
-              // Show leaderboards after race
-              onClose();
-            }}
-            className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-          >
-            📊 Leaderboards anzeigen
+        {wakeStatus !== 'idle' && <p className="race-arcade-wake">{screenWakeLockMessage(wakeStatus)}</p>}
+        {confirmAbort ? (
+          <div className="race-arcade-confirm" role="alertdialog" aria-label="Rennen abbrechen">
+            <p>RENNEN WIRKLICH ABBRECHEN? Beide Spieler werden zurück zur Karte geschickt. Der Lauf zählt nicht.</p>
+            <div className="race-arcade-confirm-actions">
+              <button type="button" disabled={abortBusy} onClick={() => setConfirmAbort(false)}>
+                NEIN, WEITER RENNEN
+              </button>
+              <button type="button" disabled={abortBusy} onClick={() => { void doAbort(); }}>
+                {abortBusy ? 'WIRD ABGEBROCHEN…' : 'JA, FÜR BEIDE ABBRECHEN'}
+              </button>
+            </div>
+            {abortError && <p role="alert" className="race-arcade-error">{abortError}</p>}
+          </div>
+        ) : (
+          <button type="button" className="race-arcade-danger-link" onClick={() => setConfirmAbort(true)}>
+            RENNEN ABBRECHEN
           </button>
-          <button
-            onClick={onClose}
-            className="w-full rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30"
-          >
-            Schließen
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SideBySideResults({ duelId }: { duelId?: string }) {
-  const [rows, setRows] = useState<any[] | null>(null);
-  useEffect(() => {
-    (async () => {
-      if (!duelId) return;
-      const { data } = await getDuelResults(supabase as any, duelId);
-      setRows(data || null);
-    })();
-  }, [duelId]);
-  return (
-    <div className="rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
-      <div className="mb-2 grid grid-cols-2 gap-2 text-xs uppercase tracking-wide text-white/60">
-        <div>{rows?.[0]?.username || 'Runner A'}</div>
-        <div className="text-right">{rows?.[1]?.username || 'Runner B'}</div>
-      </div>
-      <div className="space-y-2 text-sm">
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-md bg-white/10 p-2">Time: {rows?.[0]?.time_ms ? (rows[0].time_ms/1000).toFixed(2)+'s' : '—'}</div>
-          <div className="rounded-md bg-white/10 p-2 text-right">Time: {rows?.[1]?.time_ms ? (rows[1].time_ms/1000).toFixed(2)+'s' : '—'}</div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-md bg-white/10 p-2">Max v: {rows?.[0]?.max_speed_mps ? rows[0].max_speed_mps.toFixed(2)+' m/s' : '—'}</div>
-          <div className="rounded-md bg-white/10 p-2 text-right">Max v: {rows?.[1]?.max_speed_mps ? rows[1].max_speed_mps.toFixed(2)+' m/s' : '—'}</div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-md bg-white/10 p-2">Max a: {rows?.[0]?.max_accel_mps2 ? rows[0].max_accel_mps2.toFixed(2)+' m/s²' : '—'}</div>
-          <div className="rounded-md bg-white/10 p-2 text-right">Max a: {rows?.[1]?.max_accel_mps2 ? rows[1].max_accel_mps2.toFixed(2)+' m/s²' : '—'}</div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-md bg-white/10 p-2">Steps: {rows?.[0]?.steps_count ?? '—'}</div>
-          <div className="rounded-md bg-white/10 p-2 text-right">Steps: {rows?.[1]?.steps_count ?? '—'}</div>
-        </div>
+        )}
       </div>
     </div>
   );

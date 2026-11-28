@@ -1,0 +1,261 @@
+/* RUNNIT / 2002 STREET ARCADE RANKING – dedicated responsive screen.
+   The user-supplied mock is a visual reference, not a production leaderboard:
+   all displayed showcase names, levels, points and avatars are DEMO data. */
+.runnit-ranking-screen{
+  --ranking-cyan:#32eaff;--ranking-lime:#d3fa13;--ranking-pink:#f524d9;
+  --ranking-blue:#0c1e4b;--ranking-ink:#050a28;
+  position:relative;isolation:isolate;min-height:100dvh;width:100%;
+  overflow-x:clip;padding-bottom:calc(7rem + env(safe-area-inset-bottom,0px));
+  color:#fff;
+  background:
+    radial-gradient(ellipse 85% 40% at 101% 10%,rgba(185,12,247,.44),transparent 70%),
+    radial-gradient(ellipse 66% 29% at -6% 41%,rgba(22,145,238,.18),transparent 73%),
+    linear-gradient(160deg,#040b29 2%,#0c1246 42%,#090e31 71%,#050a26);
+}
+.runnit-ranking-screen::before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:-1;opacity:.38;
+  background:
+    repeating-linear-gradient(126deg,transparent 0 54px,rgba(96,203,255,.075) 55px 57px,transparent 58px 109px),
+    radial-gradient(circle at 70% 23%,rgba(255,50,221,.20) 0 1px,transparent 2px) 0 0/19px 19px;
+  mask-image:linear-gradient(180deg,#000 0%,transparent 75%);
+}
+.runnit-ranking-stage{
+  width:100%;max-width:600px;margin:0 auto;position:relative;z-index:1;
+  padding: max(1.25rem,env(safe-area-inset-top)) 14px 0;
+}
+.runnit-ranking-header{
+  position:relative;display:flex;align-items:center;gap:9px;
+  min-height:66px;margin-bottom:6px;
+}
+.runnit-ranking-header::before{
+  content:"";position:absolute;pointer-events:none;right:-19px;top:-12px;
+  width:46%;height:87px;transform:skewY(-10deg);
+  background:linear-gradient(150deg,transparent 29%,rgba(215,17,246,.53) 30% 38%,transparent 39% 49%,rgba(40,189,255,.36) 51% 57%,transparent 60%);
+  filter:drop-shadow(0 0 6px #af36ee);
+}
+.runnit-ranking-back{
+  position:relative;z-index:1;display:grid;place-items:center;flex:none;
+  width:43px;height:55px;border:1px solid #7286e0;border-radius:14px 3px 12px 3px;
+  background:linear-gradient(150deg,#1f2e62,#0b123c 79%);
+  box-shadow:inset 0 1px #9cdafc,0 0 13px rgba(25,188,255,.23);
+  color:white;transition:filter .15s;
+}
+.runnit-ranking-back:hover{filter:brightness(1.15)}
+.runnit-ranking-trophy{
+  display:grid;place-items:center;flex:none;width:49px;height:60px;
+  color:#ffe51a;filter:drop-shadow(0 2px 0 #b05d03) drop-shadow(0 0 9px #ffeb00b5);
+  transform:rotate(-5deg);
+}
+.runnit-ranking-trophy svg{width:43px;height:43px;fill:#ffe727;stroke:#fffaa5;stroke-width:1.5}
+.runnit-ranking-header-copy{position:relative;z-index:1;min-width:0;flex:1}
+.runnit-ranking-eyebrow{
+  display:block;color:#52eafd;letter-spacing:.21em;font:900 9px/1.2 system-ui,sans-serif;
+  text-shadow:0 0 8px #04d9fb;white-space:nowrap;
+}
+.runnit-ranking-header h1{
+  margin:0;white-space:nowrap;line-height:1;
+  font-size:clamp(28px,8.1vw,42px);letter-spacing:-.065em;
+  font-weight:1000;font-style:italic;
+  text-shadow:1px 2px 0 #353b81,2px 4px 0 #15143f,0 0 15px #72adff78;
+  transform:skewX(-6deg);
+}
+.runnit-ranking-beta{
+  position:absolute;right:0;bottom:-13px;
+  color:#d9edff;font:900 8px/1 system-ui,sans-serif;letter-spacing:.14em;
+  opacity:.74;
+}
+.runnit-ranking-tabs{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:stretch;
+  gap:3px;margin:8px 0 12px;padding:0;
+  background:none;border:0;box-shadow:none;
+}
+.runnit-ranking-tab{
+  clip-path:polygon(13% 0,100% 0,87% 100%,0 100%);
+  min-height:47px;padding:7px 3px;display:flex;align-items:center;justify-content:center;
+  gap:3px;border:2px solid #9bd4ff;
+  background:linear-gradient(166deg,#263c69,#07132e 75%);
+  box-shadow:inset 0 2px #b2dcff9e,inset 0 -3px #0b254e;
+  color:#eff5ff;font:italic 950 clamp(12px,3.65vw,16px)/1 system-ui,sans-serif;
+  text-shadow:0 1px 2px #010525;
+  letter-spacing:-.02em;transition:filter .15s,transform .15s;
+  cursor:pointer;
+}
+.runnit-ranking-tab:hover{filter:brightness(1.27)}
+.runnit-ranking-tab[aria-selected="true"]{
+  background:linear-gradient(155deg,#f2ff3a,#b3f106 72%,#7fca00);
+  color:#071c15;text-shadow:0 1px #f9ffac;
+  box-shadow:inset 0 3px #ffffc7,inset 0 -3px #76b009,0 0 15px #c5ff16;
+}
+.runnit-ranking-tab:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.runnit-ranking-tab svg{width:15px;height:15px;flex:none}
+.runnit-ranking-demo-ribbon{
+  position:absolute;right:9px;top:7px;z-index:1;display:flex;align-items:center;gap:5px;
+  max-width:calc(100% - 18px);padding:4px 7px;margin:0;
+  border:1px solid rgba(164,212,255,.42);border-radius:6px;
+  background:rgba(4,12,38,.78);backdrop-filter:blur(4px);
+  color:#e3edfa;font:750 9px/1.35 system-ui,-apple-system,sans-serif;
+}
+.runnit-ranking-demo-ribbon svg{height:13px;width:13px;flex:none;color:#ffdf78}
+.runnit-ranking-demo-ribbon strong{color:#ffe681}
+.runnit-ranking-list{
+  list-style:none;display:grid;gap:7px;margin:0;padding:0;
+}
+.runnit-ranking-row{
+  --ranking-row-glow:rgba(38,211,255,.3);
+  position:relative;display:grid;align-items:center;
+  grid-template-columns:31px 49px minmax(0,1fr) auto;
+  gap:6px;min-height:63px;padding:5px 8px 5px 6px;isolation:isolate;
+  border:1.5px solid #5e9fe1;border-bottom:2px solid #4dcff7;
+  border-radius:16px 5px 16px 5px;
+  background:
+    linear-gradient(150deg,rgba(175,226,255,.17),transparent 22%),
+    linear-gradient(95deg,rgba(35,67,126,.95),rgba(10,24,57,.97) 55%,rgba(14,35,71,.97));
+  box-shadow:
+    inset 0 2px rgba(244,252,255,.65),inset 0 -3px rgba(0,5,30,.77),
+    0 0 10px var(--ranking-row-glow),0 6px 9px #0306265c;
+}
+.runnit-ranking-row::after{
+  content:"";position:absolute;inset:3px 3px auto 3px;height:33%;
+  border-radius:12px 3px 0 0;pointer-events:none;z-index:-1;
+  background:linear-gradient(180deg,rgba(135,209,255,.14),transparent);
+}
+.runnit-ranking-row:nth-child(2){border-color:#a6d6f9;--ranking-row-glow:rgba(41,203,247,.25)}
+.runnit-ranking-row:nth-child(3){border-color:#a6c2e6;--ranking-row-glow:rgba(51,159,255,.20)}
+.runnit-ranking-row.is-featured{
+  border:2px solid #d9ff32;
+  border-bottom-width:3px;
+  background:
+    linear-gradient(95deg,rgba(188,255,2,.28),rgba(17,80,44,.96) 30%,rgba(3,24,13,.98) 75%,rgba(57,115,5,.79));
+  box-shadow:inset 0 2px #f4ffc7,inset 0 -3px #4f9b0c,0 0 0 1px #c1fb11,0 0 19px #c8ff269a,0 6px 10px #02061b;
+}
+.runnit-ranking-place{position:relative;display:grid;place-items:center;align-self:stretch;min-width:0}
+.runnit-ranking-place strong{
+  color:#f5f7ff;font:italic 1000 31px/1 system-ui,sans-serif;
+  letter-spacing:-.085em;text-shadow:1px 2px 0 #4160a2,0 0 7px #5bc9ff47;
+}
+.runnit-ranking-place.is-gold{align-items:end;padding-bottom:3px}
+.runnit-ranking-place.is-gold strong{color:#fff4cb;text-shadow:0 0 8px #f8b758,1px 2px #684728}
+.runnit-ranking-place.is-gold svg{
+  position:absolute;top:1px;color:#ffe421;fill:#f8d608;
+  width:27px;height:24px;filter:drop-shadow(0 0 7px #f9e51a);
+}
+.runnit-ranking-row:nth-child(3) .runnit-ranking-place strong{
+  color:#ffce96;text-shadow:0 0 7px #d87c37,1px 2px #55270c;
+}
+.runnit-ranking-row.is-featured .runnit-ranking-place strong{
+  color:#0b1a11;font-size:36px;text-shadow:0 1px 0 #f3ffb7;
+}
+.runnit-ranking-avatar{
+  display:block;width:49px;height:49px;flex:none;overflow:hidden;
+  border:2px solid #c8edff;border-radius:13px 4px 13px 4px;
+  background:#144881;box-shadow:inset 0 1px #fff,0 0 0 2px #193c78,0 0 12px #30dcff8c;
+}
+.runnit-board-avatar-art{display:block;width:100%;height:100%}
+.runnit-ranking-row.is-featured .runnit-ranking-avatar{
+  border-color:#e6ffff;box-shadow:0 0 0 2px #8ee9ff,0 0 13px #55ddffbb;
+}
+.runnit-ranking-person{min-width:0;display:flex;flex-direction:column;justify-content:center;gap:5px}
+.runnit-ranking-person strong{
+  display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font:italic 1000 clamp(15px,4.1vw,21px)/1.1 system-ui,sans-serif;
+  letter-spacing:-.055em;color:#fff;
+  text-shadow:1px 2px 0 #0a1c42,0 0 9px rgba(255,255,255,.13);
+}
+.runnit-ranking-person small{
+  color:#c8defd;font:italic 900 clamp(10px,2.6vw,12px)/1 system-ui,sans-serif;
+  letter-spacing:.035em;
+}
+.runnit-ranking-points{
+  display:flex;align-items:baseline;gap:3px;white-space:nowrap;align-self:center;
+  color:#f4f8ff;filter:drop-shadow(0 2px 1px #05081a);
+}
+.runnit-ranking-points strong{
+  font:italic 1000 clamp(15px,4.2vw,22px)/1 system-ui,sans-serif;
+  letter-spacing:-.055em;font-variant-numeric:tabular-nums;
+}
+.runnit-ranking-points span{
+  font:italic 950 clamp(9px,2.7vw,13px)/1 system-ui,sans-serif;
+}
+.runnit-ranking-no-results{
+  display:flex;align-items:center;flex-direction:column;text-align:center;justify-content:center;
+  padding:30px 18px 26px;min-height:346px;gap:12px;
+  border:1px solid #52c7edb2;border-bottom:3px solid #b83ae0;
+  border-radius:18px 4px;
+  background:linear-gradient(155deg,#19386b99,#060f31f5 58%,#1b1646b3);
+  box-shadow:inset 0 2px #9edafb6c,0 0 16px #238ddd33;
+}
+.runnit-ranking-no-results .runnit-ranking-empty-emblem{
+  display:grid;place-items:center;width:83px;height:83px;
+  border:2px solid #8af4ff;border-radius:19px 5px;
+  color:#d4ff28;background:linear-gradient(145deg,#214d7e,#091238);
+  box-shadow:inset 0 2px #eeffff,0 0 16px #24ecff72;
+}
+.runnit-ranking-no-results h2{
+  font:italic 1000 clamp(19px,5.3vw,27px)/1.14 system-ui,sans-serif;
+  text-shadow:0 0 11px #64b3fd;max-width:360px;
+}
+.runnit-ranking-no-results p{
+  color:#d6e5f5;font:500 12px/1.6 system-ui,sans-serif;max-width:320px;
+}
+.runnit-ranking-empty-stripes{display:grid;gap:7px;width:min(255px,100%);margin-top:8px}
+.runnit-ranking-empty-stripes span{
+  height:7px;border-radius:20px;background:linear-gradient(90deg,#2c73be,#2475a866 70%,transparent);
+}
+.runnit-ranking-empty-stripes span:nth-child(2){width:84%}
+.runnit-ranking-empty-stripes span:nth-child(3){width:65%}
+.runnit-ranking-city{
+  position:relative;z-index:0;height:clamp(108px,30vw,160px);
+  margin:0 -14px;margin-top:4px;
+  background:url('/runnit-ranking-city.svg') center bottom/cover no-repeat;
+  filter:drop-shadow(0 -2px 8px #ff4cce3a);
+  pointer-events:none;
+}
+.runnit-ranking-city::after{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:3px;
+  background:linear-gradient(90deg,#18dffc,#f03fff,#cdff22);
+  box-shadow:0 0 10px #42e7ff;
+}
+@media(min-width:600px){
+  .runnit-ranking-stage{padding-inline:24px}
+  .runnit-ranking-city{margin-inline:-24px}
+  .runnit-ranking-header{margin-top:11px}
+}
+@media(max-width:370px){
+  .runnit-ranking-stage{padding-inline:10px}
+  .runnit-ranking-header{gap:6px}
+  .runnit-ranking-header h1{font-size:clamp(24px,7.8vw,31px)}
+  .runnit-ranking-back{width:37px;height:49px}
+  .runnit-ranking-trophy{width:42px;height:53px}
+  .runnit-ranking-trophy svg{width:37px;height:37px}
+  .runnit-ranking-tab{font-size:clamp(10px,3.05vw,12px);min-height:43px}
+  .runnit-ranking-row{grid-template-columns:27px 45px minmax(0,1fr) auto;gap:5px;min-height:59px;padding:5px 7px 5px 4px}
+  .runnit-ranking-avatar{width:45px;height:45px}
+  .runnit-ranking-place strong{font-size:26px}
+  .runnit-ranking-place.is-gold svg{height:22px;width:24px}
+  .runnit-ranking-row.is-featured .runnit-ranking-place strong{font-size:29px}
+  .runnit-ranking-person strong{font-size:clamp(12px,3.7vw,16px)}
+  .runnit-ranking-points strong{font-size:clamp(12px,3.7vw,16px)}
+  .runnit-ranking-points span{font-size:9px}
+  .runnit-ranking-city{margin-inline:-10px}
+}
+@media(prefers-reduced-motion:reduce){
+  .runnit-ranking-tab,.runnit-ranking-back{transition:none}
+}
+
+/* Four real competition filters; informative panels remain tappable.
+   The city illustration stays decorative rather than absorbing touch events. */
+.runnit-ranking-panel-note {
+  margin: 12px 0;
+  padding: 13px 15px;
+  border: 1px solid rgba(86, 207, 248, 0.36);
+  border-radius: 13px 5px;
+  background: linear-gradient(140deg,rgba(11,33,69,.98),rgba(17,19,61,.92));
+}
+.runnit-ranking-panel-note a { pointer-events:auto; }
+
+/* Readable results on small iPhones: rank and value each have a dedicated lane. */
+.runnit-ranking-points{flex-direction:column;align-items:flex-end;justify-content:center;gap:3px;min-width:44px}
+.runnit-ranking-points strong{font-size:clamp(14px,3.7vw,20px);white-space:nowrap}
+.runnit-ranking-points span{font-size:10px;white-space:nowrap}
+.runnit-ranking-person small{line-height:1.25;overflow-wrap:normal}
+@media(max-width:400px){.runnit-ranking-row{grid-template-columns:27px 42px minmax(0,1fr) auto;gap:5px;padding-right:7px}.runnit-ranking-avatar{width:42px;height:42px}.runnit-ranking-person strong{font-size:clamp(13px,3.65vw,16px)}.runnit-ranking-points strong{font-size:14px}}

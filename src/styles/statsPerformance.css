@@ -1,0 +1,901 @@
+/* RUNNIT / STATS — PERFORMANCE HUB
+ * Image-driven, independent art direction. Only scoped selectors.
+ * Existing BottomNav and all other pages remain unchanged.
+ */
+.runnit-game-home.runnit-stats-v2 {
+  position:relative; isolation:isolate; min-height:100dvh; overflow-x:hidden;
+  background:#050923; color:#f6fbff; font-family:Inter,system-ui,-apple-system,sans-serif;
+}
+.runnit-stats-v2::before,.runnit-stats-v2::after {content:none!important;display:none!important;}
+.stats-v2-scene {
+  position:absolute;z-index:0;inset:0;pointer-events:none;
+  background:
+    linear-gradient(180deg,rgba(4,7,30,.16) 0%,rgba(4,7,30,.15) 180px,rgba(4,9,29,.65) 340px,#080d2adf 550px,#070b26ed 850px,#090a26 100%),
+    url('/runnit-stats-stadium.webp') center top/100% auto no-repeat;
+  background-color:#090b2a;
+}
+.stats-v2-stage {
+  position:relative;z-index:1;
+  width:min(100%,720px);margin:0 auto;
+  padding:max(6px,env(safe-area-inset-top,0px)) clamp(10px,3vw,20px) calc(110px + env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:clamp(9px,1.4dvh,15px);
+}
+.stats-v2-hero {
+  position:relative;
+  height:clamp(215px,30dvh,305px);
+  display:flex;flex-direction:column;justify-content:flex-end;
+  padding:0 9px 12px;
+  text-shadow:0 2px 10px #060723;
+}
+.stats-v2-brand {
+  position:absolute;top:clamp(3px,1.4dvh,13px);left:0;right:0;
+  text-align:center;
+  font:italic 1000 clamp(15px,4.5vw,25px)/1 system-ui,sans-serif;
+  letter-spacing:.31em;
+  text-shadow:0 1px 0 #0b1632,0 0 14px #06dfff;
+}
+.stats-v2-brand span {color:#24eafe;letter-spacing:-.1em;margin-left:8px}
+.stats-v2-hero h1 {
+  margin:0;line-height:.95;
+  font:italic 1000 clamp(38px,11vw,75px)/1 system-ui,sans-serif;
+  letter-spacing:-.07em;
+  text-shadow:2px 3px 0 #3b1a7f,0 0 14px #b7d4ff77;
+}
+.stats-v2-hero h1 em,.stats-v2-section-head em {
+  font-style:italic;color:#caff06;
+}
+.stats-v2-kicker {
+  order:0;letter-spacing:.11em;font:italic 950 clamp(10px,2.6vw,17px)/1.2 system-ui,sans-serif;
+  margin:9px 0 0;color:#3bf2ff;text-shadow:0 0 9px #0af2ff7b;
+}
+.stats-v2-intro {
+  margin:7px 0 0;max-width:430px;line-height:1.45;
+  font-size:clamp(10px,2.65vw,15px);font-weight:550;color:#e6f5ff;
+}
+.stats-v2-panel {
+  position:relative;isolation:isolate;overflow:hidden;
+  padding:clamp(10px,2.2vw,19px);
+  border:1.6px solid #71eaff;
+  border-right-color:#a75ffe;
+  border-bottom-color:#fd32d9;
+  border-radius:22px 7px 23px 7px;
+  background:
+    linear-gradient(144deg,#daffff22,transparent 14% 55%,#ec2ffa13 100%),
+    repeating-linear-gradient(150deg,transparent 0 31px,#77caff08 32px 34px,transparent 35px 63px),
+    linear-gradient(155deg,#12274bbc 0%,#111b3bdc 45%,#1b0f3bdc 100%);
+  box-shadow:inset 0 1px 0 #f1fbff69,inset 0 -1px 0 #0b102b,0 0 10px #16dfff58,0 3px 15px #00091b75;
+  backdrop-filter:blur(6px);
+}
+.stats-v2-panel::after {
+  content:"";position:absolute;z-index:-1;top:0;right:0;width:38%;height:40%;
+  pointer-events:none;background:linear-gradient(135deg,transparent,#e6ffff0b 44%,#fa33eb0a);
+  transform:skewX(-18deg);opacity:.8;
+}
+.stats-v2-section-head {
+  display:flex;align-items:center;gap:8px;min-width:0;min-height:23px;
+}
+.stats-v2-section-head h2 {
+  font:italic 1000 clamp(16px,4.7vw,29px)/1 system-ui,sans-serif;
+  letter-spacing:-.045em;white-space:normal;
+  text-shadow:0 1px 4px #00091b;
+}
+.stats-v2-stripes {
+  font:italic 1000 clamp(19px,5vw,29px)/.9 system-ui,sans-serif;letter-spacing:-.21em;
+  color:#27f1ff;padding-right:8px;transform:skewX(-13deg);
+  text-shadow:0 0 8px #16e5ff;
+}
+.stats-v2-head-detail {
+  margin-left:auto;text-align:right;max-width:40%;flex:none;
+  font:italic 850 clamp(8px,2.35vw,13px)/1.1 system-ui,sans-serif;
+  color:#cbfaff;
+}
+.stats-v2-week-tiles {
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(5px,1.3vw,12px);
+  margin-top:11px;
+}
+.stats-v2-tile {
+  min-width:0;min-height:clamp(102px,15dvh,136px);
+  border:1.4px solid #238eb1;border-radius:19px 8px 17px 8px;
+  padding:clamp(7px,2vw,15px) clamp(6px,1.8vw,13px);
+  display:flex;flex-direction:column;align-items:flex-start;gap:7px;
+  background:linear-gradient(145deg,#0c2b49e8,#071931ee 68%,#07122bdf);
+  box-shadow:inset 0 1px #b0faff38,0 0 6px #1cdffa25;
+}
+.stats-v2-tile-icon {
+  width:clamp(23px,6vw,38px);height:clamp(23px,6vw,38px);color:#26edff;
+  filter:drop-shadow(0 0 6px #17edff95);
+}
+.stats-v2-tile-label {display:block;font-size:clamp(9px,2.7vw,16px);font-weight:950;color:#a7f7ff;}
+.stats-v2-tile-value {display:block;white-space:nowrap;font-size:clamp(17px,5vw,32px);font-weight:1000;letter-spacing:-.06em;line-height:1.15;color:white;}
+.stats-v2-tile small {display:block;font-size:clamp(8px,2.15vw,12px);line-height:1.2;color:#bad1e7;margin-top:5px;}
+.stats-v2-chart {
+  position:relative;height:clamp(128px,18dvh,182px);
+  margin-top:11px;padding:4px 4px 0;
+  border-bottom:1px solid #4ceeff;
+  background:
+    repeating-linear-gradient(90deg,transparent 0 42px,#66cbee12 43px 44px,transparent 45px 85px),
+    linear-gradient(180deg,transparent 0%,#00e9ff0a 100%);
+}
+.stats-v2-chart-lines {position:absolute;inset:0 0 19px;display:flex;flex-direction:column;justify-content:space-evenly;}
+.stats-v2-chart-lines i {display:block;width:100%;height:1px;background:#5abdfd34;}
+.stats-v2-bars {
+  position:absolute;inset:7px 4px 0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;
+}
+.stats-v2-bar-slot {
+  display:flex;flex-direction:column;justify-content:flex-end;align-items:center;min-width:0;gap:6px;
+}
+.stats-v2-bar-track {position:relative;flex:1;min-height:0;width:min(100%,43px);display:flex;align-items:flex-end;}
+.stats-v2-bar-fill {
+  position:relative;width:100%;height:var(--bar-height);
+  border:1px solid #62f4ff;border-bottom:0;border-radius:8px 8px 0 0;
+  background:linear-gradient(180deg,#49ffff,#16c7e9 65%,#0a5d9e);
+  box-shadow:inset 0 1px #ffffffe0,0 0 14px #16f6ff77;
+  transform:scaleY(0);transform-origin:center bottom;
+  transition:transform 1.35s cubic-bezier(.15,.6,.16,1.02);
+}
+.stats-v2-stage[data-active="true"] .stats-v2-bar-fill {transform:scaleY(1);}
+.stats-v2-bar-fill.is-peak {border-color:#ecff52;background:linear-gradient(180deg,#dbff44,#b2f400 75%,#348e53);box-shadow:0 0 14px #baff08ae;}
+.stats-v2-bar-label {position:absolute;left:0;right:0;top:-20px;text-align:center;font-size:10px;font-weight:950;color:white;}
+.stats-v2-bar-slot>strong {
+  flex:0 0 19px;font:italic 900 clamp(10px,2.85vw,15px)/1 system-ui,sans-serif;color:#b3faff;
+}
+.stats-v2-compare {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:11px;}
+.stats-v2-compare-card {
+  min-width:0;min-height:118px;padding:11px 8px;
+  border:1px solid #35bde4;border-radius:20px 5px 19px 5px;
+  background:linear-gradient(145deg,#104066db,#0a1836eb);
+  box-shadow:inset 0 1px #cfffff47,0 0 8px #11eeff2b;
+}
+.stats-v2-compare-card--solo {border-color:#a4ee06;background:linear-gradient(145deg,#1e402dd9,#081935ee);box-shadow:inset 0 1px #e7ff8146,0 0 8px #c2ff2035;}
+.stats-v2-compare-card h3 {display:flex;align-items:center;gap:5px;font:italic 950 clamp(13px,3.45vw,22px)/1 system-ui,sans-serif;color:#a3f7ff;}
+.stats-v2-compare-card--solo h3 {color:#caff12;}
+.stats-v2-compare-values {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:14px;align-items:start;}
+.stats-v2-compare-values>div {min-width:0;border-right:1px solid #bfefff68;text-align:center;padding:0 2px;}
+.stats-v2-compare-values>div:last-child {border-right:0;}
+.stats-v2-compare-card--solo .stats-v2-compare-values {grid-template-columns:repeat(4,minmax(0,1fr));}
+.stats-v2-compare-card--solo .stats-v2-compare-values>div:nth-child(1),
+.stats-v2-compare-card--solo .stats-v2-compare-values>div:nth-child(2) {grid-column:span 1;}
+.stats-v2-compare-card--solo .stats-v2-compare-values>div.stats-v2-span-two {grid-column:span 2;}
+.stats-v2-compare-values strong {display:block;font-size:clamp(14px,3.5vw,24px);font-weight:1000;letter-spacing:-.055em;line-height:1.1;white-space:nowrap;}
+.stats-v2-compare-values small {display:block;margin-top:5px;font-size:clamp(7px,1.6vw,10px);color:#d0e4f5;line-height:1.1;}
+.stats-v2-caption {color:#a5cadd;font-size:clamp(9px,2.1vw,12px);line-height:1.4;margin-top:9px;}
+.stats-v2-record-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(5px,1.3vw,11px);margin-top:13px;}
+.stats-v2-record {
+  min-width:0;min-height:75px;
+  padding:10px 7px;border:1.4px solid #22d9eb;border-bottom-color:#f734ed;
+  border-radius:16px 5px 16px 5px;
+  background:linear-gradient(150deg,#152e56db,#071731e9 50%,#1e1037ed);
+  box-shadow:0 0 8px #2bdffb35,inset 0 1px #dcffff40;
+}
+.stats-v2-record span {display:block;font:italic 900 clamp(11px,3vw,19px)/1 system-ui,sans-serif;color:#80f8ff;}
+.stats-v2-record strong {display:block;margin-top:11px;font:italic 950 clamp(13px,3.15vw,24px)/1 system-ui,sans-serif;white-space:nowrap;letter-spacing:-.06em;}
+.stats-v2-record.is-future strong {color:#b2b6ca;}
+.stats-v2-form-body {display:grid;grid-template-columns:minmax(118px,42%) minmax(0,1fr);gap:12px;align-items:center;}
+.stats-v2-speed {position:relative;width:100%;max-width:210px;aspect-ratio:1;margin:auto;}
+.stats-v2-speed-svg {width:100%;height:100%;display:block;filter:drop-shadow(0 0 7px #23ebffa8);}
+.stats-v2-speed-track {fill:none;stroke:#224f75;stroke-width:17;opacity:.86;}
+.stats-v2-speed-progress,.stats-v2-speed-progress-glow {
+  fill:none;stroke:url(#statsGaugeStroke);stroke-width:17;stroke-linecap:round;
+  transform:rotate(-90deg);transform-origin:110px 110px;
+  transition:stroke-dashoffset 1.6s cubic-bezier(.15,.7,.2,1.03);
+}
+.stats-v2-speed-progress-glow {stroke-width:21;opacity:.4;filter:url(#statsGaugeGlow);}
+.stats-v2-speed-needle {transform-origin:110px 110px;transition:transform 1.55s cubic-bezier(.1,.75,.2,1.08);filter:drop-shadow(0 0 3px #dfff1b);}
+.stats-v2-speed-center {position:absolute;inset:33%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1px;color:#d7ff10;text-align:center;pointer-events:none;}
+.stats-v2-speed-center strong {font:italic 1000 clamp(17px,6vw,38px)/1 system-ui,sans-serif;color:#fff;}
+.stats-v2-speed-center span {font-size:clamp(7px,1.95vw,11px);font-weight:950;white-space:nowrap;}
+.stats-v2-form-info {min-width:0;}
+.stats-v2-form-line,.stats-v2-goal-copy {display:flex;align-items:center;gap:9px;min-width:0;padding:8px 0;border-bottom:1px solid #83dcf948;}
+.stats-v2-form-line>svg,.stats-v2-goal-copy>svg {flex:none;width:clamp(16px,4vw,24px);height:clamp(16px,4vw,24px);color:#5deefe;}
+.stats-v2-goal-copy>svg {color:#d3ff12;}
+.stats-v2-form-line span,.stats-v2-goal-copy span {display:block;font-size:clamp(8px,2vw,12px);font-weight:900;color:#a4effb;}
+.stats-v2-form-line strong,.stats-v2-goal-copy strong {display:block;margin-top:3px;font:italic 950 clamp(13px,3.1vw,21px)/1.1 system-ui,sans-serif;}
+.stats-v2-progress {height:12px;border-radius:999px;overflow:hidden;margin-top:12px;background:#345272;border:1px solid #a3e9ff9c;box-shadow:inset 0 2px 4px #021024;}
+.stats-v2-progress span {display:block;width:100%;height:100%;background:linear-gradient(90deg,#2df7f7,#c4ff05 80%,#dfff25);transform:scaleX(0);transform-origin:left center;transition:transform 1.6s cubic-bezier(.15,.7,.2,1.05);box-shadow:0 0 12px #c9ff07;}
+.stats-v2-goal-controls {display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-top:8px;}
+.stats-v2-goal-controls label {font-size:10px;font-weight:900;color:#b3f8ff;letter-spacing:.025em;margin-right:auto;}
+.stats-v2-goal-controls select {border:1px solid #55cbe2;border-radius:7px;background:#09182d;color:#fff;padding:5px 7px;font-weight:900;font-size:12px;}
+.stats-v2-goal-controls button {display:flex;align-items:center;gap:5px;border:1px solid #ccff24;border-radius:7px;color:#071a1a;background:#d4ff11;padding:6px 8px;font-weight:1000;font-size:11px;}
+.stats-v2-goal-controls button:disabled {opacity:.5;cursor:not-allowed;}
+.stats-v2-history ol {margin-top:8px;}
+.stats-v2-history li {display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 4px;border-top:1px solid #9cdffa24;}
+.stats-v2-history li strong {display:block;font-size:12px;}
+.stats-v2-history li small {display:block;margin-top:4px;color:#a8c7dc;font-size:9px;line-height:1.4;}
+.stats-v2-history li b {font-weight:1000;font-size:13px;color:#c5ff0d;white-space:nowrap;}
+.stats-v2-loading,.stats-v2-error {display:flex;align-items:center;gap:8px;font-size:12px;font-weight:750;}
+.stats-v2-error {padding:12px;border:1px solid #ffcf48;border-radius:12px;background:#403010e8;}
+.stats-v2-error button {display:flex;align-items:center;gap:4px;margin-left:auto;min-width:max-content;font-weight:900;}
+.stats-v2-login {display:flex;flex-direction:column;gap:12px;}
+.stats-v2-login p {font-size:13px;color:#d2e8f4;}
+.stats-v2-link {display:flex;align-items:center;gap:5px;color:#c6ff07;font-weight:900;}
+.stats-v2-safety {display:flex;align-items:flex-start;gap:8px;font-size:10px;line-height:1.5;color:#b3c8da;padding:3px 4px;}
+.stats-v2-safety svg {color:#caff05;flex:none;}
+.stats-v2-next {display:flex;align-items:center;justify-content:center;gap:9px;padding:13px;border:1.5px solid #d0ff1c;border-radius:12px 3px 12px 3px;color:#071d15;background:linear-gradient(135deg,#e8ff3e,#c4ff0d);font:italic 950 14px/1 system-ui,sans-serif;box-shadow:0 0 11px #baff0070;}
+.stats-v2-next:focus-visible,.stats-v2-goal-controls button:focus-visible,.stats-v2-goal-controls select:focus-visible {outline:2px solid white;outline-offset:2px;}
+@media(max-width:380px) {
+  .stats-v2-stage {padding-inline:10px;}
+  .stats-v2-panel {padding:10px;}
+  .stats-v2-compare {gap:6px;}
+  .stats-v2-compare-card {padding:9px 5px;}
+  .stats-v2-section-head {gap:6px;}
+  .stats-v2-stripes {padding-right:5px;}
+  .stats-v2-form-body {gap:7px;}
+  .stats-v2-tile {min-height:94px;}
+}
+@media(min-width:650px) {
+ .stats-v2-hero {height:315px;}
+ .stats-v2-hero h1 {font-size:72px;}
+}
+@media(prefers-reduced-motion:reduce) {
+ .stats-v2-bar-fill,.stats-v2-speed-progress,.stats-v2-speed-progress-glow,.stats-v2-speed-needle,.stats-v2-progress span {transition:none!important;}
+}
+
+.stats-v2-section-head h2>span {color:#caff06;}
+.stats-v2-compare-card h3>span {color:#a3f7ff;}
+
+
+/* iPhone mini / small-phone visual parity, November 2026.
+ * The approved reference is a compact PERFORMANCE DASHBOARD, not a long stack
+ * of oversized cards. Never override the shared BottomNav or unrelated screens.
+ * On smaller phones, the history and editable goal are disclosure panels:
+ * everything remains accessible without hiding/cutting live data.
+ */
+.runnit-stats-v2 .stats-v2-goal-details {
+  margin-top:7px;
+  border-top:1px solid #55bfe65c;
+}
+.runnit-stats-v2 .stats-v2-goal-details>summary,
+.runnit-stats-v2 .stats-v2-history>summary {
+  display:flex;align-items:center;justify-content:space-between;
+  min-height:27px;gap:6px;cursor:pointer;list-style:none;
+  font:italic 900 10px/1.2 system-ui,sans-serif;color:#b9f8ff;
+}
+.runnit-stats-v2 .stats-v2-goal-details>summary::-webkit-details-marker,
+.runnit-stats-v2 .stats-v2-history>summary::-webkit-details-marker {display:none;}
+.runnit-stats-v2 .stats-v2-goal-details>summary span {font-size:18px;line-height:1;color:#c9ff0c;}
+.runnit-stats-v2 .stats-v2-goal-details[open]>summary span {transform:rotate(180deg);}
+.runnit-stats-v2 .stats-v2-history>summary .stats-v2-section-head {width:100%;}
+.runnit-stats-v2 .stats-v2-history>summary::after {
+  content:"⌄";flex:none;color:#caff08;font-size:18px;line-height:1;
+}
+.runnit-stats-v2 .stats-v2-history[open]>summary::after {transform:rotate(180deg);}
+.runnit-stats-v2 .stats-v2-goal-details>summary:focus-visible,
+.runnit-stats-v2 .stats-v2-history>summary:focus-visible {
+  outline:2px solid #eafcff;outline-offset:3px;border-radius:4px;
+}
+
+/* Shared desktop / large phone visual geometry is unchanged. */
+@media (max-width:480px) {
+  .runnit-stats-v2 .stats-v2-stage {
+    width:100%;
+    padding: max(4px,env(safe-area-inset-top,0px)) 9px
+      calc(100px + env(safe-area-inset-bottom,0px));
+    gap:6px;
+  }
+  .runnit-stats-v2 .stats-v2-hero {
+    height:clamp(119px,17.2dvh,145px);
+    padding:0 7px 5px;
+  }
+  .runnit-stats-v2 .stats-v2-brand {
+    top:3px;
+    font-size:clamp(12px,3.4vw,16px);
+  }
+  .runnit-stats-v2 .stats-v2-hero h1 {
+    font-size:clamp(29px,9vw,43px);
+    letter-spacing:-.072em;
+  }
+  .runnit-stats-v2 .stats-v2-kicker {
+    font-size:clamp(9px,2.25vw,11px);
+    letter-spacing:.065em;
+    margin-top:4px;
+  }
+  .runnit-stats-v2 .stats-v2-intro {
+    font-size:clamp(9px,2.35vw,11px);
+    line-height:1.25;
+    margin-top:4px;
+    max-width:320px;
+  }
+  .runnit-stats-v2 .stats-v2-panel {
+    padding:7px 9px;
+    border-radius:16px 5px 16px 5px;
+    backdrop-filter:blur(3px);
+  }
+  .runnit-stats-v2 .stats-v2-section-head {gap:5px;min-height:18px;}
+  .runnit-stats-v2 .stats-v2-section-head h2 {
+    font-size:clamp(13px,4.2vw,19px);
+    line-height:1;
+    letter-spacing:-.06em;
+  }
+  .runnit-stats-v2 .stats-v2-stripes {
+    padding-right:4px;font-size:18px;
+  }
+  .runnit-stats-v2 .stats-v2-head-detail {
+    font-size:clamp(7px,1.95vw,9px);
+    max-width:37%;
+  }
+  .runnit-stats-v2 .stats-v2-week-tiles {gap:5px;margin-top:5px;}
+  .runnit-stats-v2 .stats-v2-tile {
+    min-height:55px;padding:5px 4px;
+    flex-direction:row;align-items:center;gap:4px;
+    border-radius:13px 5px 13px 5px;
+  }
+  .runnit-stats-v2 .stats-v2-tile-icon {
+    width:18px;height:18px;flex-shrink:0;
+  }
+  .runnit-stats-v2 .stats-v2-tile-label {
+    font-size:clamp(8px,2.3vw,10px);
+  }
+  .runnit-stats-v2 .stats-v2-tile-value {
+    font-size:clamp(12px,3.75vw,17px);
+    letter-spacing:-.05em;
+  }
+  .runnit-stats-v2 .stats-v2-tile small {
+    font-size:7px;line-height:1.1;margin-top:1px;
+  }
+  .runnit-stats-v2 .stats-v2-chart {
+    height:69px;
+    margin-top:4px;padding:0 3px;
+  }
+  .runnit-stats-v2 .stats-v2-bars {inset:8px 2px 0;gap:6px;}
+  .runnit-stats-v2 .stats-v2-chart-lines {inset:0 0 14px;}
+  .runnit-stats-v2 .stats-v2-bar-slot {gap:3px;}
+  .runnit-stats-v2 .stats-v2-bar-slot>strong {
+    flex-basis:14px;font-size:9px;
+  }
+  .runnit-stats-v2 .stats-v2-bar-label {
+    font-size:9px;top:-15px;
+  }
+  .runnit-stats-v2 .stats-v2-compare {gap:5px;margin-top:5px;}
+  .runnit-stats-v2 .stats-v2-compare-card {
+    min-height:68px;padding:6px 3px;
+    border-radius:12px 3px 12px 3px;
+  }
+  .runnit-stats-v2 .stats-v2-compare-card h3 {
+    font-size:clamp(10px,2.8vw,13px);
+    gap:3px;white-space:nowrap;
+  }
+  .runnit-stats-v2 .stats-v2-compare-card h3 svg {
+    width:14px;height:14px;flex-shrink:0;
+  }
+  .runnit-stats-v2 .stats-v2-compare-values {margin-top:7px;}
+  .runnit-stats-v2 .stats-v2-compare-values>div {
+    padding:0 1px;
+  }
+  .runnit-stats-v2 .stats-v2-compare-values strong {
+    font-size:clamp(10px,3.15vw,14px);
+    letter-spacing:-.065em;
+  }
+  .runnit-stats-v2 .stats-v2-compare-values small {
+    font-size:clamp(5px,1.6vw,7px);
+    margin-top:4px;
+  }
+  .runnit-stats-v2 .stats-v2-caption {
+    font-size:8px;line-height:1.2;margin-top:4px;
+  }
+  .runnit-stats-v2 .stats-v2-record-grid {gap:5px;margin-top:5px;}
+  .runnit-stats-v2 .stats-v2-record {
+    min-height:43px;padding:5px 4px;
+    border-radius:11px 4px 11px 4px;
+  }
+  .runnit-stats-v2 .stats-v2-record span {font-size:10px;}
+  .runnit-stats-v2 .stats-v2-record strong {
+    font-size:clamp(11px,2.95vw,14px);
+    margin-top:6px;letter-spacing:-.06em;
+  }
+  .runnit-stats-v2 .stats-v2-form-body {
+    grid-template-columns:minmax(95px,33%) minmax(0,1fr);
+    gap:6px;
+    margin-top:2px;
+  }
+  .runnit-stats-v2 .stats-v2-speed {max-width:111px;}
+  .runnit-stats-v2 .stats-v2-speed-center strong {font-size:20px;}
+  .runnit-stats-v2 .stats-v2-speed-center span {font-size:6.5px;}
+  .runnit-stats-v2 .stats-v2-form-line,
+  .runnit-stats-v2 .stats-v2-goal-copy {padding:4px 0;gap:5px;}
+  .runnit-stats-v2 .stats-v2-form-line>svg,
+  .runnit-stats-v2 .stats-v2-goal-copy>svg {
+    width:17px;height:17px;
+  }
+  .runnit-stats-v2 .stats-v2-form-line span,
+  .runnit-stats-v2 .stats-v2-goal-copy span {font-size:7.5px;}
+  .runnit-stats-v2 .stats-v2-form-line strong,
+  .runnit-stats-v2 .stats-v2-goal-copy strong {
+    font-size:11px;margin-top:1px;
+  }
+  .runnit-stats-v2 .stats-v2-progress {margin-top:5px;height:8px;}
+  .runnit-stats-v2 .stats-v2-goal-details {
+    margin-top:3px;
+  }
+  .runnit-stats-v2 .stats-v2-goal-details>summary {
+    min-height:17px;font-size:9px;
+  }
+  .runnit-stats-v2 .stats-v2-history>summary {
+    min-height:17px;
+  }
+  .runnit-stats-v2 .stats-v2-history ol {margin-top:6px;}
+  .runnit-stats-v2 .stats-v2-safety {font-size:8px;line-height:1.25;}
+  .runnit-stats-v2 .stats-v2-next {padding:9px;font-size:12px;}
+  /* The photo remains a single atmospheric image; content overlays are not baked in. */
+  .runnit-stats-v2 .stats-v2-scene {
+    background-position:center top,center top;
+  }
+}
+@media (max-width:380px) {
+  .runnit-stats-v2 .stats-v2-tile {gap:3px;padding-inline:3px;}
+  .runnit-stats-v2 .stats-v2-tile-icon {width:16px;height:16px;}
+  .runnit-stats-v2 .stats-v2-section-head h2 {font-size:clamp(12px,4vw,17px);}
+  .runnit-stats-v2 .stats-v2-compare-card h3 {font-size:10px;}
+  .runnit-stats-v2 .stats-v2-form-body {grid-template-columns:minmax(89px,32%) minmax(0,1fr);}
+}
+@media (prefers-reduced-motion:reduce) {
+  .runnit-stats-v2 .stats-v2-goal-details>summary span,
+  .runnit-stats-v2 .stats-v2-history>summary::after {transition:none;}
+}
+
+
+/* RUNNIT MINI DENSE PASS — 2026-11-19.
+   Refines PR #187 after direct comparison with the user's 18:21 iPhone-mini
+   screenshots. Restore the approved single-screen dashboard density:
+   five principal panels above the persistent dock on a 375x812 viewport.
+   Only STATS on short/mobile portrait viewports. No shared navigation edits,
+   no hidden race data, no new mock statistics, no change to animation timing.
+   Overflow remains scrollable for opened details, larger fonts & accessibility. */
+@media (max-width:480px) and (max-height:900px) {
+  .runnit-stats-v2 .stats-v2-stage {
+    gap:3px;
+    padding-left:8px;
+    padding-right:8px;
+  }
+  .runnit-stats-v2 .stats-v2-hero {
+    height:clamp(92px,12dvh,103px);
+    padding:0 6px 3px;
+  }
+  .runnit-stats-v2 .stats-v2-brand {
+    top:0;
+    font-size:clamp(11px,3.1vw,14px);
+    letter-spacing:.24em;
+  }
+  .runnit-stats-v2 .stats-v2-hero h1 {
+    font-size:clamp(27px,8.5vw,37px);
+    line-height:1;
+  }
+  .runnit-stats-v2 .stats-v2-kicker {
+    margin-top:2px;
+    font-size:clamp(8px,2.15vw,10px);
+    letter-spacing:.04em;
+  }
+  .runnit-stats-v2 .stats-v2-intro {
+    margin-top:2px;
+    font-size:clamp(8px,2.16vw,10px);
+    line-height:1.14;
+    max-width:310px;
+  }
+  .runnit-stats-v2 .stats-v2-panel {
+    padding:5px 7px;
+    border-radius:14px 5px 14px 5px;
+  }
+  .runnit-stats-v2 .stats-v2-section-head {
+    gap:4px;
+    min-height:17px;
+  }
+  .runnit-stats-v2 .stats-v2-section-head h2 {
+    font-size:clamp(12px,3.95vw,17px);
+    line-height:1;
+  }
+  .runnit-stats-v2 .stats-v2-stripes {
+    font-size:17px;
+    padding-right:3px;
+  }
+  .runnit-stats-v2 .stats-v2-head-detail {
+    font-size:clamp(7px,1.85vw,9px);
+  }
+  .runnit-stats-v2 .stats-v2-week-tiles {
+    gap:4px;
+    margin-top:3px;
+  }
+  .runnit-stats-v2 .stats-v2-tile {
+    min-height:46px;
+    padding:3px 4px;
+    gap:3px;
+    border-radius:11px 4px 11px 4px;
+  }
+  .runnit-stats-v2 .stats-v2-tile-icon {
+    width:16px;
+    height:16px;
+  }
+  .runnit-stats-v2 .stats-v2-tile-label {font-size:clamp(8px,2.25vw,10px);}
+  .runnit-stats-v2 .stats-v2-tile-value {
+    font-size:clamp(12px,3.65vw,16px);
+    line-height:1.05;
+  }
+  .runnit-stats-v2 .stats-v2-tile small {
+    margin-top:1px;
+    font-size:7px;
+  }
+  .runnit-stats-v2 .stats-v2-chart {
+    height:52px;
+    margin-top:2px;
+  }
+  .runnit-stats-v2 .stats-v2-bars {inset:7px 2px 0;gap:5px;}
+  .runnit-stats-v2 .stats-v2-bar-slot {gap:2px;}
+  .runnit-stats-v2 .stats-v2-bar-slot>strong {flex-basis:12px;font-size:9px;}
+  .runnit-stats-v2 .stats-v2-chart-lines {inset:0 0 12px;}
+  .runnit-stats-v2 .stats-v2-bar-label {font-size:8px;top:-12px;}
+  .runnit-stats-v2 .stats-v2-compare {
+    margin-top:3px;
+    gap:4px;
+  }
+  .runnit-stats-v2 .stats-v2-compare-card {
+    min-height:54px;
+    padding:4px 3px;
+    border-radius:11px 3px 11px 3px;
+  }
+  .runnit-stats-v2 .stats-v2-compare-card h3 {
+    gap:3px;
+    font-size:clamp(10px,2.75vw,12px);
+  }
+  .runnit-stats-v2 .stats-v2-compare-card h3 svg {
+    width:13px;height:13px;
+  }
+  .runnit-stats-v2 .stats-v2-compare-values {margin-top:5px;}
+  .runnit-stats-v2 .stats-v2-compare-values strong {
+    font-size:clamp(11px,2.9vw,13px);
+    line-height:1;
+  }
+  .runnit-stats-v2 .stats-v2-compare-values small {
+    font-size:clamp(6px,1.6vw,7px);
+    margin-top:2px;
+    line-height:1.08;
+  }
+  .runnit-stats-v2 .stats-v2-caption {
+    font-size:8px;
+    line-height:1.13;
+    margin-top:2px;
+  }
+  .runnit-stats-v2 .stats-v2-record-grid {
+    margin-top:3px;
+    gap:4px;
+  }
+  .runnit-stats-v2 .stats-v2-record {
+    min-height:38px;
+    padding:4px 4px;
+    border-radius:10px 4px 10px 4px;
+  }
+  .runnit-stats-v2 .stats-v2-record span {font-size:10px;}
+  .runnit-stats-v2 .stats-v2-record strong {
+    font-size:clamp(10px,2.9vw,13px);
+    margin-top:4px;
+  }
+  .runnit-stats-v2 .stats-v2-form-body {
+    grid-template-columns:minmax(83px,31%) minmax(0,1fr);
+    gap:4px;
+    margin-top:1px;
+  }
+  .runnit-stats-v2 .stats-v2-speed {max-width:92px;}
+  .runnit-stats-v2 .stats-v2-speed-center strong {font-size:18px;}
+  .runnit-stats-v2 .stats-v2-speed-center span {font-size:6px;}
+  .runnit-stats-v2 .stats-v2-form-line,
+  .runnit-stats-v2 .stats-v2-goal-copy {
+    gap:4px;
+    padding:2px 0;
+  }
+  .runnit-stats-v2 .stats-v2-form-line>svg,
+  .runnit-stats-v2 .stats-v2-goal-copy>svg {
+    width:15px;height:15px;
+  }
+  .runnit-stats-v2 .stats-v2-form-line span,
+  .runnit-stats-v2 .stats-v2-goal-copy span {font-size:7px;}
+  .runnit-stats-v2 .stats-v2-form-line strong,
+  .runnit-stats-v2 .stats-v2-goal-copy strong {
+    font-size:10px;
+    margin-top:1px;
+  }
+  .runnit-stats-v2 .stats-v2-progress {margin-top:3px;height:7px;}
+  .runnit-stats-v2 .stats-v2-goal-details {
+    margin-top:2px;
+  }
+  .runnit-stats-v2 .stats-v2-goal-details>summary {
+    min-height:15px;
+    font-size:9px;
+  }
+  .runnit-stats-v2 .stats-v2-history>summary {min-height:15px;}
+  .runnit-stats-v2 .stats-v2-history ol {margin-top:4px;}
+  .runnit-stats-v2 .stats-v2-safety {
+    font-size:8px;
+    line-height:1.2;
+    padding:1px 2px;
+  }
+  .runnit-stats-v2 .stats-v2-next {
+    padding:8px;
+    font-size:11px;
+  }
+}
+/* Short descriptions retain truthful context but are one readable line in
+   the default mini view. Longer records and settings remain expandable. */
+
+
+/* FINAL MINI VERTICAL FIT — screenshot comparison 18:59 against the approved
+ * STATS layout. The first four panels already match; avoid shrinking them
+ * again. Give the fifth (AKTUELLE FORM) its full visible area above the fixed
+ * dock. All selectors are STATS-only, not BottomNav or other routes. */
+@media (max-width:480px) and (max-height:900px) {
+  /* Recover just enough height above the first card; the stadium stays intact.
+     The title and its two-line introduction still fit inside the hero. */
+  .runnit-stats-v2 .stats-v2-hero {
+    height:clamp(78px,9.95dvh,86px);
+    min-height:78px;
+  }
+  .runnit-stats-v2 .stats-v2-form {
+    position:relative;
+    padding-bottom:4px;
+  }
+  /* Keep the gauge prominent, but do not let it force the entire card tall. */
+  .runnit-stats-v2 .stats-v2-form-body {
+    grid-template-columns:minmax(78px,29%) minmax(0,1fr);
+    gap:3px;
+    margin-top:0;
+    align-items:center;
+  }
+  .runnit-stats-v2 .stats-v2-speed {
+    max-width:85px;
+  }
+  .runnit-stats-v2 .stats-v2-form-line,
+  .runnit-stats-v2 .stats-v2-goal-copy {
+    padding:1px 0;
+    gap:4px;
+  }
+  .runnit-stats-v2 .stats-v2-form-line strong,
+  .runnit-stats-v2 .stats-v2-goal-copy strong {
+    margin-top:0;
+  }
+  .runnit-stats-v2 .stats-v2-progress {
+    margin-top:2px;
+    height:7px;
+  }
+  /* In the collapsed state, edit-goal is a tiny action on the heading's
+     right, not an additional row that extends below the bottom dock.
+     Expanding restores normal flow so the Supabase form remains accessible. */
+  .runnit-stats-v2 .stats-v2-goal-details:not([open]) {
+    position:absolute;
+    top:5px;
+    right:8px;
+    margin:0;
+    border:0;
+    background:none;
+    z-index:3;
+  }
+  .runnit-stats-v2 .stats-v2-goal-details:not([open]) > summary {
+    min-height:16px;
+    white-space:nowrap;
+    font-size:clamp(7px,1.95vw,9px);
+    color:#bff8ff;
+    gap:2px;
+  }
+  .runnit-stats-v2 .stats-v2-goal-details:not([open]) > summary span {
+    font-size:13px;
+  }
+  .runnit-stats-v2 .stats-v2-goal-details[open] {
+    position:static;
+    margin-top:5px;
+    border-top:1px solid #55bfe65c;
+  }
+}
+/* On very narrow screens, prevent the top-right collapsed action from
+ * intruding into the form heading. It remains keyboard/touch accessible. */
+@media (max-width:345px) and (max-height:900px) {
+  .runnit-stats-v2 .stats-v2-goal-details:not([open]) > summary {
+    font-size:7px;
+    letter-spacing:-.04em;
+  }
+}
+
+
+/* Mini STATS: read the four real duel results without increasing the card.
+ * At 375 CSS px the equal-width fourth column clips/presses "100%" against
+ * the separator. Transfer a few pixels from the first three columns to the
+ * percentage column; do not change the panel height, fonts elsewhere or nav.
+ * Solo's three metrics retain their separate existing grid. */
+@media (max-width:480px) and (max-height:900px) {
+  .runnit-stats-v2 .stats-v2-compare-card:not(.stats-v2-compare-card--solo) .stats-v2-compare-values {
+    grid-template-columns:
+      minmax(0,.88fr) minmax(0,.83fr) minmax(0,.80fr) minmax(0,1.49fr);
+  }
+  .runnit-stats-v2 .stats-v2-compare-card:not(.stats-v2-compare-card--solo) .stats-v2-compare-values>div {
+    padding-inline:0;
+  }
+  .runnit-stats-v2 .stats-v2-compare-card:not(.stats-v2-compare-card--solo) .stats-v2-compare-values>div:last-child {
+    padding-left:3px;
+  }
+  .runnit-stats-v2 .stats-v2-compare-card:not(.stats-v2-compare-card--solo) .stats-v2-compare-values>div:last-child strong {
+    font-size:clamp(10px,2.75vw,12px);
+    letter-spacing:-.045em;
+  }
+  .runnit-stats-v2 .stats-v2-compare-values small {
+    white-space:nowrap;
+    color:#e5f3ff;
+    text-shadow:0 1px 2px #02091c;
+  }
+}
+
+
+/* REFERENCE IMAGE MATCH PASS (2026-11-19).
+ * Scoped artwork refinement for the user's chosen neon STATS mockup. All
+ * graphics are static decoration; live values, bars, gauge and buttons remain
+ * actual UI. Deliberately does NOT alter shared BottomNav or card dimensions. */
+
+/* Exact composition of the target logo: RUNNIT centred between three cyan
+ * speed-stripes, not the old text plus lone "≡" at the right. */
+.runnit-stats-v2 .stats-v2-brand {
+  left:50%;
+  right:auto;
+  top:0;
+  transform:translateX(-50%);
+  width:min(72vw,360px);
+  height:48px;
+  background:url('/runnit-stats-logo-speedlines.svg') center/contain no-repeat;
+  font-size:0;
+  line-height:0;
+  letter-spacing:0;
+  text-shadow:none;
+}
+
+/* The existing stadium photograph stays a single image, brighter and more
+ * recognizable through the header; all of the panel glazing is a separate
+ * transparent art layer, never a screenshot with baked-in demo numbers. */
+.runnit-stats-v2 .stats-v2-scene {
+  background:
+    linear-gradient(180deg,#04071f10 0%,#0307240d 150px,#07112c78 290px,#060d2bcc 470px,#070b26ee 720px,#080925 100%),
+    url('/runnit-stats-stadium.webp') center top/100% auto no-repeat;
+  background-color:#070b26;
+}
+.runnit-stats-v2 .stats-v2-hero h1 {
+  text-shadow:1px 2px 0 #33166b,0 0 12px #fefaff46;
+}
+.runnit-stats-v2 .stats-v2-hero h1 em {
+  color:#caff00;
+  text-shadow:0 0 12px #aaff1426,1px 2px #143020;
+}
+.runnit-stats-v2 .stats-v2-kicker {
+  color:#36f4ff;
+  text-shadow:0 0 7px #00e5ff9f;
+}
+
+/* The reference has bright rounded arcade borders with metallic reflections,
+ * cyan upper-left illumination and magenta lower-right edge glow. */
+.runnit-stats-v2 .stats-v2-panel {
+  background:
+    url('/runnit-stats-panel-sheen.svg') center/100% 100% no-repeat,
+    radial-gradient(ellipse at 0 0,#11b8fa16,transparent 54%),
+    linear-gradient(146deg,#11274bfa,#0b1a37f5 54%,#211037f9);
+  border:1.5px solid #55e9fa;
+  border-right-color:#a46cf4;
+  border-bottom-color:#ed33e2;
+  border-radius:19px;
+  box-shadow:
+    inset 0 1px 0 #f8ffff81,
+    inset 1px 0 0 #8df3ff30,
+    inset -1px 0 0 #e852f224,
+    0 0 9px #15edff67,
+    0 0 13px #b229ea3a,
+    0 2px 13px #02081ab0;
+}
+.runnit-stats-v2 .stats-v2-panel::after {
+  opacity:.55;
+}
+.runnit-stats-v2 .stats-v2-stripes {
+  display:inline-block;
+  flex:0 0 auto;
+  width:clamp(24px,6.6vw,40px);
+  height:clamp(16px,4vw,22px);
+  padding:0;
+  font-size:0;
+  letter-spacing:0;
+  background:url('/runnit-stats-diagonal-stripes.svg') left center/100% 100% no-repeat;
+  filter:drop-shadow(0 0 4px #09eaffb7);
+  transform:none;
+}
+.runnit-stats-v2 .stats-v2-section-head h2 {
+  color:#f9fcff;
+  text-shadow:0 1px 3px #00081c,0 0 8px #ffffff18;
+}
+.runnit-stats-v2 .stats-v2-head-detail svg {
+  color:#ceff0d;
+  filter:drop-shadow(0 0 5px #caff0a7d);
+}
+
+/* Each miniature data-tile uses the target's transparent neon glass instead
+ * of a flat navy rectangle. Keep their exact responsive heights unchanged. */
+.runnit-stats-v2 .stats-v2-tile {
+  background:
+    linear-gradient(150deg,#a5f8ff18 0%,transparent 21% 68%,#bb2aff0f),
+    linear-gradient(150deg,#0b3351fa,#081b35f9 69%,#0a1630f8);
+  border:1.35px solid #1ecbe8;
+  border-radius:14px;
+  box-shadow:inset 0 1px 0 #d3ffff58,0 0 7px #1cecff49;
+}
+.runnit-stats-v2 .stats-v2-tile-icon {
+  color:#10f1ff;
+  filter:drop-shadow(0 0 5px #00f7ffae);
+}
+.runnit-stats-v2 .stats-v2-chart {
+  background:
+    repeating-linear-gradient(90deg,transparent 0 51px,#89dafa12 52px 53px,transparent 54px 101px),
+    linear-gradient(180deg,#061c3854,#07142c10);
+}
+.runnit-stats-v2 .stats-v2-chart-lines i {
+  background:#54bcf95e;
+}
+.runnit-stats-v2 .stats-v2-bar-fill.is-peak {
+  background:linear-gradient(180deg,#e8ff50,#baff06 65%,#45a346);
+  box-shadow:inset 0 1px #f9ffdc,0 0 10px #bcff11c1;
+}
+.runnit-stats-v2 .stats-v2-compare-card {
+  background:
+    linear-gradient(148deg,#a6f4ff1b 0%,transparent 35%),
+    linear-gradient(142deg,#0e3c5ef7,#08172fef);
+  border-color:#18d9f9;
+  border-radius:15px;
+  box-shadow:inset 0 1px 0 #ddffff64,0 0 8px #00edff53;
+}
+.runnit-stats-v2 .stats-v2-compare-card--solo {
+  background:
+    linear-gradient(148deg,#cdff6812 0%,transparent 40%),
+    linear-gradient(142deg,#14412ce9,#061d2feb);
+  border-color:#caff05;
+  box-shadow:inset 0 1px 0 #edffbb48,0 0 8px #beff235b;
+}
+.runnit-stats-v2 .stats-v2-record {
+  border-radius:13px;
+  border-color:#17e6f6;
+  border-bottom-color:#ff27ec;
+  background:
+    linear-gradient(137deg,#93f5ff15 0%,transparent 33%),
+    radial-gradient(ellipse at 90% 100%,#e32ffa28,transparent 45%),
+    linear-gradient(150deg,#103052f5,#07172eef 54%,#201038f5);
+  box-shadow:inset 0 1px #d2ffff48,0 0 7px #15f3fa4c,0 2px 5px #9e26b423;
+}
+.runnit-stats-v2 .stats-v2-form-body {
+  position:relative;
+}
+.runnit-stats-v2 .stats-v2-form-body::before {
+  content:"";
+  position:absolute;
+  top:4px;
+  bottom:2px;
+  left:31.5%;
+  width:1px;
+  background:linear-gradient(180deg,transparent,#b4e9ff8c 25%,#c4dfff9c 80%,transparent);
+  pointer-events:none;
+}
+.runnit-stats-v2 .stats-v2-form-line,
+.runnit-stats-v2 .stats-v2-goal-copy {
+  border-bottom-color:#99d7ff55;
+}
+.runnit-stats-v2 .stats-v2-progress {
+  border-color:#87efffc9;
+  box-shadow:inset 0 1px 4px #010817,0 0 5px #15f4ff4c;
+}
+.runnit-stats-v2 .stats-v2-speed-progress-glow {
+  opacity:.56;
+}
+
+/* Screen ratio differs between the mockup (9:16) and iPhone 13 mini (~9:19).
+ * Move the art-only brand upward into the safe-area gap while preserving every
+ * readable content row and all existing compact panel heights. */
+@media (max-width:480px) and (max-height:900px) {
+  .runnit-stats-v2 .stats-v2-brand {
+    top:-20px;
+    width:min(72vw,300px);
+    height:40px;
+  }
+  .runnit-stats-v2 .stats-v2-hero h1 {
+    letter-spacing:-.064em;
+  }
+  .runnit-stats-v2 .stats-v2-panel {border-radius:16px;}
+  .runnit-stats-v2 .stats-v2-tile {border-radius:12px;}
+  .runnit-stats-v2 .stats-v2-record {border-radius:11px;}
+}
+@media (prefers-reduced-motion:reduce) {
+  .runnit-stats-v2 .stats-v2-panel,
+  .runnit-stats-v2 .stats-v2-tile {transition:none;}
+}
