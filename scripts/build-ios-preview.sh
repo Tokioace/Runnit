@@ -26,5 +26,7 @@ python3 verify-ios-project.py --verify
 plutil -lint ios/App/App/Info.plist
 xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
   -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-  -derivedDataPath "$PWD/derived" CODE_SIGNING_ALLOWED=NO build
+  -derivedDataPath "$PWD/derived" CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=YES CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" build
 python3 verify-ios-project.py --verify-built-app
+# Local simulator signature only; no Apple account or distribution certificate.
+codesign --verify derived/Build/Products/Debug-iphonesimulator/App.app
