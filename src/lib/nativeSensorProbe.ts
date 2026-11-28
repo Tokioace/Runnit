@@ -68,7 +68,7 @@ export function createNativeProbe(bridge:Bridge){
  return {
   async start():Promise<ProbeReport|'permission-requested'|'permission-denied'>{
    const raw=await invoke('startProbe');
-   if(raw&&typeof raw==='object'&&'status' in raw){
+   if(raw && typeof raw === 'object' && ('status' in raw)){
     if(raw.status==='permission-requested')return 'permission-requested';
     if(raw.status==='permission-denied')return 'permission-denied';
    }
